@@ -6,4 +6,4 @@ ImRAD runs on Windows and Linux.
 
 # Download binaries
 
-[Releases](github.com/tpecholt/imrad/releases)
+[Releases](https://github.com/tpecholt/imrad/releases)
