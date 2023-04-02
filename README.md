@@ -16,3 +16,7 @@ ImRAD is under development but these are the main features:
 # Download binaries
 
 [Releases](https://github.com/tpecholt/imrad/releases)
+
+# Screenshots
+
+![screen1](doc/screen1.png)
