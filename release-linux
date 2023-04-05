@@ -1,0 +1,18 @@
+#!/bin/sh
+if [ "$#" -ne 1 ]; then
+echo "please specify release version"
+exit 1
+fi
+
+rm -rf install
+mkdir install
+cd work
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install ..
+sudo make -j8 install
+if [ "$?" -ne 0 ]; then 
+exit 1
+fi
+cd ../install
+mv latest imrad-$1
+zip -r imrad-$1-linux64.zip . 
+
