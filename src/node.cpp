@@ -34,66 +34,6 @@ std::string Str(const ImVec4& c)
 	return os.str();
 }
 
-/*std::string UIContext::ToVarArgs(const std::string& format)
-{
-	std::string str = "\"";
-	std::string args;
-	for (size_t i = 0; i < format.size(); ++i)
-	{
-		if (format[i] == '{')
-		{
-			if (i + 1 < format.size() && format[i + 1] == '{')
-			{
-				str += "{";
-				++i;
-			}
-			else
-			{
-				auto j = format.find('}', i + 1);
-				if (j == std::string::npos)
-					break;
-				std::string name = format.substr(i + 1, j - i - 1);
-				const CppGen::Var* var = codeGen->GetVar(name, "");
-				if (!var)
-					return "\"bad format\"";
-				else if (var->type == "int")
-				{
-					str += "%d";
-					args += ", " + name;
-				}
-				else if (var->type == "float")
-				{
-					str += "%f";
-					args += ", " + name;
-				}
-				else if (var->type == "std::string")
-				{
-					str += "%s";
-					args += ", " + name + ".c_str()";
-				}
-				else
-					return "\"bad format\"";;
-				i = j;
-			}
-		}
-		else if (format[i] == '}')
-		{
-			if (i + 1 < format.size() && format[i + 1] == '}')
-			{
-				str += "}";
-				++i;
-			}
-		}
-		else
-		{
-			str += format[i];
-		}
-	}
-	str += "\"";
-	str += args;
-	return str;x
-}*/
-
 void UIContext::ind_up()
 {
 	ind += codeGen->INDENT;
@@ -576,11 +516,12 @@ void Widget::Draw(UIContext& ctx)
 	--ctx.level;
 	ctx.parent = lastParent;
 
-	if (!ctx.snapMode && ctx.hovered == lastHovered && ImGui::IsItemHovered())
+	bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+	if (!ctx.snapMode && ctx.hovered == lastHovered && hovered)
 	{
 		ctx.hovered = this;
 	}
-	if (!ctx.snapMode && ctx.selected == lastSel && ImGui::IsItemClicked())
+	if (!ctx.snapMode && ctx.selected == lastSel && hovered && ImGui::IsMouseClicked(0)) //IsItemClicked doesn't work when disabled
 	{
 		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 			toggle(ctx.selected, this);
@@ -597,7 +538,7 @@ void Widget::Draw(UIContext& ctx)
 			0, 0, selected ? 2.f : 1.f);
 	}
 	
-	if (ctx.snapMode && !ctx.snapParent && ImGui::IsItemHovered())
+	if (ctx.snapMode && !ctx.snapParent && hovered)
 	{
 		DrawSnap(ctx);
 	}
@@ -671,7 +612,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (!tooltip.empty())
 	{
-		os << ctx.ind << "if (ImGui::IsItemHovered())\n";
+		os << ctx.ind << "if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))\n";
 		ctx.ind_up();
 		os << ctx.ind << "ImGui::SetTooltip(" << tooltip.to_arg() << ");\n";
 		ctx.ind_down();
@@ -3096,7 +3037,6 @@ Child::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		//{ "style_padding", &stylePadding }, padding is already controlled by border
 		{ "style_color", &styleBg },
 		{ "border", &border },
 		{ "size_x", &size_x },
@@ -3113,11 +3053,6 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 	bool changed = false;
 	switch (i)
 	{
-	/*case 0:
-		ImGui::Text("style_padding");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##padding", stylePadding.access());
-		break;*/
 	case 0:
 		ImGui::Text("style_color");
 		ImGui::TableNextColumn();

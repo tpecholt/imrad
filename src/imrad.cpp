@@ -432,7 +432,7 @@ void ToolbarUI()
 	{
 		if (ImGui::Selectable(tb.label.c_str(), activeButton == tb.name, 0, ImVec2(BTN_SIZE, BTN_SIZE)))
 			NewWidget(tb.name);
-		if (ImGui::IsItemHovered() && tb.name != "")
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tb.name != "")
 			ImGui::SetTooltip(tb.name.c_str());
 
 		ImGui::NextColumn();
@@ -484,7 +484,7 @@ void TabsUI()
 			{
 				ImGui::EndTabItem();
 			}
-			if (ImGui::IsItemHovered() && tab.fname != "")
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tab.fname != "")
 				ImGui::SetTooltip(tab.fname.c_str());
 
 			if (!i)

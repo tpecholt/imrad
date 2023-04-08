@@ -46,7 +46,6 @@ struct UIContext
 	//convenience
 	void ind_up();
 	void ind_down();
-	std::string ToVarArgs(const std::string& f);
 };
 
 struct Widget;
