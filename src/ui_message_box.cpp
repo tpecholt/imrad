@@ -1,19 +1,21 @@
 #include "ui_message_box.h"
-#include <imgui_internal.h>
 
-MessageBoxxx messageBox;
+MessageBox messageBox;
 
-void MessageBoxxx::OpenPopup(std::function<void()> f)
+void MessageBox::OpenPopup(std::function<void()> f)
 {
 	callback = std::move(f);
-	ImGui::OpenPopup(ID);
+	requestOpen = true;
 }
 
-void MessageBoxxx::Draw()
+void MessageBox::Draw()
 {
+	if (requestOpen) {
+		requestOpen = false;
+		ImGui::OpenPopup(title.c_str());
+	}
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-	ID = ImGui::GetID(title.c_str());
 	bool open = true;
 	if (ImGui::BeginPopupModal(title.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
 	{

@@ -3,6 +3,7 @@
 #include <Windows.h>
 #undef min
 #undef max
+#undef MessageBox
 #endif
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -100,7 +101,9 @@ void ContinueOpenFile(const std::string& path)
 	file.time[1] = fs::last_write_time(file.codeGen.AltFName(file.fname), err);
 	file.rootNode = file.codeGen.Import(file.fname, messageBox.error);
 	if (!file.rootNode) {
+		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful import because of errors";
+		messageBox.buttons = MessageBox::OK;
 		messageBox.OpenPopup();
 		return;
 	}
@@ -115,7 +118,9 @@ void ContinueOpenFile(const std::string& path)
 	ctx.codeGen = &fileTabs[activeTab].codeGen;
 
 	if (messageBox.error != "") {
+		messageBox.title = "CodeGen";
 		messageBox.message = "Import finished with errors";
+		messageBox.buttons = MessageBox::OK;
 		messageBox.OpenPopup();
 	}
 }
@@ -138,7 +143,7 @@ void OpenFile()
 		if (it->modified) {
 			messageBox.message = "Reload and lose unsaved changes?";
 			messageBox.error = "";
-			messageBox.buttons = MessageBoxxx::Yes | MessageBoxxx::No;
+			messageBox.buttons = MessageBox::Yes | MessageBox::No;
 			messageBox.OpenPopup([=] {
 				ContinueOpenFile(outPath);
 				});
@@ -168,7 +173,7 @@ void ReloadFiles()
 		auto fn = fs::path(tab.fname).filename().string();
 		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
 		messageBox.error = "";
-		messageBox.buttons = MessageBoxxx::Yes | MessageBoxxx::No;
+		messageBox.buttons = MessageBox::Yes | MessageBox::No;
 		messageBox.OpenPopup([&] {
 			tab.rootNode = tab.codeGen.Import(tab.fname, messageBox.error);
 			tab.modified = false;
@@ -195,10 +200,12 @@ void SaveFile()
 			fs::path(tab.fname).stem().string());
 		trunc = true;
 	}
-
+	
 	if (!tab.codeGen.Export(tab.fname, trunc, tab.rootNode.get(), messageBox.error))
 	{
+		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
+		messageBox.buttons = MessageBox::OK;
 		messageBox.OpenPopup();
 		return;
 	}
@@ -209,7 +216,9 @@ void SaveFile()
 	tab.time[1] = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
 	if (messageBox.error != "")
 	{
+		messageBox.title = "CodeGen";
 		messageBox.message = "Export finished with errors";
+		messageBox.buttons = MessageBox::OK;
 		messageBox.OpenPopup();
 	}
 }

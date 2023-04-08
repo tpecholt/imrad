@@ -30,11 +30,11 @@ void NewFieldPopup::ClosePopup()
 
 void NewFieldPopup::Draw()
 {
-	std::string title = mode == NewField ? "New Field###Idiot" :
-		mode == NewStruct ? "New Struct###Idiot" :
-		mode == NewEvent ? "New Method###Idiot" :
-		mode == RenameField ? "Rename Field###Idiot" :
-		"Rename Window###Idiot";
+	std::string title = mode == NewField ? "New Field###NewFieldPopup" :
+		mode == NewStruct ? "New Struct###NewFieldPopup" :
+		mode == NewEvent ? "New Method###NewFieldPopup" :
+		mode == RenameField ? "Rename Field###NewFieldPopup" :
+		"Rename Window###NewFieldPopup";
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 12, 12 });
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 10 });
@@ -108,7 +108,7 @@ void NewFieldPopup::Draw()
 				auto ret = codeGen->CheckVarExpr(varName, type, scope);
 				if (ret == CppGen::New_ImplicitStruct) {
 					messageBox.message = "Create a new struct?";
-					messageBox.buttons = MessageBoxxx::Yes | MessageBoxxx::No;
+					messageBox.buttons = MessageBox::Yes | MessageBox::No;
 					messageBox.OpenPopup([this, type] {
 						codeGen->CreateVarExpr(varName, type, scope);
 						ClosePopup();

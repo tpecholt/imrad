@@ -4,7 +4,7 @@
 #include <string>
 #include <functional>
 
-class MessageBoxxx
+class MessageBox
 {
 public:
 	void OpenPopup(std::function<void()> f = {});
@@ -18,8 +18,8 @@ public:
 	int buttons = OK;
 
 private:
-	ImGuiID ID;
+	bool requestOpen = false;
 	std::function<void()> callback;
 };
 
-extern MessageBoxxx messageBox;
+extern MessageBox messageBox;
