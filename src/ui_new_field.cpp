@@ -107,31 +107,34 @@ void NewFieldPopup::Draw()
 					varType;
 				auto ret = codeGen->CheckVarExpr(varName, type, scope);
 				if (ret == CppGen::New_ImplicitStruct) {
+					messageBox.title = "New";
 					messageBox.message = "Create a new struct?";
 					messageBox.buttons = MessageBox::Yes | MessageBox::No;
-					messageBox.OpenPopup([this, type] {
+					messageBox.OpenPopup([this, type](ImRad::ModalResult mr) {
+						if (mr != MessageBox::Yes)
+							return;
 						codeGen->CreateVarExpr(varName, type, scope);
 						ClosePopup();
-						if (callback) callback();
+						callback();
 						});
 				}
 				else if (ret == CppGen::New) {
 					codeGen->CreateVarExpr(varName, type, scope);
 					ClosePopup();
-					if (callback) callback();
+					callback();
 				}
 			}
 			else if (mode == RenameField)
 			{
 				codeGen->RenameVar(varOldName, varName, scope);
 				ClosePopup();
-				if (callback) callback();
+				callback();
 			}
 			else if (mode == RenameWindow)
 			{
 				codeGen->SetNamesFromId(varName);
 				ClosePopup();
-				if (callback) callback();
+				callback();
 			}
 		}
 		ImGui::EndDisabled();

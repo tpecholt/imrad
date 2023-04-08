@@ -1,13 +1,13 @@
 #pragma once
 #include <imgui.h>
-#include <misc/cpp/imgui_stdlib.h>
 #include <string>
 #include <functional>
+#include "imrad.h"
 
 class MessageBox
 {
 public:
-	void OpenPopup(std::function<void()> f = {});
+	void OpenPopup(std::function<void(ImRad::ModalResult)> f = [](ImRad::ModalResult){});
 	void Draw();
 
 public:
@@ -19,7 +19,7 @@ public:
 
 private:
 	bool requestOpen = false;
-	std::function<void()> callback;
+	std::function<void(ImRad::ModalResult)> callback;
 };
 
 extern MessageBox messageBox;

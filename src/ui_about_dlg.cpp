@@ -29,22 +29,23 @@ void AboutDlg::ClosePopup()
 void AboutDlg::Draw()
 {
     /// @begin TopWindow
-    ImGui::SetNextWindowSize({ 300, 130 }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({ 300, 140 }, ImGuiCond_Appearing);
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ID = ImGui::GetID("About");
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("About", &tmpOpen, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal("About", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
         if (requestClose) ImGui::CloseCurrentPopup();
         /// @separator
 
         /// @begin Text
-        ImRad::AlignedText(ImRad::Align_Left, "ImRAD 0.1");
+        ImRad::AlignedText(ImRad::Align_Left, VER_STR.c_str());
         /// @end Text
 
         /// @begin Text
-        ImRad::AlignedText(ImRad::Align_Left, "visit");
+		ImGui::Spacing();
+		ImRad::AlignedText(ImRad::Align_Left, "visit");
         /// @end Text
 
         /// @begin Text

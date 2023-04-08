@@ -40,9 +40,8 @@ static void glfw_error_callback(int error, const char* description)
 
 const float TB_SIZE = 40;
 const float TAB_SIZE = 25; //todo examine
-bool firstTime;
-UIContext ctx;
-std::unique_ptr<Widget> newNode;
+const std::string UNTITLED = "Untitled";
+
 struct File
 {
 	std::string fname;
@@ -51,11 +50,16 @@ struct File
 	bool modified = false;
 	fs::file_time_type time[2];
 };
+
+bool firstTime;
+UIContext ctx;
+std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
 ImGuiID dock_id_top, dock_id_right, dock_id_right2;
 bool pgFocused;
 int styleIdx = 0;
+GLFWwindow* window = nullptr;
 
 struct TB_Button 
 {
@@ -92,7 +96,7 @@ void NewFile()
 	ctx.codeGen = &fileTabs.back().codeGen;
 }
 
-void ContinueOpenFile(const std::string& path)
+void DoOpenFile(const std::string& path)
 {
 	File file;
 	file.fname = path;
@@ -144,16 +148,17 @@ void OpenFile()
 			messageBox.message = "Reload and lose unsaved changes?";
 			messageBox.error = "";
 			messageBox.buttons = MessageBox::Yes | MessageBox::No;
-			messageBox.OpenPopup([=] {
-				ContinueOpenFile(outPath);
+			messageBox.OpenPopup([=](ImRad::ModalResult mr) {
+				if (mr == MessageBox::Yes)
+					DoOpenFile(outPath);
 				});
 		}
 		else {
-			ContinueOpenFile(outPath);
+			DoOpenFile(outPath);
 		}
 	}
 	else {
-		ContinueOpenFile(outPath);
+		DoOpenFile(outPath);
 	}
 }
 
@@ -174,7 +179,9 @@ void ReloadFiles()
 		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
 		messageBox.error = "";
 		messageBox.buttons = MessageBox::Yes | MessageBox::No;
-		messageBox.OpenPopup([&] {
+		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
+			if (mr != MessageBox::Yes)
+				return;
 			tab.rootNode = tab.codeGen.Import(tab.fname, messageBox.error);
 			tab.modified = false;
 			if (&tab == &fileTabs[activeTab])
@@ -184,15 +191,57 @@ void ReloadFiles()
 	}
 }
 
-void SaveFile()
+void DoCloseFile()
+{
+	ctx.selected.clear();
+	fileTabs.erase(fileTabs.begin() + activeTab);
+	if (activeTab == fileTabs.size())
+		--activeTab;
+	if (activeTab >= 0)
+		ctx.codeGen = &fileTabs[activeTab].codeGen;
+	else
+		ctx.codeGen = nullptr;
+}
+
+void SaveFile(bool thenClose = false);
+
+void CloseFile()
+{
+	if (activeTab < 0)
+		return;
+	if (fileTabs[activeTab].modified) {
+		messageBox.title = "Confirmation";
+		std::string fname = fs::path(fileTabs[activeTab].fname).filename().string();
+		if (fname.empty())
+			fname = UNTITLED;
+		messageBox.message = "Save changes to " + fname + "?";
+		messageBox.buttons = MessageBox::Yes | MessageBox::No | MessageBox::Cancel;
+		messageBox.OpenPopup([=](ImRad::ModalResult mr) {
+			if (mr == ImRad::Yes)
+				SaveFile(true);
+			else if (mr == ImRad::No)
+				DoCloseFile();
+			else
+				glfwSetWindowShouldClose(window, false);
+			});
+	}
+	else {
+		DoCloseFile();
+	}
+}
+
+void SaveFile(bool thenClose)
 {
 	auto& tab = fileTabs[activeTab];
 	bool trunc = false;
 	if (tab.fname == "") {
 		nfdchar_t *outPath = NULL;
 		nfdresult_t result = NFD_SaveDialog("h", NULL, &outPath);
-		if (result != NFD_OKAY)
+		if (result != NFD_OKAY) {
+			if (thenClose)
+				DoCloseFile();
 			return;
+		}
 		tab.fname = outPath;
 		if (!fs::path(tab.fname).has_extension())
 			tab.fname += ".h";
@@ -206,7 +255,10 @@ void SaveFile()
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
 		messageBox.buttons = MessageBox::OK;
-		messageBox.OpenPopup();
+		messageBox.OpenPopup([=](ImRad::ModalResult) {
+			if (thenClose)
+				DoCloseFile();
+			});
 		return;
 	}
 	
@@ -219,8 +271,15 @@ void SaveFile()
 		messageBox.title = "CodeGen";
 		messageBox.message = "Export finished with errors";
 		messageBox.buttons = MessageBox::OK;
-		messageBox.OpenPopup();
+		messageBox.OpenPopup([=](ImRad::ModalResult) {
+			if (thenClose)
+				DoCloseFile();
+			});
+		return;
 	}
+
+	if (thenClose)
+		DoCloseFile();
 }
 
 void NewWidget(const std::string& name)
@@ -477,7 +536,7 @@ void TabsUI()
 			const auto& tab = fileTabs[i];
 			std::string fname = fs::path(tab.fname).filename().string();
 			if (fname == "")
-				fname = "Untitled" + std::to_string(++untitled);
+				fname = UNTITLED + std::to_string(++untitled);
 			if (tab.modified)
 				fname += " *";
 			if (ImGui::BeginTabItem(fname.c_str(), &notClosed, i == activeTab ? ImGuiTabItemFlags_SetSelected : 0))
@@ -498,12 +557,10 @@ void TabsUI()
 			}
 			if (!notClosed)
 			{
-				fileTabs.erase(fileTabs.begin() + i);
-				if (activeTab > i || activeTab == fileTabs.size())
-					--activeTab;
+				activeTab = i;
 				ctx.selected.clear();
-				if (activeTab >= 0)
-					ctx.codeGen = &fileTabs[activeTab].codeGen;
+				ctx.codeGen = &fileTabs[activeTab].codeGen;
+				CloseFile();
 			}
 			else if (ImGui::IsItemActivated() && i != activeTab)
 			{
@@ -770,7 +827,7 @@ int main(int argc, const char* argv[])
 #endif
 
 	// Create window with graphics context
-	GLFWwindow* window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
+	window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
 	if (window == NULL)
 		return 1;
 	glfwMakeContextCurrent(window);
@@ -826,8 +883,20 @@ int main(int argc, const char* argv[])
 
 	firstTime = true;
 	bool lastVisible = true;
-	while (!glfwWindowShouldClose(window))
+	while (true)
 	{
+		if (glfwWindowShouldClose(window)) 
+		{
+#ifdef NDEBUG
+			if (fileTabs.empty())
+				break;
+			if (!ImGui::IsPopupOpen(-1, ImGuiPopupFlags_AnyPopupLevel))
+				CloseFile();
+#else
+			break;
+#endif
+		}
+
 		// Poll and handle events (inputs, window resize, etc.)
 		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
 		// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.

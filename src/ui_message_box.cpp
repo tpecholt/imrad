@@ -2,7 +2,7 @@
 
 MessageBox messageBox;
 
-void MessageBox::OpenPopup(std::function<void()> f)
+void MessageBox::OpenPopup(std::function<void(ImRad::ModalResult)> f)
 {
 	callback = std::move(f);
 	requestOpen = true;
@@ -37,43 +37,45 @@ void MessageBox::Draw()
 
 		int n = (bool)(buttons & OK) + (bool)(buttons & Cancel) + (bool)(buttons & Yes) + (bool)(buttons & No);
 		float w = (n * 80) + (n - 1) * ImGui::GetStyle().ItemSpacing.x;
-		float x = (ImGui::GetContentRegionAvail().x - w) / 2.f;
+		float x = (ImGui::GetContentRegionAvail().x + ImGui::GetStyle().FramePadding.x - w) / 2.f;
 		float y = ImGui::GetCursorPosY();
 		if (buttons & OK)
 		{
 			if (ImGui::IsWindowAppearing())
 				ImGui::SetKeyboardFocusHere();
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("OK", { 80, 40 }) ||
+			if (ImGui::Button("OK", { 80, 30 }) ||
 				(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			{
 				ImGui::CloseCurrentPopup();
-				if (callback) callback();
+				callback(ImRad::Ok);
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
 		if (buttons & Yes)
 		{
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("Yes", { 80, 40 })) {
+			if (ImGui::Button("Yes", { 80, 30 })) {
 				ImGui::CloseCurrentPopup();
-				if (callback) callback();
+				callback(ImRad::Yes);
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
 		if (buttons & No)
 		{
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("No", { 80, 40 })) {
+			if (ImGui::Button("No", { 80, 30 })) {
 				ImGui::CloseCurrentPopup();
+				callback(ImRad::No);
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
 		if (buttons & Cancel)
 		{
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("Cancel", { 80, 40 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			if (ImGui::Button("Cancel", { 80, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
 				ImGui::CloseCurrentPopup();
+				callback(ImRad::Cancel);
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
