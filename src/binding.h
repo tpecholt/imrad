@@ -135,6 +135,8 @@ struct event : property_base
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
+		if (empty())
+			return {};
 		return { str };
 	};
 	void rename_variable(const std::string& oldn, const std::string& newn)
@@ -436,13 +438,14 @@ struct bindable<std::string> : property_base
 				i = j + 2;
 			else {
 				i = j + 1;
-				size_t e = i + 1;
-				for (; e < str.size(); ++e)
-					if (!std::isalnum(str[e]) && str[e] != '_')
+				size_t e;
+				for (e = i + 1; e < str.size(); ++e)
+					if (str[e] == ':' || str[e] == '}')
 						break;
-				if (e == str.size())
+				if (e >= str.size())
 					break;
-				vars.push_back(str.substr(i, e - i));
+				if (e > i)
+					vars.push_back(str.substr(i, e - i));
 			}
 		}
 		return vars;

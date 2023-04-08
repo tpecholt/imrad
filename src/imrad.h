@@ -59,18 +59,39 @@ inline bool Combo(const char* label, int* curr, const std::vector<std::string>& 
 	return ImGui::Combo(label, curr, citems.data(), (int)citems.size(), maxh);
 }
 
-template <class A1>
-std::string Format(std::string_view fmt, A1&& arg)
+//this is a poor man Format and should be implemented using c++20 format or fmt library
+template <class A1, class... A>
+std::string Format(std::string_view fmt, A1&& arg, A... args)
 {
 	//todo
-	if (fmt.front() == '{' && fmt.back() == '}')
+	std::string s;
+	for (size_t i = 0; i < fmt.size(); ++i)
 	{
-		if constexpr (std::is_same_v<std::remove_reference_t<A1>, std::string>)
-			return arg;
+		if (fmt[i] == '{') {
+			if (i + 1 == fmt.size())
+				break;
+			if (fmt[i + 1] == '{')
+				s += '{';
+			else {
+				auto j = fmt.find('}', i + 1);
+				if (j == std::string::npos)
+					break;
+				if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
+					s += arg;
+				else
+					s += std::to_string(arg);
+				return s + Format(fmt.substr(j + 1), args...);
+			}
+		}
 		else
-			return std::to_string(arg);
+			s += fmt[i];
 	}
-	return "???";
+	return s;
+}
+
+inline std::string Format(std::string_view fmt)
+{
+	return std::string(fmt);
 }
 
 }

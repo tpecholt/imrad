@@ -528,32 +528,48 @@ namespace cpp
 		return str;
 	}
 
+	inline std::string unescape(std::string_view str)
+	{
+		std::string tmp;
+		for (size_t i = 0; i < str.size(); ++i)
+		{
+			switch (str[i])
+			{
+			default:
+				tmp += str[i];
+				break;
+			case '\\':
+				if (i + 1 == str.size())
+					break;
+				if (str[i + 1] == 't') {
+					tmp += '\t';
+					++i;
+				}
+				else if (str[i + 1] == 'n') {
+					tmp += '\n';
+					++i;
+				}
+				else if (str[i + 1] == '0') {
+					tmp += '\0';
+					++i;
+				}
+				else if (str[i + 1] == 'x' && i + 3 < str.size()) {
+					int h = std::tolower(str[i + 2]) >= 'a' ? str[i + 2] - 'a' + 10 : str[i + 2] - '0';
+					int l = std::tolower(str[i + 3]) >= 'a' ? str[i + 3] - 'a' + 10 : str[i + 3] - '0';
+					tmp += (char)(h * 16 + l);
+					i += 3;
+				}
+				break;
+			}
+		}
+		return tmp;
+	}
+
 	inline std::string parse_str_arg(std::string_view str)
 	{
 		if (is_cstr(str)) 
 		{
-			std::string tmp;
-			for (size_t i = 1; i + 1 < str.size(); ++i)
-			{
-				switch (str[i])
-				{
-				default:
-					tmp += str[i];
-					break;
-				case '\\':
-					if (str[i + 1] == 't')
-						tmp += '\t';
-					else if (str[i + 1] == 'n')
-						tmp += '\n';
-					else if (str[i + 1] == '0')
-						tmp += '\0';
-					else
-						break;
-					++i; //todo
-					break;
-				}
-			}
-			return tmp;
+			return unescape(str.substr(1, str.size() - 2));
 		}
 		else if (!str.compare(0, 15, "ImRad::Format(\"") &&
 				!str.compare(str.size() - 9, 9, ").c_str()")) 
@@ -568,6 +584,7 @@ namespace cpp
 					else
 						return i;
 				}
+				return std::string::npos;
 			};
 			std::istringstream is((std::string)str.substr(15 - 1, str.size() - 9 - 15 + 1));
 			token_iterator it(is);
@@ -580,12 +597,15 @@ namespace cpp
 				if (tok == "," || it == token_iterator()) {
 					if (expr != "") {
 						size_t i2 = find_curly(format, i);
-						if (i >= 0)
-							str += format.substr(i, i2 - i);
+						if (i2 == std::string::npos)
+							return str;
+						str += unescape(format.substr(i, i2 - i));
 						str += "{" + expr;
 						i = i2;
 						i2 = format.find("}", i);
-						str += format.substr(i + 1, i2 - i);
+						if (i2 == std::string::npos)
+							return str;
+						str += format.substr(i + 1, i2 - i); //copy formating code
 						i = i2 + 1;
 						expr = "";
 					}
@@ -596,11 +616,11 @@ namespace cpp
 					break;
 				++it;
 			}
-			str += format.substr(i);
+			str += unescape(format.substr(i));
 			return str;
 		}
 		else
-			return "";
+			return "???";
 	}
 
 	inline std::string to_str_arg(std::string_view str)
@@ -611,7 +631,17 @@ namespace cpp
 			switch (str[i])
 			{
 			default:
-				fmt += str[i];
+				if (str[i] & 0x80) { //utf8
+					int l = str[i] & 0xf;
+					int h = (str[i] >> 4) & 0xf;
+					l = l >= 10 ? l - 10 + 'a' : l + '0';
+					h = h >= 10 ? h - 10 + 'a' : h + '0';
+					fmt += "\\x";
+					fmt += h;
+					fmt += l;
+				}
+				else
+					fmt += str[i];
 				break;
 			case '\0': //Combo.items use it
 				fmt += "\\0";
