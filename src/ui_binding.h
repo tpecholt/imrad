@@ -16,18 +16,21 @@ public:
     void ClosePopup();
     void Draw();
 
+    std::string name;
     std::string expr;
     std::string type;
     CppGen* codeGen;
+    bool showAll;
 
 private:
     /// @impl
-    std::vector<std::string> vars;
+    std::vector<std::pair<std::string , std::string >> vars;
     void OnNewField();
     void OnVarClicked();
-	void Refresh();
-
+    void Refresh();
     ImGuiID ID;
+
+    bool requestOpen = false;
     bool requestClose = false;
     std::function<void(ImRad::ModalResult)> callback;
 

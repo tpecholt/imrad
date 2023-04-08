@@ -46,23 +46,21 @@ std::string typeid_name()
 }
 
 template <class T>
-inline bool BindingButton(int id, bindable<T>* val, const std::string& type, UIContext& ctx)
+inline bool BindingButton(const char* label, bindable<T>* val, const std::string& type, UIContext& ctx)
 {
-	std::string popup = "popup" + std::to_string(id);
-	ImGui::PushID(id);
 	bool has_var = !val->used_variables().empty();
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, has_var ? 0xff0080ff : 0xffffffff);
 	float sp = (ImGui::GetFrameHeight() - 11) / 2;
 	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sp);
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + sp);
-	ImGui::BeginChild(("child" + std::to_string(id)).c_str(), { 11, 11 }, true);
+	ImGui::BeginChild(("child" + std::string(label)).c_str(), { 11, 11 }, true);
 	bool pushed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered();
 	ImGui::EndChild();
 	ImGui::PopStyleColor();
-	ImGui::PopID();
 	if (pushed)
 	{
 		bindingDlg.codeGen = ctx.codeGen;
+		bindingDlg.name = label;
 		bindingDlg.expr = val->c_str();
 		bindingDlg.type = type;
 		bindingDlg.OpenPopup([val](ImRad::ModalResult) {
@@ -75,9 +73,9 @@ inline bool BindingButton(int id, bindable<T>* val, const std::string& type, UIC
 }
 
 template <class T>
-inline bool BindingButton(int id, bindable<T>* val, UIContext& ctx)
+inline bool BindingButton(const char* label, bindable<T>* val, UIContext& ctx)
 {
-	return BindingButton(id, val, typeid_name<T>(), ctx);
+	return BindingButton(label, val, typeid_name<T>(), ctx);
 }
 
 inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, UIContext& ctx)
@@ -205,9 +203,9 @@ inline bool InputFieldName(const char* label, std::string* val, const std::strin
 		const auto& vars = ctx.codeGen->GetVarExprs(type);
 		for (const auto& v : vars)
 		{
-			if (ImGui::Selectable(v.c_str(), v == val->c_str()))
+			if (ImGui::Selectable(v.first.c_str(), v.first == val->c_str()))
 			{
-				*val = v;
+				*val = v.first;
 				changed = true;
 			}
 		}

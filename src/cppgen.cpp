@@ -4,67 +4,10 @@
 #include <fstream>
 #include <cctype>
 #include <set>
-//#include <clang-c/Index.h>
 
 const std::string CppGen::INDENT = "    ";
 
 
-/*
-std::string unwrap(CXString str) 
-{
-	std::string s;
-	auto cstr = clang_getCString(str);
-	if (cstr)
-		s = cstr;
-	clang_disposeString(str);
-	return s;
-};
-
-CXChildVisitResult VisitAST(CXCursor cursor, CXCursor, CXClientData clientData)
-{
-	if (clang_Location_isFromMainFile(clang_getCursorLocation(cursor)) == 0)
-		return CXChildVisit_Continue;
-
-	auto* cppGen = (CppGen*)clientData;
-	CXCursorKind kind = clang_getCursorKind(cursor);
-	auto str = unwrap(clang_getCursorKindSpelling(kind));
-	auto name = unwrap(clang_getCursorSpelling(cursor));
-
-	cppGen->kokot += std::string(3 * cppGen->m_level, ' ') + str + ": " + name + "\n";
-
-	auto cm = unwrap(clang_Cursor_getRawCommentText(cursor));
-	if (cm != "")
-		cppGen->kokot += std::string(3 + 3 * cppGen->m_level, ' ') + "// " + cm + "\n";
-
-	auto translationUnit = clang_Cursor_getTranslationUnit(cursor);
-	auto range = clang_getCursorExtent(cursor);
-	CXToken* tokens = nullptr;
-	unsigned int numTokens = 0;
-
-	clang_tokenize(translationUnit,
-		range,
-		&tokens,
-		&numTokens);
-
-	
-	cppGen->kokot += std::string(2 + 2 * cppGen->m_level, ' ');
-	for (int i = 0; i < numTokens; ++i)
-	{
-		auto tok = unwrap(clang_getTokenSpelling(translationUnit, tokens[i]));
-		cppGen->kokot += tok + " ";
-	}
-	cppGen->kokot += "\n";
-	
-	clang_disposeTokens(translationUnit, tokens, numTokens);
-	
-	++cppGen->m_level;
-	clang_visitChildren(cursor, VisitAST, clientData);
-	--cppGen->m_level;
-
-	return CXChildVisit_Continue;
-}*/
-
-//------------------------------------------------------------------------
 CppGen::CppGen()
 	: m_name("Untitled"), m_vname("untitled")
 {
@@ -710,34 +653,6 @@ CppGen::ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& i
 	return {};
 }
 
-/*{
-	const char* args[] {
-	  "-std=c++14",
-	  "-fparse-all-comments" //still only retrieves comments for fields
-	  //"-I/usr/include",
-	  //"-I/usr/local/include"
-	};
-	CXIndex index = clang_createIndex(true, false);
-	CXTranslationUnit unit = clang_parseTranslationUnit(
-		index,
-		path.c_str(), args, std::size(args),
-		nullptr, 0,
-		CXTranslationUnit_None);
-	if (!unit) {
-		err = "parsing error ";
-		return {};
-	}
-
-	m_level = 0;
-	CXCursor cursor = clang_getTranslationUnitCursor(unit);
-	kokot = "";
-	clang_visitChildren(cursor, VisitAST, this);
-	err = kokot;
-	clang_disposeTranslationUnit(unit);
-	clang_disposeIndex(index);
-	return {};
-}*/
-
 std::string CppGen::CreateVar(const std::string& type, const std::string& init, int flags, const std::string& scope)
 {
 	auto vit = m_fields.find(scope);
@@ -993,10 +908,10 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type, const std
 //type==size_t accepts all size_t, int, vec.size()
 //type==void() accepts all functions
 //vector, array are searched recursively
-std::vector<std::string> 
+std::vector<std::pair<std::string, std::string>> //(name, type) 
 CppGen::GetVarExprs(const std::string& type)
 {
-	std::vector<std::string> ret;
+	std::vector<std::pair<std::string, std::string>> ret;
 	bool isFun = !type.compare(0, 5, "void(");
 	for (const auto& f : m_fields[""])
 	{
@@ -1004,7 +919,7 @@ CppGen::GetVarExprs(const std::string& type)
 		if (!f.type.compare(0, 5, "void("))
 		{
 			if (f.type == type)
-				ret.push_back(f.name);
+				ret.push_back({ f.name, f.type });
 		}
 		//arrays
 		else if (!f.type.compare(0, 12, "std::vector<") ||
@@ -1016,14 +931,17 @@ CppGen::GetVarExprs(const std::string& type)
 			auto j = f.type.find_last_of('>');
 			if (j == std::string::npos || j < i)
 				continue;
-			if (type == "[]" || f.type == type)
-				ret.push_back(f.name);
-			else if (type == "size_t")
-				ret.push_back(f.name + ".size()");
+			if (type == "" || type == "[]" || type == f.type)
+				ret.push_back({ f.name, f.type });
+			if (type == "" || type == "size_t")
+				ret.push_back({ f.name + ".size()", "size_t" });
 			else {
 				std::string stype = f.type.substr(i + 1, j - i - 1);
 				if (type == "" || stype == type)
-					ret.push_back(f.name + "[" + FOR_VAR + "]");
+					ret.push_back({ f.name + "[" + FOR_VAR + "]", stype });
+				/*todo: else if (!stype.compare(0, 10, "std::pair<"))
+				{
+				}*/
 				else
 				{
 					auto scope = m_fields.find(stype);
@@ -1032,7 +950,7 @@ CppGen::GetVarExprs(const std::string& type)
 					for (const auto& ff : scope->second)
 					{
 						if (type == "" || ff.type == type)
-							ret.push_back(f.name + "[" + FOR_VAR + "]." + ff.name);
+							ret.push_back({ f.name + "[" + FOR_VAR + "]." + ff.name, ff.type });
 					}
 				}
 			}
@@ -1041,7 +959,7 @@ CppGen::GetVarExprs(const std::string& type)
 		else if (type == "" || f.type == type ||
 			(type == "size_t" && f.type == "int"))
 		{
-			ret.push_back(f.name);
+			ret.push_back({ f.name, f.type });
 		}
 	}
 	return ret;

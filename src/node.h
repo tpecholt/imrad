@@ -262,8 +262,8 @@ struct Table : Widget
 	bindable<float> size_y = 0;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
-	field_ref<size_t> size_field;
-	
+	field_ref<size_t> row_count;
+
 	Table(UIContext&);
 	bool IsContainer() { return true; }
 	void DoDraw(UIContext& ctx);
@@ -279,10 +279,10 @@ struct Child : Widget
 	bindable<float> size_y = 0;
 	direct_val<bool> border = false;
 	direct_val<bool> stylePadding = true;
-	bindable<int> columns = 1;
-	direct_val<bool> columnsBorder = true;
+	bindable<int> column_count = 1;
+	direct_val<bool> column_border = true;
 	std::vector<bindable<float>> columnsWidths{ 0.f };
-	field_ref<size_t> size_field;
+	field_ref<size_t> data_size;
 	bindable<color32> styleBg;
 
 	Child(UIContext& ctx);

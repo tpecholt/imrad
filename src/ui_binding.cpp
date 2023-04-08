@@ -7,15 +7,35 @@
 BindingDlg bindingDlg;
 
 
+void BindingDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
+{
+	callback = clb;
+	requestOpen = true;
+	requestClose = false;
+	ImGui::OpenPopup(ID);
+
+	// Add your init code here
+	showAll = type == "std::string";
+	Refresh();
+}
+
+void BindingDlg::ClosePopup()
+{
+	requestClose = true;
+}
+
 void BindingDlg::Draw()
 {
     /// @begin TopWindow
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
-    ImGui::SetNextWindowSize({ 360, 480 }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({ 480, 480 }, ImGuiCond_Appearing);
+    if (requestOpen) {
+        requestOpen = false;
+        ImGui::OpenPopup("Binding");
+    }
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ID = ImGui::GetID("Binding");
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Binding", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
@@ -26,36 +46,63 @@ void BindingDlg::Draw()
 		newFieldPopup.Draw();
 
         /// @begin Text
-        ImRad::AlignedText(ImRad::Align_Left, "Expression:");
+        ImGui::PushStyleColor(ImGuiCol_Text, 0xff4d4dff);
+        ImRad::AlignedText(ImRad::Align_Left, ImRad::Format(" {}=", name).c_str());
+        ImGui::PopStyleColor();
         /// @end Text
 
         /// @begin Input
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_None); 
+        ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_None);
         /// @end Input
 
-	    /// @begin Text
-		ImGui::Spacing();
-        ImRad::AlignedText(ImRad::Align_Left, "Available fields:");
-        /// @end Text
-
-		/// @begin Text
-		if (type != "std::string")
-		{
-			ImGui::SameLine();
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-			ImGui::SetNextItemWidth(-1);
-			ImRad::AlignedText(ImRad::Align_Right, type.c_str());
-			ImGui::PopStyleColor();
-		}
-		/// @end Text
-
-		/// @begin Table
-        if (ImGui::BeginTable("table1781119594448", 1, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_RowBg, { 0, -44 }))
+        /// @begin Table
+        ImGui::Spacing();
+        if (ImGui::BeginTable("table2292654500064", 3, ImGuiTableFlags_None, { 0, 0 }))
         {
-            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_None, 0);
+            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0);
+            ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthStretch, 0);
+            ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 0);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            /// @separator
+
+            /// @begin Text
+            ImGui::AlignTextToFramePadding();
+            ImRad::AlignedText(ImRad::Align_Left, "Available fields:");
+            /// @end Text
+
+            /// @begin Child
+            ImGui::TableNextColumn();
+            ImGui::BeginChild("child2292652021456", { 0, 20 }, false);
+            {
+                /// @separator
+
+                /// @separator
+                ImGui::EndChild();
+            }
+            /// @end Child
+
+            /// @begin CheckBox
+            ImGui::TableNextColumn();
+            if (ImGui::Checkbox("show all", &showAll))
+                Refresh();
+            /// @end CheckBox
+
+
+            /// @separator
+            ImGui::EndTable();
+        }
+        /// @end Table
+
+        /// @begin Table
+        if (ImGui::BeginTable("table2292651633824", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 0, -44 }))
+        {
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
+            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);
+            ImGui::TableHeadersRow();
 
             for (size_t i = 0; i < vars.size(); ++i)
             {
@@ -64,11 +111,16 @@ void BindingDlg::Draw()
                 ImGui::PushID((int)i);
                 /// @separator
 
-				/// @begin Selectable
-				ImGui::Selectable(ImRad::Format("{}", vars[i]).c_str(), false, ImGuiSelectableFlags_DontClosePopups);
-				if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered())
-					OnVarClicked();
-				/// @end Selectable
+                /// @begin Selectable
+                ImGui::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 });
+                if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered())
+                    OnVarClicked();
+                /// @end Selectable
+
+                /// @begin Selectable
+                ImGui::TableNextColumn();
+                ImGui::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
+                /// @end Selectable
 
 
                 /// @separator
@@ -80,7 +132,7 @@ void BindingDlg::Draw()
 
         /// @begin Table
         ImGui::Spacing();
-        if (ImGui::BeginTable("table1781119967744", 3, ImGuiTableFlags_None, { 0, -1 }))
+        if (ImGui::BeginTable("table2292653111104", 3, ImGuiTableFlags_None, { 0, -1 }))
         {
             ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthFixed, 0);
@@ -90,7 +142,7 @@ void BindingDlg::Draw()
             /// @separator
 
             /// @begin Button
-            if (ImGui::Button("New Field...", { 0, 0 }))
+            if (ImGui::Button(" New Field... ", { 0, 0 }))
             {
                 OnNewField();
             }
@@ -98,7 +150,7 @@ void BindingDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
-            if (ImGui::Button("OK", { 70, 0 }))
+            if (ImGui::Button("OK", { 90, 0 }))
             {
                 ClosePopup();
                 callback(ImRad::Ok);
@@ -107,7 +159,7 @@ void BindingDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
-            if (ImGui::Button("Cancel", { 70, 0 }) ||
+            if (ImGui::Button("Cancel", { 90, 0 }) ||
                 ImGui::IsKeyPressed(ImGuiKey_Escape))
             {
                 ClosePopup();
@@ -128,24 +180,9 @@ void BindingDlg::Draw()
     /// @end TopWindow
 }
 
-void BindingDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
-{
-	callback = clb;
-	requestClose = false;
-	ImGui::OpenPopup(ID);
-
-	// Add your init code here
-	Refresh();
-}
-
 void BindingDlg::Refresh()
 {
-	vars = codeGen->GetVarExprs(type == "std::string" ? "" : type);
-}
-
-void BindingDlg::ClosePopup()
-{
-    requestClose = true;
+	vars = codeGen->GetVarExprs(showAll ? "" : type);
 }
 
 void BindingDlg::OnNewField()
@@ -161,8 +198,9 @@ void BindingDlg::OnNewField()
 
 void BindingDlg::OnVarClicked()
 {
+	int idx = ImGui::TableGetRowIndex() - 1; //header row
 	if (type == "std::string" || type == "std::vector<std::string>")
-		expr += "{" + vars[ImGui::TableGetRowIndex()] + "}";
+		expr += "{" + vars[idx].first + "}";
 	else
-		expr = vars[ImGui::TableGetRowIndex()];
+		expr = vars[idx].first;
 }

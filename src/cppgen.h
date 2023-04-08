@@ -44,7 +44,7 @@ public:
 	enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
 	VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");
 	bool CreateVarExpr(std::string& name, const std::string& type, const std::string& scope = "");
-	std::vector<std::string> GetVarExprs(const std::string& type);
+	std::vector<std::pair<std::string, std::string>> GetVarExprs(const std::string& type);
 
 private:
 	Var* FindVar(const std::string& name, const std::string& scope);
