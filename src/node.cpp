@@ -125,6 +125,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.level = 0;
 	ctx.groupLevel = 0;
 	ctx.parent = this;
+	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.modalPopup = modalPopup;
 	ctx.table = false;
@@ -555,7 +556,8 @@ void Widget::Draw(UIContext& ctx)
 		++ctx.groupLevel;
 	}
 	
-	auto lastSel = ctx.selected;
+	auto lastSel = ctx.selected; //this recognizes selection in a child widget
+	auto lastHovered = ctx.hovered;
 	auto* lastParent = ctx.parent;
 	ctx.parent = this;
 	++ctx.level;
@@ -574,6 +576,10 @@ void Widget::Draw(UIContext& ctx)
 	--ctx.level;
 	ctx.parent = lastParent;
 
+	if (!ctx.snapMode && ctx.hovered == lastHovered && ImGui::IsItemHovered())
+	{
+		ctx.hovered = this;
+	}
 	if (!ctx.snapMode && ctx.selected == lastSel && ImGui::IsItemClicked())
 	{
 		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -582,12 +588,15 @@ void Widget::Draw(UIContext& ctx)
 			ctx.selected = { this };
 		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 	}
-	if (stx::count(ctx.selected, this))
+	bool selected = stx::count(ctx.selected, this);
+	if (selected || ctx.hovered == this)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size, IM_COL32(255, 0, 0, 255));
+		dl->AddRect(cached_pos, cached_pos + cached_size, 
+			selected ? 0xff0000ff : 0x8000ffff,
+			0, 0, selected ? 2.f : 1.f);
 	}
-
+	
 	if (ctx.snapMode && !ctx.snapParent && ImGui::IsItemHovered())
 	{
 		DrawSnap(ctx);
@@ -2937,11 +2946,12 @@ void Child::DoDraw(UIContext& ctx)
 	//very weird - using border controls window padding
 	ImGui::BeginChild("", sz, border); 
 	//draw border for visual distinction
-	if (!border && !styleBg.has_value()) {
+	//not needed - hovered item gets highlited anyway
+	/*if (!border && !styleBg.has_value()) {
 		ImDrawList* dl = ImGui::GetWindowDrawList();
 		auto clr = ImGui::GetStyle().Colors[ImGuiCol_Border];
 		dl->AddRect(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr), 0, 0, 1);
-	}
+	}*/
 
 	if (column_count.has_value() && column_count.value() >= 2)
 	{

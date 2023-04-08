@@ -20,6 +20,7 @@ struct UIContext
 	//set from outside
 	bool snapMode = false;
 	std::vector<UINode*> selected;
+	UINode* hovered = nullptr; 
 	CppGen* codeGen = nullptr;
 	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
 	ImVec2 wpos;
