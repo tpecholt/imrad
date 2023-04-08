@@ -1489,7 +1489,7 @@ void Selectable::DoDraw(UIContext& ctx)
 		size.x = size_x.value();
 	if (size_y.has_value())
 		size.y = size_y.value();
-	ImGui::Selectable(text.c_str(), false, flags, size);
+	ImGui::Selectable(label.c_str(), false, flags, size);
 
 	if (clr)
 		ImGui::PopStyleColor();
@@ -1510,7 +1510,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	if (!onChange.empty())
 		os << "if (";
 	
-	os << "ImGui::Selectable(" << text.to_arg() << ", false, " 
+	os << "ImGui::Selectable(" << label.to_arg() << ", false, " 
 		<< flags.to_arg() << ", "
 		<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " })";
 	
@@ -1534,7 +1534,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Selectable"))
 	{
 		if (sit->params.size() >= 1)
-			text.set_from_arg(sit->params[0]);
+			label.set_from_arg(sit->params[0]);
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
 		if (sit->params.size() >= 4) {
@@ -1560,7 +1560,7 @@ Selectable::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "text", &text },
+		{ "label", &label },
 		{ "color", &color },
 		{ "selectable.flags", &flags },
 		{ "size_x", &size_x },
@@ -1575,12 +1575,12 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Selectable("text");
+		ImGui::Selectable("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##text", &text, ctx);
+		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("text", &text, ctx);
+		BindingButton("label", &label, ctx);
 		break;
 	case 1:
 		ImGui::Selectable("color");
@@ -1679,7 +1679,7 @@ void Button::DoDraw(UIContext& ctx)
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("", arrowDir);
 	else if (small)
-		ImGui::SmallButton(text.c_str());
+		ImGui::SmallButton(label.c_str());
 	else
 	{
 		ImVec2 size{ 0, 0 };
@@ -1687,7 +1687,7 @@ void Button::DoDraw(UIContext& ctx)
 			size.x = size_x.value();
 		if (size_y.has_value())
 			size.y = size_y.value();
-		ImGui::Button(text.c_str(), size);
+		ImGui::Button(label.c_str(), size);
 
 		//if (ctx.modalPopup && text.value() == "OK")
 			//ImGui::SetItemDefaultFocus();
@@ -1708,7 +1708,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	else if (small)
 	{
-		os << ctx.ind << "ImGui::SmallButton(" << text.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SmallButton(" << label.to_arg() << ");\n";
 	}
 	else
 	{
@@ -1718,7 +1718,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		if (!onChange.empty() || closePopup)
 			os << "if (";
 
-		os << "ImGui::Button(" << text.to_arg() << ", "
+		os << "ImGui::Button(" << label.to_arg() << ", "
 			<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " }"
 			<< ")";
 
@@ -1766,7 +1766,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		sit->callee == "ImGui::Button")
 	{
 		ctx.importLevel = sit->level;
-		text.set_from_arg(sit->params[0]);
+		label.set_from_arg(sit->params[0]);
 		
 		if (sit->params.size() >= 2) {
 			auto size = cpp::break_size(sit->params[1]);
@@ -1778,7 +1778,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		sit->callee == "ImGui::SmallButton")
 	{
 		ctx.importLevel = sit->level;
-		text.set_from_arg(sit->params[0]);
+		label.set_from_arg(sit->params[0]);
 	}
 	if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::ArrowButton")
@@ -1805,7 +1805,7 @@ Button::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "text", &text },
+		{ "label", &label },
 		{ "button.arrowDir", &arrowDir },
 		{ "button.modalResult", &modalResult },
 		{ "color", &color },
@@ -1823,12 +1823,12 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 	{
 	case 0:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
-		ImGui::Text("text");
+		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##text", &text, ctx);
+		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("text", &text, ctx);
+		BindingButton("label", &label, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 1:
@@ -1942,7 +1942,7 @@ void CheckBox::DoDraw(UIContext& ctx)
 {
 	static bool dummy;
 	dummy = init_value;
-	ImGui::Checkbox(text.c_str(), &dummy);
+	ImGui::Checkbox(label.c_str(), &dummy);
 }
 
 void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
@@ -1952,7 +1952,7 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 		os << "if (";
 
 	os << "ImGui::Checkbox("
-		<< text.to_arg() << ", "
+		<< label.to_arg() << ", "
 		<< "&" << field_name.c_str()
 		<< ")";
 	
@@ -1973,7 +1973,7 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Checkbox"))
 	{
 		if (sit->params.size())
-			text.set_from_arg(sit->params[0]);
+			label.set_from_arg(sit->params[0]);
 		
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
 		{
@@ -1996,7 +1996,7 @@ CheckBox::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "text", &text },
+		{ "label", &label },
 		{ "check.init_value", &init_value },
 		{ "check.field_name", &field_name },
 		});
@@ -2009,12 +2009,12 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("text");
+		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##text", &text, ctx);
+		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("text", &text, ctx);
+		BindingButton("label", &label, ctx);
 		break;
 	case 1:
 		ImGui::Text("init_value");
@@ -2077,7 +2077,7 @@ RadioButton::RadioButton(UIContext& ctx)
 
 void RadioButton::DoDraw(UIContext& ctx)
 {
-	ImGui::RadioButton(text.c_str(), valueID==0);
+	ImGui::RadioButton(label.c_str(), valueID==0);
 }
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
@@ -2086,7 +2086,7 @@ void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.errors.push_back("RadioButon: field_name variable doesn't exist");
 
 	os << ctx.ind << "ImGui::RadioButton("
-		<< text.to_arg() << ", "
+		<< label.to_arg() << ", "
 		<< "&" << field_name.c_str() << ", "
 		<< valueID << ");\n";
 }
@@ -2096,7 +2096,7 @@ void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::RadioButton")
 	{
 		if (sit->params.size())
-			text.set_from_arg(sit->params[0]);
+			label.set_from_arg(sit->params[0]);
 
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
 		{
@@ -2110,7 +2110,7 @@ RadioButton::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "text", &text },
+		{ "label", &label },
 		{ "radio.valueID", &valueID },
 		{ "field_name", &field_name },
 	});
@@ -2123,12 +2123,12 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("text");
+		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##text", &text, ctx);
+		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("text", &text, ctx);
+		BindingButton("label", &label, ctx);
 		break;
 	case 1:
 		ImGui::Text("valueID");
@@ -2184,13 +2184,13 @@ void Input::DoDraw(UIContext& ctx)
 	{
 		if (size_x.has_value())
 			ImGui::SetNextItemWidth(size_x.value());
-		ImGui::InputInt("", &itmp);
+		ImGui::InputInt("##", &itmp);
 	}
 	else if (type == "float")
 	{
 		if (size_x.has_value())
 			ImGui::SetNextItemWidth(size_x.value());
-		ImGui::InputFloat("", &ftmp);
+		ImGui::InputFloat("##", &ftmp);
 	}
 	else if (flags & ImGuiInputTextFlags_Multiline)
 	{
@@ -2199,16 +2199,16 @@ void Input::DoDraw(UIContext& ctx)
 			size.x = size_x.value();
 		if (size_y.has_value())
 			size.y = size_y.value();
-		ImGui::InputTextMultiline("", &stmp, size, flags);
+		ImGui::InputTextMultiline("##", &stmp, size, flags);
 	}
 	else
 	{
 		if (size_x.has_value())
 			ImGui::SetNextItemWidth(size_x.value());
 		if (hint != "")
-			ImGui::InputTextWithHint("", hint.c_str(), &stmp, flags);
+			ImGui::InputTextWithHint("##", hint.c_str(), &stmp, flags);
 		else
-			ImGui::InputText("", &stmp, flags);
+			ImGui::InputText("##", &stmp, flags);
 	}
 }
 

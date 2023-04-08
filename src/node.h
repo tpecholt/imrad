@@ -141,7 +141,7 @@ struct Text : Widget
 
 struct Selectable : Widget
 {
-	bindable<std::string> text = "text";
+	bindable<std::string> label = "label";
 	bindable<color32> color;
 	flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
 	bindable<float> size_x = 0;
@@ -160,7 +160,7 @@ struct Selectable : Widget
 
 struct Button : Widget
 {
-	bindable<std::string> text = "\xef\x80\x82 text";
+	bindable<std::string> label = "\xef\x80\x82 Search";
 	direct_val<ImGuiDir> arrowDir = ImGuiDir_None;
 	direct_val<bool> small = false;
 	bindable<float> size_x = 0;
@@ -181,7 +181,7 @@ struct Button : Widget
 
 struct CheckBox : Widget
 {
-	bindable<std::string> text = "text";
+	bindable<std::string> label = "label";
 	direct_val<bool> init_value = false;
 	field_ref<bool> field_name;
 	event<> onChange;
@@ -198,7 +198,7 @@ struct CheckBox : Widget
 
 struct RadioButton : Widget
 {
-	bindable<std::string> text = "text";
+	bindable<std::string> label = "label";
 	direct_val<int> valueID = 0;
 	field_ref<int> field_name;
 
