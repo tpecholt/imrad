@@ -67,7 +67,7 @@ struct UINode
 	virtual bool EventUI(int, UIContext& ctx) = 0;
 	virtual void Export(std::ostream&, UIContext& ctx) = 0;
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
-	
+
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
 	children_t children;
@@ -111,6 +111,7 @@ struct Widget : UINode
 	virtual void DoDraw(UIContext& ctx) = 0;
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
 	virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
+	virtual void CalcSizeEx(ImVec2 x1);
 };
 
 struct Separator : Widget
@@ -136,6 +137,7 @@ struct Text : Widget
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void CalcSizeEx(ImVec2 x1);
 };
 
 struct Selectable : Widget
@@ -292,6 +294,21 @@ struct Child : Widget
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+};
+
+struct CollapsingHeader : Widget
+{
+	bindable<std::string> label = "label";
+	bindable<bool> open = true;
+	
+	CollapsingHeader(UIContext& ctx);
+	bool IsContainer() { return true; }
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void CalcSizeEx(ImVec2 x1);
 };
 
 struct TopWindow : UINode

@@ -445,9 +445,7 @@ bool TopWindow::EventUI(int i, UIContext& ctx)
 std::unique_ptr<Widget> 
 Widget::Create(const std::string& name, UIContext& ctx)
 {
-	if (name == "Child")
-		return std::make_unique<Child>(ctx);
-	else if (name == "Text")
+	if (name == "Text")
 		return std::make_unique<Text>(ctx);
 	else if (name == "Selectable")
 		return std::make_unique<Selectable>(ctx);
@@ -463,6 +461,10 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Combo>(ctx);
 	else if (name == "Table")
 		return std::make_unique<Table>(ctx);
+	else if (name == "Child")
+		return std::make_unique<Child>(ctx);
+	else if (name == "CollapsingHeader")
+		return std::make_unique<CollapsingHeader>(ctx);
 	else
 		return {};
 }
@@ -502,17 +504,13 @@ void Widget::Draw(UIContext& ctx)
 	ctx.parent = this;
 	++ctx.level;
 	cached_pos = ImGui::GetCursorScreenPos();
-	auto x1 = ImGui::GetCursorPosX();
+	auto p1 = ImGui::GetCursorPos();
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
 	ImGui::PushID(this);
 	DoDraw(ctx);
 	ImGui::PopID();
 	ImGui::EndDisabled();
-	cached_size = ImGui::GetItemRectSize();
-	//corect size.x for wrapped text
-	ImGui::SameLine(0, 0);
-	cached_size.x = ImGui::GetCursorPosX() - x1;
-	ImGui::NewLine();
+	CalcSizeEx(p1);
 	--ctx.level;
 	ctx.parent = lastParent;
 
@@ -547,6 +545,11 @@ void Widget::Draw(UIContext& ctx)
 		ImGui::EndGroup();
 		--ctx.groupLevel;
 	}
+}
+
+void Widget::CalcSizeEx(ImVec2 p1)
+{
+	cached_size = ImGui::GetItemRectSize();
 }
 
 void Widget::Export(std::ostream& os, UIContext& ctx)
@@ -1259,6 +1262,14 @@ void Text::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 }
 
+void Text::CalcSizeEx(ImVec2 p1)
+{
+	cached_size = ImGui::GetItemRectSize();
+	ImGui::SameLine(0, 0);
+	cached_size.x = ImGui::GetCursorPosX() - p1.x;
+	ImGui::NewLine();
+}
+
 void Text::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!size_x.has_value() || size_x.value())
@@ -1643,53 +1654,52 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	if (!color.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << color.to_arg() << ");\n";
 
+	bool closePopup = ctx.modalPopup && modalResult != ImRad::None;
+	os << ctx.ind;
+	if (!onChange.empty() || closePopup)
+		os << "if (";
+	
 	if (arrowDir != ImGuiDir_None)
 	{
-		os << ctx.ind << "ImGui::ArrowButton(\"###arrow\", " << arrowDir.to_arg() << ");\n";
+		os << "ImGui::ArrowButton(\"###arrow\", " << arrowDir.to_arg() << ")";
 	}
 	else if (small)
 	{
-		os << ctx.ind << "ImGui::SmallButton(" << label.to_arg() << ");\n";
+		os << "ImGui::SmallButton(" << label.to_arg() << ")";
 	}
 	else
 	{
-		bool closePopup = ctx.modalPopup && modalResult != ImRad::None;
-
-		os << ctx.ind;
-		if (!onChange.empty() || closePopup)
-			os << "if (";
-
 		os << "ImGui::Button(" << label.to_arg() << ", "
 			<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " }"
 			<< ")";
+	}
 
-		if (!onChange.empty() || closePopup)
-		{
-			if (modalResult == ImRad::Cancel) {
-				os << " ||\n";
-				ctx.ind_up();
-				os << ctx.ind << "ImGui::IsKeyPressed(ImGuiKey_Escape)";
-				ctx.ind_down();
-			}
-			os << ")\n" << ctx.ind << "{\n";
+	if (!onChange.empty() || closePopup)
+	{
+		if (modalResult == ImRad::Cancel) {
+			os << " ||\n";
 			ctx.ind_up();
+			os << ctx.ind << "ImGui::IsKeyPressed(ImGuiKey_Escape)";
+			ctx.ind_down();
+		}
+		os << ")\n" << ctx.ind << "{\n";
+		ctx.ind_up();
 			
-			if (!onChange.empty())
-				os << ctx.ind << onChange.to_arg() << "();\n";
-			if (closePopup) {
-				os << ctx.ind << "ClosePopup();\n";
-				if (modalResult != ImRad::Cancel)
-					//no if => easier parsing
-					os << ctx.ind << "callback(" << modalResult.to_arg() << ");\n";
-			}
+		if (!onChange.empty())
+			os << ctx.ind << onChange.to_arg() << "();\n";
+		if (closePopup) {
+			os << ctx.ind << "ClosePopup();\n";
+			if (modalResult != ImRad::Cancel)
+				//no if => easier parsing
+				os << ctx.ind << "callback(" << modalResult.to_arg() << ");\n";
+		}
 
-			ctx.ind_down();			
-			os << ctx.ind << "}\n";
-		}
-		else
-		{
-			os << ";\n";
-		}
+		ctx.ind_down();			
+		os << ctx.ind << "}\n";
+	}
+	else
+	{
+		os << ";\n";
 	}
 
 	if (!color.empty())
@@ -3108,3 +3118,109 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 	return changed;
 }
 
+//---------------------------------------------------------
+
+CollapsingHeader::CollapsingHeader(UIContext& ctx)
+	: Widget(ctx)
+{
+}
+
+void CollapsingHeader::DoDraw(UIContext& ctx)
+{
+	if (open.has_value())
+		ImGui::SetNextItemOpen(open.value());
+	else
+		ImGui::SetNextItemOpen(true);
+
+	if (ImGui::CollapsingHeader(label.c_str()))
+	{
+		for (size_t i = 0; i < children.size(); ++i)
+		{
+			children[i]->Draw(ctx);
+		}
+	}
+}
+
+void CollapsingHeader::CalcSizeEx(ImVec2 p1)
+{
+	ImVec2 pad = ImGui::GetStyle().FramePadding;
+	cached_pos.x -= pad.x;
+	cached_size.x = ImGui::GetContentRegionAvail().x + 2 * pad.x;
+	cached_size.y = ImGui::GetCursorPosY() - p1.y - pad.y;
+}
+
+void CollapsingHeader::DoExport(std::ostream& os, UIContext& ctx)
+{
+	os << ctx.ind << "ImGui::SetNextItemOpen(";
+	if (open.has_value())
+		os << open.to_arg() << ", ImGuiCond_Appearing";
+	else
+		os << open.to_arg();
+	os << ");\n";
+
+	os << ctx.ind << "if (ImGui::CollapsingHeader(" << label.to_arg() << "))\n"
+		<< ctx.ind << "{\n";
+	ctx.ind_up();
+
+	os << ctx.ind << "/// @separator\n\n";
+
+	for (auto& child : children)
+		child->Export(os, ctx);
+
+	os << ctx.ind << "/// @separator\n";
+
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+}
+
+void CollapsingHeader::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemOpen")
+	{
+		if (sit->params.size() >= 1)
+			open.set_from_arg(sit->params[0]);
+	}
+	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::CollapsingHeader")
+	{
+		if (sit->params.size() >= 1)
+			label.set_from_arg(sit->params[0]);
+	}
+}
+
+std::vector<UINode::Prop>
+CollapsingHeader::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "label", &label },
+		{ "open", &open }
+		});
+	return props;
+}
+
+bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##label", &label, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("label", &label, ctx);
+		break;
+	case 1:
+		ImGui::Text("open");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##open", &open, true, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("open", &open, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 2, ctx);
+	}
+	return changed;
+}
