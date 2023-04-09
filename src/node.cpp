@@ -503,7 +503,7 @@ void Widget::Draw(UIContext& ctx)
 	++ctx.level;
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto x1 = ImGui::GetCursorPosX();
-	ImGui::BeginDisabled(disabled.has_value() && disabled.value());
+	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
 	ImGui::PushID(this);
 	DoDraw(ctx);
 	ImGui::PopID();
