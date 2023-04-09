@@ -60,6 +60,11 @@ inline bool Combo(const char* label, int* curr, const std::vector<std::string>& 
 }
 
 //this is a poor man Format and should be implemented using c++20 format or fmt library
+inline std::string Format(std::string_view fmt)
+{
+	return std::string(fmt);
+}
+
 template <class A1, class... A>
 std::string Format(std::string_view fmt, A1&& arg, A... args)
 {
@@ -87,11 +92,6 @@ std::string Format(std::string_view fmt, A1&& arg, A... args)
 			s += fmt[i];
 	}
 	return s;
-}
-
-inline std::string Format(std::string_view fmt)
-{
-	return std::string(fmt);
 }
 
 }
