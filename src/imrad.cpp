@@ -256,6 +256,7 @@ void SaveFile(bool thenClose)
 		tab.fname = outPath;
 		if (!fs::path(tab.fname).has_extension())
 			tab.fname += ".h";
+		ctx.fname = tab.fname;
 		tab.codeGen.SetNamesFromId(
 			fs::path(tab.fname).stem().string());
 		trunc = true;
