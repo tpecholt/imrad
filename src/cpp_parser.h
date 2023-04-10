@@ -682,30 +682,6 @@ error:
 		return "ImRad::Format(\"" + fmt + "\"" + args + ").c_str()";
 	}
 
-	inline std::array<std::string_view, 2> 
-		break_size(const std::string& str)
-	{
-		if (str.empty() || str[0] != '{' || str.back() != '}')
-			return { "", "" };
-		int level = 0;
-		int i;
-		for (i = 1; i < str.size(); ++i)
-		{
-			if (str[i] == '{' || str[i] == '(' || str[i] == '[')
-				++level;
-			if (str[i] == '}' || str[i] == ')' || str[i] == ']')
-				--level;
-			if (str[i] == ',' && !level)
-				break;
-		}
-		if (i == (int)str.size())
-			return { "", "" };
-		return { 
-			std::string_view(str.data() + 1, i - 1),
-			std::string_view(str.data() + i + 1, str.size() - i - 2) 
-		};
-	}
-	
 	inline std::pair<std::string, std::string> parse_size(const std::string& str)
 	{
 		std::pair<std::string, std::string> size;
@@ -713,15 +689,20 @@ error:
 		{
 			std::istringstream is(str.substr(1, str.size() - 2));
 			token_iterator it(is);
-			if (it == token_iterator())
-				return size;
-			size.first = *it++;
-			if (it == token_iterator() || *it != ",")
-				return size;
-			++it;
-			if (it == token_iterator())
-				return size;
-			size.second = *it++;
+			int level = 0, state = 0;
+			for (; it != token_iterator(); ++it)
+			{
+				if (*it == "{" || *it == "(" || *it == "[")
+					++level;
+				if (*it == "}" || *it == ")" || *it == "]")
+					--level;
+				if (*it == "," && !level)
+					state = 1;
+				else if (!state)
+					size.first += *it;
+				else
+					size.second += *it;
+			}
 		}
 		return size;
 	}

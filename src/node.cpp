@@ -1510,9 +1510,9 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
 		if (sit->params.size() >= 4) {
-			auto sz = cpp::break_size(sit->params[3]);
-			size_x.set_from_arg(sz[0]);
-			size_y.set_from_arg(sz[1]);
+			auto sz = cpp::parse_size(sit->params[3]);
+			size_x.set_from_arg(sz.first);
+			size_y.set_from_arg(sz.second);
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
@@ -1740,9 +1740,9 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		label.set_from_arg(sit->params[0]);
 		
 		if (sit->params.size() >= 2) {
-			auto size = cpp::break_size(sit->params[1]);
-			size_x.set_from_arg(size[0]);
-			size_y.set_from_arg(size[1]);
+			auto size = cpp::parse_size(sit->params[1]);
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
 		}
 	}
 	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
@@ -2709,7 +2709,8 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##file_name", &file_name, ctx);
-		if (ImGui::IsItemDeactivatedAfterEdit() || ImGui::IsKeyPressed(ImGuiKey_Enter))
+		if (ImGui::IsItemDeactivatedAfterEdit() || 
+			(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			RefreshTexture(ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("file_name", &file_name, ctx);
