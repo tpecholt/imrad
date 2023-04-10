@@ -104,9 +104,6 @@ void CppGen::CreateH(std::ostream& out)
 		<< "// visit " << GITHUB_STR << "\n\n";
 
 	out << "#pragma once\n";
-	out << "#include <string>\n";
-	out << "#include <functional>\n";
-	out << "#include <imgui.h>\n";
 	out << "#include \"imrad.h\"\n";
 
 	out << "\nclass " << m_name << "\n{\npublic:\n";
@@ -435,6 +432,7 @@ CppGen::Import(const std::string& path, std::string& err)
 	m_fields[""];
 	m_name = m_vname = "";
 	m_error = "";
+	ctx_fname = path;
 	std::unique_ptr<UINode> node;
 
 	auto fpath = fs::path(path).replace_extension("h");
@@ -643,6 +641,7 @@ CppGen::ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& i
 		}
 		UIContext ctx;
 		ctx.codeGen = this;
+		ctx.fname = ctx_fname;
 		auto node = std::make_unique<TopWindow>(ctx);
 		node->Import(sit, ctx);
 		iter = sit.base();

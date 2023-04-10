@@ -99,6 +99,9 @@ struct field_ref : property_base
 	bool empty() const {
 		return str.empty();
 	}
+	const std::string& value() const {
+		return str;
+	}
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}

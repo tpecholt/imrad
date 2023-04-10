@@ -13,8 +13,6 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <iostream>
-#include <fstream>
-#include <array>
 #include <string>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -32,6 +30,10 @@
 #include "ui_about_dlg.h"
 #include "ui_binding.h"
 #include "ui_combo_dlg.h"
+
+//must come last
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -76,6 +78,7 @@ std::vector<TB_Button> tbButtons{
 	{ ICON_FA_SQUARE_CHECK, "CheckBox" },
 	{ ICON_FA_CIRCLE_DOT, "RadioButton" },
 	{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
+	{ ICON_FA_IMAGE, "Image" },
 	{ ICON_FA_TABLE_CELLS_LARGE, "Table" },
 	{ ICON_FA_ARROW_DOWN_WIDE_SHORT, "CollapsingHeader" },
 	/*{ ICON_MD_NORTH_WEST, "" },
@@ -88,13 +91,25 @@ std::vector<TB_Button> tbButtons{
 };
 std::string activeButton = "";
 
+void ActivateTab(int i)
+{
+	if (i >= fileTabs.size()) {
+		activeTab = -1;
+		ctx.codeGen = nullptr;
+		return;
+	}
+	activeTab = i;
+	auto& tab = fileTabs[i];
+	ctx.selected = { tab.rootNode.get() };
+	ctx.codeGen = &tab.codeGen;
+	ctx.fname = tab.fname;
+}
+
 void NewFile()
 {
 	fileTabs.push_back({});
 	fileTabs.back().rootNode = std::make_unique<TopWindow>(ctx);
-	activeTab = (int)fileTabs.size() - 1;
-	ctx.selected = { fileTabs.back().rootNode.get() };
-	ctx.codeGen = &fileTabs.back().codeGen;
+	ActivateTab((int)fileTabs.size() - 1);
 }
 
 void DoOpenFile(const std::string& path)
@@ -118,9 +133,9 @@ void DoOpenFile(const std::string& path)
 		fileTabs.push_back({});
 		it = fileTabs.begin() + fileTabs.size() - 1;
 	}
-	activeTab = int(it - fileTabs.begin());
-	fileTabs[activeTab] = std::move(file);
-	ctx.codeGen = &fileTabs[activeTab].codeGen;
+	int idx = int(it - fileTabs.begin());
+	fileTabs[idx] = std::move(file);
+	ActivateTab(idx);
 
 	if (messageBox.error != "") {
 		messageBox.title = "CodeGen";
@@ -196,12 +211,7 @@ void DoCloseFile()
 {
 	ctx.selected.clear();
 	fileTabs.erase(fileTabs.begin() + activeTab);
-	if (activeTab == fileTabs.size())
-		--activeTab;
-	if (activeTab >= 0)
-		ctx.codeGen = &fileTabs[activeTab].codeGen;
-	else
-		ctx.codeGen = nullptr;
+	ActivateTab(activeTab);
 }
 
 void SaveFile(bool thenClose = false);
@@ -558,16 +568,12 @@ void TabsUI()
 			}
 			if (!notClosed)
 			{
-				activeTab = i;
-				ctx.selected.clear();
-				ctx.codeGen = &fileTabs[activeTab].codeGen;
+				ActivateTab(i);
 				CloseFile();
 			}
 			else if (ImGui::IsItemActivated() && i != activeTab)
 			{
-				activeTab = i;
-				ctx.selected.clear();
-				ctx.codeGen = &fileTabs[activeTab].codeGen;
+				ActivateTab(i);
 			}
 		}
 		ImGui::EndTabBar();

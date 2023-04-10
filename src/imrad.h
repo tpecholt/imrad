@@ -1,6 +1,15 @@
 #pragma once
-#include <misc/cpp/imgui_stdlib.h>
-#include <imgui_internal.h>
+#include <string>
+#include <vector>
+#include <functional>
+#include <imgui.h>
+#include <imgui_internal.h> //for NextIemData
+#include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
+#include <stb_image.h> //for LoadTextureFromFile
+#include <GLFW/glfw3.h> //for LoadTextureFromFile
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
 
 namespace ImRad {
 
@@ -92,6 +101,45 @@ std::string Format(std::string_view fmt, A1&& arg, A... args)
 			s += fmt[i];
 	}
 	return s;
+}
+
+struct Texture
+{
+	ImTextureID id = 0;
+	int w, h;
+	explicit operator bool() const { return id != 0; }
+};
+
+// Simple helper function to load an image into a OpenGL texture with common settings
+// https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
+inline Texture LoadTextureFromFile(const std::string& filename)
+{
+	// Load from file
+	Texture tex;
+	unsigned char* image_data = stbi_load(filename.c_str(), &tex.w, &tex.h, NULL, 4);
+	if (image_data == NULL)
+		return {};
+
+	// Create a OpenGL texture identifier
+	GLuint image_texture;
+	glGenTextures(1, &image_texture);
+	tex.id = (ImTextureID)(intptr_t)image_texture;
+	glBindTexture(GL_TEXTURE_2D, image_texture);
+
+	// Setup filtering parameters for display
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+	// Upload pixels into texture
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex.w, tex.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+	stbi_image_free(image_data);
+
+	return tex;
 }
 
 }

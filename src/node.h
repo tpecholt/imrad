@@ -20,10 +20,10 @@ struct UIContext
 	//set from outside
 	bool snapMode = false;
 	std::vector<UINode*> selected;
-	UINode* hovered = nullptr; 
 	CppGen* codeGen = nullptr;
 	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
 	ImVec2 wpos;
+	std::string fname;
 
 	//snap result
 	UINode* snapParent = nullptr;
@@ -33,6 +33,7 @@ struct UIContext
 	bool snapBeginGroup[2];
 	
 	//recursive info
+	UINode* hovered = nullptr;
 	int level = 0;
 	int groupLevel = 0;
 	int importLevel;
@@ -247,6 +248,23 @@ struct Combo : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+};
+
+struct Image : Widget
+{
+	bindable<std::string> file_name = "";
+	bindable<float> size_x = 0;
+	bindable<float> size_y = 0;
+	field_ref<ImRad::Texture> field_name;
+	ImRad::Texture tex;
+
+	Image(UIContext& ctx);
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void RefreshTexture(UIContext& ctx);
 };
 
 struct Table : Widget

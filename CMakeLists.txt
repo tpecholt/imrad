@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project (imrad)
+project(imrad)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden) # linux: don't export all symbols in .so
@@ -26,5 +26,6 @@ include(cmake/glfw.cmake)
 include(cmake/imgui.cmake)
 include(cmake/nfd.cmake)
 include(cmake/fa.cmake)
+include(cmake/stb.cmake)
 
 add_subdirectory(src)

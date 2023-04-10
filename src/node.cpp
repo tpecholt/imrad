@@ -267,14 +267,14 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 		{
 			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding")
-				stylePading = cpp::parse_size(sit->params[1]);
+				stylePading = cpp::parse_fsize(sit->params[1]);
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing")
-				styleSpacing = cpp::parse_size(sit->params[1]);
+				styleSpacing = cpp::parse_fsize(sit->params[1]);
 		}
 		if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
 		{
 			if (sit->params.size()) {
-				auto size = cpp::parse_size(sit->params[0]);
+				auto size = cpp::parse_fsize(sit->params[0]);
 				size_x = size.x;
 				size_y = size.y;
 			}
@@ -459,6 +459,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Input>(ctx);
 	else if (name == "Combo")
 		return std::make_unique<Combo>(ctx);
+	else if (name == "Image")
+		return std::make_unique<Image>(ctx);
 	else if (name == "Table")
 		return std::make_unique<Table>(ctx);
 	else if (name == "Child")
@@ -1629,7 +1631,7 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::PushStyleColor(ImGuiCol_Button, color.value());
 	
 	if (arrowDir != ImGuiDir_None)
-		ImGui::ArrowButton("", arrowDir);
+		ImGui::ArrowButton("##", arrowDir);
 	else if (small)
 		ImGui::SmallButton(label.c_str());
 	else
@@ -2232,8 +2234,8 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->params.size() >= 3) {
 			auto size = cpp::parse_size(sit->params[2]);
-			size_x = size.x;
-			size_y = size.y;
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
 		}
 
 		if (sit->params.size() >= 4)
@@ -2581,6 +2583,183 @@ bool Combo::EventUI(int i, UIContext& ctx)
 	return changed;
 }
 
+//----------------------------------------------------
+
+Image::Image(UIContext& ctx)
+	: Widget(ctx)
+{
+	if (!ctx.importLevel)
+		*field_name.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
+}
+
+void Image::DoDraw(UIContext& ctx)
+{
+	if (!tex.id) {
+		ImGui::Dummy({ 20, 20 });
+		return;
+	}
+
+	float w = (float)tex.w;
+	if (size_x.has_value() && size_x.value())
+		w = size_x.value();
+	float h = (float)tex.h;
+	if (size_y.has_value() && size_y.value())
+		h = size_y.value();
+	
+	ImGui::Image(tex.id, { w, h });
+}
+
+void Image::DoExport(std::ostream& os, UIContext& ctx)
+{
+	if (field_name.empty())
+		ctx.errors.push_back("Image: field_name doesn't exist");
+	if (file_name.empty())
+		ctx.errors.push_back("Image: file_name doesn't exist");
+
+	os << ctx.ind << "if (!" << field_name.to_arg() << ")\n";
+	ctx.ind_up();
+	os << ctx.ind << field_name.to_arg() << " = ImRad::LoadTextureFromFile(" << file_name.to_arg() << ");\n";
+	ctx.ind_down();
+
+	os << ctx.ind << "ImGui::Image(" << field_name.to_arg() << ".id, { ";
+	
+	if (size_x.has_value() && !size_x.value())
+		os << field_name.to_arg() << ".w";
+	else
+		os << size_x.to_arg();
+	
+	os << ", ";
+	
+	if (size_y.has_value() && !size_y.value())
+		os << field_name.to_arg() << ".h";
+	else
+		os << size_y.to_arg();
+	
+	os << " });\n";
+}
+
+void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::IfStmt)
+	{
+		auto i = sit->line.find("ImRad::LoadTextureFromFile(");
+		if (i != std::string::npos)
+			file_name.set_from_arg(sit->line.substr(i + 27, sit->line.size() - 1 - i - 27));
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Image")
+	{
+		if (sit->params.size() >= 1 && !sit->params[0].compare(sit->params[0].size() - 3, 3, ".id"))
+			field_name.set_from_arg(sit->params[0].substr(0, sit->params[0].size() - 3));
+
+		if (sit->params.size() >= 2) {
+			auto size = cpp::parse_size(sit->params[1]);
+			if (size.first == field_name.value() + ".w")
+				size_x.set_from_arg("0");
+			else
+				size_x.set_from_arg(size.first);
+			
+			if (size.second == field_name.value() + ".h")
+				size_y.set_from_arg("0");
+			else
+				size_y.set_from_arg(size.second);
+		}
+
+		RefreshTexture(ctx);
+	}
+}
+
+std::vector<UINode::Prop>
+Image::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "file_name", &file_name },
+		{ "field_name", &field_name },
+		{ "size_x", &size_x },
+		{ "size_y", &size_y },
+		});
+	return props;
+}
+
+bool Image::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("file_name");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##file_name", &file_name, ctx);
+		if (ImGui::IsItemDeactivatedAfterEdit() || ImGui::IsKeyPressed(ImGuiKey_Enter))
+			RefreshTexture(ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("file_name", &file_name, ctx);
+		break;
+	case 1:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::Text("field_name");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldName("##field", &field_name, false, ctx);
+		break;
+	case 2:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_x", &size_x, ctx);
+		break;
+	case 3:
+		ImGui::Text("size_y");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_y", &size_y, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 4, ctx);
+	}
+	return changed;
+}
+
+void Image::RefreshTexture(UIContext& ctx)
+{
+	tex.id = 0;
+	
+	if (file_name.empty() ||
+		!file_name.used_variables().empty())
+		return;
+
+	std::string fname;
+	if (!file_name.empty() && fs::path(file_name.value()).is_relative()) 
+	{
+		if (ctx.fname.empty() && !ctx.importState) {
+			messageBox.title = "Warning";
+			messageBox.message = "Please save the file first so that relative paths can work";
+			messageBox.buttons = MessageBox::OK;
+			messageBox.OpenPopup();
+			return;
+		}
+		fname = (fs::path(ctx.fname).parent_path() / file_name.value()).string();
+	}
+
+	tex = ImRad::LoadTextureFromFile(fname);
+	if (!tex) 
+	{
+		if (!ctx.importState) {
+			messageBox.title = "Error";
+			messageBox.message = "Can't read " + fname;
+			messageBox.buttons = MessageBox::OK;
+			messageBox.OpenPopup();
+		}
+		else
+			ctx.errors.push_back("Image: can't read " + fname);
+	}
+}
+
 //---------------------------------------------------
 
 Table::ColumnData::ColumnData()
@@ -2841,8 +3020,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->params.size() >= 4) {
 			auto size = cpp::parse_size(sit->params[3]);
-			size_x = size.x;
-			size_y = size.y;
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
 		}
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableSetupColumn")
@@ -3005,17 +3184,18 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
-		if (sit->params.size() == 2 &&
-			sit->params[0] == "ImGuiStyleVar_WindowPadding" &&
-			!Norm(cpp::parse_size(sit->params[1])))
+		if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding") {
+			auto size = cpp::parse_fsize(sit->params[1]);
+			if (size.x == 0 && size.y == 0)
 				stylePadding = false;
+		}
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginChild")
 	{
 		if (sit->params.size() >= 2) {
 			auto size = cpp::parse_size(sit->params[1]);
-			size_x = size.x;
-			size_y = size.y;
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
 		}
 
 		if (sit->params.size() >= 3)

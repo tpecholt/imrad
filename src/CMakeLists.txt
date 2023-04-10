@@ -14,6 +14,7 @@ target_link_libraries(imrad
 	nfd
 	imgui
 	glfw
+	stb
 	${OPENGL_LIBRARIES}
 	${CMAKE_DL_LIBS}
 )

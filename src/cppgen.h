@@ -62,6 +62,6 @@ private:
 
 	std::map<std::string, std::vector<Var>> m_fields;
 	std::string m_name, m_vname;
-	int m_level;
+	std::string ctx_fname;
 	std::string m_error;
 };

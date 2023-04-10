@@ -193,7 +193,7 @@ namespace cpp
 		bool line_mode;
 	};
 
-	enum Kind { CallExpr, IfCallBlock, IfCallThenCall, IfBlock, ForBlock, Comment, Other };
+	enum Kind { CallExpr, IfCallBlock, IfCallThenCall, IfStmt, IfBlock, ForBlock, Comment, Other };
 
 	struct stmt_iterator
 	{
@@ -356,8 +356,8 @@ namespace cpp
 							data.params2 = params2;
 						}
 					}
-					else if (block) {
-						data.kind = IfBlock;
+					else {
+						data.kind = block ? IfBlock : IfStmt;
 						data.cond = stx::join(tokens.begin() + b + 1, tokens.begin() + e, "");
 					}
 				}
@@ -706,17 +706,36 @@ error:
 		};
 	}
 	
-	inline ImVec2 parse_size(const std::string& str)
+	inline std::pair<std::string, std::string> parse_size(const std::string& str)
 	{
-		ImVec2 size{ 0, 0 };
+		std::pair<std::string, std::string> size;
 		if (str.size() >= 2 && str[0] == '{' && str.back() == '}')
 		{
 			std::istringstream is(str.substr(1, str.size() - 2));
-			is >> size.x;
-			is.get();
-			is >> size.y;
+			token_iterator it(is);
+			if (it == token_iterator())
+				return size;
+			size.first = *it++;
+			if (it == token_iterator() || *it != ",")
+				return size;
+			++it;
+			if (it == token_iterator())
+				return size;
+			size.second = *it++;
 		}
 		return size;
 	}
 
+	inline ImVec2 parse_fsize(const std::string& str)
+	{
+		ImVec2 fsize{ 0, 0 };
+		if (str.size() >= 2 && str[0] == '{' && str.back() == '}')
+		{
+			std::istringstream is(str.substr(1, str.size() - 2));
+			is >> fsize.x;
+			is.get();
+			is >> fsize.y;
+		}
+		return fsize;
+	}
 }

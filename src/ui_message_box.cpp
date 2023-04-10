@@ -82,4 +82,12 @@ void MessageBox::Draw()
 
 		ImGui::EndPopup();
 	}
+	else
+	{
+		//clear fields for next invocation
+		error = "";
+		title = "title";
+		message = "";
+		buttons = OK;
+	}
 }
