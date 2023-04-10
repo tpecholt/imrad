@@ -47,6 +47,23 @@ void UIContext::ind_down()
 
 //----------------------------------------------------
 
+void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
+{
+	for (int i = 0; i < 2; ++i)
+	{
+		auto props = i ? Events() : Properties();
+		for (auto& p : props) {
+			if (!p.property)
+				continue;
+			p.property->rename_variable(oldn, newn);
+		}
+	}
+	for (auto& child : children)
+		child->RenameFieldVars(oldn, newn);
+}
+
+//----------------------------------------------------
+
 TopWindow::TopWindow(UIContext& ctx)
 {
 	flags.prefix("ImGuiWindowFlags_");
@@ -64,6 +81,7 @@ void TopWindow::Draw(UIContext& ctx)
 {
 	ctx.level = 0;
 	ctx.groupLevel = 0;
+	ctx.root = this;
 	ctx.parent = this;
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
@@ -1984,7 +2002,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("field_name");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##field", &field_name, false, ctx);
+		changed = InputFieldRef("##field", &field_name, false, ctx);
 		break;
 	}
 	default:
@@ -2094,7 +2112,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("field_name");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##field", &field_name, false, ctx);
+		changed = InputFieldRef("##field", &field_name, false, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 3, ctx);
@@ -2313,7 +2331,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("field_name");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##field_name", field_name.access(), type, false, ctx);
+		changed = InputFieldRef("##field_name", &field_name, type, false, ctx);
 		break;
 	case 1:
 		ImGui::Text("type");
@@ -2519,7 +2537,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("field_name");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##field_name", field_name.access(), "int", false, ctx);
+		changed = InputFieldRef("##field_name", &field_name, false, ctx);
 		break;
 	case 1:
 		ImGui::Text("items");
@@ -2701,7 +2719,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("field_name");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##field", &field_name, false, ctx);
+		changed = InputFieldRef("##field", &field_name, false, ctx);
 		break;
 	case 2:
 		ImGui::Text("size_x");
@@ -2743,6 +2761,7 @@ void Image::RefreshTexture(UIContext& ctx)
 			messageBox.OpenPopup();
 			return;
 		}
+		assert(ctx.fname != "");
 		fname = (fs::path(ctx.fname).parent_path() / file_name.value()).string();
 	}
 
@@ -2889,7 +2908,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("row_count");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##row_count", &row_count, true, ctx);
+		changed = InputFieldRef("##row_count", &row_count, true, ctx);
 		break;
 	case 2:
 		ImGui::Unindent();
@@ -3290,7 +3309,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("data_size");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldName("##data_size", &data_size, true, ctx);
+		changed = InputFieldRef("##data_size", &data_size, true, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 7, ctx);

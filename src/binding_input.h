@@ -170,32 +170,36 @@ inline bool InputBindable(const char* label, bindable<T>* val, T defVal, UIConte
 }
 
 template <class T>
-inline bool InputFieldName(const char* label, field_ref<T>* val, bool allowEmpty, UIContext& ctx)
-{
-	std::string type = typeid_name<T>();
-	return InputFieldName(label, val->access(), type, allowEmpty, ctx);
-}
-
-template <>
-inline bool InputFieldName(const char* label, field_ref<void>* val, bool allowEmpty, UIContext& ctx) = delete;
-
-inline bool InputFieldName(const char* label, std::string* val, const std::string& type, bool allowEmpty, UIContext& ctx)
+inline bool InputFieldRef(const char* label, field_ref<T>* val, const std::string& type, bool allowEmpty, UIContext& ctx)
 {
 	bool changed = false;
 	if (ImGui::BeginCombo(label, val->c_str()))
 	{
 		if (allowEmpty && ImGui::Selectable("None"))
 		{
-			*val = "";
+			*val->access() = "";
 			changed = true;
 		}
+		
+		if (!val->empty() && ImGui::Selectable("Rename..."))
+		{
+			auto vars = val->used_variables();
+			assert(vars.size() == 1);
+			newFieldPopup.codeGen = ctx.codeGen;
+			newFieldPopup.varOldName = vars[0];
+			newFieldPopup.mode = NewFieldPopup::RenameField;
+			newFieldPopup.OpenPopup([val, root=ctx.root] {
+				root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
+				});
+		}
+		
 		if (ImGui::Selectable("New Variable..."))
 		{
 			newFieldPopup.varType = type;
 			newFieldPopup.codeGen = ctx.codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewField;
 			newFieldPopup.OpenPopup([val] {
-				*val = newFieldPopup.varName;
+				*val->access() = newFieldPopup.varName;
 				});
 		}
 		
@@ -205,7 +209,7 @@ inline bool InputFieldName(const char* label, std::string* val, const std::strin
 		{
 			if (ImGui::Selectable(v.first.c_str(), v.first == val->c_str()))
 			{
-				*val = v.first;
+				*val->access() = v.first;
 				changed = true;
 			}
 		}
@@ -214,6 +218,17 @@ inline bool InputFieldName(const char* label, std::string* val, const std::strin
 	}
 	return changed;
 }
+
+template <class T>
+inline bool InputFieldRef(const char* label, field_ref<T>* val, bool allowEmpty, UIContext& ctx)
+{
+	std::string type = typeid_name<T>();
+	return InputFieldRef(label, val, type, allowEmpty, ctx);
+}
+
+template <>
+inline bool InputFieldRef(const char* label, field_ref<void>* val, bool allowEmpty, UIContext& ctx) = delete;
+
 
 inline bool InputEvent(const char* label, event<>* val, UIContext& ctx)
 {

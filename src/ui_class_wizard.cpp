@@ -59,21 +59,6 @@ void ClassWizard::FindUsed(UINode* node, std::vector<std::string>& used)
 		FindUsed(child.get(), used);
 }
 
-void ClassWizard::RenameNodes(UINode* node, const std::string& oldn, const std::string& newn)
-{
-	for (int i = 0; i < 2; ++i)
-	{
-		auto props = i ? node->Events() : node->Properties();
-		for (auto& p : props) {
-			if (!p.property)
-				continue;
-			p.property->rename_variable(oldn, newn);
-		}
-	}
-	for (auto& child : node->children)
-		RenameNodes(child.get(), oldn, newn);
-}
-
 void ClassWizard::Draw()
 {
 	const float BWIDTH = 150;
@@ -249,7 +234,7 @@ void ClassWizard::Draw()
 			newFieldPopup.mode = NewFieldPopup::RenameField;
 			newFieldPopup.varOldName = fields[selRow].name;
 			newFieldPopup.OpenPopup([this] {
-				RenameNodes(root, newFieldPopup.varOldName, newFieldPopup.varName);
+				root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
 				Refresh();
 				});
 		}

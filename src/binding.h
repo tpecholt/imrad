@@ -92,7 +92,7 @@ struct property_base
 	virtual void rename_variable(const std::string& oldn, const std::string& newn) = 0;
 };
 
-//member variable expression
+//member variable expression like id, id.member, id[0], id.size()
 template <class T = void>
 struct field_ref : property_base
 {
@@ -111,12 +111,14 @@ struct field_ref : property_base
 	std::vector<std::string> used_variables() const {
 		if (empty())
 			return {};
-		return { str };
+		auto i = str.find_first_of(".[");
+		return { str.substr(0, i) };
 	};
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{
-		if (str == oldn)
-			str = newn;
+		auto i = str.find_first_of(".[");
+		if (str.substr(0, i) == oldn)
+			str.replace(0, i, newn);
 	}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }

@@ -38,6 +38,7 @@ struct UIContext
 	int groupLevel = 0;
 	int importLevel;
 	std::string userCode;
+	UINode* root = nullptr;
 	UINode* parent = nullptr;
 	bool modalPopup = false;
 	bool table = false;
@@ -69,6 +70,8 @@ struct UINode
 	virtual void Export(std::ostream&, UIContext& ctx) = 0;
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
 
+	void RenameFieldVars(const std::string& oldn, const std::string& newn);
+	
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
 	children_t children;
@@ -235,7 +238,7 @@ struct Input : Widget
 
 struct Combo : Widget
 {
-	field_ref<> field_name;
+	field_ref<int> field_name;
 	bindable<std::vector<std::string>> items;
 	bindable<float> size_x = 200;
 	event<> onChange;

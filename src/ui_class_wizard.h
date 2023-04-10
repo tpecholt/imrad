@@ -22,7 +22,6 @@ public:
 private:
 	void Refresh();
 	void FindUsed(UINode* node, std::vector<std::string>& used);
-	void RenameNodes(UINode* node, const std::string& oldn, const std::string& newn);
 
 	std::string varName;
 	std::string className;
