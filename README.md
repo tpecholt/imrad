@@ -37,7 +37,7 @@ ImRAD is under active development but these are the main features:
 
 for up-to date version clone & build the repository using CMake. There are no nightly builds at the moment. 
 
-[Releases](releases)
+[Releases](https://github.com/tpecholt/imrad/releases)
 
 # Screenshots
 
@@ -45,4 +45,4 @@ for up-to date version clone & build the repository using CMake. There are no ni
 
 # More information
 
-Please check the [wiki](wiki) content for tutorials and more detailed explanations
+Please check the [wiki](https://github.com/tpecholt/imrad/wiki) content for tutorials and more detailed explanations
