@@ -1,3 +1,5 @@
+![img](https://github.com/tpecholt/imrad/actions/workflows/cmake.yml/badge.svg)
+
 # ImRAD
 
 ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code.  
@@ -65,4 +67,5 @@ Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and mo
 # Credits
 
 Design and implementation - [Tomas Pecholt](https://github.com/tpecholt)
+
 Thanks to [Omar Cornut for Dear ImGui](https://github.com/ocornut/imgui)
