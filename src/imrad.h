@@ -5,10 +5,13 @@
 #include <imgui.h>
 #include <imgui_internal.h> //for NextIemData
 #include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
+
+#ifdef IMRAD_WITH_GLFW_TEXTURE
 #include <stb_image.h> //for LoadTextureFromFile
 #include <GLFW/glfw3.h> //for LoadTextureFromFile
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
+#endif
 #endif
 
 namespace ImRad {
@@ -110,6 +113,7 @@ struct Texture
 	explicit operator bool() const { return id != 0; }
 };
 
+#ifdef IMRAD_WITH_GLFW_TEXTURE
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
 inline Texture LoadTextureFromFile(const std::string& filename)
@@ -141,5 +145,8 @@ inline Texture LoadTextureFromFile(const std::string& filename)
 
 	return tex;
 }
+#else
+Texture LoadTextureFromFile(const std::string& filename);
+#endif
 
 }
