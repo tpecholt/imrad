@@ -25,7 +25,8 @@ jobs:
     - name: apt install
       run: |
            sudo apt update
-           sudo apt install libxrandr-dev
+           sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libgtk3-dev
+
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
