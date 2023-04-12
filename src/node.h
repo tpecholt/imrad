@@ -131,7 +131,7 @@ struct Text : Widget
 	bindable<std::string> text = "text";
 	direct_val<bool> grayed = false; //Widget::disabled is already bindable
 	bindable<color32> color;
-	direct_val<std::string> alignment = "Left"; 
+	direct_val<ImRad::Align> alignment = ImRad::Align_Left; 
 	direct_val<bool> alignToFrame = false;
 	bindable<float> size_x = 0;
 

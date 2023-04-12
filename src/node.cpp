@@ -1252,6 +1252,9 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 Text::Text(UIContext& ctx)
 	: Widget(ctx)
 {
+	alignment.add$(ImRad::Align_Left);
+	alignment.add$(ImRad::Align_Center);
+	alignment.add$(ImRad::Align_Right);
 }
 
 void Text::DoDraw(UIContext& ctx)
@@ -1268,15 +1271,12 @@ void Text::DoDraw(UIContext& ctx)
 	if (clr)
 		ImGui::PushStyleColor(ImGuiCol_Text, *clr);
 	
-	auto align = alignment == "Center" ? ImRad::Align_Center :
-		alignment == "Right" ? ImRad::Align_Right :
-		ImRad::Align_Left;
 	if (size_x.has_value() && size_x.value())
 		ImGui::SetNextItemWidth(size_x.value());
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
 	
-	ImRad::AlignedText(align, text.c_str());
+	ImRad::AlignedText(alignment, text.c_str());
 
 	if (clr)
 		ImGui::PopStyleColor();
@@ -1309,8 +1309,7 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "ImRad::AlignedText(";
 	//alignment.c_str so no apostrophes
-	os << "ImRad::Align_" << alignment.c_str() << ", " 
-		<< text.to_arg() << ");\n";
+	os << alignment.to_arg() << ", " << text.to_arg() << ");\n";
 
 	if (clr != "")
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
@@ -1335,11 +1334,8 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::AlignedText")
 	{
-		if (sit->params.size() >= 1 && !sit->params[0].compare(0, 13, "ImRad::Align_")) {
-			std::string hack = "\"";
-			hack += sit->params[0].substr(13);
-			hack += "\"";
-			alignment.set_from_arg(hack);
+		if (sit->params.size() >= 1) {
+			alignment.set_from_arg(sit->params[0]);
 		}
 		if (sit->params.size() >= 2)
 			text = cpp::parse_str_arg(sit->params[1]);
@@ -1412,13 +1408,16 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("alignment");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		static const char* Alignments[]{ "Left", "Center", "Right" };
-		int idx = int(stx::find(Alignments, alignment.to_arg()) - Alignments);
-		//std::string vals = stx::join(Alignments, std::string_view("\0", 1));
-		//vals += std::string_view("\0\0", 2);
-		changed = ImGui::Combo("##wrapped", &idx, Alignments, (int)std::size(Alignments));
-		if (changed)
-			alignment = Alignments[idx];
+		if (ImGui::BeginCombo("##alignment", alignment.get_id().c_str()))
+		{
+			changed = true;
+			for (const auto& id : alignment.get_ids())
+			{
+				if (ImGui::Selectable(id.first.c_str(), id.second == alignment))
+					alignment = id.second;
+			}
+			ImGui::EndCombo();
+		}
 		ImGui::EndDisabled();
 		break;
 	}
