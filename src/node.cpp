@@ -2641,14 +2641,14 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "ImGui::Image(" << field_name.to_arg() << ".id, { ";
 	
 	if (size_x.has_value() && !size_x.value())
-		os << field_name.to_arg() << ".w";
+		os << "(float)" << field_name.to_arg() << ".w";
 	else
 		os << size_x.to_arg();
 	
 	os << ", ";
 	
 	if (size_y.has_value() && !size_y.value())
-		os << field_name.to_arg() << ".h";
+		os << "(float)" << field_name.to_arg() << ".h";
 	else
 		os << size_y.to_arg();
 	
@@ -2670,12 +2670,12 @@ void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->params.size() >= 2) {
 			auto size = cpp::parse_size(sit->params[1]);
-			if (size.first == field_name.value() + ".w")
+			if (size.first == "(float)" + field_name.value() + ".w")
 				size_x.set_from_arg("0");
 			else
 				size_x.set_from_arg(size.first);
 			
-			if (size.second == field_name.value() + ".h")
+			if (size.second == "(float)" + field_name.value() + ".h")
 				size_y.set_from_arg("0");
 			else
 				size_y.set_from_arg(size.second);
