@@ -56,6 +56,7 @@ bool CppGen::Export(const std::string& fname, bool trunc, UINode* node, std::str
 
 	UIContext ctx;
 	ctx.codeGen = this;
+	ctx.ind = INDENT;
 	std::ostringstream code;
 	node->Export(code, ctx);
 	

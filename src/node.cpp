@@ -27,12 +27,12 @@ void toggle(std::vector<UINode*>& c, UINode* val)
 		c.erase(it);
 }
 
-std::string Str(const ImVec4& c)
+/*std::string Str(const ImVec4& c)
 {
 	std::ostringstream os;
 	os << "IM_COL32(" << c.x << ", " << c.y << ", " << c.z << ", " << c.w << ")";
 	return os.str();
-}
+}*/
 
 void UIContext::ind_up()
 {
@@ -158,7 +158,6 @@ void TopWindow::Draw(UIContext& ctx)
 
 void TopWindow::Export(std::ostream& os, UIContext& ctx)
 {
-	ctx.ind = ctx.codeGen->INDENT;
 	ctx.groupLevel = 0;
 	ctx.modalPopup = modalPopup;
 	ctx.errors.clear();

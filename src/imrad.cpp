@@ -1,6 +1,7 @@
 #if WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <shellapi.h>
 #undef min
 #undef max
 #undef MessageBox
@@ -13,6 +14,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <iostream>
+#include <fstream>
 #include <string>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -147,15 +149,13 @@ void DoOpenFile(const std::string& path)
 
 void OpenFile()
 {
-	ctx.snapMode = false;
-	ctx.selected.clear();
-
 	nfdchar_t *outPath = NULL;
 	nfdresult_t result = NFD_OpenDialog("h", NULL, &outPath);
 	if (result != NFD_OKAY)
 		return;
-	//const char* outPath = "TestWindow.h";
-
+	
+	ctx.snapMode = false;
+	ctx.selected.clear();
 	auto it = stx::find_if(fileTabs, [&](const File& f) { return f.fname == outPath; });
 	if (it != fileTabs.end()) 
 	{
@@ -292,6 +292,29 @@ void SaveFile(bool thenClose)
 
 	if (thenClose)
 		DoCloseFile();
+}
+
+void ShowCode()
+{
+	if (activeTab < 0)
+		return;
+	std::string path = (fs::temp_directory_path() / "imrad-preview.cpp").string();
+	std::ofstream fout(path);
+	ctx.ind = "";
+	auto* root = fileTabs[activeTab].rootNode.get();
+	root->Export(fout, ctx);
+	
+	if (ctx.errors.size()) {
+		fout << "\n// Export finished with errors\n";
+		for (const std::string& e : ctx.errors)
+			fout << "// " << e <<  "\n";
+	}
+	fout.close();
+#ifdef WIN32
+	ShellExecute(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#else
+	system(("xdg-open " + path).c_str());
+#endif
 }
 
 void NewWidget(const std::string& name)
@@ -460,15 +483,34 @@ void ToolbarUI()
 	ImGui::PopStyleVar();
 
 	const float BTN_SIZE = 30;
-	if (ImGui::Button(ICON_FA_FILE))// " New File")) 
+	const auto& io = ImGui::GetIO();
+	if (ImGui::Button(ICON_FA_FILE) ||
+		(ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl)) 
 		NewFile();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("New File (Ctrl+N)");
+	
 	ImGui::SameLine();
-	if (ImGui::Button(ICON_FA_FOLDER_OPEN))// " Open File")) 
+	if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
+		(ImGui::IsKeyPressed(ImGuiKey_O, false) && io.KeyCtrl))
 		OpenFile();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Open File (Ctrl+O)");
+	
 	ImGui::BeginDisabled(activeTab < 0);
 	ImGui::SameLine();
-	if (ImGui::Button(ICON_FA_FLOPPY_DISK))// " Save File"))
+	if (ImGui::Button(ICON_FA_FLOPPY_DISK) ||
+		(ImGui::IsKeyPressed(ImGuiKey_S, false) && io.KeyCtrl))
 		SaveFile();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Save File (Ctrl+S)");
+	
+	/*ImGui::SameLine();
+	if (ImGui::Button(ICON_FA_WINDOW_RESTORE))
+		SaveAll();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Save All (Ctrl+Shift+S)");*/
+	
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	ImGui::SameLine();
@@ -478,16 +520,30 @@ void ToolbarUI()
 	ImGui::Combo("##style", &styleIdx, "Dark\0Light\0Classic\0\0");
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+	
 	ImGui::SameLine();
-	if (ImGui::Button(ICON_FA_CUBES))// " Class Wizard"))
+	ImGui::BeginDisabled(activeTab < 0);
+	if (ImGui::Button(ICON_FA_RECTANGLE_LIST) ||
+		(ImGui::IsKeyPressed(ImGuiKey_P, false) && io.KeyCtrl)) 
+		ShowCode();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Preview Code (Ctrl+P)");
+	ImGui::EndDisabled();
+	
+	ImGui::SameLine();
+	if (ImGui::Button(ICON_FA_CUBES))
 	{
 		classWizard.codeGen = ctx.codeGen;
 		classWizard.root = fileTabs[activeTab].rootNode.get();
 		classWizard.OpenPopup();
 	}
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Class Wizard");
 	ImGui::EndDisabled();
+	
 	ImGui::SameLine();
-	if (ImGui::Button(ICON_FA_CIRCLE_INFO))// " About"))
+	if (ImGui::Button(ICON_FA_CIRCLE_INFO) ||
+		(ImGui::IsKeyPressed(ImGuiKey_F1, false)))
 	{
 		aboutDlg.OpenPopup();
 	}
