@@ -2604,7 +2604,7 @@ bool Combo::EventUI(int i, UIContext& ctx)
 Image::Image(UIContext& ctx)
 	: Widget(ctx)
 {
-	if (!ctx.importLevel)
+	if (!ctx.importState)
 		*field_name.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
 }
 
