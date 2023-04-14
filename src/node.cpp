@@ -2003,13 +2003,13 @@ CheckBox::CheckBox(UIContext& ctx)
 	: Widget(ctx)
 {
 	if (!ctx.importState)
-		field_name.set_from_arg(ctx.codeGen->CreateVar("bool", init_value ? "true" : "false", CppGen::Var::Interface));
+		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", initValue ? "true" : "false", CppGen::Var::Interface));
 }
 
 void CheckBox::DoDraw(UIContext& ctx)
 {
 	static bool dummy;
-	dummy = init_value;
+	dummy = initValue;
 	ImGui::Checkbox(label.c_str(), &dummy);
 }
 
@@ -2021,7 +2021,7 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << "ImGui::Checkbox("
 		<< label.to_arg() << ", "
-		<< "&" << field_name.c_str()
+		<< "&" << fieldName.c_str()
 		<< ")";
 	
 	if (!onChange.empty()) {
@@ -2045,13 +2045,13 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
 		{
-			field_name.set_from_arg(sit->params[1].substr(1));
-			std::string fn = field_name.c_str();
+			fieldName.set_from_arg(sit->params[1].substr(1));
+			std::string fn = fieldName.c_str();
 			const auto* var = ctx.codeGen->GetVar(fn);
 			if (!var)
 				ctx.errors.push_back("CheckBox: field_name variable '" + fn + "' doesn't exist");
 			else
-				init_value = var->init == "true";
+				initValue = var->init == "true";
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
@@ -2065,8 +2065,8 @@ CheckBox::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "label", &label },
-		{ "check.init_value", &init_value },
-		{ "check.field_name", &field_name },
+		{ "check.init_value", &initValue },
+		{ "check.field_name", &fieldName },
 		});
 	return props;
 }
@@ -2085,21 +2085,21 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		break;
 	case 1:
-		ImGui::Text("init_value");
+		ImGui::Text("initValue");
 		ImGui::TableNextColumn();
-		if (ImGui::Checkbox("##init_value", init_value.access()))
+		if (ImGui::Checkbox("##init_value", initValue.access()))
 		{
 			changed = true;
-			ctx.codeGen->ChangeVar(field_name.c_str(), "bool", init_value ? "true" : "false");
+			ctx.codeGen->ChangeVar(fieldName.c_str(), "bool", initValue ? "true" : "false");
 		}
 		break;
 	case 2:
 	{
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("field_name");
+		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##field", &field_name, false, ctx);
+		changed = InputFieldRef("##field", &fieldName, false, ctx);
 		break;
 	}
 	default:
@@ -2150,12 +2150,12 @@ void RadioButton::DoDraw(UIContext& ctx)
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!ctx.codeGen->GetVar(field_name.c_str()))
+	if (!ctx.codeGen->GetVar(fieldName.c_str()))
 		ctx.errors.push_back("RadioButon: field_name variable doesn't exist");
 
 	os << ctx.ind << "ImGui::RadioButton("
 		<< label.to_arg() << ", "
-		<< "&" << field_name.c_str() << ", "
+		<< "&" << fieldName.c_str() << ", "
 		<< valueID << ");\n";
 }
 
@@ -2168,7 +2168,7 @@ void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
 		{
-			field_name.set_from_arg(sit->params[1].substr(1));
+			fieldName.set_from_arg(sit->params[1].substr(1));
 		}
 	}
 }
@@ -2180,7 +2180,7 @@ RadioButton::Properties()
 	props.insert(props.begin(), {
 		{ "label", &label },
 		{ "radio.valueID", &valueID },
-		{ "field_name", &field_name },
+		{ "field_name", &fieldName },
 	});
 	return props;
 }
@@ -2206,10 +2206,10 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("field_name");
+		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##field", &field_name, false, ctx);
+		changed = InputFieldRef("##fieldName", &fieldName, false, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 3, ctx);
@@ -2239,7 +2239,7 @@ Input::Input(UIContext& ctx)
 	flags.add$(ImGuiInputTextFlags_Multiline);
 
 	if (!ctx.importState)
-		field_name.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 }
 
 void Input::DoDraw(UIContext& ctx)
@@ -2282,7 +2282,7 @@ void Input::DoDraw(UIContext& ctx)
 
 void Input::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (keyboard_focus)
+	if (keyboardFocus)
 	{
 		os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
 		ctx.ind_up();
@@ -2298,28 +2298,28 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (type == "int")
 	{
-		os << "ImGui::InputInt(\"##" << field_name.c_str() << "\", &"
-			<< field_name.to_arg() << ")";
+		os << "ImGui::InputInt(\"##" << fieldName.c_str() << "\", &"
+			<< fieldName.to_arg() << ")";
 	}
 	else if (type == "float")
 	{
-		os << "ImGui::InputFloat(\"##" << field_name.c_str() << "\", &" 
-			<< field_name.to_arg() << ")";
+		os << "ImGui::InputFloat(\"##" << fieldName.c_str() << "\", &" 
+			<< fieldName.to_arg() << ")";
 	}
 	else if (flags & ImGuiInputTextFlags_Multiline)
 	{
-		os << "ImGui::InputTextMultiline(\"##" << field_name.c_str() << "\", &" 
-			<< field_name.to_arg()
+		os << "ImGui::InputTextMultiline(\"##" << fieldName.c_str() << "\", &" 
+			<< fieldName.to_arg()
 			<< ", { " << size_x.to_arg() << ", " << size_y.to_arg() << " }, "
 			<< flags.to_arg() << ")";
 	}
 	else
 	{
 		if (hint != "")
-			os << "ImGui::InputTextWithHint(\"##" << field_name.c_str() << "\", " << hint.to_arg() << ", ";
+			os << "ImGui::InputTextWithHint(\"##" << fieldName.c_str() << "\", " << hint.to_arg() << ", ";
 		else
-			os << "ImGui::InputText(\"##" << field_name.c_str() << "\", ";
-		os << "&" << field_name.to_arg() << ", " << flags.to_arg() << ")";
+			os << "ImGui::InputText(\"##" << fieldName.c_str() << "\", ";
+		os << "&" << fieldName.to_arg() << ", " << flags.to_arg() << ")";
 	}
 
 	if (!onChange.empty()) {
@@ -2341,8 +2341,8 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		type = "std::string";
 
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
-			field_name.set_from_arg(sit->params[1].substr(1));
-			std::string fn = field_name.c_str();
+			fieldName.set_from_arg(sit->params[1].substr(1));
+			std::string fn = fieldName.c_str();
 			if (!ctx.codeGen->GetVar(fn))
 				ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
 		}
@@ -2376,7 +2376,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 
 		if (sit->params.size() > 1 + ex && !sit->params[1 + ex].compare(0, 1, "&"))
-			field_name.set_from_arg(sit->params[1 + ex].substr(1));
+			fieldName.set_from_arg(sit->params[1 + ex].substr(1));
 
 		if (type == "std::string" && sit->params.size() > 2 + ex)
 			flags.set_from_arg(sit->params[2 + ex]);
@@ -2392,7 +2392,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::SetKeyboardFocusHere")
 	{
-		keyboard_focus = true;
+		keyboardFocus = true;
 	}
 }
 
@@ -2401,10 +2401,10 @@ Input::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "input.field_name", &field_name },
 		{ "input.type", &type },
+		{ "input.field_name", &fieldName },
 		{ "input.flags", &flags },
-		{ "keyboard_focus", &keyboard_focus },
+		{ "keyboard_focus", &keyboardFocus },
 		{ "hint", &hint },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }, 
@@ -2424,13 +2424,6 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("field_name");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##field_name", &field_name, type, false, ctx);
-		break;
-	case 1:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2441,11 +2434,18 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 				if (ImGui::Selectable(tp, type == tp)) {
 					changed = true;
 					type = tp;
-					ctx.codeGen->ChangeVar(field_name.c_str(), type, "");
+					ctx.codeGen->ChangeVar(fieldName.c_str(), type, "");
 				}
 			}
 			ImGui::EndCombo();
 		}
+		break;
+	case 1:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::Text("fieldName");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
 	case 2:
 		ImGui::BeginDisabled(type != "std::string");
@@ -2470,10 +2470,10 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 4:
-		ImGui::Text("keyboard_focus");
+		ImGui::Text("keyboardFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##kbf", keyboard_focus.access());
+		changed = ImGui::Checkbox("##kbf", keyboardFocus.access());
 		break;
 	case 5:
 		ImGui::Text("size_x");
@@ -2532,7 +2532,7 @@ Combo::Combo(UIContext& ctx)
 	: Widget(ctx)
 {
 	if (!ctx.importState)
-		field_name.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
+		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
 }
 
 void Combo::DoDraw(UIContext& ctx)
@@ -2540,7 +2540,7 @@ void Combo::DoDraw(UIContext& ctx)
 	int zero = 0;
 	if (size_x.has_value())
 		ImGui::SetNextItemWidth(size_x.value());
-	std::string label = std::string("##") + field_name.c_str();
+	std::string label = std::string("##") + fieldName.c_str();
 	auto vars = items.used_variables();
 	if (vars.empty())
 	{
@@ -2565,13 +2565,13 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 	auto vars = items.used_variables();
 	if (vars.empty())
 	{
-		os << "ImGui::Combo(\"##" << field_name.c_str() << "\", &"
-			<< field_name.to_arg() << ", " << items.to_arg() << ")";
+		os << "ImGui::Combo(\"##" << fieldName.c_str() << "\", &"
+			<< fieldName.to_arg() << ", " << items.to_arg() << ")";
 	}
 	else
 	{
-		os << "ImRad::Combo(\"##" << field_name.c_str() << "\", &"
-			<< field_name.to_arg() << ", " << items.to_arg() << ")";
+		os << "ImRad::Combo(\"##" << fieldName.c_str() << "\", &"
+			<< fieldName.to_arg() << ", " << items.to_arg() << ")";
 	}
 
 	if (!onChange.empty()) {
@@ -2591,8 +2591,8 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		(sit->kind == cpp::IfCallThenCall && (sit->cond == "ImGui::Combo" || sit->cond == "ImRad::Combo")))
 	{
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
-			field_name.set_from_arg(sit->params[1].substr(1));
-			std::string fn = field_name.c_str();
+			fieldName.set_from_arg(sit->params[1].substr(1));
+			std::string fn = fieldName.c_str();
 			if (!ctx.codeGen->GetVar(fn))
 				ctx.errors.push_back("Combo: field_name variable '" + fn + "' doesn't exist");
 		}
@@ -2617,7 +2617,7 @@ Combo::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "combo.field_name", &field_name },
+		{ "combo.field_name", &fieldName },
 		{ "combo.items", &items },
 		{ "size_x", &size_x },
 		});
@@ -2631,10 +2631,10 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 	{
 	case 0:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("field_name");
+		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##field_name", &field_name, false, ctx);
+		changed = InputFieldRef("##fieldName", &fieldName, false, ctx);
 		break;
 	case 1:
 		ImGui::Text("items");
@@ -2704,7 +2704,7 @@ Image::Image(UIContext& ctx)
 	: Widget(ctx)
 {
 	if (!ctx.importState)
-		*field_name.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
+		*fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
 }
 
 void Image::DoDraw(UIContext& ctx)
@@ -2726,27 +2726,27 @@ void Image::DoDraw(UIContext& ctx)
 
 void Image::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (field_name.empty())
+	if (fieldName.empty())
 		ctx.errors.push_back("Image: field_name doesn't exist");
-	if (file_name.empty())
+	if (fileName.empty())
 		ctx.errors.push_back("Image: file_name doesn't exist");
 
-	os << ctx.ind << "if (!" << field_name.to_arg() << ")\n";
+	os << ctx.ind << "if (!" << fieldName.to_arg() << ")\n";
 	ctx.ind_up();
-	os << ctx.ind << field_name.to_arg() << " = ImRad::LoadTextureFromFile(" << file_name.to_arg() << ");\n";
+	os << ctx.ind << fieldName.to_arg() << " = ImRad::LoadTextureFromFile(" << fileName.to_arg() << ");\n";
 	ctx.ind_down();
 
-	os << ctx.ind << "ImGui::Image(" << field_name.to_arg() << ".id, { ";
+	os << ctx.ind << "ImGui::Image(" << fieldName.to_arg() << ".id, { ";
 	
 	if (size_x.has_value() && !size_x.value())
-		os << "(float)" << field_name.to_arg() << ".w";
+		os << "(float)" << fieldName.to_arg() << ".w";
 	else
 		os << size_x.to_arg();
 	
 	os << ", ";
 	
 	if (size_y.has_value() && !size_y.value())
-		os << "(float)" << field_name.to_arg() << ".h";
+		os << "(float)" << fieldName.to_arg() << ".h";
 	else
 		os << size_y.to_arg();
 	
@@ -2759,21 +2759,21 @@ void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		auto i = sit->line.find("ImRad::LoadTextureFromFile(");
 		if (i != std::string::npos)
-			file_name.set_from_arg(sit->line.substr(i + 27, sit->line.size() - 1 - i - 27));
+			fileName.set_from_arg(sit->line.substr(i + 27, sit->line.size() - 1 - i - 27));
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Image")
 	{
 		if (sit->params.size() >= 1 && !sit->params[0].compare(sit->params[0].size() - 3, 3, ".id"))
-			field_name.set_from_arg(sit->params[0].substr(0, sit->params[0].size() - 3));
+			fieldName.set_from_arg(sit->params[0].substr(0, sit->params[0].size() - 3));
 
 		if (sit->params.size() >= 2) {
 			auto size = cpp::parse_size(sit->params[1]);
-			if (size.first == "(float)" + field_name.value() + ".w")
+			if (size.first == "(float)" + fieldName.value() + ".w")
 				size_x.set_from_arg("0");
 			else
 				size_x.set_from_arg(size.first);
 			
-			if (size.second == "(float)" + field_name.value() + ".h")
+			if (size.second == "(float)" + fieldName.value() + ".h")
 				size_y.set_from_arg("0");
 			else
 				size_y.set_from_arg(size.second);
@@ -2788,8 +2788,8 @@ Image::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "file_name", &file_name },
-		{ "field_name", &field_name },
+		{ "file_name", &fileName },
+		{ "field_name", &fieldName },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -2802,22 +2802,22 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("file_name");
+		ImGui::Text("fileName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##file_name", &file_name, ctx);
+		changed = InputBindable("##fileName", &fileName, ctx);
 		if (ImGui::IsItemDeactivatedAfterEdit() || 
 			(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			RefreshTexture(ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("file_name", &file_name, ctx);
+		BindingButton("fileName", &fileName, ctx);
 		break;
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("field_name");
+		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##field", &field_name, false, ctx);
+		changed = InputFieldRef("##fieldn", &fieldName, false, ctx);
 		break;
 	case 2:
 		ImGui::Text("size_x");
@@ -2845,12 +2845,12 @@ void Image::RefreshTexture(UIContext& ctx)
 {
 	tex.id = 0;
 	
-	if (file_name.empty() ||
-		!file_name.used_variables().empty())
+	if (fileName.empty() ||
+		!fileName.used_variables().empty())
 		return;
 
-	std::string fname;
-	if (!file_name.empty() && fs::path(file_name.value()).is_relative()) 
+	std::string fname = fileName.value();
+	if (fs::path(fname).is_relative()) 
 	{
 		if (ctx.fname.empty() && !ctx.importState) {
 			messageBox.title = "Warning";
@@ -2860,7 +2860,7 @@ void Image::RefreshTexture(UIContext& ctx)
 			return;
 		}
 		assert(ctx.fname != "");
-		fname = (fs::path(ctx.fname).parent_path() / file_name.value()).string();
+		fname = (fs::path(ctx.fname).parent_path() / fileName.value()).string();
 	}
 
 	tex = ImRad::LoadTextureFromFile(fname);
@@ -2925,7 +2925,7 @@ Table::Table(UIContext& ctx)
 void Table::DoDraw(UIContext& ctx)
 {
 	int n = std::max(1, (int)columnData.size());
-	if (!stylePadding)
+	if (!style_padding)
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 });
 	ImVec2 size{ 0, 0 };
 	if (size_x.has_value())
@@ -2952,7 +2952,7 @@ void Table::DoDraw(UIContext& ctx)
 
 		ImGui::EndTable();
 	}
-	if (!stylePadding)
+	if (!style_padding)
 		ImGui::PopStyleVar();
 }
 
@@ -2962,9 +2962,9 @@ Table::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "table.columns", nullptr },
-		{ "table.row_count", &row_count },
+		{ "table.row_count", &rowCount },
 		{ "table.flags", &flags },
-		{ "style_padding", &stylePadding },
+		{ "style_padding", &style_padding },
 		{ "table.header", &header },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
@@ -3003,10 +3003,10 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	}
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("row_count");
+		ImGui::Text("rowCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##row_count", &row_count, true, ctx);
+		changed = InputFieldRef("##rowCount", &rowCount, true, ctx);
 		break;
 	case 2:
 		ImGui::Unindent();
@@ -3024,7 +3024,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	case 3:
 		ImGui::Text("style_padding");
 		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##style_padding", stylePadding.access());
+		changed = ImGui::Checkbox("##style_padding", style_padding.access());
 		break;
 	case 4:
 		ImGui::Text("header");
@@ -3055,7 +3055,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 
 void Table::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!stylePadding)
+	if (!style_padding)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 });\n";
 	
 	os << ctx.ind << "if (ImGui::BeginTable("
@@ -3077,9 +3077,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	bool tmp = ctx.table;
 	ctx.table = true;
-	if (!row_count.empty()) {
+	if (!rowCount.empty()) {
 		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR 
-			<< " < " << row_count.to_arg() << "; ++" << FOR_VAR
+			<< " < " << rowCount.to_arg() << "; ++" << FOR_VAR
 			<< ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 		os << ctx.ind << "ImGui::TableNextRow();\n";
@@ -3098,7 +3098,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << "\n" << ctx.ind << "/// @separator\n";
 
-	if (!row_count.empty()) {
+	if (!rowCount.empty()) {
 		os << ctx.ind << "ImGui::PopID();\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
@@ -3109,7 +3109,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
-	if (!stylePadding)
+	if (!style_padding)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
@@ -3118,7 +3118,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
 		if (sit->params.size() && sit->params[0] == "ImGuiStyleVar_CellPadding")
-			stylePadding = false;
+			style_padding = false;
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTable")
 	{
@@ -3163,7 +3163,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	else if (sit->kind == cpp::ForBlock)
 	{
 		if (!sit->cond.compare(0, FOR_VAR.size()+1, std::string(FOR_VAR) + "<")) //VS bug without std::string()
-			row_count.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
+			rowCount.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
 	}
 }
 
@@ -3176,7 +3176,7 @@ Child::Child(UIContext& ctx)
 
 void Child::DoDraw(UIContext& ctx)
 {
-	if (!stylePadding)
+	if (!style_padding)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	if (styleBg.has_value())
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, styleBg.value());
@@ -3200,9 +3200,9 @@ void Child::DoDraw(UIContext& ctx)
 		dl->AddRect(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr), 0, 0, 1);
 	}*/
 
-	if (column_count.has_value() && column_count.value() >= 2)
+	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
-		int n = column_count.value();
+		int n = columnCount.value();
 		//ImGui::SetColumnWidth doesn't support auto size columns
 		//We compute it ourselves
 		float fixedWidth = (n - 1) * 10.f; //spacing
@@ -3216,7 +3216,7 @@ void Child::DoDraw(UIContext& ctx)
 		}
 		float autoSizeW = (ImGui::GetContentRegionAvail().x - fixedWidth) / autoSized;
 		
-		ImGui::Columns(n, "columns", column_border);
+		ImGui::Columns(n, "columns", columnBorder);
 		for (int i = 0; i < (int)columnsWidths.size(); ++i)
 		{
 			if (columnsWidths[i].has_value() && columnsWidths[i].value())
@@ -3235,13 +3235,13 @@ void Child::DoDraw(UIContext& ctx)
 
 	if (styleBg.has_value())
 		ImGui::PopStyleColor();
-	if (!stylePadding)
+	if (!style_padding)
 		ImGui::PopStyleVar();
 }
 
 void Child::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!stylePadding)
+	if (!style_padding)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });\n";
 	if (!styleBg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << styleBg.to_arg() << ");\n";
@@ -3253,10 +3253,10 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "{\n";
 	ctx.ind_up();
 
-	bool hasColumns = !column_count.has_value() || column_count.value() >= 2;
+	bool hasColumns = !columnCount.has_value() || columnCount.value() >= 2;
 	if (hasColumns) {
-		os << ctx.ind << "ImGui::Columns(" << column_count.to_arg() << ", \"\", "
-			<< column_border.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::Columns(" << columnCount.to_arg() << ", \"\", "
+			<< columnBorder.to_arg() << ");\n";
 		//for (size_t i = 0; i < columnsWidths.size(); ++i)
 			//os << ctx.ind << "ImGui::SetColumnWidth(" << i << ", " << columnsWidths[i].c_str() << ");\n";
 	}
@@ -3288,7 +3288,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!styleBg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (!stylePadding)
+	if (!style_padding)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
@@ -3304,7 +3304,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding") {
 			auto size = cpp::parse_fsize(sit->params[1]);
 			if (size.x == 0 && size.y == 0)
-				stylePadding = false;
+				style_padding = false;
 		}
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginChild")
@@ -3321,13 +3321,13 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
 	{
 		if (sit->params.size())
-			*column_count.access() = sit->params[0];
+			*columnCount.access() = sit->params[0];
 
 		if (sit->params.size() >= 3)
-			column_border = sit->params[2] == "true";
+			columnBorder = sit->params[2] == "true";
 
-		if (column_count.has_value())
-			columnsWidths.resize(column_count.value(), 0.f);
+		if (columnCount.has_value())
+			columnsWidths.resize(columnCount.value(), 0.f);
 		else
 			columnsWidths.resize(1, 0.f);
 	}
@@ -3346,11 +3346,11 @@ Child::Properties()
 	props.insert(props.begin(), {
 		{ "style_color", &styleBg },
 		{ "border", &border },
+		{ "child.column_count", &columnCount },
+		{ "child.column_border", &columnBorder },
+		{ "child.data_size", &data_size },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
-		{ "child.column_count", &column_count },
-		{ "child.column_border", &column_border },
-		{ "child.data_size", &data_size },
 		});
 	return props;
 }
@@ -3374,6 +3374,26 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##border", border.access());
 		break;
 	case 2:
+		ImGui::Text("columnCount");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##columnCount", &columnCount, 1, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("columnCount", &columnCount, ctx);
+		break;
+	case 3:
+		ImGui::Text("columnBorder");
+		ImGui::TableNextColumn();
+		changed = ImGui::Checkbox("##columnBorder", columnBorder.access());
+		break;
+	case 4:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::Text("data_size");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##data_size", &data_size, true, ctx);
+		break;
+	case 5:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3381,33 +3401,13 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 3:
+	case 6:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
-		break;
-	case 4:
-		ImGui::Text("column_count");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##column_count", &column_count, 1, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("column_count", &column_count, ctx);
-		break;
-	case 5:
-		ImGui::Text("column_border");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##column_border", column_border.access());
-		break;
-	case 6:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
-		ImGui::Text("data_size");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##data_size", &data_size, true, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 7, ctx);

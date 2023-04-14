@@ -188,8 +188,8 @@ struct Button : Widget
 struct CheckBox : Widget
 {
 	bindable<std::string> label = "label";
-	direct_val<bool> init_value = false;
-	field_ref<bool> field_name;
+	direct_val<bool> initValue = false;
+	field_ref<bool> fieldName;
 	event<> onChange;
 
 	CheckBox(UIContext& ctx);
@@ -206,7 +206,7 @@ struct RadioButton : Widget
 {
 	bindable<std::string> label = "label";
 	direct_val<int> valueID = 0;
-	field_ref<int> field_name;
+	field_ref<int> fieldName;
 
 	RadioButton(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
@@ -218,13 +218,13 @@ struct RadioButton : Widget
 
 struct Input : Widget
 {
-	field_ref<> field_name;
+	field_ref<> fieldName;
 	direct_val<std::string> type = "std::string";
 	direct_val<std::string> hint = "";
 	bindable<float> size_x = 200;
 	bindable<float> size_y = 100;
 	flags_helper flags = 0;
-	direct_val<bool> keyboard_focus = false;
+	direct_val<bool> keyboardFocus = false;
 	event<> onChange;
 
 	Input(UIContext& ctx);
@@ -239,7 +239,7 @@ struct Input : Widget
 
 struct Combo : Widget
 {
-	field_ref<int> field_name;
+	field_ref<int> fieldName;
 	bindable<std::vector<std::string>> items;
 	bindable<float> size_x = 200;
 	event<> onChange;
@@ -256,10 +256,10 @@ struct Combo : Widget
 
 struct Image : Widget
 {
-	bindable<std::string> file_name = "";
+	bindable<std::string> fileName = "";
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
-	field_ref<ImRad::Texture> field_name;
+	field_ref<ImRad::Texture> fieldName;
 	ImRad::Texture tex;
 
 	Image(UIContext& ctx);
@@ -281,12 +281,12 @@ struct Table : Widget
 		ColumnData();
 	};
 	flags_helper flags = ImGuiTableFlags_Borders;
-	direct_val<bool> stylePadding = true;
+	direct_val<bool> style_padding = true;
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
-	field_ref<size_t> row_count;
+	field_ref<size_t> rowCount;
 
 	Table(UIContext&);
 	bool IsContainer() { return true; }
@@ -302,9 +302,9 @@ struct Child : Widget
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
 	direct_val<bool> border = false;
-	direct_val<bool> stylePadding = true;
-	bindable<int> column_count = 1;
-	direct_val<bool> column_border = true;
+	direct_val<bool> style_padding = true;
+	bindable<int> columnCount = 1;
+	direct_val<bool> columnBorder = true;
 	std::vector<bindable<float>> columnsWidths{ 0.f };
 	field_ref<size_t> data_size;
 	bindable<color32> styleBg;
