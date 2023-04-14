@@ -1667,6 +1667,92 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 }
 
+std::string CodeShortcut(const std::string& sh)
+{
+	if (sh.empty())
+		return "";
+	size_t i = -1;
+	std::ostringstream os;
+	int count = 0;
+	while (true) 
+	{
+		++count;
+		size_t j = sh.find_first_of("+-", i + 1);
+		if (j == std::string::npos)
+			j = sh.size();
+		std::string key = sh.substr(i + 1, j - i - 1);
+		if (key.empty() && j < sh.size()) //like in ctrl-+
+			key = sh[j];
+		if (key.empty())
+			break;
+		std::string lk = key;
+		stx::for_each(lk, [](char& c) { c = std::tolower(c); });
+		//todo
+		if (lk == "ctrl")
+			os << " && ImGui::GetIO().KeyCtrl";
+		else if (lk == "alt")
+			os << " && ImGui::GetIO().KeyAlt";
+		else if (lk == "shift")
+			os << " && ImGui::GetIO().KeyShift";
+		else if (key == "+")
+			os << " && ImGui::IsKeyPressed(ImGuiKey_Equal, false)";
+		else if (key == "-")
+			os << " && ImGui::IsKeyPressed(ImGuiKey_Minus, false)";
+		else if (key == ".")
+			os << " && ImGui::IsKeyPressed(ImGuiKey_Period, false)";
+		else if (key == ",")
+			os << " && ImGui::IsKeyPressed(ImGuiKey_Comma, false)";
+		else if (key == "/")
+			os << " && ImGui::IsKeyPressed(ImGuiKey_Slash, false)";
+		else
+			os << " && ImGui::IsKeyPressed(ImGuiKey_" << (char)std::toupper(key[0])
+			<< key.substr(1) << ", false)";
+		i = j;
+		if (j == sh.size())
+			break;
+	}
+	std::string code;
+	if (count > 1)
+		code += "(";
+	code += os.str().substr(4);
+	if (count > 1)
+		code += ")";
+	return code;
+}
+
+std::string ParseShortcut(const std::string& line)
+{
+	std::string sh;
+	size_t i = -1;
+	while (true)
+	{
+		size_t j1 = line.find("ImGui::IsKeyPressed(ImGuiKey_", i + 1);
+		size_t j2 = line.find("ImGui::GetIO().Key", i + 1);
+		if (j1 == std::string::npos && j2 == std::string::npos)
+			break;
+		if (j1 < j2) {
+			j1 += 29;
+			size_t e = line.find_first_of(",)", j1);
+			if (e == std::string::npos)
+				break;
+			sh += "+";
+			sh += line.substr(j1, e - j1);
+			i = j1;
+		}
+		else
+		{
+			j2 += 18;
+			sh += "+";
+			while (j2 < line.size() && std::isalpha(line[j2]))
+				sh += line[j2++];
+			i = j2;
+		}
+	}
+	if (sh.size())
+		sh.erase(sh.begin());
+	return sh;
+}
+
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!color.empty())
@@ -1692,14 +1778,15 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 			<< ")";
 	}
 
+	if (shortcut != "") {
+		os << " ||\n";
+		ctx.ind_up();
+		os << ctx.ind << CodeShortcut(shortcut);
+		ctx.ind_down();
+	}
+
 	if (!onChange.empty() || closePopup)
 	{
-		if (modalResult == ImRad::Cancel) {
-			os << " ||\n";
-			ctx.ind_up();
-			os << ctx.ind << "ImGui::IsKeyPressed(ImGuiKey_Escape)";
-			ctx.ind_down();
-		}
 		os << ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 			
@@ -1742,6 +1829,8 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			size_x.set_from_arg(size.first);
 			size_y.set_from_arg(size.second);
 		}
+
+		shortcut = ParseShortcut(sit->line);
 	}
 	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::SmallButton")
@@ -1774,9 +1863,10 @@ Button::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "label", &label },
 		{ "button.arrowDir", &arrowDir },
+		{ "label", &label },
 		{ "button.modalResult", &modalResult },
+		{ "shortcut", &shortcut },
 		{ "color", &color },
 		{ "button.small", &small },
 		{ "size_x", &size_x },
@@ -1791,16 +1881,6 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
-		ImGui::Text("label");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##label", &label, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
-		ImGui::EndDisabled();
-		break;
-	case 1:
 	{
 		ImGui::Text("arrowDir");
 		ImGui::TableNextColumn();
@@ -1817,6 +1897,16 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	}
+	case 1:
+		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##label", &label, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("label", &label, ctx);
+		ImGui::EndDisabled();
+		break;
 	case 2:
 	{
 		ImGui::BeginDisabled(!ctx.modalPopup);
@@ -1828,8 +1918,11 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			changed = true;
 			for (const auto& item : modalResult.get_ids())
 			{
-				if (ImGui::Selectable(item.first.c_str(), modalResult == item.second))
+				if (ImGui::Selectable(item.first.c_str(), modalResult == item.second)) {
 					modalResult = item.second;
+					if (modalResult == ImRad::Cancel)
+						shortcut = "Escape";
+				}
 			}
 			ImGui::EndCombo();
 		}
@@ -1837,6 +1930,12 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	case 3:
+		ImGui::Text("shortcut");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##shortcut", shortcut.access());
+		break;
+	case 4:
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1844,12 +1943,12 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &color, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##small", small.access());
 		break;
-	case 5:
+	case 6:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1857,7 +1956,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1866,7 +1965,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 7, ctx);
+		return Widget::PropertyUI(i - 8, ctx);
 	}
 	return changed;
 }

@@ -59,6 +59,12 @@ namespace stx {
 		return std::sort(std::begin(c), std::end(c));
 	}
 
+	template <class C, class F>
+	decltype(auto) for_each(C& c, F&& f)
+	{
+		return std::for_each(std::begin(c), std::end(c), std::forward<F>(f));
+	}
+
 	template <class I>
 	std::string join(I beg, I end, std::string_view sep)
 	{

@@ -172,6 +172,7 @@ struct Button : Widget
 	bindable<float> size_y = 0;
 	bindable<color32> color;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
+	direct_val<std::string> shortcut = "";
 	event<> onChange;
 
 	Button(UIContext& ctx);
