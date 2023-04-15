@@ -26,13 +26,16 @@ enum ModalResult {
 	ModalResult_Count
 };
 
-enum Align {
-	Align_Left,
-	Align_Right,
-	Align_Center,
+enum Alignment {
+	AlignLeft = 0x1,
+	AlignRight = 0x2,
+	AlignHCenter = 0x4,
+	AlignTop = 0x8,
+	AlignBottom = 0x10,
+	AlignVCenter = 0x20,
 };
 
-inline void AlignedText(Align alignment, const char* label)
+inline void AlignedText(Alignment alignment, const char* label)
 {
 	//todo: align each line 
 	const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
@@ -45,9 +48,9 @@ inline void AlignedText(Align alignment, const char* label)
 		
 		float tw = ImGui::CalcTextSize(label, nullptr, false, w).x;
 		float dx = 0;
-		if (alignment == Align_Center)
+		if (alignment == AlignHCenter)
 			dx = (w - tw) / 2.f;
-		else if (alignment == Align_Right)
+		else if (alignment == AlignRight)
 			dx = w - tw;
 		
 		ImGui::SetCursorPosX(x1 + dx);

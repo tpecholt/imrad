@@ -714,7 +714,9 @@ error:
 		{
 			std::istringstream is(str.substr(1, str.size() - 2));
 			is >> fsize.x;
-			is.get();
+			int c = is.get(); 
+			while (c != EOF && c != ',') //ignore suffixes like 0.5f
+				c = is.get();
 			is >> fsize.y;
 		}
 		return fsize;

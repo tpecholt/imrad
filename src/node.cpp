@@ -789,11 +789,6 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				disabled.set_from_arg(sit->params[0]);
 		}
-		/*else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetToolTip")
-		{
-			if (sit->params.size())
-				tooltip.set_from_arg(sit->params[0]);
-		}*/
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemHovered")
 		{
 			if (sit->callee == "ImGui::SetTooltip")
@@ -1038,7 +1033,9 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("tooltip");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##tooltip", tooltip.access());
+		changed = InputBindable("##tooltip", &tooltip, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("tooltip", &tooltip, ctx);
 		break;
 	case 3:
 		ImGui::Text("disabled");
@@ -1251,9 +1248,9 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 Text::Text(UIContext& ctx)
 	: Widget(ctx)
 {
-	alignment.add$(ImRad::Align_Left);
-	alignment.add$(ImRad::Align_Center);
-	alignment.add$(ImRad::Align_Right);
+	alignment.add("AlignLeft", ImRad::AlignLeft);
+	alignment.add("AlignHCenter", ImRad::AlignHCenter);
+	alignment.add("AlignRight", ImRad::AlignRight);
 }
 
 void Text::DoDraw(UIContext& ctx)
@@ -1442,17 +1439,33 @@ Selectable::Selectable(UIContext& ctx)
 	flags.prefix("ImGuiSelectableFlags_");
 	flags.add$(ImGuiSelectableFlags_DontClosePopups);
 	flags.add$(ImGuiSelectableFlags_SpanAllColumns);
+
+	horizAlignment.add("AlignLeft", ImRad::AlignLeft);
+	horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
+	horizAlignment.add("AlignRight", ImRad::AlignRight);
+	vertAlignment.add("AlignTop", ImRad::AlignTop);
+	vertAlignment.add("AlignVCenter", ImRad::AlignVCenter);
+	vertAlignment.add("AlignBottom", ImRad::AlignBottom);
 }
 
 void Selectable::DoDraw(UIContext& ctx)
 {
 	std::optional<color32> clr;
-	/*if (grayed)
-		clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-	else*/ if (color.has_value())
+	if (color.has_value())
 		clr = color.value();
 	if (clr)
 		ImGui::PushStyleColor(ImGuiCol_Text, *clr);
+
+	ImVec2 alignment(0, 0);
+	if (horizAlignment == ImRad::AlignHCenter)
+		alignment.x = 0.5f;
+	else if (horizAlignment == ImRad::AlignRight)
+		alignment.x = 1.f;
+	if (vertAlignment == ImRad::AlignVCenter)
+		alignment.y = 0.5f;
+	else if (vertAlignment == ImRad::AlignBottom)
+		alignment.y = 1.f;
+	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, alignment);
 
 	ImVec2 size(0, 0);
 	if (size_x.has_value())
@@ -1461,8 +1474,16 @@ void Selectable::DoDraw(UIContext& ctx)
 		size.y = size_y.value();
 	ImGui::Selectable(label.c_str(), false, flags, size);
 
+	ImGui::PopStyleVar();
+
 	if (clr)
 		ImGui::PopStyleColor();
+}
+
+void Selectable::CalcSizeEx(ImVec2 p1)
+{
+	cached_size = ImGui::GetItemRectSize();
+	cached_size.x -= ImGui::GetStyle().ItemSpacing.x;
 }
 
 void Selectable::DoExport(std::ostream& os, UIContext& ctx)
@@ -1475,6 +1496,12 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (clr != "")
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Header, " << clr << ");\n";
+
+	os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { "
+		<< (horizAlignment == ImRad::AlignLeft ? "0" : horizAlignment == ImRad::AlignHCenter ? "0.5f" : "1.f")
+		<< ", "
+		<< (vertAlignment == ImRad::AlignTop ? "0" : vertAlignment == ImRad::AlignVCenter ? "0.5f" : "1.f")
+		<< " });\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -1493,6 +1520,8 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	else {
 		os << ";\n";
 	}
+
+	os << ctx.ind << "ImGui::PopStyleVar();\n";
 
 	if (clr != "")
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
@@ -1523,6 +1552,22 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			color.set_from_arg(sit->params[1]);
 		}
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
+	{
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiStyleVar_SelectableTextAlign")
+		{
+			auto a = cpp::parse_fsize(sit->params[1]);
+			if (a.x == 0.5f)
+				horizAlignment = ImRad::AlignHCenter;
+			else if (a.x == 1.f)
+				horizAlignment = ImRad::AlignRight;
+			
+			if (a.y == 0.5f)
+				vertAlignment = ImRad::AlignVCenter;
+			else if (a.y == 1.f)
+				vertAlignment = ImRad::AlignBottom;
+		}
+	}
 }
 
 std::vector<UINode::Prop>
@@ -1532,6 +1577,8 @@ Selectable::Properties()
 	props.insert(props.begin(), {
 		{ "label", &label },
 		{ "color", &color },
+		{ "horizAlignment", &horizAlignment },
+		{ "vertAlignment", &vertAlignment },
 		{ "selectable.flags", &flags },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }
@@ -1545,7 +1592,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Selectable("label");
+		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
@@ -1553,7 +1600,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		break;
 	case 1:
-		ImGui::Selectable("color");
+		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##color", &color, ctx);
@@ -1561,6 +1608,36 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("color", &color, ctx);
 		break;
 	case 2:
+		ImGui::Text("horizAlignment");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##horizAlignment", horizAlignment.get_id().c_str()))
+		{
+			for (const auto& item : horizAlignment.get_ids())
+				if (ImGui::Selectable(item.first.c_str(), horizAlignment == item.second)) {
+					changed = true;
+					horizAlignment = item.second;
+				}
+			ImGui::EndCombo();
+		}
+		break;
+	case 3:
+		ImGui::BeginDisabled(size_y.has_value() && !size_y.value());
+		ImGui::Text("vertAlignment");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##vertAlignment", vertAlignment.get_id().c_str()))
+		{
+			for (const auto& item : vertAlignment.get_ids())
+				if (ImGui::Selectable(item.first.c_str(), vertAlignment == item.second)) {
+					changed = true;
+					vertAlignment = item.second;
+				}
+			ImGui::EndCombo();
+		}
+		ImGui::EndDisabled();
+		break;
+	case 4:
 		ImGui::Unindent();
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
 		if (ImGui::TreeNode("flags")) {
@@ -1572,16 +1649,16 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::PopStyleVar();
 		ImGui::Indent();
 		break;
-	case 3:
-		ImGui::Selectable("size_x");
+	case 5:
+		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 4:
-		ImGui::Selectable("size_y");
+	case 6:
+		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
@@ -1589,7 +1666,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 5, ctx);
+		return Widget::PropertyUI(i - 7, ctx);
 	}
 	return changed;
 }

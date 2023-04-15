@@ -40,18 +40,18 @@ void AboutDlg::Draw()
         /// @separator
 
         /// @begin Text
-        ImRad::AlignedText(ImRad::Align_Left, VER_STR.c_str());
+        ImRad::AlignedText(ImRad::AlignLeft, VER_STR.c_str());
         /// @end Text
 
         /// @begin Text
 		ImGui::Spacing();
-		ImRad::AlignedText(ImRad::Align_Left, "visit");
+		ImRad::AlignedText(ImRad::AlignLeft, "visit");
         /// @end Text
 
         /// @begin Text
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, 0xffff9018);
-        ImRad::AlignedText(ImRad::Align_Left, GITHUB_STR.c_str());
+        ImRad::AlignedText(ImRad::AlignLeft, GITHUB_STR.c_str());
         ImGui::PopStyleColor();
         if (ImGui::IsItemHovered())
             ImGui::SetMouseCursor(7);

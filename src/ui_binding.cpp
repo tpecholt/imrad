@@ -47,7 +47,7 @@ void BindingDlg::Draw()
 
         /// @begin Text
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff4d4dff);
-        ImRad::AlignedText(ImRad::Align_Left, ImRad::Format(" {}=", name).c_str());
+        ImRad::AlignedText(ImRad::AlignLeft, ImRad::Format(" {}=", name).c_str());
         ImGui::PopStyleColor();
         /// @end Text
 
@@ -71,7 +71,7 @@ void BindingDlg::Draw()
 
             /// @begin Text
             ImGui::AlignTextToFramePadding();
-            ImRad::AlignedText(ImRad::Align_Left, "Available fields:");
+            ImRad::AlignedText(ImRad::AlignLeft, "Available fields:");
             /// @end Text
 
             /// @begin Child

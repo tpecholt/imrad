@@ -87,7 +87,7 @@ struct Widget : UINode
 	bindable<bool> disabled = false;
 	direct_val<int> indent = 0;
 	direct_val<int> spacing = 0;
-	direct_val<std::string> tooltip = "";
+	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
@@ -131,7 +131,7 @@ struct Text : Widget
 	bindable<std::string> text = "text";
 	direct_val<bool> grayed = false; //Widget::disabled is already bindable
 	bindable<color32> color;
-	direct_val<ImRad::Align> alignment = ImRad::Align_Left; 
+	direct_val<ImRad::Alignment> alignment = ImRad::AlignLeft; 
 	direct_val<bool> alignToFrame = false;
 	bindable<float> size_x = 0;
 
@@ -149,6 +149,8 @@ struct Selectable : Widget
 	bindable<std::string> label = "label";
 	bindable<color32> color;
 	flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
+	direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
+	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
 	event<> onChange;
@@ -161,6 +163,7 @@ struct Selectable : Widget
 	bool EventUI(int, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void CalcSizeEx(ImVec2 p1);
 };
 
 struct Button : Widget
