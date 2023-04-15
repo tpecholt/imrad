@@ -65,6 +65,12 @@ namespace stx {
 		return std::for_each(std::begin(c), std::end(c), std::forward<F>(f));
 	}
 
+	template <class C>
+	int ssize(const C& c)
+	{
+		return (int)std::size(c);
+	}
+
 	template <class I>
 	std::string join(I beg, I end, std::string_view sep)
 	{

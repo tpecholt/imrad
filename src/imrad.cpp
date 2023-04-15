@@ -70,19 +70,23 @@ struct TB_Button
 	std::string label;
 	std::string name;
 };
-std::vector<TB_Button> tbButtons{
-	{ ICON_FA_ARROW_POINTER, "" },
-	{ ICON_FA_SQUARE_FULL, "Child" },
-	{ ICON_FA_FONT, "Text" },
-	{ ICON_FA_AUDIO_DESCRIPTION, "Selectable" },
-	{ ICON_FA_SQUARE_PLUS, "Button" }, 
-	{ ICON_FA_CLOSED_CAPTIONING, "Input" }, //closed captioning
-	{ ICON_FA_SQUARE_CHECK, "CheckBox" },
-	{ ICON_FA_CIRCLE_DOT, "RadioButton" },
-	{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
-	{ ICON_FA_IMAGE, "Image" },
-	{ ICON_FA_TABLE_CELLS_LARGE, "Table" },
-	{ ICON_FA_ARROW_DOWN_WIDE_SHORT, "CollapsingHeader" },
+std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
+	{ "Standard", {
+		{ ICON_FA_ARROW_POINTER, "" },
+		{ ICON_FA_FONT, "Text" },
+		{ ICON_FA_AUDIO_DESCRIPTION, "Selectable" },
+		{ ICON_FA_CIRCLE_PLAY, "Button" }, //ICON_FA_SQUARE_PLUS
+		{ "[ab]", "Input" }, //ICON_FA_CLOSED_CAPTIONING
+		{ ICON_FA_SQUARE_CHECK, "CheckBox" },
+		{ ICON_FA_CIRCLE_DOT, "RadioButton" },
+		{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
+		{ ICON_FA_IMAGE, "Image" },
+	}},
+	{ "Containers", {
+		{ ICON_FA_SQUARE_FULL, "Child" },
+		{ ICON_FA_TABLE_CELLS_LARGE, "Table" },
+		{ ICON_FA_ARROW_DOWN_WIDE_SHORT, "CollapsingHeader" },
+	}}
 	/*{ ICON_MD_NORTH_WEST, "" },
 	{ ICON_MD_CHECK_BOX_OUTLINE_BLANK, "child" },
 	{ ICON_MD_TEXT_FORMAT, "text" },
@@ -368,7 +372,7 @@ void StyleColors()
 	style.Colors[ImGuiCol_Header] = ImVec4(0.26f, 0.59f, 0.98f, 0.31f);
 	style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.80f);
 	style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-	style.Colors[ImGuiCol_Header] = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+	//style.Colors[ImGuiCol_Header] = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
 	style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.78f);
 	//style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
 	style.Colors[ImGuiCol_ResizeGrip] = ImVec4(1.00f, 1.00f, 1.00f, 0.50f);
@@ -449,15 +453,16 @@ void DockspaceUI()
 		ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
 		ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 350.f / viewport->Size.x, nullptr, &dockspace_id);
 		ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 300.f / (viewport->Size.x - 350), nullptr, &dockspace_id);
-		//ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 0.5f, &dock_id_right1, &dock_id_right2);
+		ImGuiID dock_id_right1, dock_id_right2;
+		ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 230.f / (viewport->Size.y - TB_SIZE), &dock_id_right1, &dock_id_right2);
 		float vh = viewport->Size.y - TB_SIZE;
 		dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, TAB_SIZE / vh, nullptr, &dockspace_id);
 		
-		//ImGui::DockBuilderDockWindow("Widgets", dock_id_left);
 		ImGui::DockBuilderDockWindow("FileTabs", dock_id_top);
 		ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
-		ImGui::DockBuilderDockWindow("Properties", dock_id_right);
-		ImGui::DockBuilderDockWindow("Events", dock_id_right);
+		ImGui::DockBuilderDockWindow("Widgets", dock_id_right1);
+		ImGui::DockBuilderDockWindow("Properties", dock_id_right2);
+		ImGui::DockBuilderDockWindow("Events", dock_id_right2);
 		ImGui::DockBuilderFinish(dockspace_id);
 	}
 
@@ -550,20 +555,34 @@ void ToolbarUI()
 
 	ImGui::End();
 
-	if (firstTime)
-		ImGui::SetNextWindowPos(ImVec2(viewport->Size.x - 500, 100));
+	float sp = ImGui::GetStyle().ItemSpacing.x;
+	ImGui::SetNextWindowPos({ viewport->Size.x - 520, 100 }, ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize({ 140, 260 }, ImGuiCond_FirstUseEver);
 	ImGui::Begin("Widgets", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
-	int n = (int)std::max(1.f, ImGui::GetContentRegionAvail().x / (BTN_SIZE + 5));
-	ImGui::Columns(n, nullptr, false);
-	for (auto& tb : tbButtons)
+	int n = (int)std::max(1.f, ImGui::GetContentRegionAvail().x / (BTN_SIZE + sp));
+	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0.5f, 0.5f });
+	for (const auto& cat : tbButtons)
 	{
-		if (ImGui::Selectable(tb.label.c_str(), activeButton == tb.name, 0, ImVec2(BTN_SIZE, BTN_SIZE)))
-			NewWidget(tb.name);
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tb.name != "")
-			ImGui::SetTooltip(tb.name.c_str());
+		ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
+		if (ImGui::CollapsingHeader(cat.first.c_str()))
+		{
+			int rows = (stx::ssize(cat.second) + n - 1) / n;
+			float h = rows * BTN_SIZE + (rows - 1) * 5;
+			ImGui::BeginChild(("cat" + cat.first).c_str(), { 0, h });
+			ImGui::Columns(n, nullptr, false);
+			for (const auto& tb : cat.second)
+			{
+				if (ImGui::Selectable(tb.label.c_str(), activeButton == tb.name, 0, ImVec2(BTN_SIZE, BTN_SIZE)))
+					NewWidget(tb.name);
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tb.name != "")
+					ImGui::SetTooltip(tb.name.c_str());
 
-		ImGui::NextColumn();
+				ImGui::NextColumn();
+			}
+			ImGui::EndChild();
+		}
 	}
+	ImGui::PopStyleVar();
 	ImGui::End();
 }
 
