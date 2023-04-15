@@ -567,7 +567,11 @@ namespace cpp
 
 	inline std::string parse_str_arg(std::string_view str)
 	{
-		if (is_cstr(str)) 
+		if (str == "0" || str == "NULL" || str == "nullptr")
+		{
+			return "";
+		}
+		else if (is_cstr(str))
 		{
 			return unescape(str.substr(1, str.size() - 2));
 		}

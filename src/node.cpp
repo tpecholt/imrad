@@ -79,10 +79,9 @@ TopWindow::TopWindow(UIContext& ctx)
 
 void TopWindow::Draw(UIContext& ctx)
 {
-	ctx.level = 0;
 	ctx.groupLevel = 0;
 	ctx.root = this;
-	ctx.parent = this;
+	ctx.parents = { this };
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.modalPopup = modalPopup;
@@ -321,6 +320,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 void TopWindow::TreeUI(UIContext& ctx)
 {
+	ctx.parents = { this };
 	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	std::string str = ctx.codeGen->GetName();
 	bool selected = stx::count(ctx.selected, this);
@@ -476,6 +476,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Input>(ctx);
 	else if (name == "Combo")
 		return std::make_unique<Combo>(ctx);
+	else if (name == "Slider")
+		return std::make_unique<Slider>(ctx);
 	else if (name == "Image")
 		return std::make_unique<Image>(ctx);
 	else if (name == "Table")
@@ -519,9 +521,7 @@ void Widget::Draw(UIContext& ctx)
 	
 	auto lastSel = ctx.selected; //this recognizes selection in a child widget
 	auto lastHovered = ctx.hovered;
-	auto* lastParent = ctx.parent;
-	ctx.parent = this;
-	++ctx.level;
+	ctx.parents.push_back(this);
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
@@ -530,10 +530,11 @@ void Widget::Draw(UIContext& ctx)
 	ImGui::PopID();
 	ImGui::EndDisabled();
 	CalcSizeEx(p1);
-	--ctx.level;
-	ctx.parent = lastParent;
+	ctx.parents.pop_back();
 
-	bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+	//doesn't work for open CollapsingHeader
+	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
 	if (!ctx.snapMode && ctx.hovered == lastHovered && hovered)
 	{
 		ctx.hovered = this;
@@ -847,7 +848,7 @@ void Widget::DrawSnap(UIContext& ctx)
 	else if (d2.y == mind)
 		snapDir = ImGuiDir_Down;
 
-	const auto& pchildren = ctx.parent->children;
+	const auto& pchildren = ctx.parents.back()->children;
 	size_t i = stx::find_if(pchildren, [&](const auto& ch) {
 		return ch.get() == this;
 		}) - pchildren.begin();
@@ -870,7 +871,7 @@ void Widget::DrawSnap(UIContext& ctx)
 			ctx.snapParent = this;
 			ctx.snapIndex = 0;
 			ImDrawList* dl = ImGui::GetWindowDrawList();
-			dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[(ctx.level + 1) % std::size(SNAP_COLOR)], 0, 0, 3);
+			dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[ctx.parents.size() % std::size(SNAP_COLOR)], 0, 0, 3);
 			return;
 		}
 		break;
@@ -888,7 +889,7 @@ void Widget::DrawSnap(UIContext& ctx)
 			h = std::max(p.y + h, p2.y + h2) - q.y;
 			p = q;
 		}
-		ctx.snapParent = ctx.parent;
+		ctx.snapParent = ctx.parents.back();
 		ctx.snapIndex = i;
 		ctx.snapSameLine[0] = pchildren[i]->sameLine;
 		ctx.snapSameLine[1] = true;
@@ -913,7 +914,7 @@ void Widget::DrawSnap(UIContext& ctx)
 			h = std::max(p.y + h, p2.y + h2) - q.y;
 			p = q;
 		}
-		ctx.snapParent = ctx.parent;
+		ctx.snapParent = ctx.parents.back();
 		ctx.snapIndex = i + 1;
 		ctx.snapSameLine[0] = true;
 		ctx.snapSameLine[1] = pch ? (bool)pch->sameLine : false;
@@ -962,7 +963,7 @@ void Widget::DrawSnap(UIContext& ctx)
 		w = x2 - p.x;
 		ctx.snapSameLine[0] = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
 		ctx.snapSameLine[1] = false;
-		ctx.snapParent = ctx.parent;
+		ctx.snapParent = ctx.parents.back();
 		if (down)
 		{
 			ctx.snapNextColumn[0] = false;
@@ -984,7 +985,7 @@ void Widget::DrawSnap(UIContext& ctx)
 	}
 
 	ImDrawList* dl = ImGui::GetWindowDrawList();
-	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[ctx.level % std::size(SNAP_COLOR)], 3);
+	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[(ctx.parents.size() - 1) % std::size(SNAP_COLOR)], 3);
 }
 
 std::vector<UINode::Prop>
@@ -1209,11 +1210,17 @@ void Widget::TreeUI(UIContext& ctx)
 				toggle(ctx.selected, this);
 			else
 				ctx.selected = { this };
+			//open parents
+			for (int i = 0; i < (int)ctx.parents.size() - 1; ++i) 
+				ctx.parents[i]->EnsureVisible(ctx.parents[i + 1]);
+			ctx.parents.back()->EnsureVisible(this);
 		}
 		ImGui::SameLine();
 		ImGui::TextDisabled(suff.c_str());
+		ctx.parents.push_back(this);
 		for (const auto& ch : children)
 			ch->TreeUI(ctx);
+		ctx.parents.pop_back();
 		ImGui::TreePop();
 	}
 	else if (selected) {
@@ -2775,6 +2782,241 @@ bool Combo::EventUI(int i, UIContext& ctx)
 	return changed;
 }
 
+//---------------------------------------------------
+
+Slider::Slider(UIContext& ctx)
+	: Widget(ctx)
+{
+	if (!ctx.importState)
+		fieldName.set_from_arg(ctx.codeGen->CreateVar(type=="angle" ? "float" : type, "", CppGen::Var::Interface));
+}
+
+void Slider::DoDraw(UIContext& ctx)
+{
+	float ftmp = 0;
+	int itmp = 0;
+	
+	if (size_x.has_value())
+		ImGui::SetNextItemWidth(size_x.value());
+
+	const char* fmt = nullptr;
+	if (!format.empty())
+		fmt = format.c_str();
+
+	if (type == "int")
+	{
+		ImGui::SliderInt(("##" + fieldName.value()).c_str(), &itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
+	}
+	else if (type == "float")
+	{
+		ImGui::SliderFloat(("##" + fieldName.value()).c_str(), &ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+	}
+	else if (type == "angle")
+	{
+		ImGui::SliderAngle(("##" + fieldName.value()).c_str(), &ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+	}
+}
+
+void Slider::DoExport(std::ostream& os, UIContext& ctx)
+{
+	os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+
+	os << ctx.ind;
+	if (!onChange.empty())
+		os << "if (";
+
+	std::string fmt = "nullptr";
+	if (!format.empty())
+		fmt = format.to_arg();
+
+	if (type == "int")
+	{
+		os << "ImGui::SliderInt(\"##" << fieldName.c_str() << "\", &"
+			<< fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg() 
+			<< ", " << fmt << ")";
+	}
+	else if (type == "float")
+	{
+		os << "ImGui::SliderFloat(\"##" << fieldName.c_str() << "\", &"
+			<< fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg() 
+			<< ", " << fmt << ")";
+	}
+	else if (type == "angle")
+	{
+		os << "ImGui::SliderAngle(\"##" << fieldName.c_str() << "\", &"
+			<< fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg() 
+			<< ", " << fmt << ")";
+	}
+
+	if (!onChange.empty()) {
+		os << ")\n";
+		ctx.ind_up();
+		os << ctx.ind << onChange.to_arg() << "();\n";
+		ctx.ind_down();
+	}
+	else {
+		os << ";\n";
+	}
+}
+
+void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 13, "ImGui::Slider")) || 
+		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 13, "ImGui::Slider")))
+	{
+		if (sit->callee == "ImGui::SliderInt" || sit->cond == "ImGui::SliderInt")
+			type = "int";
+		else if (sit->callee == "ImGui::SliderFloat" || sit->cond == "ImGui::SliderFloat")
+			type = "float";
+		else
+			type = "angle";
+
+		if (sit->params.size() > 1 && !sit->params[1].compare(0, 1, "&"))
+			fieldName.set_from_arg(sit->params[1].substr(1));
+
+		if (sit->params.size() > 2)
+			min.set_from_arg(sit->params[2]);
+
+		if (sit->params.size() > 3)
+			max.set_from_arg(sit->params[3]);
+		
+		if (sit->params.size() > 4)
+			format.set_from_arg(sit->params[4]);
+
+		if (sit->kind == cpp::IfCallThenCall)
+			onChange.set_from_arg(sit->callee);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
+	{
+		if (sit->params.size()) {
+			size_x.set_from_arg(sit->params[0]);
+		}
+	}
+}
+
+std::vector<UINode::Prop>
+Slider::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "slider.type", &type },
+		{ "slider.field_name", &fieldName },
+		{ "slider.min", &min },
+		{ "slider.max", &max },
+		{ "slider.format", &format },
+		{ "size_x", &size_x }
+		});
+	return props;
+}
+
+bool Slider::PropertyUI(int i, UIContext& ctx)
+{
+	static const char* TYPES[]{
+		"int",
+		"float",
+		"angle"
+	};
+
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("type");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##type", type.c_str()))
+		{
+			for (const auto& tp : TYPES)
+			{
+				if (ImGui::Selectable(tp, type == tp)) {
+					changed = true;
+					type = tp;
+					ctx.codeGen->ChangeVar(fieldName.c_str(), type, "");
+				}
+			}
+			ImGui::EndCombo();
+		}
+		break;
+	case 1:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::Text("fieldName");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
+		break;
+	case 2:
+		ImGui::Text("min");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (type == "int") {
+			int val = (int)min;
+			changed = ImGui::InputInt("##min", &val);
+			min = (float)val;
+		}
+		else {
+			changed = ImGui::InputFloat("##min", min.access());
+		}
+		break;
+	case 3:
+		ImGui::Text("max");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (type == "int") {
+			int val = (int)max;
+			changed = ImGui::InputInt("##max", &val);
+			max = (float)val;
+		}
+		else {
+			changed = ImGui::InputFloat("##max", max.access());
+		}
+		break;
+	case 4:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_x", &size_x, ctx);
+		break;
+	case 5:
+		ImGui::Text("format");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##format", format.access());
+		break;
+	default:
+		return Widget::PropertyUI(i - 6, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+Slider::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onChange", &onChange }
+		});
+	return props;
+}
+
+bool Slider::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("onChange");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onChange", &onChange, ctx);
+		break;
+	default:
+		return Widget::EventUI(i - 1, ctx);
+	}
+	return changed;
+}
+
 //----------------------------------------------------
 
 Image::Image(UIContext& ctx)
@@ -3501,10 +3743,9 @@ CollapsingHeader::CollapsingHeader(UIContext& ctx)
 
 void CollapsingHeader::DoDraw(UIContext& ctx)
 {
-	if (open.has_value())
-		ImGui::SetNextItemOpen(open.value());
-	else
-		ImGui::SetNextItemOpen(true);
+	//currently we always keep open in the designer regardless of open property
+	//because open relates to generated code only
+	ImGui::SetNextItemOpen(true);
 
 	if (ImGui::CollapsingHeader(label.c_str()))
 	{

@@ -34,12 +34,11 @@ struct UIContext
 	
 	//recursive info
 	UINode* hovered = nullptr;
-	int level = 0;
 	int groupLevel = 0;
 	int importLevel;
 	std::string userCode;
 	UINode* root = nullptr;
-	UINode* parent = nullptr;
+	std::vector<UINode*> parents;
 	bool modalPopup = false;
 	bool table = false;
 	std::string ind;
@@ -69,6 +68,7 @@ struct UINode
 	virtual bool EventUI(int, UIContext& ctx) = 0;
 	virtual void Export(std::ostream&, UIContext& ctx) = 0;
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
+	virtual void EnsureVisible(const UINode*) {}
 
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
 	
@@ -250,6 +250,26 @@ struct Combo : Widget
 	Combo(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	auto Events()->std::vector<Prop>;
+	bool EventUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+};
+
+struct Slider : Widget
+{
+	field_ref<> fieldName;
+	direct_val<std::string> type = "float";
+	direct_val<float> min = 0;
+	direct_val<float> max = 1;
+	direct_val<std::string> format = "";
+	bindable<float> size_x = 200;
+	event<> onChange;
+
+	Slider(UIContext& ctx);
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
 	bool EventUI(int i, UIContext& ctx);
