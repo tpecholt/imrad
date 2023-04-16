@@ -368,12 +368,15 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 0:
 		ImGui::Text("title");
 		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-1);
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##title", &title, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("title", &title, ctx);
 		break;
 	case 1:
 		ImGui::Text("modalPopup");
 		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##modal", &modalPopup);
 		break;
 	case 2:
@@ -391,13 +394,13 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 3:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-1);
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputFloat("##size_x", &size_x);
 		break;
 	case 4:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-1);
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputFloat("##size_y", &size_y);
 		break;
 	case 5:
@@ -409,7 +412,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 			v[0] = (int)stylePading->x;
 			v[1] = (int)stylePading->y;
 		}
-		ImGui::SetNextItemWidth(-1);
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		if (ImGui::InputInt2("##style_padding", v))
 		{
 			changed = true;
@@ -429,7 +432,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 			v[0] = (int)styleSpacing->x;
 			v[1] = (int)styleSpacing->y;
 		}
-		ImGui::SetNextItemWidth(-1);
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		if (ImGui::InputInt2("##style_spacing", v))
 		{
 			changed = true;
@@ -2930,7 +2933,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 				if (ImGui::Selectable(tp, type == tp)) {
 					changed = true;
 					type = tp;
-					ctx.codeGen->ChangeVar(fieldName.c_str(), type, "");
+					ctx.codeGen->ChangeVar(fieldName.c_str(), type == "angle" ? "float" : type, "");
 				}
 			}
 			ImGui::EndCombo();

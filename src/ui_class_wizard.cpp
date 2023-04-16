@@ -278,7 +278,8 @@ void ClassWizard::Draw()
 
 		/// @begin Button
 		ImGui::SameLine();
-		if (ImGui::Button("OK", { 100, 35 }))
+		if (ImGui::Button("OK", { 100, 35 }) ||
+			ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
 			ClosePopup();
 		}
