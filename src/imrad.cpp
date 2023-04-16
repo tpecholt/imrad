@@ -133,7 +133,7 @@ void DoOpenFile(const std::string& path)
 	if (!file.rootNode) {
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful import because of errors";
-		messageBox.buttons = MessageBox::OK;
+		messageBox.buttons = ImRad::Ok;
 		messageBox.OpenPopup();
 		return;
 	}
@@ -150,7 +150,7 @@ void DoOpenFile(const std::string& path)
 	if (messageBox.error != "") {
 		messageBox.title = "CodeGen";
 		messageBox.message = "Import finished with errors";
-		messageBox.buttons = MessageBox::OK;
+		messageBox.buttons = ImRad::Ok;
 		messageBox.OpenPopup();
 	}
 }
@@ -171,9 +171,9 @@ void OpenFile()
 		if (it->modified) {
 			messageBox.message = "Reload and lose unsaved changes?";
 			messageBox.error = "";
-			messageBox.buttons = MessageBox::Yes | MessageBox::No;
+			messageBox.buttons = ImRad::Yes | ImRad::No;
 			messageBox.OpenPopup([=](ImRad::ModalResult mr) {
-				if (mr == MessageBox::Yes)
+				if (mr == ImRad::Yes)
 					DoOpenFile(outPath);
 				});
 		}
@@ -202,9 +202,9 @@ void ReloadFiles()
 		auto fn = fs::path(tab.fname).filename().string();
 		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
 		messageBox.error = "";
-		messageBox.buttons = MessageBox::Yes | MessageBox::No;
+		messageBox.buttons = ImRad::Yes | ImRad::No;
 		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
-			if (mr != MessageBox::Yes)
+			if (mr != ImRad::Yes)
 				return;
 			tab.rootNode = tab.codeGen.Import(tab.fname, messageBox.error);
 			tab.modified = false;
@@ -234,7 +234,7 @@ void CloseFile()
 		if (fname.empty())
 			fname = UNTITLED;
 		messageBox.message = "Save changes to " + fname + "?";
-		messageBox.buttons = MessageBox::Yes | MessageBox::No | MessageBox::Cancel;
+		messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
 		messageBox.OpenPopup([=](ImRad::ModalResult mr) {
 			if (mr == ImRad::Yes)
 				SaveFile(true);
@@ -274,7 +274,7 @@ void SaveFile(bool thenClose)
 	{
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
-		messageBox.buttons = MessageBox::OK;
+		messageBox.buttons = ImRad::Ok;
 		messageBox.OpenPopup([=](ImRad::ModalResult) {
 			if (thenClose)
 				DoCloseFile();
@@ -290,7 +290,7 @@ void SaveFile(bool thenClose)
 	{
 		messageBox.title = "CodeGen";
 		messageBox.message = "Export finished with errors";
-		messageBox.buttons = MessageBox::OK;
+		messageBox.buttons = ImRad::Ok;
 		messageBox.OpenPopup([=](ImRad::ModalResult) {
 			if (thenClose)
 				DoCloseFile();

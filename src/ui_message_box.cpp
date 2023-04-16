@@ -35,11 +35,11 @@ void MessageBox::Draw()
 		ImGui::Spacing();
 		ImGui::Spacing();
 
-		int n = (bool)(buttons & OK) + (bool)(buttons & Cancel) + (bool)(buttons & Yes) + (bool)(buttons & No);
+		int n = (bool)(buttons & ImRad::Ok) + (bool)(buttons & ImRad::Cancel) + (bool)(buttons & ImRad::Yes) + (bool)(buttons & ImRad::No);
 		float w = (n * 80) + (n - 1) * ImGui::GetStyle().ItemSpacing.x;
 		float x = (ImGui::GetContentRegionAvail().x + ImGui::GetStyle().FramePadding.x - w) / 2.f;
 		float y = ImGui::GetCursorPosY();
-		if (buttons & OK)
+		if (buttons & ImRad::Ok)
 		{
 			if (ImGui::IsWindowAppearing())
 				ImGui::SetKeyboardFocusHere();
@@ -52,7 +52,7 @@ void MessageBox::Draw()
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
-		if (buttons & Yes)
+		if (buttons & ImRad::Yes)
 		{
 			ImGui::SetCursorPos({ x, y });
 			if (ImGui::Button("Yes", { 80, 30 })) {
@@ -61,7 +61,7 @@ void MessageBox::Draw()
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
-		if (buttons & No)
+		if (buttons & ImRad::No)
 		{
 			ImGui::SetCursorPos({ x, y });
 			if (ImGui::Button("No", { 80, 30 })) {
@@ -70,7 +70,7 @@ void MessageBox::Draw()
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
-		if (buttons & Cancel)
+		if (buttons & ImRad::Cancel)
 		{
 			ImGui::SetCursorPos({ x, y });
 			if (ImGui::Button("Cancel", { 80, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
@@ -88,6 +88,6 @@ void MessageBox::Draw()
 		error = "";
 		title = "title";
 		message = "";
-		buttons = OK;
+		buttons = ImRad::Ok;
 	}
 }

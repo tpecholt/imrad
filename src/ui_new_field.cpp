@@ -109,9 +109,9 @@ void NewFieldPopup::Draw()
 				if (ret == CppGen::New_ImplicitStruct) {
 					messageBox.title = "New";
 					messageBox.message = "Create a new struct?";
-					messageBox.buttons = MessageBox::Yes | MessageBox::No;
+					messageBox.buttons = ImRad::Yes | ImRad::No;
 					messageBox.OpenPopup([this, type](ImRad::ModalResult mr) {
-						if (mr != MessageBox::Yes)
+						if (mr != ImRad::Yes)
 							return;
 						codeGen->CreateVarExpr(varName, type, scope);
 						ClosePopup();

@@ -18,6 +18,8 @@ const color32 SNAP_COLOR[] {
 	IM_COL32(0, 0, 255, 255)
 };
 
+const color32 FIELD_NAME_CLR = IM_COL32(202, 202, 255, 255);
+
 void toggle(std::vector<UINode*>& c, UINode* val)
 {
 	auto it = stx::find(c, val);
@@ -2181,7 +2183,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 2:
 	{
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2291,7 +2293,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputInt("##valueID", valueID.access());
 		break;
 	case 2:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2527,7 +2529,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 1:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2716,7 +2718,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2940,7 +2942,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 1:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3134,7 +3136,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		BindingButton("fileName", &fileName, ctx);
 		break;
 	case 1:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3176,7 +3178,7 @@ void Image::RefreshTexture(UIContext& ctx)
 		if (ctx.fname.empty() && !ctx.importState) {
 			messageBox.title = "Warning";
 			messageBox.message = "Please save the file first so that relative paths can work";
-			messageBox.buttons = MessageBox::OK;
+			messageBox.buttons = ImRad::Ok;
 			messageBox.OpenPopup();
 			return;
 		}
@@ -3190,7 +3192,7 @@ void Image::RefreshTexture(UIContext& ctx)
 		if (!ctx.importState) {
 			messageBox.title = "Error";
 			messageBox.message = "Can't read " + fname;
-			messageBox.buttons = MessageBox::OK;
+			messageBox.buttons = ImRad::Ok;
 			messageBox.OpenPopup();
 		}
 		else
@@ -3323,7 +3325,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	case 1:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("rowCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3708,7 +3710,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##columnBorder", columnBorder.access());
 		break;
 	case 4:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(202, 202, 255, 255));
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("data_size");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
