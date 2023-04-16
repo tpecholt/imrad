@@ -100,8 +100,11 @@ std::string activeButton = "";
 
 void ActivateTab(int i)
 {
-	if (i >= fileTabs.size()) {
+	if (i >= fileTabs.size())
+		i = (int)fileTabs.size() - 1;
+	if (i < 0) {
 		activeTab = -1;
+		ctx.selected.clear();
 		ctx.codeGen = nullptr;
 		return;
 	}

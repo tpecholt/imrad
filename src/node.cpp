@@ -1710,7 +1710,6 @@ bool Selectable::EventUI(int i, UIContext& ctx)
 Button::Button(UIContext& ctx)
 	: Widget(ctx)
 {
-	assert(ImRad::ModalResult_Count == 6);
 	modalResult.add(" ", ImRad::None);
 	modalResult.add$(ImRad::Ok);
 	modalResult.add$(ImRad::Cancel);

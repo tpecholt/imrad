@@ -17,13 +17,12 @@
 namespace ImRad {
 
 enum ModalResult {
-	None,
-	Ok,
-	Cancel,
-	Yes,
-	No,
-	All,
-	ModalResult_Count
+	None = 0,
+	Ok = 0x1,
+	Cancel = 0x2,
+	Yes = 0x4,
+	No = 0x8,
+	All = 0x10,
 };
 
 enum Alignment {
