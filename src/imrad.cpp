@@ -167,7 +167,7 @@ void OpenFile()
 	auto it = stx::find_if(fileTabs, [&](const File& f) { return f.fname == outPath; });
 	if (it != fileTabs.end()) 
 	{
-		activeTab = int(it - fileTabs.begin());
+		ActivateTab(int(it - fileTabs.begin()));
 		if (it->modified) {
 			messageBox.message = "Reload and lose unsaved changes?";
 			messageBox.error = "";

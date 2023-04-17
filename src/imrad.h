@@ -34,39 +34,9 @@ enum Alignment {
 	AlignVCenter = 0x20,
 };
 
-inline void AlignedText(Alignment alignment, const char* label)
-{
-	//todo: align each line 
-	const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
-	float x1 = ImGui::GetCursorPosX();
-	if (nextItemData.Flags & ImGuiNextItemDataFlags_HasWidth)
-	{
-		float w = nextItemData.Width;
-		if (w < 0)
-			w += ImGui::GetContentRegionAvail().x;
-		
-		float tw = ImGui::CalcTextSize(label, nullptr, false, w).x;
-		float dx = 0;
-		if (alignment == AlignHCenter)
-			dx = (w - tw) / 2.f;
-		else if (alignment == AlignRight)
-			dx = w - tw;
-		
-		ImGui::SetCursorPosX(x1 + dx);
-		ImGui::PushTextWrapPos(x1 + w);
-		ImGui::TextWrapped(label);
-		ImGui::PopTextWrapPos();
-		ImGui::SameLine(x1 + w);
-		ImGui::NewLine();
-	}
-	else
-	{
-		ImGui::TextUnformatted(label);
-	}
-}
-
 inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)
 {
+	//todo: BeginCombo/Selectable
 	std::vector<const char*> citems(items.size());
 	for (size_t i = 0; i < items.size(); ++i)
 		citems[i] = items[i].c_str();

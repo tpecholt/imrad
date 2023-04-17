@@ -1260,9 +1260,6 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 Text::Text(UIContext& ctx)
 	: Widget(ctx)
 {
-	alignment.add("AlignLeft", ImRad::AlignLeft);
-	alignment.add("AlignHCenter", ImRad::AlignHCenter);
-	alignment.add("AlignRight", ImRad::AlignRight);
 }
 
 void Text::DoDraw(UIContext& ctx)
@@ -1279,12 +1276,25 @@ void Text::DoDraw(UIContext& ctx)
 	if (clr)
 		ImGui::PushStyleColor(ImGuiCol_Text, *clr);
 	
-	if (size_x.has_value() && size_x.value())
-		ImGui::SetNextItemWidth(size_x.value());
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
-	
-	ImRad::AlignedText(alignment, text.c_str());
+
+	if (wrap) 
+	{
+		//float x1 = ImGui::GetCursorPosX();
+		//float w = wrap_x.value();
+		//if (w < 0) w += ImGui::GetContentRegionAvail().x;
+		//ImGui::PushTextWrapPos(x1 + w);
+		ImGui::PushTextWrapPos(0);
+		ImGui::TextUnformatted(text.c_str());
+		ImGui::PopTextWrapPos();
+		//ImGui::SameLine(x1 + w);
+		//ImGui::NewLine();
+	}
+	else 
+	{
+		ImGui::TextUnformatted(text.c_str());
+	}
 
 	if (clr)
 		ImGui::PopStyleColor();
@@ -1300,9 +1310,6 @@ void Text::CalcSizeEx(ImVec2 p1)
 
 void Text::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!size_x.has_value() || size_x.value())
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
-
 	std::string clr;
 	if (grayed)
 		clr = "ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]";
@@ -1315,9 +1322,16 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
 	if (alignToFrame)
 		os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
-	os << ctx.ind << "ImRad::AlignedText(";
-	//alignment.c_str so no apostrophes
-	os << alignment.to_arg() << ", " << text.to_arg() << ");\n";
+	if (wrap)
+	{
+		os << ctx.ind << "ImGui::PushTextWrapPos(0);\n";
+		os << ctx.ind << "ImGui::TextUnformatted(" << text.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::PopTextWrapPos();\n";
+	}
+	else
+	{
+		os << ctx.ind << "ImGui::TextUnformatted(" << text.to_arg() << ");\n";
+	}
 
 	if (clr != "")
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
@@ -1325,28 +1339,18 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
 
 void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	/*if (sit->kind == cpp::CallExpr && 
-		(sit->callee == "ImGui::Text" || sit->callee == "ImGui::TextWrapped"))
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushTextWrapPos")
 	{
-		//wrapped = sit->callee == "ImGui::TextWrapped";
-		*text.access() = cpp::parse_var_args(sit->params);
-	}*/
-	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
-	{
-		if (sit->params.size() >= 1)
-			size_x.set_from_arg(sit->params[0]);
+		wrap = true;
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::AlignTextToFramePadding")
 	{
 		alignToFrame = true;
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::AlignedText")
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TextUnformatted")
 	{
-		if (sit->params.size() >= 1) {
-			alignment.set_from_arg(sit->params[0]);
-		}
-		if (sit->params.size() >= 2)
-			text = cpp::parse_str_arg(sit->params[1]);
+		if (sit->params.size() >= 1)
+			text = cpp::parse_str_arg(sit->params[0]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
@@ -1369,8 +1373,7 @@ Text::Properties()
 		{ "text.grayed", &grayed },
 		{ "color", &color },
 		{ "text.alignToFramePadding", &alignToFrame },
-		{ "text.alignment", &alignment },
-		{ "size_x", &size_x },
+		{ "text.wrap", &wrap },
 	});
 	return props;
 }
@@ -1411,34 +1414,13 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
 		break;
 	case 4:
-	{
-		ImGui::BeginDisabled(size_x.has_value() && !size_x.value());
-		ImGui::Text("alignment");
+		ImGui::Text("wrap");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##alignment", alignment.get_id().c_str()))
-		{
-			changed = true;
-			for (const auto& id : alignment.get_ids())
-			{
-				if (ImGui::Selectable(id.first.c_str(), id.second == alignment))
-					alignment = id.second;
-			}
-			ImGui::EndCombo();
-		}
-		ImGui::EndDisabled();
-		break;
-	}
-	case 5:
-		ImGui::Text("size_x");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed = ImGui::Checkbox("##wrap", wrap.access());
 		break;
 	default:
-		return Widget::PropertyUI(i - 6, ctx);
+		return Widget::PropertyUI(i - 5, ctx);
 	}
 	return changed;
 }
@@ -1519,8 +1501,13 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	if (!onChange.empty())
 		os << "if (";
 	
-	os << "ImGui::Selectable(" << label.to_arg() << ", false, " 
-		<< flags.to_arg() << ", "
+	os << "ImGui::Selectable(" << label.to_arg() << ", ";
+	if (fieldName.empty())
+		os << "false";
+	else
+		os << "&" << fieldName.to_arg();
+	
+	os << ", " << flags.to_arg() << ", "
 		<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " })";
 	
 	if (!onChange.empty()) {
@@ -1546,6 +1533,8 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		if (sit->params.size() >= 1)
 			label.set_from_arg(sit->params[0]);
+		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
+			fieldName.set_from_arg(sit->params[1].substr(1));
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
 		if (sit->params.size() >= 4) {
@@ -1592,6 +1581,7 @@ Selectable::Properties()
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
 		{ "selectable.flags", &flags },
+		{ "selectable.fieldName", &fieldName },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }
 		});
@@ -1662,6 +1652,13 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Indent();
 		break;
 	case 5:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("fieldName");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##fieldName", &fieldName, true, ctx);
+		break;
+	case 6:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1669,7 +1666,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1678,7 +1675,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 7, ctx);
+		return Widget::PropertyUI(i - 8, ctx);
 	}
 	return changed;
 }

@@ -131,9 +131,8 @@ struct Text : Widget
 	bindable<std::string> text = "text";
 	direct_val<bool> grayed = false; //Widget::disabled is already bindable
 	bindable<color32> color;
-	direct_val<ImRad::Alignment> alignment = ImRad::AlignLeft; 
 	direct_val<bool> alignToFrame = false;
-	bindable<float> size_x = 0;
+	direct_val<bool> wrap = false;
 
 	Text(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
@@ -151,6 +150,7 @@ struct Selectable : Widget
 	flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
 	direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
 	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
+	field_ref<bool> fieldName;
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
 	event<> onChange;
