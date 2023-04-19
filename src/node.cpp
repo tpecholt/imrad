@@ -195,7 +195,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 		os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
-		os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
 		os << ctx.ind << "bool tmpOpen = true;\n";
 		os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
@@ -207,8 +207,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else
 	{
-		os << ctx.ind << "bool tmpOpen = true;\n";
-		os << ctx.ind << "ImGui::Begin(" << tit << ", &tmpOpen, " << flags.to_arg() << ");\n";
+		os << ctx.ind << "if (isOpen && ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 	}

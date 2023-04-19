@@ -169,6 +169,12 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 					out << INDENT << "void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});\n";
 					out << INDENT << "void ClosePopup();\n";
 				}
+				else
+				{
+					out << INDENT << "void Open();\n";
+					out << INDENT << "void Close();\n";
+				}
+
 				out << INDENT << "void Draw();\n\n";
 
 				//write fields
@@ -232,6 +238,11 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 					out << INDENT << "bool requestOpen = false;\n";
 					out << INDENT << "bool requestClose = false;\n";
 					out << INDENT << "std::function<void(ImRad::ModalResult)> callback;\n\n";
+				}
+				else
+				{
+					out << "\n";
+					out << INDENT << "bool isOpen = true;\n";
 				}
 			}
 			else if (!tok.compare(0, 1, "#") || !tok.compare(0, 2, "//"))
@@ -400,11 +411,23 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 		fout << INDENT << "//*** Add your init code here\n";
 		fout << "}\n";
 	}
-
 	if (modalPopup && !events.count("ClosePopup"))
 	{
 		fout << "\nvoid " << m_name << "::ClosePopup()\n{\n";
 		fout << INDENT << "requestClose = true;\n";
+		fout << "}\n";
+	}
+
+	if (!modalPopup && !events.count("Open"))
+	{
+		fout << "\nvoid " << m_name << "::Open()\n{\n";
+		fout << INDENT << "isOpen = true;\n";
+		fout << "}\n";
+	}
+	if (!modalPopup && !events.count("Close"))
+	{
+		fout << "\nvoid " << m_name << "::Close()\n{\n";
+		fout << INDENT << "isOpen = false;\n";
 		fout << "}\n";
 	}
 
@@ -567,7 +590,7 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 	if (line[0] == "void" && line.back() == ")" && line[line.size() - 2] == "(")
 	{
 		std::string name = stx::join(line.begin() + 1, line.end() - 2, "");
-		if (name != "ClosePopup" && name != "Draw") {
+		if (name != "OpenPopup" && name != "Open" && name != "Draw") { //other generated funs can be used as handlers
 			CreateNamedVar(name, "void()", "", flags, sname);
 		}
 	}
@@ -604,7 +627,8 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		}
 		if (type.back() == ' ')
 			type.pop_back();
-		if (name != "requestOpen" && name != "requestClose" && name != "callback")
+		if (name != "requestOpen" && name != "requestClose" && name != "callback" &&
+			name != "isOpen")
 			CreateNamedVar(name, type, init, flags, sname);
 	}
 	return true;
