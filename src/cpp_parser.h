@@ -333,7 +333,7 @@ namespace cpp
 						break;
 					if (tokens[e] == "{" || tokens[e] == "(" || tokens[e] == "[")
 						++level;
-					else if (tokens[e] == "}" || tokens[e] == ")" || tokens[e] == "}")
+					else if (tokens[e] == "}" || tokens[e] == ")" || tokens[e] == "]")
 						--level;
 				}
 				if (e == tokens.size())
