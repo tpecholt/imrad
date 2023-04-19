@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <IconsFontAwesome6.h>
 #include <algorithm>
 #include <array>
 
@@ -247,6 +248,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.errors.clear();
 	ctx.importState = 1;
 	ctx.userCode = "";
+	ctx.parents = { this };
 
 	while (sit != cpp::stmt_iterator())
 	{
@@ -490,6 +492,10 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Child>(ctx);
 	else if (name == "CollapsingHeader")
 		return std::make_unique<CollapsingHeader>(ctx);
+	else if (name == "TabBar")
+		return std::make_unique<TabBar>(ctx);
+	else if (name == "TabItem")
+		return std::make_unique<TabItem>(ctx);
 	else
 		return {};
 }
@@ -535,8 +541,8 @@ void Widget::Draw(UIContext& ctx)
 	ImGui::EndDisabled();
 	CalcSizeEx(p1);
 	ctx.parents.pop_back();
-
-	//doesn't work for open CollapsingHeader
+	
+	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
 	if (!ctx.snapMode && ctx.hovered == lastHovered && hovered)
@@ -559,7 +565,11 @@ void Widget::Draw(UIContext& ctx)
 			selected ? 0xff0000ff : 0x8000ffff,
 			0, 0, selected ? 2.f : 1.f);
 	}
-	
+	if (selected)
+	{
+		DrawExtra(ctx);
+	}
+
 	if (ctx.snapMode && !ctx.snapParent && hovered)
 	{
 		DrawSnap(ctx);
@@ -628,7 +638,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::BeginDisabled(" << disabled.c_str() << ");\n";
 	}
 
+	ctx.parents.push_back(this);
 	DoExport(os, ctx);
+	ctx.parents.pop_back();
 
 	if (cursor != ImGuiMouseCursor_Arrow)
 	{
@@ -716,6 +728,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	ctx.importState = 1;
+	ctx.parents.push_back(this);
 	userCode = ctx.userCode;
 
 	while (sit != cpp::stmt_iterator())
@@ -837,6 +850,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 void Widget::DrawSnap(UIContext& ctx)
 {
+	int snapOp = SnapBehavior();
 	ImGuiDir snapDir;
 	ImVec2 d1 = ImGui::GetMousePos() - cached_pos;
 	ImVec2 d2 = cached_pos + cached_size - ImGui::GetMousePos();
@@ -870,7 +884,7 @@ void Widget::DrawSnap(UIContext& ctx)
 	{
 	case ImGuiDir_None:
 	{
-		if (IsContainer() && children.empty())
+		if ((snapOp & SnapThis) && children.empty())
 		{
 			ctx.snapParent = this;
 			ctx.snapIndex = 0;
@@ -882,6 +896,8 @@ void Widget::DrawSnap(UIContext& ctx)
 	}
 	case ImGuiDir_Left:
 	{
+		if (!(snapOp & SnapSiblings))
+			break;
 		p = cached_pos;
 		h = cached_size.y;
 		if (i && pchildren[i]->sameLine)
@@ -904,6 +920,8 @@ void Widget::DrawSnap(UIContext& ctx)
 	}
 	case ImGuiDir_Right:
 	{
+		if (!(snapOp & SnapSiblings))
+			break;
 		p = cached_pos + ImVec2(cached_size.x, 0);
 		h = cached_size.y;
 		bool last = i + 1 == pchildren.size();
@@ -930,6 +948,8 @@ void Widget::DrawSnap(UIContext& ctx)
 	case ImGuiDir_Up:
 	case ImGuiDir_Down:
 	{
+		if (!(snapOp & SnapSiblings))
+			break;
 		bool down = snapDir == ImGuiDir_Down;
 		p = cached_pos;
 		if (down)
@@ -995,18 +1015,22 @@ void Widget::DrawSnap(UIContext& ctx)
 std::vector<UINode::Prop>
 Widget::Properties()
 {
-	return {
+	std::vector<UINode::Prop> props{
 		{ "visible", &visible },
 		{ "cursor", &cursor },
 		{ "tooltip", &tooltip },
 		{ "disabled", &disabled },
-		{ "indent", &indent },
-		{ "spacing", &spacing },
-		{ "sameLine", &sameLine },
-		{ "beginGroup", &beginGroup },
-		{ "endGroup", &endGroup },
-		{ "nextColumn", &nextColumn },
 	};
+	if (SnapBehavior() & SnapSiblings)
+		props.insert(props.end(), {
+			{ "indent", &indent },
+			{ "spacing", &spacing },
+			{ "sameLine", &sameLine },
+			{ "beginGroup", &beginGroup },
+			{ "endGroup", &endGroup },
+			{ "nextColumn", &nextColumn },
+			});
+	return props;
 }
 
 bool Widget::PropertyUI(int i, UIContext& ctx)
@@ -3396,7 +3420,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	bool tmp = ctx.table;
 	ctx.table = true;
-	if (!rowCount.empty()) {
+	if (!rowCount.empty()) 
+	{
 		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR 
 			<< " < " << rowCount.to_arg() << "; ++" << FOR_VAR
 			<< ")\n" << ctx.ind << "{\n";
@@ -3405,7 +3430,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
 		os << ctx.ind << "ImGui::PushID((int)" << FOR_VAR << ");\n";
 	}
-	else {
+	else 
+	{
 		os << ctx.ind << "ImGui::TableNextRow();\n";
 		os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
 	}
@@ -3580,13 +3606,14 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 			//os << ctx.ind << "ImGui::SetColumnWidth(" << i << ", " << columnsWidths[i].c_str() << ");\n";
 	}
 
-	if (!data_size.empty()) {
+	if (!data_size.empty())
+	{
 		os << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR
 			<< " < " << data_size.to_arg() << "; ++" << FOR_VAR
 			<< ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
-
+	
 	os << ctx.ind << "/// @separator\n\n";
 
 	for (auto& child : children)
@@ -3600,7 +3627,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
-
+	
 	os << ctx.ind << "ImGui::EndChild();\n";
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
@@ -3836,6 +3863,323 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 		break;
 	default:
 		return Widget::PropertyUI(i - 2, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------------
+
+TabItem::TabItem(UIContext& ctx)
+	: Widget(ctx)
+{
+}
+
+void TabItem::DoDraw(UIContext& ctx)
+{
+	bool sel = ctx.selected.size() == 1 && ctx.selected[0] == this;
+	if (ImGui::BeginTabItem(label.c_str(), nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
+	{
+		for (const auto& child : children)
+			child->Draw(ctx);
+
+		ImGui::EndTabItem();
+	}
+}
+
+void TabItem::DrawExtra(UIContext& ctx)
+{
+	if (ctx.parents.empty())
+		return;
+
+	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
+	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+	auto* parent = ctx.parents.back();
+	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; }) 
+		- parent->children.begin();
+	
+	ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
+	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
+	
+	ImGui::BeginDisabled(!idx);
+	if (ImGui::Button(ICON_FA_CHEVRON_LEFT)) {
+		auto ptr = std::move(parent->children[idx]);
+		parent->children.erase(parent->children.begin() + idx);
+		parent->children.insert(parent->children.begin() + idx - 1, std::move(ptr));
+	}
+	ImGui::EndDisabled();
+	
+	ImGui::SameLine();
+	if (ImGui::Button(ICON_FA_FOLDER_PLUS)) {
+		parent->children.insert(parent->children.begin() + idx + 1, std::make_unique<TabItem>(ctx));
+		if (ctx.selected.size() == 1 && ctx.selected[0] == this)
+			ctx.selected[0] = (parent->children.begin() + idx + 1)->get();
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(idx + 1 == parent->children.size());
+	if (ImGui::Button(ICON_FA_CHEVRON_RIGHT)) {
+		auto ptr = std::move(parent->children[idx]);
+		parent->children.erase(parent->children.begin() + idx);
+		parent->children.insert(parent->children.begin() + idx + 1, std::move(ptr));
+	}
+	ImGui::EndDisabled();
+
+	ImGui::End();
+	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
+}
+
+void TabItem::CalcSizeEx(ImVec2 p1)
+{
+	const ImGuiTabBar* tabBar = ImGui::GetCurrentTabBar();
+	int idx = tabBar->LastTabItemIdx;
+	const ImGuiTabItem& tab = tabBar->Tabs[idx];
+	cached_pos = tabBar->BarRect.GetTL();
+	cached_pos.x += tab.Offset;
+	cached_size.x = tab.Width;
+	cached_size.y = tabBar->BarRect.GetHeight();
+}
+
+void TabItem::DoExport(std::ostream& os, UIContext& ctx)
+{
+	os << ctx.ind << "if (ImGui::BeginTabItem(" << label.to_arg() << ", nullptr, ";
+	std::string idx;
+	assert(ctx.parents.back() == this);
+	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+	if (tb && !tb->tabIndex.empty())
+	{
+		if (!tb->tabCount.empty())
+		{
+			idx = "(int)";
+			idx += FOR_VAR;
+		}
+		else
+		{
+			size_t n = stx::find_if(tb->children, [this](const auto& ch) {
+				return ch.get() == this; }) - tb->children.begin();
+			idx = std::to_string(n);
+		}
+		os << idx << " == " << tb->tabIndex.to_arg() << " ? ImGuiTabItemFlags_SetSelected : 0";
+	}
+	else
+	{
+		os << "ImGuiTabItemFlags_None";
+	}
+	os << "))\n";
+	os << ctx.ind << "{\n";
+	
+	ctx.ind_up();
+	os << ctx.ind << "/// @separator\n\n";
+
+	for (const auto& child : children)
+	{
+		child->Export(os, ctx);
+	}
+	
+	os << ctx.ind << "/// @separator\n";
+	os << ctx.ind << "ImGui::EndTabItem();\n";
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+
+	if (tb && !tb->tabIndex.empty())
+	{
+		os << ctx.ind << "if (ImGui::IsItemActivated())\n";
+		ctx.ind_up();
+		os << ctx.ind << tb->tabIndex.to_arg() << " = " << idx << ";\n";
+		ctx.ind_down();
+	}
+}
+
+void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabItem")
+	{
+		if (sit->params.size() >= 1)
+			label.set_from_arg(sit->params[0]);
+		
+		assert(ctx.parents.back() == this);
+		auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+		if (tb && sit->params.size() >= 3 && sit->params[2].size() > 32)
+		{
+			const auto& p = sit->params[2];
+			size_t i = p.find("==");
+			if (i != std::string::npos && p.substr(p.size() - 32, 32) == "?ImGuiTabItemFlags_SetSelected:0")
+			{
+				std::string var = p.substr(i + 2, p.size() - 32 - i - 2);
+				tb->tabIndex.set_from_arg(var);
+			}
+		}
+	}
+}
+
+std::vector<UINode::Prop>
+TabItem::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "label", &label },
+		});
+	return props;
+}
+
+bool TabItem::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##label", &label, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("label", &label, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 1, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------------
+
+TabBar::TabBar(UIContext& ctx)
+	: Widget(ctx)
+{
+	flags.prefix("ImGuiTabBarFlags_");
+	flags.add$(ImGuiTabBarFlags_NoTabListScrollingButtons);
+
+	if (!ctx.importState)
+		children.push_back(std::make_unique<TabItem>(ctx));
+}
+
+void TabBar::DoDraw(UIContext& ctx)
+{
+	std::string id = "##" + std::to_string((uintptr_t)this);
+	//add tab names in order so that when tab order changes in designer we get a 
+	//different id which will force ImGui to recalculate tab positions and
+	//render tabs correctly
+	for (const auto& child : children)
+		id += std::to_string(uintptr_t(child.get()) & 0xffff);
+
+	if (ImGui::BeginTabBar(id.c_str(), flags))
+	{
+		for (const auto& child : children)
+			child->Draw(ctx);
+			
+		ImGui::EndTabBar();
+	}
+}
+
+void TabBar::CalcSizeEx(ImVec2 p1)
+{
+	ImVec2 pad = ImGui::GetStyle().FramePadding;
+	cached_pos.x -= pad.x;
+	cached_size.x = ImGui::GetContentRegionAvail().x + 2 * pad.x;
+	cached_size.y = ImGui::GetCursorPosY() - p1.y - pad.y;
+}
+
+void TabBar::EnsureVisible(const UINode* tab)
+{
+}
+
+void TabBar::DoExport(std::ostream& os, UIContext& ctx)
+{
+	std::string name = "tabBar" + std::to_string((uintptr_t)this);
+	os << ctx.ind << "if (ImGui::BeginTabBar(\"" << name << "\", "
+		<< flags.to_arg() << "))\n";
+	os << ctx.ind << "{\n";
+	
+	ctx.ind_up();
+	if (!tabCount.empty())
+	{
+		os << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR << " < "
+			<< tabCount.to_arg() << "; ++" << FOR_VAR << ")\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << "ImGui::PushID((int)" << FOR_VAR << ");\n";
+	}
+	os << ctx.ind << "/// @separator\n\n";
+	
+	for (const auto& child : children)
+		child->Export(os, ctx);
+
+	os << ctx.ind << "/// @separator\n";
+	if (!tabCount.empty())
+	{
+		os << ctx.ind << "ImGui::PopID();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
+	}
+	
+	os << ctx.ind << "ImGui::EndTabBar();\n";
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+}
+
+void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabBar")
+	{
+		ctx.importLevel = sit->level;
+
+		if (sit->params.size() >= 2)
+			flags.set_from_arg(sit->params[1]);
+	}
+	else if (sit->kind == cpp::ForBlock && sit->level == ctx.importLevel + 1)
+	{
+		std::string cmp;
+		cmp += FOR_VAR;
+		cmp += "<"; //to prevent VS bug
+		if (!sit->cond.compare(0, cmp.size(), cmp))
+			tabCount.set_from_arg(sit->cond.substr(cmp.size()));
+	}
+}
+
+std::vector<UINode::Prop>
+TabBar::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "flags", &flags },
+		{ "tabCount", &tabCount },
+		{ "tabIndex", &tabIndex },
+		});
+	return props;
+}
+
+bool TabBar::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Unindent();
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (ImGui::TreeNode("flags")) {
+			ImGui::TableNextColumn();
+			changed = CheckBoxFlags(&flags);
+			ImGui::TreePop();
+		}
+		ImGui::Spacing();
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+		break;
+	case 1:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("tabCount");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##tabCount", &tabCount, true, ctx);
+		break;
+	case 2:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("tabIndex");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##tabIndex", &tabIndex, true, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 3, ctx);
 	}
 	return changed;
 }

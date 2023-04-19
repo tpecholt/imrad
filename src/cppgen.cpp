@@ -850,6 +850,19 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type, const std
 	}
 }
 
+std::string DefaultInitFor(const std::string& stype)
+{
+	if (!stype.compare(0, 5, "void("))
+		return "";
+	if (stype.find('<') != std::string::npos) //vector etc
+		return "";
+	if (stype == "int" || stype == "size_t" || stype == "double" || stype == "float")
+		return "0";
+	if (stype == "bool")
+		return "false";
+	return "";
+}
+
 //accepts patterns recognized by CheckVarExpr
 //corrects [xyz]
 bool CppGen::CreateVarExpr(std::string& name, const std::string& type, const std::string& scope1)
@@ -905,7 +918,8 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type, const std
 			}
 			else if (!array) {
 				bool fun = !stype.compare(0, 5, "void(");
-				if (!CreateNamedVar(id, stype, "", fun ? Var::Impl : Var::Interface, scope))
+				std::string init = DefaultInitFor(stype); //initialize scalar variables
+				if (!CreateNamedVar(id, stype, init, fun ? Var::Impl : Var::Interface, scope))
 					return false;
 				if (!stype.compare(0, 12, "std::vector<")) {
 					std::string etype = stype.substr(12, stype.size() - 12 - 1);

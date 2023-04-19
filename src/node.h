@@ -79,6 +79,11 @@ struct UINode
 
 struct Widget : UINode
 {
+	enum SnapOptions { 
+		SnapSiblings = 0x1, 
+		SnapThis = 0x2 
+	};
+
 	direct_val<bool> sameLine = false;
 	direct_val<bool> beginGroup = false;
 	direct_val<bool> endGroup = false;
@@ -110,9 +115,10 @@ struct Widget : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
-	virtual bool IsContainer() { return false; }
+	virtual int SnapBehavior() { return SnapSiblings; }
 	virtual void DrawSnap(UIContext& ctx);
 	virtual void DoDraw(UIContext& ctx) = 0;
+	virtual void DrawExtra(UIContext& ctx) {}
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
 	virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
 	virtual void CalcSizeEx(ImVec2 x1);
@@ -312,7 +318,7 @@ struct Table : Widget
 	field_ref<size_t> rowCount;
 
 	Table(UIContext&);
-	bool IsContainer() { return true; }
+	int SnapBehavior() { return SnapSiblings | SnapThis; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -333,7 +339,7 @@ struct Child : Widget
 	bindable<color32> styleBg;
 
 	Child(UIContext& ctx);
-	bool IsContainer() { return true; }
+	int SnapBehavior() { return SnapSiblings | SnapThis; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -347,13 +353,45 @@ struct CollapsingHeader : Widget
 	bindable<bool> open = true;
 	
 	CollapsingHeader(UIContext& ctx);
-	bool IsContainer() { return true; }
+	int SnapBehavior() { return SnapSiblings | SnapThis; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 x1);
+};
+
+struct TabItem : Widget
+{
+	bindable<std::string> label = "TabItem";
+	
+	TabItem(UIContext& ctx);
+	int SnapBehavior() { return SnapThis; }
+	void DoDraw(UIContext& ctx);
+	void DrawExtra(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void CalcSizeEx(ImVec2 x1);
+};
+
+struct TabBar : Widget
+{
+	flags_helper flags = 0;
+	field_ref<size_t> tabCount;
+	field_ref<int> tabIndex;
+
+	TabBar(UIContext& ctx);
+	int SnapBehavior() { return SnapSiblings; }
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void CalcSizeEx(ImVec2 x1);
+	void EnsureVisible(const UINode*);
 };
 
 struct TopWindow : UINode
