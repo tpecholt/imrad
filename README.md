@@ -58,7 +58,7 @@ for up-to date version clone & build the repository using CMake. There are no ni
 
 # Screenshots
 
-![screen1](doc/screen1.png)
+![screen1](https://user-images.githubusercontent.com/1256102/233116395-9da5a652-9248-4b91-b12a-b842e6c6f300.png)
 
 # More information
 
