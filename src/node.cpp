@@ -50,6 +50,16 @@ void UIContext::ind_down()
 
 //----------------------------------------------------
 
+bool UINode::FindChild(const UINode* ch)
+{
+	if (ch == this)
+		return true;
+	for (const auto& child : children)
+		if (child->FindChild(ch))
+			return true;
+	return false;
+}
+
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 {
 	for (int i = 0; i < 2; ++i)
@@ -93,7 +103,7 @@ void TopWindow::Draw(UIContext& ctx)
 	std::string cap = title.value();
 	if (cap.empty())
 		cap = "error";
-	cap += "##123"; //don't clash 
+	cap += "###TopWindow"; //don't clash 
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	fl |= flags;
 
@@ -109,6 +119,8 @@ void TopWindow::Draw(UIContext& ctx)
 
 	bool tmp;
 	ImGui::Begin(cap.c_str(), &tmp, fl);
+	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
+	assert(ctx.rootWin);
 
 	if (!ctx.snapMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
 	{
@@ -248,6 +260,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.errors.clear();
 	ctx.importState = 1;
 	ctx.userCode = "";
+	ctx.root = this;
 	ctx.parents = { this };
 
 	while (sit != cpp::stmt_iterator())
@@ -388,6 +401,12 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		if (ImGui::TreeNode("flags")) {
 			ImGui::TableNextColumn();
 			changed = CheckBoxFlags(&flags);
+			bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
+			bool flagsMB = flags & ImGuiWindowFlags_MenuBar;
+			if (flagsMB && !hasMB)
+				children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
+			else if (!flagsMB && hasMB)
+				children.erase(children.begin());
 			ImGui::TreePop();
 		}
 		ImGui::Spacing();
@@ -496,6 +515,10 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<TabBar>(ctx);
 	else if (name == "TabItem")
 		return std::make_unique<TabItem>(ctx);
+	else if (name == "MenuBar")
+		return std::make_unique<MenuBar>(ctx);
+	else if (name == "MenuIt")
+		return std::make_unique<MenuIt>(ctx);
 	else
 		return {};
 }
@@ -529,18 +552,16 @@ void Widget::Draw(UIContext& ctx)
 		++ctx.groupLevel;
 	}
 	
+	ImGui::PushID(this);
+	ctx.parents.push_back(this);
 	auto lastSel = ctx.selected; //this recognizes selection in a child widget
 	auto lastHovered = ctx.hovered;
-	ctx.parents.push_back(this);
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
-	ImGui::PushID(this);
 	DoDraw(ctx);
-	ImGui::PopID();
 	ImGui::EndDisabled();
-	CalcSizeEx(p1);
-	ctx.parents.pop_back();
+	CalcSizeEx(p1, ctx);
 	
 	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
@@ -575,13 +596,16 @@ void Widget::Draw(UIContext& ctx)
 		DrawSnap(ctx);
 	}
 	
+	ctx.parents.pop_back();
+	ImGui::PopID();
+	
 	if (endGroup && ctx.groupLevel) {
 		ImGui::EndGroup();
 		--ctx.groupLevel;
 	}
 }
 
-void Widget::CalcSizeEx(ImVec2 p1)
+void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	cached_size = ImGui::GetItemRectSize();
 }
@@ -866,7 +890,9 @@ void Widget::DrawSnap(UIContext& ctx)
 	else if (d2.y == mind)
 		snapDir = ImGuiDir_Down;
 
-	const auto& pchildren = ctx.parents.back()->children;
+	assert(ctx.parents.back() == this);
+	size_t level = ctx.parents.size() - 1;
+	const auto& pchildren = ctx.parents[ctx.parents.size() - 2]->children;
 	size_t i = stx::find_if(pchildren, [&](const auto& ch) {
 		return ch.get() == this;
 		}) - pchildren.begin();
@@ -884,19 +910,19 @@ void Widget::DrawSnap(UIContext& ctx)
 	{
 	case ImGuiDir_None:
 	{
-		if ((snapOp & SnapThis) && children.empty())
+		if ((snapOp & SnapInterior) && children.empty())
 		{
 			ctx.snapParent = this;
 			ctx.snapIndex = 0;
 			ImDrawList* dl = ImGui::GetWindowDrawList();
-			dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[ctx.parents.size() % std::size(SNAP_COLOR)], 0, 0, 3);
+			dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[level % std::size(SNAP_COLOR)], 0, 0, 3);
 			return;
 		}
 		break;
 	}
 	case ImGuiDir_Left:
 	{
-		if (!(snapOp & SnapSiblings))
+		if (!(snapOp & SnapSides))
 			break;
 		p = cached_pos;
 		h = cached_size.y;
@@ -920,7 +946,7 @@ void Widget::DrawSnap(UIContext& ctx)
 	}
 	case ImGuiDir_Right:
 	{
-		if (!(snapOp & SnapSiblings))
+		if (!(snapOp & SnapSides))
 			break;
 		p = cached_pos + ImVec2(cached_size.x, 0);
 		h = cached_size.y;
@@ -948,7 +974,7 @@ void Widget::DrawSnap(UIContext& ctx)
 	case ImGuiDir_Up:
 	case ImGuiDir_Down:
 	{
-		if (!(snapOp & SnapSiblings))
+		if (!(snapOp & SnapSides))
 			break;
 		bool down = snapDir == ImGuiDir_Down;
 		p = cached_pos;
@@ -1009,7 +1035,7 @@ void Widget::DrawSnap(UIContext& ctx)
 	}
 
 	ImDrawList* dl = ImGui::GetWindowDrawList();
-	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[(ctx.parents.size() - 1) % std::size(SNAP_COLOR)], 3);
+	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[(level - 1) % std::size(SNAP_COLOR)], 3);
 }
 
 std::vector<UINode::Prop>
@@ -1021,7 +1047,7 @@ Widget::Properties()
 		{ "tooltip", &tooltip },
 		{ "disabled", &disabled },
 	};
-	if (SnapBehavior() & SnapSiblings)
+	if (SnapBehavior() & SnapSides)
 		props.insert(props.end(), {
 			{ "indent", &indent },
 			{ "spacing", &spacing },
@@ -1238,10 +1264,6 @@ void Widget::TreeUI(UIContext& ctx)
 				toggle(ctx.selected, this);
 			else
 				ctx.selected = { this };
-			//open parents
-			for (int i = 0; i < (int)ctx.parents.size() - 1; ++i) 
-				ctx.parents[i]->EnsureVisible(ctx.parents[i + 1]);
-			ctx.parents.back()->EnsureVisible(this);
 		}
 		ImGui::SameLine();
 		ImGui::TextDisabled(suff.c_str());
@@ -1323,7 +1345,7 @@ void Text::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 }
 
-void Text::CalcSizeEx(ImVec2 p1)
+void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	cached_size = ImGui::GetItemRectSize();
 	ImGui::SameLine(0, 0);
@@ -1497,7 +1519,7 @@ void Selectable::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 }
 
-void Selectable::CalcSizeEx(ImVec2 p1)
+void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	cached_size = ImGui::GetItemRectSize();
 	cached_size.x -= ImGui::GetStyle().ItemSpacing.x;
@@ -3304,11 +3326,11 @@ Table::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "table.columns", nullptr },
-		{ "table.row_count", &rowCount },
 		{ "table.flags", &flags },
+		{ "table.columns", nullptr },
 		{ "style_padding", &style_padding },
 		{ "table.header", &header },
+		{ "table.row_count", &rowCount },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -3321,6 +3343,19 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Unindent();
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (ImGui::TreeNode("flags"))
+		{
+			ImGui::TableNextColumn();
+			changed = CheckBoxFlags(&flags);
+			ImGui::TreePop();
+		}
+		ImGui::Spacing();
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+		break;
+	case 1:
 	{
 		ImGui::Text("columns");
 		ImGui::TableNextColumn();
@@ -3344,35 +3379,22 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		}*/
 		break;
 	}
-	case 1:
+	case 2:
+		ImGui::Text("style_padding");
+		ImGui::TableNextColumn();
+		changed = ImGui::Checkbox("##style_padding", style_padding.access());
+		break;
+	case 3:
+		ImGui::Text("header");
+		ImGui::TableNextColumn();
+		changed = ImGui::Checkbox("##header", header.access());
+		break;
+	case 4:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("rowCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##rowCount", &rowCount, true, ctx);
-		break;
-	case 2:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags"))
-		{
-			ImGui::TableNextColumn();
-			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
-		break;
-	case 3:
-		ImGui::Text("style_padding");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##style_padding", style_padding.access());
-		break;
-	case 4:
-		ImGui::Text("header");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##header", header.access());
 		break;
 	case 5:
 		ImGui::Text("size_x");
@@ -3783,7 +3805,7 @@ void CollapsingHeader::DoDraw(UIContext& ctx)
 	}
 }
 
-void CollapsingHeader::CalcSizeEx(ImVec2 p1)
+void CollapsingHeader::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	ImVec2 pad = ImGui::GetStyle().FramePadding;
 	cached_pos.x -= pad.x;
@@ -3869,179 +3891,6 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 
 //---------------------------------------------------------
 
-TabItem::TabItem(UIContext& ctx)
-	: Widget(ctx)
-{
-}
-
-void TabItem::DoDraw(UIContext& ctx)
-{
-	bool sel = ctx.selected.size() == 1 && ctx.selected[0] == this;
-	if (ImGui::BeginTabItem(label.c_str(), nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
-	{
-		for (const auto& child : children)
-			child->Draw(ctx);
-
-		ImGui::EndTabItem();
-	}
-}
-
-void TabItem::DrawExtra(UIContext& ctx)
-{
-	if (ctx.parents.empty())
-		return;
-
-	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
-	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-	auto* parent = ctx.parents.back();
-	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; }) 
-		- parent->children.begin();
-	
-	ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
-	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
-	
-	ImGui::BeginDisabled(!idx);
-	if (ImGui::Button(ICON_FA_CHEVRON_LEFT)) {
-		auto ptr = std::move(parent->children[idx]);
-		parent->children.erase(parent->children.begin() + idx);
-		parent->children.insert(parent->children.begin() + idx - 1, std::move(ptr));
-	}
-	ImGui::EndDisabled();
-	
-	ImGui::SameLine();
-	if (ImGui::Button(ICON_FA_FOLDER_PLUS)) {
-		parent->children.insert(parent->children.begin() + idx + 1, std::make_unique<TabItem>(ctx));
-		if (ctx.selected.size() == 1 && ctx.selected[0] == this)
-			ctx.selected[0] = (parent->children.begin() + idx + 1)->get();
-	}
-
-	ImGui::SameLine();
-	ImGui::BeginDisabled(idx + 1 == parent->children.size());
-	if (ImGui::Button(ICON_FA_CHEVRON_RIGHT)) {
-		auto ptr = std::move(parent->children[idx]);
-		parent->children.erase(parent->children.begin() + idx);
-		parent->children.insert(parent->children.begin() + idx + 1, std::move(ptr));
-	}
-	ImGui::EndDisabled();
-
-	ImGui::End();
-	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
-}
-
-void TabItem::CalcSizeEx(ImVec2 p1)
-{
-	const ImGuiTabBar* tabBar = ImGui::GetCurrentTabBar();
-	int idx = tabBar->LastTabItemIdx;
-	const ImGuiTabItem& tab = tabBar->Tabs[idx];
-	cached_pos = tabBar->BarRect.GetTL();
-	cached_pos.x += tab.Offset;
-	cached_size.x = tab.Width;
-	cached_size.y = tabBar->BarRect.GetHeight();
-}
-
-void TabItem::DoExport(std::ostream& os, UIContext& ctx)
-{
-	os << ctx.ind << "if (ImGui::BeginTabItem(" << label.to_arg() << ", nullptr, ";
-	std::string idx;
-	assert(ctx.parents.back() == this);
-	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
-	if (tb && !tb->tabIndex.empty())
-	{
-		if (!tb->tabCount.empty())
-		{
-			idx = "(int)";
-			idx += FOR_VAR;
-		}
-		else
-		{
-			size_t n = stx::find_if(tb->children, [this](const auto& ch) {
-				return ch.get() == this; }) - tb->children.begin();
-			idx = std::to_string(n);
-		}
-		os << idx << " == " << tb->tabIndex.to_arg() << " ? ImGuiTabItemFlags_SetSelected : 0";
-	}
-	else
-	{
-		os << "ImGuiTabItemFlags_None";
-	}
-	os << "))\n";
-	os << ctx.ind << "{\n";
-	
-	ctx.ind_up();
-	os << ctx.ind << "/// @separator\n\n";
-
-	for (const auto& child : children)
-	{
-		child->Export(os, ctx);
-	}
-	
-	os << ctx.ind << "/// @separator\n";
-	os << ctx.ind << "ImGui::EndTabItem();\n";
-	ctx.ind_down();
-	os << ctx.ind << "}\n";
-
-	if (tb && !tb->tabIndex.empty())
-	{
-		os << ctx.ind << "if (ImGui::IsItemActivated())\n";
-		ctx.ind_up();
-		os << ctx.ind << tb->tabIndex.to_arg() << " = " << idx << ";\n";
-		ctx.ind_down();
-	}
-}
-
-void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
-{
-	if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabItem")
-	{
-		if (sit->params.size() >= 1)
-			label.set_from_arg(sit->params[0]);
-		
-		assert(ctx.parents.back() == this);
-		auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
-		if (tb && sit->params.size() >= 3 && sit->params[2].size() > 32)
-		{
-			const auto& p = sit->params[2];
-			size_t i = p.find("==");
-			if (i != std::string::npos && p.substr(p.size() - 32, 32) == "?ImGuiTabItemFlags_SetSelected:0")
-			{
-				std::string var = p.substr(i + 2, p.size() - 32 - i - 2);
-				tb->tabIndex.set_from_arg(var);
-			}
-		}
-	}
-}
-
-std::vector<UINode::Prop>
-TabItem::Properties()
-{
-	auto props = Widget::Properties();
-	props.insert(props.begin(), {
-		{ "label", &label },
-		});
-	return props;
-}
-
-bool TabItem::PropertyUI(int i, UIContext& ctx)
-{
-	bool changed = false;
-	switch (i)
-	{
-	case 0:
-		ImGui::Text("label");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##label", &label, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
-		break;
-	default:
-		return Widget::PropertyUI(i - 1, ctx);
-	}
-	return changed;
-}
-
-//---------------------------------------------------------
-
 TabBar::TabBar(UIContext& ctx)
 	: Widget(ctx)
 {
@@ -4070,16 +3919,12 @@ void TabBar::DoDraw(UIContext& ctx)
 	}
 }
 
-void TabBar::CalcSizeEx(ImVec2 p1)
+void TabBar::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	ImVec2 pad = ImGui::GetStyle().FramePadding;
 	cached_pos.x -= pad.x;
 	cached_size.x = ImGui::GetContentRegionAvail().x + 2 * pad.x;
 	cached_size.y = ImGui::GetCursorPosY() - p1.y - pad.y;
-}
-
-void TabBar::EnsureVisible(const UINode* tab)
-{
 }
 
 void TabBar::DoExport(std::ostream& os, UIContext& ctx)
@@ -4180,6 +4025,527 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 		break;
 	default:
 		return Widget::PropertyUI(i - 3, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------------
+
+TabItem::TabItem(UIContext& ctx)
+	: Widget(ctx)
+{
+}
+
+void TabItem::DoDraw(UIContext& ctx)
+{
+	bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
+	if (ImGui::BeginTabItem(label.c_str(), nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
+	{
+		for (const auto& child : children)
+			child->Draw(ctx);
+
+		ImGui::EndTabItem();
+	}
+}
+
+void TabItem::DrawExtra(UIContext& ctx)
+{
+	if (ctx.parents.empty())
+		return;
+
+	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
+	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+	assert(ctx.parents.back() == this);
+	auto* parent = ctx.parents[ctx.parents.size() - 2];
+	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
+		- parent->children.begin();
+
+	ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
+	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
+
+	ImGui::BeginDisabled(!idx);
+	if (ImGui::Button(ICON_FA_ANGLE_LEFT)) {
+		auto ptr = std::move(parent->children[idx]);
+		parent->children.erase(parent->children.begin() + idx);
+		parent->children.insert(parent->children.begin() + idx - 1, std::move(ptr));
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine();
+	if (ImGui::Button(ICON_FA_FOLDER_PLUS)) {
+		parent->children.insert(parent->children.begin() + idx + 1, std::make_unique<TabItem>(ctx));
+		if (ctx.selected.size() == 1 && ctx.selected[0] == this)
+			ctx.selected[0] = (parent->children.begin() + idx + 1)->get();
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(idx + 1 == parent->children.size());
+	if (ImGui::Button(ICON_FA_ANGLE_RIGHT)) {
+		auto ptr = std::move(parent->children[idx]);
+		parent->children.erase(parent->children.begin() + idx);
+		parent->children.insert(parent->children.begin() + idx + 1, std::move(ptr));
+	}
+	ImGui::EndDisabled();
+
+	ImGui::End();
+	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
+}
+
+void TabItem::CalcSizeEx(ImVec2 p1, UIContext& ctx)
+{
+	const ImGuiTabBar* tabBar = ImGui::GetCurrentTabBar();
+	int idx = tabBar->LastTabItemIdx;
+	const ImGuiTabItem& tab = tabBar->Tabs[idx];
+	cached_pos = tabBar->BarRect.GetTL();
+	cached_pos.x += tab.Offset;
+	cached_size.x = tab.Width;
+	cached_size.y = tabBar->BarRect.GetHeight();
+}
+
+void TabItem::DoExport(std::ostream& os, UIContext& ctx)
+{
+	os << ctx.ind << "if (ImGui::BeginTabItem(" << label.to_arg() << ", nullptr, ";
+	std::string idx;
+	assert(ctx.parents.back() == this);
+	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+	if (tb && !tb->tabIndex.empty())
+	{
+		if (!tb->tabCount.empty())
+		{
+			idx = "(int)";
+			idx += FOR_VAR;
+		}
+		else
+		{
+			size_t n = stx::find_if(tb->children, [this](const auto& ch) {
+				return ch.get() == this; }) - tb->children.begin();
+				idx = std::to_string(n);
+		}
+		os << idx << " == " << tb->tabIndex.to_arg() << " ? ImGuiTabItemFlags_SetSelected : 0";
+	}
+	else
+	{
+		os << "ImGuiTabItemFlags_None";
+	}
+	os << "))\n";
+	os << ctx.ind << "{\n";
+
+	ctx.ind_up();
+	os << ctx.ind << "/// @separator\n\n";
+
+	for (const auto& child : children)
+	{
+		child->Export(os, ctx);
+	}
+
+	os << ctx.ind << "/// @separator\n";
+	os << ctx.ind << "ImGui::EndTabItem();\n";
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+
+	if (tb && !tb->tabIndex.empty())
+	{
+		os << ctx.ind << "if (ImGui::IsItemActivated())\n";
+		ctx.ind_up();
+		os << ctx.ind << tb->tabIndex.to_arg() << " = " << idx << ";\n";
+		ctx.ind_down();
+	}
+}
+
+void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabItem")
+	{
+		if (sit->params.size() >= 1)
+			label.set_from_arg(sit->params[0]);
+
+		assert(ctx.parents.back() == this);
+		auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+		if (tb && sit->params.size() >= 3 && sit->params[2].size() > 32)
+		{
+			const auto& p = sit->params[2];
+			size_t i = p.find("==");
+			if (i != std::string::npos && p.substr(p.size() - 32, 32) == "?ImGuiTabItemFlags_SetSelected:0")
+			{
+				std::string var = p.substr(i + 2, p.size() - 32 - i - 2);
+				tb->tabIndex.set_from_arg(var);
+			}
+		}
+	}
+}
+
+std::vector<UINode::Prop>
+TabItem::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "label", &label },
+		});
+	return props;
+}
+
+bool TabItem::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##label", &label, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("label", &label, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 1, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------------
+
+MenuBar::MenuBar(UIContext& ctx)
+	: Widget(ctx)
+{
+	if (!ctx.importState)
+		children.push_back(std::make_unique<MenuIt>(ctx));
+}
+
+void MenuBar::DoDraw(UIContext& ctx)
+{
+	if (ImGui::BeginMenuBar())
+	{
+		//for (const auto& child : children) defend against insertion within the loop
+		for (size_t i = 0; i < children.size(); ++i)
+			children[i]->Draw(ctx);
+
+		ImGui::EndMenuBar();
+	}
+}
+
+void MenuBar::CalcSizeEx(ImVec2 x1, UIContext& ctx)
+{
+	cached_pos = ImGui::GetCurrentWindow()->MenuBarRect().GetTL();
+	cached_size = ImGui::GetCurrentWindow()->MenuBarRect().GetSize();
+}
+
+void MenuBar::DoExport(std::ostream& os, UIContext& ctx)
+{
+	os << ctx.ind << "if (ImGui::BeginMenuBar())\n";
+	os << ctx.ind << "{\n";
+	ctx.ind_up();
+	os << ctx.ind << "/// @separator\n\n";
+
+	for (const auto& child : children)
+		child->Export(os, ctx);
+
+	os << ctx.ind << "/// @separator\n";
+	os << ctx.ind << "ImGui::EndMenuBar();\n";
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+}
+
+void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	auto* win = dynamic_cast<TopWindow*>(ctx.root);
+	if (win)
+		win->flags |= ImGuiWindowFlags_MenuBar;
+}
+
+//---------------------------------------------------------
+
+MenuIt::MenuIt(UIContext& ctx)
+	: Widget(ctx)
+{
+}
+
+void MenuIt::DoDraw(UIContext& ctx)
+{
+	if (separator)
+		ImGui::Separator();
+	
+	if (children.empty()) //menuItem
+	{
+		bool check = !checked.empty();
+		ImGui::MenuItem(label.c_str(), shortcut.c_str(), check);
+	}
+	else //menu
+	{
+		assert(ctx.parents.back() == this);
+		const UINode* par = ctx.parents[ctx.parents.size() - 2];
+		bool top = dynamic_cast<const MenuBar*>(par);
+
+		ImGui::MenuItem(label.c_str());
+		if (!top)
+		{
+			float w = ImGui::CalcTextSize(ICON_FA_ANGLE_RIGHT).x;
+			ImGui::SameLine(0, 0);
+			ImGui::SetCursorPosX(ImGui::GetCursorPosX() - w);
+			ImGui::Text(ICON_FA_ANGLE_RIGHT);
+		}
+		bool open = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
+		if (open) 
+		{
+			ImVec2 pos = cached_pos;
+			if (top)
+				pos.y += ctx.rootWin->MenuBarHeight();
+			else {
+				ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+				ImVec2 pad = ImGui::GetStyle().WindowPadding;
+				pos.x += ImGui::GetWindowSize().x - sp.x;
+				pos.y -= pad.y;
+			}
+			ImGui::SetNextWindowPos(pos);
+			std::string id = label + "##" + std::to_string((uintptr_t)this);
+			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+			//for (const auto& child : children) defend against insertions within the loop
+			for (size_t i = 0; i < children.size(); ++i)
+				children[i]->Draw(ctx);
+			ImGui::End();
+		}
+	}
+}
+
+void MenuIt::DrawExtra(UIContext& ctx)
+{
+	if (ctx.parents.empty())
+		return;
+	assert(ctx.parents.back() == this);
+	auto* parent = ctx.parents[ctx.parents.size() - 2];
+	bool vertical = !dynamic_cast<MenuBar*>(parent);
+	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
+		- parent->children.begin();
+
+	//draw toolbox
+	//currently we always sit it on top of the menu so that it doesn't overlap with submenus
+	//no WindowFlags_StayOnTop
+	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
+	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+	
+	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+	const ImVec2 bsize{ 30, 30 };
+	ImVec2 pos = cached_pos;
+	if (vertical) {
+		pos = ImGui::GetWindowPos();
+		//pos.x -= sp.x;
+	}
+	ImGui::SetNextWindowPos(pos, 0, vertical ? ImVec2{ 0, 1.f } : ImVec2{ 0, 1.f });
+	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
+
+	ImGui::BeginDisabled(!idx);
+	if (ImGui::Button(vertical ? ICON_FA_ANGLE_UP : ICON_FA_ANGLE_LEFT, bsize)) {
+		auto ptr = std::move(parent->children[idx]);
+		parent->children.erase(parent->children.begin() + idx);
+		parent->children.insert(parent->children.begin() + idx - 1, std::move(ptr));
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine();
+	if (ImGui::Button(vertical ? ICON_FA_PLUS ICON_FA_ANGLE_DOWN : ICON_FA_PLUS ICON_FA_ANGLE_RIGHT, bsize)) {
+		parent->children.insert(parent->children.begin() + idx + 1, std::make_unique<MenuIt>(ctx));
+		if (ctx.selected.size() == 1 && ctx.selected[0] == this)
+			ctx.selected[0] = parent->children[idx + 1].get();
+	}
+
+	if (children.empty())
+	{
+		ImGui::SameLine();
+		if (ImGui::Button(vertical ? ICON_FA_PLUS ICON_FA_ANGLE_RIGHT : ICON_FA_PLUS ICON_FA_ANGLE_DOWN, bsize)) {
+			children.push_back(std::make_unique<MenuIt>(ctx));
+			if (ctx.selected.size() == 1 && ctx.selected[0] == this)
+				ctx.selected[0] = children[0].get();
+		}
+	}
+	
+	ImGui::SameLine();
+	ImGui::BeginDisabled(idx + 1 == parent->children.size());
+	if (ImGui::Button(vertical ? ICON_FA_ANGLE_DOWN : ICON_FA_ANGLE_RIGHT, bsize)) {
+		auto ptr = std::move(parent->children[idx]);
+		parent->children.erase(parent->children.begin() + idx);
+		parent->children.insert(parent->children.begin() + idx + 1, std::move(ptr));
+	}
+	ImGui::EndDisabled();
+
+	ImGui::End();
+	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
+}
+
+void MenuIt::CalcSizeEx(ImVec2 x1, UIContext& ctx)
+{
+	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+	const ImGuiMenuColumns* mc = &ImGui::GetCurrentWindow()->DC.MenuColumns;
+	cached_pos.x += mc->OffsetLabel;
+	cached_size = ImGui::CalcTextSize(label.c_str(), nullptr, true);
+	cached_size.x += sp.x;
+	assert(ctx.parents.back() == this);
+	const UINode* par = ctx.parents[ctx.parents.size() - 2];
+	bool top = dynamic_cast<const MenuBar*>(par);
+	if (top)
+	{
+		++cached_pos.y;
+		cached_size.y = ctx.rootWin->MenuBarHeight() - 2;
+	}
+	else
+	{
+		if (separator)
+			cached_pos.y += sp.y;
+	}
+}
+
+void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
+{
+	if (separator)
+		os << ctx.ind << "ImGui::Separator();\n";
+
+	if (children.empty())
+	{
+		bool ifstmt = !onChange.empty();
+		os << ctx.ind;
+		if (ifstmt)
+			os << "if (";
+
+		os << "ImGui::MenuItem(" << label.to_arg() << ", "
+			<< shortcut.to_arg() << ", ";
+		if (checked.empty())
+			os << "false";
+		else
+			os << "&" << checked.to_arg();
+		os << ")";
+
+		std::string sh = CodeShortcut(shortcut.c_str());
+		if (sh.size())
+			os << " ||\n" << ctx.ind << (ifstmt ? "   " : "") << sh;
+
+		if (ifstmt) {
+			os << ")\n";
+			ctx.ind_up();
+			os << ctx.ind << onChange.to_arg() << "();\n";
+			ctx.ind_down();
+		}
+		else
+			os << ";\n";
+	}
+	else
+	{
+		os << ctx.ind << "if (ImGui::BeginMenu(" << label.to_arg() << "))\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << "/// @separator\n\n";
+		
+		for (const auto& child : children)
+			child->Export(os, ctx);
+	
+		os << ctx.ind << "/// @separator\n";
+		os << ctx.ind << "ImGui::EndMenu();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
+	}
+}
+
+void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::MenuItem") ||
+		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::MenuItem"))
+	{
+		if (sit->params.size())
+			label.set_from_arg(sit->params[0]);
+		if (sit->params.size() >= 2)
+			shortcut.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 3 && !sit->params[2].compare(0, 1, "&"))
+			checked.set_from_arg(sit->params[2].substr(1));
+
+		if (sit->kind == cpp::IfCallThenCall)
+			onChange.set_from_arg(sit->callee);
+	}
+	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginMenu")
+	{
+		if (sit->params.size())
+			label.set_from_arg(sit->params[0]);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Separator")
+	{
+		separator = true;
+	}
+}
+
+std::vector<UINode::Prop>
+MenuIt::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "label", &label },
+		{ "shortcut", &shortcut },
+		{ "checked", &checked },
+		{ "separator", &separator },
+		});
+	return props;
+}
+
+bool MenuIt::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##label", label.access());
+		break;
+	case 1:
+		ImGui::BeginDisabled(children.size());
+		ImGui::Text("shortcut");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##shortcut", shortcut.access());
+		ImGui::EndDisabled();
+		break;
+	case 2:
+		ImGui::BeginDisabled(children.size());
+		ImGui::Text("checked");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##separatro", &checked, true, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 3:
+		ImGui::Text("separator");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##separator", separator.access());
+		break;
+	default:
+		return Widget::PropertyUI(i - 4, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+MenuIt::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onChange", &onChange },
+		});
+	return props;
+}
+
+bool MenuIt::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::BeginDisabled(children.size());
+		ImGui::Text("onChange");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onChange", &onChange, ctx);
+		ImGui::EndDisabled();
+		break;
+	default:
+		return Widget::EventUI(i - 1, ctx);
 	}
 	return changed;
 }

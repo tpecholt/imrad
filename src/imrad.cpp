@@ -849,6 +849,8 @@ void Work()
 	{
 		if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !pgFocused)
 		{
+			fileTabs[activeTab].modified = true;
+			auto pi1 = FindParentIndex(fileTabs[activeTab].rootNode.get(), ctx.selected[0]);
 			for (UINode* node : ctx.selected)
 			{
 				if (node == fileTabs[activeTab].rootNode.get())
@@ -869,8 +871,20 @@ void Work()
 						wdg->sameLine = false;
 				}
 			}
-			ctx.selected.clear();
-			fileTabs[activeTab].modified = true;
+			//move selection. Useful for things like menu items
+			if (ctx.selected.size() == 1 && pi1.first)
+			{
+				if (pi1.second < pi1.first->children.size())
+					ctx.selected[0] = pi1.first->children[pi1.second].get();
+				else if (pi1.second)
+					ctx.selected[0] = pi1.first->children[pi1.second - 1].get();
+				else
+					ctx.selected[0] = pi1.first;
+			}
+			else
+			{
+				ctx.selected.clear();
+			}
 		}
 	}
 }
