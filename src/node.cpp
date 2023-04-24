@@ -130,10 +130,12 @@ void TopWindow::Draw(UIContext& ctx)
 			ctx.selected = { this };
 		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 	}
-	if (ctx.snapMode && children.empty() && ImGui::IsWindowHovered())
+	if (ctx.snapMode && ImGui::IsWindowHovered() &&
+		//only when no children except MenuBar:
+		!stx::count_if(children, [](auto&& ch) { return ch->SnapBehavior() != 0; }))
 	{
 		ctx.snapParent = this;
-		ctx.snapIndex = 0;
+		ctx.snapIndex = children.size(); //after MenuBar
 		ctx.snapSameLine[0] = false;
 		ctx.snapNextColumn[0] = false;
 		ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -366,9 +368,9 @@ std::vector<UINode::Prop>
 TopWindow::Properties()
 {
 	return {
+		{ "top.flags", nullptr },
 		{ "title", &title },
 		{ "top.modalPopup", nullptr },
-		{ "top.flags", nullptr },
 		{ "size_x", nullptr },
 		{ "size_y", nullptr },
 		{ "top.style_padding", nullptr },
@@ -382,20 +384,6 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("title");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##title", &title, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("title", &title, ctx);
-		break;
-	case 1:
-		ImGui::Text("modalPopup");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##modal", &modalPopup);
-		break;
-	case 2:
 		ImGui::Unindent();
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
 		if (ImGui::TreeNode("flags")) {
@@ -412,6 +400,20 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Spacing();
 		ImGui::PopStyleVar();
 		ImGui::Indent();
+		break;
+	case 1:
+		ImGui::Text("title");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##title", &title, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("title", &title, ctx);
+		break;
+	case 2:
+		ImGui::Text("modalPopup");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##modal", &modalPopup);
 		break;
 	case 3:
 		ImGui::Text("size_x");
@@ -891,8 +893,9 @@ void Widget::DrawSnap(UIContext& ctx)
 		snapDir = ImGuiDir_Down;
 
 	assert(ctx.parents.back() == this);
+	UINode* parent = ctx.parents[ctx.parents.size() - 2];
 	size_t level = ctx.parents.size() - 1;
-	const auto& pchildren = ctx.parents[ctx.parents.size() - 2]->children;
+	const auto& pchildren = parent->children;
 	size_t i = stx::find_if(pchildren, [&](const auto& ch) {
 		return ch.get() == this;
 		}) - pchildren.begin();
@@ -935,7 +938,7 @@ void Widget::DrawSnap(UIContext& ctx)
 			h = std::max(p.y + h, p2.y + h2) - q.y;
 			p = q;
 		}
-		ctx.snapParent = ctx.parents.back();
+		ctx.snapParent = parent;
 		ctx.snapIndex = i;
 		ctx.snapSameLine[0] = pchildren[i]->sameLine;
 		ctx.snapSameLine[1] = true;
@@ -962,7 +965,7 @@ void Widget::DrawSnap(UIContext& ctx)
 			h = std::max(p.y + h, p2.y + h2) - q.y;
 			p = q;
 		}
-		ctx.snapParent = ctx.parents.back();
+		ctx.snapParent = parent;
 		ctx.snapIndex = i + 1;
 		ctx.snapSameLine[0] = true;
 		ctx.snapSameLine[1] = pch ? (bool)pch->sameLine : false;
@@ -1013,7 +1016,7 @@ void Widget::DrawSnap(UIContext& ctx)
 		w = x2 - p.x;
 		ctx.snapSameLine[0] = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
 		ctx.snapSameLine[1] = false;
-		ctx.snapParent = ctx.parents.back();
+		ctx.snapParent = parent;
 		if (down)
 		{
 			ctx.snapNextColumn[0] = false;
@@ -1621,11 +1624,11 @@ Selectable::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "selectable.flags", &flags },
 		{ "label", &label },
 		{ "color", &color },
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
-		{ "selectable.flags", &flags },
 		{ "selectable.fieldName", &fieldName },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }
@@ -1639,6 +1642,18 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Unindent();
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (ImGui::TreeNode("flags")) {
+			ImGui::TableNextColumn();
+			changed = CheckBoxFlags(&flags);
+			ImGui::TreePop();
+		}
+		ImGui::PopStyleVar();
+		ImGui::Spacing();
+		ImGui::Indent();
+		break;
+	case 1:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1646,7 +1661,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("label", &label, ctx);
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1654,7 +1669,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &color, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::Text("horizAlignment");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1668,7 +1683,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 3:
+	case 4:
 		ImGui::BeginDisabled(size_y.has_value() && !size_y.value());
 		ImGui::Text("vertAlignment");
 		ImGui::TableNextColumn();
@@ -1683,18 +1698,6 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		ImGui::EndDisabled();
-		break;
-	case 4:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
-			ImGui::TableNextColumn();
-			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
 		break;
 	case 5:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -2531,11 +2534,11 @@ Input::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "input.flags", &flags },
 		{ "input.type", &type },
 		{ "input.field_name", &fieldName },
-		{ "input.flags", &flags },
-		{ "keyboard_focus", &keyboardFocus },
 		{ "hint", &hint },
+		{ "keyboard_focus", &keyboardFocus },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }, 
 	});
@@ -2554,6 +2557,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::BeginDisabled(type != "std::string");
+		ImGui::Unindent();
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (ImGui::TreeNode("flags")) {
+			ImGui::TableNextColumn();
+			changed = CheckBoxFlags(&flags);
+			ImGui::TreePop();
+		}
+		ImGui::Spacing();
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+		ImGui::EndDisabled();
+		break;
+	case 1:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2570,33 +2587,19 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 1:
+	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::BeginDisabled(type != "std::string");
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##hint", hint.access());
-		ImGui::EndDisabled();
-		break;
-	case 3:
-		ImGui::BeginDisabled(type != "std::string");
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
-			ImGui::TableNextColumn();
-			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
 		ImGui::EndDisabled();
 		break;
 	case 4:
@@ -4502,11 +4505,12 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 2:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::BeginDisabled(children.size());
 		ImGui::Text("checked");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##separatro", &checked, true, ctx);
+		changed = InputFieldRef("##checked", &checked, true, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 3:

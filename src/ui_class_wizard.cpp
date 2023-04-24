@@ -35,6 +35,10 @@ void ClassWizard::Refresh()
 		stypeIdx = 0;
 	
 	fields = codeGen->GetVars(stypeIdx ? stypes[stypeIdx] : "");
+	//CppGen exports user code as-is so no modification allowed here
+	stx::erase_if(fields, [](CppGen::Var& var) {
+		return var.flags & CppGen::Var::UserCode;
+		});
 
 	used.clear();
 	FindUsed(root, used);
@@ -160,9 +164,7 @@ void ClassWizard::Draw()
 				/// @separator
 
 				const auto& var = fields[i];
-				if (var.flags & CppGen::Var::UserCode)
-					continue;
-
+				
 				//ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 255, 255));
 				//ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, IM_COL32(192, 192, 192, 255));
 				

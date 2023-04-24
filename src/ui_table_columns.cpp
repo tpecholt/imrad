@@ -28,7 +28,7 @@ void TableColumns::Draw()
 		/// @begin Table
 		ImGui::Spacing();
 		ImGui::Spacing();
-		ImGui::Indent(1 * ImGui::GetStyle().IndentSpacing);
+		ImGui::Indent(2 * ImGui::GetStyle().ItemSpacing.x);
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 2, 1 });
 		if (ImGui::BeginTable("table2103590221472", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoPadInnerX, { -150, -10 }))
 		{
@@ -159,7 +159,8 @@ void TableColumns::Draw()
 		}*/
 		ImGui::EndGroup();
 		
-		ImGui::SetCursorPos({ ImGui::GetStyle().WindowPadding.x, selY });
+		ImGui::SetCursorPos({ ImGui::GetStyle().ItemSpacing.x, selY });
+		ImGui::AlignTextToFramePadding();
 		ImGui::Text(ICON_FA_CARET_RIGHT);
 
 		ImGui::EndPopup();

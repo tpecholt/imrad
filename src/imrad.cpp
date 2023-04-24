@@ -709,6 +709,7 @@ void PropertyRowsUI(bool pr)
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
 			//ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, true);
+			ImGui::AlignTextToFramePadding();
 			bool change = pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
 			if (change) {
 				fileTabs[activeTab].modified = true;

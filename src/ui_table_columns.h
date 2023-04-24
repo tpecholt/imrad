@@ -14,6 +14,7 @@ public:
 	void Draw();
 
 public:
+	/// @interface
 	std::vector<Table::ColumnData> columnData;
 	std::vector<Table::ColumnData>* target;
 

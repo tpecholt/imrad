@@ -47,6 +47,12 @@ namespace stx {
 		return std::replace(std::begin(c), std::end(c), oldv, newv);
 	}
 
+	template <class C, class F>
+	decltype(auto) erase_if(C& c, F&& fun)
+	{
+		c.erase(std::remove_if(std::begin(c), std::end(c), std::forward<F>(fun)), c.end());
+	}
+
 	template <class C, class I>
 	decltype(auto) set_intersection(const C& c1, const C& c2, I dst)
 	{
