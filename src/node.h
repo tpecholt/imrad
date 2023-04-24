@@ -8,6 +8,7 @@
 #include "binding.h"
 #include "cpp_parser.h"
 #include "imrad.h"
+#include "IconsFontAwesome6.h"
 
 struct UINode;
 class CppGen;
@@ -123,6 +124,7 @@ struct Widget : UINode
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
 	virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
 	virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	virtual const char* GetIcon() const { return ""; }
 };
 
 struct Separator : Widget
@@ -148,6 +150,7 @@ struct Text : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_FONT; }
 };
 
 struct Selectable : Widget
@@ -171,6 +174,7 @@ struct Selectable : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_AUDIO_DESCRIPTION; }
 };
 
 struct Button : Widget
@@ -193,6 +197,7 @@ struct Button : Widget
 	bool EventUI(int, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_CIRCLE_PLAY; }
 };
 
 struct CheckBox : Widget
@@ -210,6 +215,7 @@ struct CheckBox : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_SQUARE_CHECK; }
 };
 
 struct RadioButton : Widget
@@ -224,6 +230,7 @@ struct RadioButton : Widget
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_CIRCLE_DOT; }
 };
 
 struct Input : Widget
@@ -245,6 +252,7 @@ struct Input : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return "[ab]"; }
 };
 
 struct Combo : Widget
@@ -262,6 +270,7 @@ struct Combo : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_SQUARE_CARET_DOWN; }
 };
 
 struct Slider : Widget
@@ -282,6 +291,7 @@ struct Slider : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_SLIDERS; }
 };
 
 struct Image : Widget
@@ -299,6 +309,7 @@ struct Image : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void RefreshTexture(UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_IMAGE; }
 };
 
 struct Table : Widget
@@ -325,6 +336,7 @@ struct Table : Widget
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_TABLE_CELLS_LARGE; }
 };
 
 struct Child : Widget
@@ -346,6 +358,7 @@ struct Child : Widget
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_SQUARE_FULL; }
 };
 
 struct CollapsingHeader : Widget
@@ -361,6 +374,7 @@ struct CollapsingHeader : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_ARROW_DOWN_WIDE_SHORT; }
 };
 
 struct TabBar : Widget
@@ -392,6 +406,7 @@ struct TabItem : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_FOLDER; }
 };
 
 struct MenuBar : Widget
@@ -423,6 +438,7 @@ struct MenuIt : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_LIST; }
 };
 
 struct TopWindow : UINode

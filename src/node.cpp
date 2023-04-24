@@ -1234,15 +1234,26 @@ bool Widget::EventUI(int i, UIContext& ctx)
 
 void Widget::TreeUI(UIContext& ctx)
 {
-	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-	std::string str = typeid(*this).name();
-	auto i = str.find(' ');
-	if (i != std::string::npos)
-		str.erase(0, i + 1);
-	auto it = stx::find_if(str, [](char c) { return isalpha(c);});
-	if (it != str.end())
-		str.erase(0, it - str.begin());
-	//str = ICON_FA_CLOSED_CAPTIONING " " + str;
+	std::string label;
+	const auto props = Properties();
+	for (const auto& p : props) {
+		if (p.name == std::string_view("label") && p.property->c_str()) {
+			label = p.property->c_str();
+		}
+	}
+	if (label.empty()) {
+		label = typeid(*this).name();
+		auto i = label.find(' ');
+		if (i != std::string::npos)
+			label.erase(0, i + 1);
+		auto it = stx::find_if(label, [](char c) { return isalpha(c); });
+		if (it != label.end())
+			label.erase(0, it - label.begin());
+	}
+	std::string icon;
+	if (GetIcon()) {
+		icon = GetIcon();
+	}
 	std::string suff;
 	if (sameLine)
 		suff += "L";
@@ -1252,15 +1263,21 @@ void Widget::TreeUI(UIContext& ctx)
 		suff += "E";
 	if (nextColumn)
 		suff += "C";
-	//if (ctx.selected == this)
-	bool selected = stx::count(ctx.selected, this);
-	if (selected)
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
-	if (ImGui::TreeNodeEx(str.c_str(), ImGuiTreeNodeFlags_Leaf)) // | (selected ? ImGuiTreeNodeFlags_Bullet : 0)))
-	{
-		if (selected)
-			ImGui::PopStyleColor();
 
+	bool selected = stx::count(ctx.selected, this);
+	if (icon != "")
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+	else if (selected)
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
+	else
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_Text]);
+
+	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+	int flags = ImGuiTreeNodeFlags_SpanAvailWidth;
+	if (children.empty())
+		flags |= ImGuiTreeNodeFlags_Leaf;
+	if (ImGui::TreeNodeEx((icon != "" ? icon.c_str() : label.c_str()), flags))
+	{
 		if (ImGui::IsItemClicked())
 		{
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -1268,6 +1285,14 @@ void Widget::TreeUI(UIContext& ctx)
 			else
 				ctx.selected = { this };
 		}
+		if (icon != "") 
+		{
+			ImGui::PopStyleColor();
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_Text]);
+			ImGui::SameLine();
+			ImGui::Text(label.c_str());
+		}
+		ImGui::PopStyleColor();
 		ImGui::SameLine();
 		ImGui::TextDisabled(suff.c_str());
 		ctx.parents.push_back(this);
@@ -1276,7 +1301,7 @@ void Widget::TreeUI(UIContext& ctx)
 		ctx.parents.pop_back();
 		ImGui::TreePop();
 	}
-	else if (selected) {
+	else {
 		ImGui::PopStyleColor();
 	}
 }

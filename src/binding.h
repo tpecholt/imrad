@@ -85,11 +85,11 @@ private:
 
 struct property_base
 {
-	//virtual const char* c_str() const = 0;
 	virtual std::string to_arg() const = 0;
 	virtual void set_from_arg(std::string_view s) = 0;
 	virtual std::vector<std::string> used_variables() const = 0;
 	virtual void rename_variable(const std::string& oldn, const std::string& newn) = 0;
+	virtual const char* c_str() const = 0;
 };
 
 //member variable expression like id, id.member, id[0], id.size()
@@ -219,7 +219,8 @@ struct direct_val : property_base
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{}
 	T* access() { return &val; }
-	
+	const char* c_str() const { return nullptr; }
+
 private:
 	T val;
 	std::vector<std::pair<std::string, T>> ids;
@@ -323,6 +324,7 @@ public:
 	const auto& get_ids() const { return ids; }
 	std::vector<std::string> used_variables() const { return {}; }
 	void rename_variable(const std::string& oldn, const std::string& newn) {}
+	const char* c_str() const { return nullptr; }
 
 private:
 	int f;
