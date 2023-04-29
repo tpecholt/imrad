@@ -40,6 +40,7 @@ struct UIContext
 	std::string userCode;
 	UINode* root = nullptr;
 	ImGuiWindow* rootWin = nullptr;
+	std::vector<ImGuiWindow*> popupWins;
 	std::vector<UINode*> parents;
 	bool modalPopup = false;
 	bool table = false;

@@ -94,6 +94,7 @@ void TopWindow::Draw(UIContext& ctx)
 {
 	ctx.groupLevel = 0;
 	ctx.root = this;
+	ctx.popupWins.clear();
 	ctx.parents = { this };
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
@@ -567,12 +568,16 @@ void Widget::Draw(UIContext& ctx)
 	
 	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+	bool allowed = ctx.popupWins.empty() || stx::count(ctx.popupWins, ImGui::GetCurrentWindow());
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
-	if (!ctx.snapMode && ctx.hovered == lastHovered && hovered)
+	if (!ctx.snapMode && allowed && 
+		ctx.hovered == lastHovered && hovered)
 	{
 		ctx.hovered = this;
 	}
-	if (!ctx.snapMode && ctx.selected == lastSel && hovered && ImGui::IsMouseClicked(0)) //IsItemClicked doesn't work when disabled
+	if (!ctx.snapMode && allowed && 
+		ctx.selected == lastSel && hovered && 
+		ImGui::IsMouseClicked(0)) //this works even for non-items like TabControl etc.  
 	{
 		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 			toggle(ctx.selected, this);
@@ -4327,10 +4332,13 @@ void MenuIt::DoDraw(UIContext& ctx)
 			ImGui::SetNextWindowPos(pos);
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
 			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
-			//for (const auto& child : children) defend against insertions within the loop
-			for (size_t i = 0; i < children.size(); ++i)
-				children[i]->Draw(ctx);
-			ImGui::End();
+			{
+				ctx.popupWins.push_back(ImGui::GetCurrentWindow());
+				//for (const auto& child : children) defend against insertions within the loop
+				for (size_t i = 0; i < children.size(); ++i)
+					children[i]->Draw(ctx);
+				ImGui::End();
+			}
 		}
 	}
 }
@@ -4376,15 +4384,14 @@ void MenuIt::DrawExtra(UIContext& ctx)
 			ctx.selected[0] = parent->children[idx + 1].get();
 	}
 
-	if (children.empty())
-	{
-		ImGui::SameLine();
-		if (ImGui::Button(vertical ? ICON_FA_PLUS ICON_FA_ANGLE_RIGHT : ICON_FA_PLUS ICON_FA_ANGLE_DOWN, bsize)) {
-			children.push_back(std::make_unique<MenuIt>(ctx));
-			if (ctx.selected.size() == 1 && ctx.selected[0] == this)
-				ctx.selected[0] = children[0].get();
-		}
+	ImGui::SameLine();
+	ImGui::BeginDisabled(children.size());
+	if (ImGui::Button(vertical ? ICON_FA_PLUS ICON_FA_ANGLE_RIGHT : ICON_FA_PLUS ICON_FA_ANGLE_DOWN, bsize)) {
+		children.push_back(std::make_unique<MenuIt>(ctx));
+		if (ctx.selected.size() == 1 && ctx.selected[0] == this)
+			ctx.selected[0] = children[0].get();
 	}
+	ImGui::EndDisabled();
 	
 	ImGui::SameLine();
 	ImGui::BeginDisabled(idx + 1 == parent->children.size());
