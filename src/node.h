@@ -60,6 +60,7 @@ struct UINode
 	struct Prop {
 		const char* name;
 		property_base* property;
+		bool kbdInput = false; //this property accepts keyboard input by default
 	};
 
 	virtual ~UINode() {}

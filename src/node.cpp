@@ -370,7 +370,7 @@ TopWindow::Properties()
 {
 	return {
 		{ "top.flags", nullptr },
-		{ "title", &title },
+		{ "title", &title, true },
 		{ "top.modalPopup", nullptr },
 		{ "size_x", nullptr },
 		{ "size_y", nullptr },
@@ -1242,7 +1242,7 @@ void Widget::TreeUI(UIContext& ctx)
 	std::string label;
 	const auto props = Properties();
 	for (const auto& p : props) {
-		if (p.name == std::string_view("label") && p.property->c_str()) {
+		if (p.kbdInput && p.property->c_str()) {
 			label = p.property->c_str();
 		}
 	}
@@ -1447,7 +1447,7 @@ Text::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "text", &text },
+		{ "text", &text, true },
 		{ "text.grayed", &grayed },
 		{ "color", &color },
 		{ "text.alignToFramePadding", &alignToFrame },
@@ -1655,7 +1655,7 @@ Selectable::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "selectable.flags", &flags },
-		{ "label", &label },
+		{ "label", &label, true },
 		{ "color", &color },
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
@@ -2027,7 +2027,7 @@ Button::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "button.arrowDir", &arrowDir },
-		{ "label", &label },
+		{ "label", &label, true },
 		{ "button.modalResult", &modalResult },
 		{ "shortcut", &shortcut },
 		{ "color", &color },
@@ -2227,7 +2227,7 @@ CheckBox::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "label", &label },
+		{ "label", &label, true },
 		{ "check.init_value", &initValue },
 		{ "check.field_name", &fieldName },
 		});
@@ -2341,7 +2341,7 @@ RadioButton::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "label", &label },
+		{ "label", &label, true },
 		{ "radio.valueID", &valueID },
 		{ "field_name", &fieldName },
 	});
@@ -3186,7 +3186,7 @@ Image::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "file_name", &fileName },
+		{ "file_name", &fileName, true },
 		{ "field_name", &fieldName },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
@@ -3889,7 +3889,7 @@ CollapsingHeader::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "label", &label },
+		{ "label", &label, true },
 		{ "open", &open }
 		});
 	return props;
@@ -4212,7 +4212,7 @@ TabItem::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "label", &label },
+		{ "label", &label, true },
 		});
 	return props;
 }
@@ -4509,7 +4509,7 @@ MenuIt::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "label", &label },
+		{ "label", &label, true },
 		{ "shortcut", &shortcut },
 		{ "checked", &checked },
 		{ "separator", &separator },

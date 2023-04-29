@@ -64,6 +64,7 @@ ImGuiID dock_id_top, dock_id_right, dock_id_right2;
 bool pgFocused;
 int styleIdx = 0;
 GLFWwindow* window = nullptr;
+int addInputCharacter = 0;
 
 struct TB_Button 
 {
@@ -673,6 +674,26 @@ void HierarchyUI()
 
 void PropertyRowsUI(bool pr)
 {
+	int keyPressed = 0;
+	if (addInputCharacter)
+	{
+		//select all text when activating
+		auto* g = ImGui::GetCurrentContext();
+		g->NavNextActivateFlags &= ~ImGuiActivateFlags_TryToPreserveState;
+		g->NavActivateFlags &= ~ImGuiActivateFlags_TryToPreserveState;
+		//and send a character to overwrite it
+		ImGui::GetIO().AddInputCharacter(addInputCharacter);
+		addInputCharacter = 0;
+	}
+	if (!ImGui::GetIO().WantTextInput && !(ImGui::GetIO().KeyMods & ~ImGuiMod_Shift))
+	{
+		for (int key = ImGuiKey_A; key <= ImGuiKey_Z; ++key)
+			if (ImGui::IsKeyPressed((ImGuiKey)key)) {
+				keyPressed = key - ImGuiKey_A + (ImGui::GetIO().KeyShift ? 'A' : 'a');
+				break;
+			}
+	}
+
 	ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
 	if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
 	{
@@ -708,8 +729,11 @@ void PropertyRowsUI(bool pr)
 				continue;
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
-			//ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, true);
 			ImGui::AlignTextToFramePadding();
+			if (keyPressed && props[i].kbdInput) {
+				addInputCharacter = keyPressed;
+				ImGui::SetKeyboardFocusHere();
+			}
 			bool change = pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
 			if (change) {
 				fileTabs[activeTab].modified = true;
@@ -718,7 +742,6 @@ void PropertyRowsUI(bool pr)
 					pval = props[i].property->to_arg();
 				}
 			}
-			//ImGui::PopItemFlag();
 		}
 		ImGui::Unindent();
 		ImGui::EndTable();
@@ -740,7 +763,7 @@ void PropertyRowsUI(bool pr)
 
 void PropertyUI()
 {
-	pgFocused = false;
+	bool tmp = false;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	ImGui::Begin("Events");
 	if (!ctx.selected.empty())
@@ -748,7 +771,7 @@ void PropertyUI()
 		PropertyRowsUI(0);
 	}
 	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		pgFocused = true;
+		tmp = true;
 	ImGui::End();
 
 	ImGui::Begin("Properties");
@@ -757,9 +780,10 @@ void PropertyUI()
 		PropertyRowsUI(1);
 	}
 	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		pgFocused = true;
+		tmp = true;
 	ImGui::End();
 	ImGui::PopStyleVar();
+	pgFocused = tmp;
 }
 
 void PopupUI()
