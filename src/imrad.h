@@ -16,6 +16,13 @@
 
 namespace ImRad {
 
+using Int2 = int[2];
+using Int3 = int[3];
+using Int4 = int[4];
+using Float2 = float[2];
+using Float3 = float[3];
+using Float4 = float[4];
+
 enum ModalResult {
 	None = 0,
 	Ok = 0x1,

@@ -240,6 +240,8 @@ struct Input : Widget
 	field_ref<> fieldName;
 	direct_val<std::string> type = "std::string";
 	direct_val<std::string> hint = "";
+	direct_val<float> step = 1;
+	direct_val<std::string> format = "%.3f";
 	bindable<float> size_x = 200;
 	bindable<float> size_y = 100;
 	flags_helper flags = 0;
