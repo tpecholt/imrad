@@ -14,9 +14,10 @@
 #include <array>
 
 const color32 SNAP_COLOR[] {
-	IM_COL32(0, 0, 255, 255),
+	IM_COL32(128, 128, 255, 255),
 	IM_COL32(255, 0, 255, 255),
-	IM_COL32(0, 0, 255, 255)
+	IM_COL32(0, 255, 255, 255),
+	IM_COL32(0, 255, 0, 255),
 };
 
 const color32 FIELD_NAME_CLR = IM_COL32(202, 202, 255, 255);
@@ -49,6 +50,201 @@ void UIContext::ind_down()
 }
 
 //----------------------------------------------------
+
+void UINode::DrawSnap(UIContext& ctx)
+{
+	ctx.snapSameLine = false;
+	ctx.snapNextColumn = false;
+	ctx.snapBeginGroup = false;
+	ctx.snapSetNextSameLine = false;
+
+	const float MARGIN = 7;
+	assert(ctx.parents.back() == this);
+	size_t level = ctx.parents.size() - 1;
+	int snapOp = SnapBehavior();
+	ImVec2 m = ImGui::GetMousePos();
+	ImVec2 d1 = m - cached_pos;
+	ImVec2 d2 = cached_pos + cached_size - m;
+	float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
+	
+	//snap interior
+	if ((snapOp & SnapInterior) && mind >= 0 &&
+		!stx::count_if(children, [](const auto& ch) { return ch->SnapBehavior() & SnapSides; }))
+	{
+		ctx.snapParent = this;
+		ctx.snapIndex = children.size();
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[level % std::size(SNAP_COLOR)], 0, 0, 3);
+		return;
+	}
+
+	if (!level || !(snapOp & SnapSides))
+		return;
+	
+	//snap side
+	UINode* parent = ctx.parents[ctx.parents.size() - 2];
+	const auto& pchildren = parent->children;
+	size_t i = stx::find_if(pchildren, [&](const auto& ch) {
+		return ch.get() == this;
+		}) - pchildren.begin();
+	if (i == pchildren.size())
+		return;
+	UINode* clip = parent;
+	if (dynamic_cast<TabItem*>(clip)) //todo
+		clip = ctx.parents[ctx.parents.size() - 3];
+	if (m.x < clip->cached_pos.x ||
+		m.y < clip->cached_pos.y ||
+		m.x > clip->cached_pos.x + clip->cached_size.x ||
+		m.y > clip->cached_pos.y + clip->cached_size.y)
+		return;
+		
+	bool lastItem = i + 1 == pchildren.size();
+	ImGuiDir snapDir = ImGuiDir_None;
+	if (mind > MARGIN)
+		snapDir = ImGuiDir_None;
+	else if (d1.x == mind && d1.y >= 0 && d2.y >= 0)
+		snapDir = ImGuiDir_Left;
+	else if (d2.x == mind && d1.y >= 0 && d2.y >= 0)
+		snapDir = ImGuiDir_Right;
+	else if (d1.y == mind && d1.x >= 0 && d2.x >= 0)
+		snapDir = ImGuiDir_Up;
+	else if (d2.y == mind && d1.x >= 0 && d2.x >= 0)
+		snapDir = ImGuiDir_Down;
+	else if (lastItem && d2.x < 0 && d2.y < 0)
+		snapDir = ImGuiDir_Down;
+
+	if (snapDir == ImGuiDir_None)
+		return;
+	
+	ImVec2 p;
+	float w = 0, h = 0;
+	const auto& pch = pchildren[i];
+	//snapRight and snapDown will extend the area to the next widget
+	//snapLeft and snapTop only when we are first widget
+	switch (snapDir)
+	{
+	case ImGuiDir_Left:
+	{
+		p = cached_pos;
+		h = cached_size.y;
+		bool leftmost = !i || !pch->sameLine || pch->nextColumn || pch->beginGroup;
+		if (!leftmost) //handled by right(i-1)
+			return;
+		bool inGroup = pch->cached_pos.x - parent->cached_pos.x > 100; //todo
+		if ((pch->nextColumn || pch->beginGroup || inGroup) && 
+			m.x < pch->cached_pos.x)
+			return;
+		ctx.snapParent = parent;
+		ctx.snapIndex = i;
+		ctx.snapSameLine = pchildren[i]->sameLine;
+		ctx.snapNextColumn = pchildren[i]->nextColumn;
+		ctx.snapBeginGroup = pchildren[i]->beginGroup;
+		ctx.snapSetNextSameLine = true;
+		break;
+	}
+	case ImGuiDir_Right:
+	{
+		p = cached_pos + ImVec2(cached_size.x, 0);
+		h = cached_size.y;
+		auto *nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
+		if (nch && (nch->sameLine || nch->nextColumn))
+		{
+			if (m.x >= nch->cached_pos.x) //no margin, left(i+1) can differ
+				return;
+		}
+		if (nch && nch->sameLine && !nch->nextColumn)
+		{
+			//same effect for insering right(i) or left(i+1) so avg marker
+			auto p2 = nch->cached_pos;
+			auto h2 = nch->cached_size.y;
+			ImVec2 q{ (p.x + p2.x) / 2, std::min(p.y, p2.y) };
+			h = std::max(p.y + h, p2.y + h2) - q.y;
+			p = q;
+		}
+		ctx.snapParent = parent;
+		ctx.snapIndex = i + 1;
+		ctx.snapSameLine = true;
+		ctx.snapNextColumn = false;
+		break;
+	}
+	case ImGuiDir_Up:
+	case ImGuiDir_Down:
+	{
+		bool down = snapDir == ImGuiDir_Down;
+		p = cached_pos;
+		if (down)
+			p.y += cached_size.y;
+		float x2 = p.x + cached_size.x;
+		bool topmost = true;
+		for (int j = (int)i; j >= 0; --j)
+		{
+			if (j && !pchildren[j]->sameLine && !pchildren[j]->nextColumn)
+				topmost = false;
+		}
+		size_t i1 = i, i2 = i;
+		for (int j = (int)i - 1; j >= 0; --j)
+		{
+			if (!pchildren[j + 1]->sameLine)
+				break;
+			if (pchildren[j + 1]->beginGroup)
+				break;
+			assert(!pchildren[j + 1]->nextColumn);
+			i1 = j;
+			const auto& ch = pchildren[j];
+			p.x = ch->cached_pos.x;
+			if (down)
+				p.y = std::max(p.y, ch->cached_pos.y + ch->cached_size.y);
+			else
+				p.y = std::min(p.y, ch->cached_pos.y);
+		}
+		for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
+		{
+			if (!pchildren[j]->sameLine)
+				break;
+			assert(!pchildren[j]->nextColumn);
+			i2 = j;
+			const auto& ch = pchildren[j];
+			x2 = ch->cached_pos.x + ch->cached_size.x;
+			if (down)
+				p.y = std::max(p.y, ch->cached_pos.y + ch->cached_size.y);
+			else
+				p.y = std::min(p.y, ch->cached_pos.y);
+		}
+		w = x2 - p.x;
+		if (down)
+		{
+			const auto* nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
+			bool inGroup = nch && nch->cached_pos.x - parent->cached_pos.x > 100; //todo
+			if (nch && !nch->nextColumn) // && !inGroup)
+			{
+				if (m.y >= nch->cached_pos.y + MARGIN)
+					return;
+				p.y = (p.y + nch->cached_pos.y) / 2;
+			}
+			ctx.snapParent = parent;
+			ctx.snapIndex = i2 + 1;
+			ctx.snapSameLine = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
+			ctx.snapNextColumn = false;
+		}
+		else
+		{
+			if (!topmost) //up(i) is handled by down(i-1)
+				return;
+			ctx.snapParent = parent;
+			ctx.snapIndex = i1;
+			ctx.snapSameLine = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
+			ctx.snapNextColumn = pchildren[i1]->nextColumn;
+			ctx.snapBeginGroup = pchildren[i1]->beginGroup;
+		}
+		break;
+	}
+	default:
+		return;
+	}
+
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[(level - 1) % std::size(SNAP_COLOR)], 3);
+}
 
 bool UINode::FindChild(const UINode* ch)
 {
@@ -131,16 +327,9 @@ void TopWindow::Draw(UIContext& ctx)
 			ctx.selected = { this };
 		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 	}
-	if (ctx.snapMode && ImGui::IsWindowHovered() &&
-		//only when no children except MenuBar:
-		!stx::count_if(children, [](auto&& ch) { return ch->SnapBehavior() != 0; }))
+	if (ctx.snapMode && ImGui::IsWindowHovered())
 	{
-		ctx.snapParent = this;
-		ctx.snapIndex = children.size(); //after MenuBar
-		ctx.snapSameLine[0] = false;
-		ctx.snapNextColumn[0] = false;
-		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[0], 0, 0, 3);
+		DrawSnap(ctx);
 	}
 
 	ImGui::GetCurrentContext()->NavDisableMouseHover = true;
@@ -149,8 +338,11 @@ void TopWindow::Draw(UIContext& ctx)
 		children[i]->Draw(ctx);
 	}
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-	auto mi = ImGui::GetWindowContentRegionMin();
-	auto ma = ImGui::GetWindowContentRegionMax();
+
+	//use all client area to allow snapping close to the border
+	auto pad = ImGui::GetStyle().WindowPadding - ImVec2(3+1, 3);
+	auto mi = ImGui::GetWindowContentRegionMin() - pad;
+	auto ma = ImGui::GetWindowContentRegionMax() + pad;
 	cached_pos = ImGui::GetWindowPos() + mi;
 	cached_size = ma - mi;
 
@@ -598,7 +790,7 @@ void Widget::Draw(UIContext& ctx)
 		DrawExtra(ctx);
 	}
 
-	if (ctx.snapMode && !ctx.snapParent && hovered)
+	if (ctx.snapMode && !ctx.snapParent)
 	{
 		DrawSnap(ctx);
 	}
@@ -877,173 +1069,6 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		++sit;
 	}
-}
-
-void Widget::DrawSnap(UIContext& ctx)
-{
-	int snapOp = SnapBehavior();
-	ImGuiDir snapDir;
-	ImVec2 d1 = ImGui::GetMousePos() - cached_pos;
-	ImVec2 d2 = cached_pos + cached_size - ImGui::GetMousePos();
-	float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
-	if (mind > 7)
-		snapDir = ImGuiDir_None;
-	else if (d1.x == mind)
-		snapDir = ImGuiDir_Left;
-	else if (d2.x == mind)
-		snapDir = ImGuiDir_Right;
-	else if (d1.y == mind)
-		snapDir = ImGuiDir_Up;
-	else if (d2.y == mind)
-		snapDir = ImGuiDir_Down;
-
-	assert(ctx.parents.back() == this);
-	UINode* parent = ctx.parents[ctx.parents.size() - 2];
-	size_t level = ctx.parents.size() - 1;
-	const auto& pchildren = parent->children;
-	size_t i = stx::find_if(pchildren, [&](const auto& ch) {
-		return ch.get() == this;
-		}) - pchildren.begin();
-	if (i == pchildren.size())
-		return;
-	ctx.snapSameLine[0] = false;
-	ctx.snapSameLine[1] = false;
-	ctx.snapNextColumn[0] = false;
-	ctx.snapNextColumn[1] = false;
-	ctx.snapBeginGroup[0] = false;
-	ctx.snapBeginGroup[1] = false;
-	ImVec2 p;
-	float w = 0, h = 0;
-	switch (snapDir)
-	{
-	case ImGuiDir_None:
-	{
-		if ((snapOp & SnapInterior) && children.empty())
-		{
-			ctx.snapParent = this;
-			ctx.snapIndex = 0;
-			ImDrawList* dl = ImGui::GetWindowDrawList();
-			dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[level % std::size(SNAP_COLOR)], 0, 0, 3);
-			return;
-		}
-		break;
-	}
-	case ImGuiDir_Left:
-	{
-		if (!(snapOp & SnapSides))
-			break;
-		p = cached_pos;
-		h = cached_size.y;
-		if (i && pchildren[i]->sameLine)
-		{
-			const auto& ch = pchildren[i - 1];
-			auto p2 = ch->cached_pos + ImVec2(ch->cached_size.x, 0);
-			auto h2 = ch->cached_size.y;
-			ImVec2 q{ (p.x + p2.x) / 2, std::min(p.y, p2.y) };
-			h = std::max(p.y + h, p2.y + h2) - q.y;
-			p = q;
-		}
-		ctx.snapParent = parent;
-		ctx.snapIndex = i;
-		ctx.snapSameLine[0] = pchildren[i]->sameLine;
-		ctx.snapSameLine[1] = true;
-		ctx.snapNextColumn[0] = pchildren[i]->nextColumn;
-		ctx.snapNextColumn[1] = false;
-		ctx.snapBeginGroup[1] = pchildren[i]->beginGroup;
-		break;
-	}
-	case ImGuiDir_Right:
-	{
-		if (!(snapOp & SnapSides))
-			break;
-		p = cached_pos + ImVec2(cached_size.x, 0);
-		h = cached_size.y;
-		bool last = i + 1 == pchildren.size();
-		bool lastCol = true;
-		bool nextCol = false;
-		auto *pch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
-		if (pch && pchildren[i + 1]->sameLine)
-		{
-			auto p2 = pch->cached_pos;
-			auto h2 = pch->cached_size.y;
-			ImVec2 q{ (p.x + p2.x) / 2, std::min(p.y, p2.y) };
-			h = std::max(p.y + h, p2.y + h2) - q.y;
-			p = q;
-		}
-		ctx.snapParent = parent;
-		ctx.snapIndex = i + 1;
-		ctx.snapSameLine[0] = true;
-		ctx.snapSameLine[1] = pch ? (bool)pch->sameLine : false;
-		ctx.snapNextColumn[0] = false;
-		ctx.snapNextColumn[1] = pch ? (bool)pch->nextColumn : false;
-		ctx.snapBeginGroup[1] = pch ? (bool)pch->beginGroup : false;
-		break;
-	}
-	case ImGuiDir_Up:
-	case ImGuiDir_Down:
-	{
-		if (!(snapOp & SnapSides))
-			break;
-		bool down = snapDir == ImGuiDir_Down;
-		p = cached_pos;
-		if (down)
-			p.y += cached_size.y;
-		float x2 = p.x + cached_size.x;
-		size_t i1 = i, i2 = i;
-		for (int j = (int)i - 1; j >= 0; --j)
-		{
-			if (!pchildren[j + 1]->sameLine)
-				break;
-			if (pchildren[j + 1]->beginGroup)
-				break;
-			assert(!pchildren[j + 1]->nextColumn);
-			i1 = j;
-			const auto& ch = pchildren[j];
-			p.x = ch->cached_pos.x;
-			if (down)
-				p.y = std::max(p.y, ch->cached_pos.y + ch->cached_size.y);
-			else
-				p.y = std::min(p.y, ch->cached_pos.y);
-		}
-		for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
-		{
-			if (!pchildren[j]->sameLine)
-				break;
-			assert(!pchildren[j]->nextColumn);
-			i2 = j;
-			const auto& ch = pchildren[j];
-			x2 = ch->cached_pos.x + ch->cached_size.x;
-			if (down)
-				p.y = std::max(p.y, ch->cached_pos.y + ch->cached_size.y);
-			else
-				p.y = std::min(p.y, ch->cached_pos.y);
-		}
-		w = x2 - p.x;
-		ctx.snapSameLine[0] = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
-		ctx.snapSameLine[1] = false;
-		ctx.snapParent = parent;
-		if (down)
-		{
-			ctx.snapNextColumn[0] = false;
-			ctx.snapNextColumn[1] = i2 + 1 < pchildren.size() ? (bool)pchildren[i2 + 1]->nextColumn : false;
-			ctx.snapIndex = i2 + 1;
-		}
-		else
-		{
-			ctx.snapNextColumn[0] = pchildren[i1]->nextColumn;
-			ctx.snapNextColumn[1] = false;
-			ctx.snapBeginGroup[0] = pchildren[i1]->beginGroup;
-			ctx.snapBeginGroup[1] = false;
-			ctx.snapIndex = i1;
-		}
-		break;
-	}
-	default:
-		return;
-	}
-
-	ImDrawList* dl = ImGui::GetWindowDrawList();
-	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[(level - 1) % std::size(SNAP_COLOR)], 3);
 }
 
 std::vector<UINode::Prop>

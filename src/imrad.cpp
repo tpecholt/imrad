@@ -65,6 +65,7 @@ bool pgFocused;
 int styleIdx = 0;
 GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
+std::string activeButton = "";
 
 struct TB_Button 
 {
@@ -98,7 +99,6 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 	{ ICON_MD_CHECK_BOX, "checkbox" },
 	{ ICON_MD_RADIO_BUTTON_CHECKED, "radio" },*/
 };
-std::string activeButton = "";
 
 void ActivateTab(int i)
 {
@@ -851,17 +851,22 @@ void Work()
 			ctx.snapParent)
 		{
 			ctx.selected = { newNode.get() };
-			newNode->sameLine = ctx.snapSameLine[0];
+			newNode->sameLine = ctx.snapSameLine;
 			if (newNode->sameLine)
 				newNode->spacing = 1;
-			newNode->nextColumn = ctx.snapNextColumn[0];
-			newNode->beginGroup = ctx.snapBeginGroup[0];
+			newNode->nextColumn = ctx.snapNextColumn;
+			newNode->beginGroup = ctx.snapBeginGroup;
 			if (ctx.snapIndex < ctx.snapParent->children.size())
 			{
 				auto& next = ctx.snapParent->children[ctx.snapIndex];
-				next->sameLine = ctx.snapSameLine[1];
-				next->nextColumn = ctx.snapNextColumn[1];
-				next->beginGroup = ctx.snapBeginGroup[1];
+				if (ctx.snapSetNextSameLine) {
+					next->beginGroup = false; 
+					next->nextColumn = false;
+					next->sameLine = true;
+					next->spacing = std::max((int)next->spacing, 1);
+				}
+				if (next->sameLine)
+					next->indent = 0; //otherwise creates widgets overlaps
 			}
 			ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex, std::move(newNode));
 			
@@ -886,6 +891,7 @@ void Work()
 				Widget* wdg = dynamic_cast<Widget*>(node);
 				bool sameLine = wdg->sameLine;
 				bool nextColumn = wdg->nextColumn;
+				bool beginGroup = wdg->beginGroup;
 				pi.first->children.erase(pi.first->children.begin() + pi.second);
 				if (pi.second < pi.first->children.size())
 				{
@@ -894,6 +900,8 @@ void Work()
 						wdg->nextColumn = true;
 					if (!sameLine)
 						wdg->sameLine = false;
+					if (beginGroup)
+						wdg->beginGroup = true;
 				}
 			}
 			//move selection. Useful for things like menu items

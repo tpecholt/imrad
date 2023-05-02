@@ -29,9 +29,10 @@ struct UIContext
 	//snap result
 	UINode* snapParent = nullptr;
 	size_t snapIndex;
-	bool snapSameLine[2];
-	bool snapNextColumn[2];
-	bool snapBeginGroup[2];
+	bool snapSameLine;
+	bool snapNextColumn;
+	bool snapBeginGroup;
+	bool snapSetNextSameLine;
 	
 	//recursive info
 	UINode* hovered = nullptr;
@@ -62,6 +63,10 @@ struct UINode
 		property_base* property;
 		bool kbdInput = false; //this property accepts keyboard input by default
 	};
+	enum SnapOptions {
+		SnapSides = 0x1,
+		SnapInterior = 0x2
+	};
 
 	virtual ~UINode() {}
 	virtual void Draw(UIContext& ctx) = 0;
@@ -72,7 +77,9 @@ struct UINode
 	virtual bool EventUI(int, UIContext& ctx) = 0;
 	virtual void Export(std::ostream&, UIContext& ctx) = 0;
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
+	virtual int SnapBehavior() { return SnapSides; }
 
+	void DrawSnap(UIContext& ctx);
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
 	bool FindChild(const UINode*);
 
@@ -83,11 +90,6 @@ struct UINode
 
 struct Widget : UINode
 {
-	enum SnapOptions { 
-		SnapSides = 0x1, 
-		SnapInterior = 0x2 
-	};
-
 	direct_val<bool> sameLine = false;
 	direct_val<bool> beginGroup = false;
 	direct_val<bool> endGroup = false;
@@ -119,8 +121,7 @@ struct Widget : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
-	virtual int SnapBehavior() { return SnapSides; }
-	virtual void DrawSnap(UIContext& ctx);
+	//virtual void DrawSnap(UIContext& ctx);
 	virtual void DoDraw(UIContext& ctx) = 0;
 	virtual void DrawExtra(UIContext& ctx) {}
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
@@ -464,5 +465,6 @@ struct TopWindow : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
+	int SnapBehavior() { return SnapInterior; }
 };
 
