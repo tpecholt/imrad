@@ -714,12 +714,10 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<MenuBar>(ctx);
 	else if (name == "MenuIt")
 		return std::make_unique<MenuIt>(ctx);
+	else if (name == "Separator")
+		return std::make_unique<Separator>(ctx);
 	else
 		return {};
-}
-
-Widget::Widget(UIContext& ctx)
-{
 }
 
 void Widget::Draw(UIContext& ctx)
@@ -731,12 +729,9 @@ void Widget::Draw(UIContext& ctx)
 			ImGui::NextColumn();
 	}
 	if (sameLine) {
-		//ImGui::SameLine();
-		//ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 		ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
 	} 
 	else {
-		//ImGui::Separator();
 		for (int i = 0; i < spacing; ++i)
 			ImGui::Spacing();
 	}
@@ -1338,15 +1333,33 @@ void Widget::TreeUI(UIContext& ctx)
 
 //----------------------------------------------------
 
+Separator::Separator(UIContext&)
+{}
+
 void Separator::DoDraw(UIContext& ctx)
 {
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
+	ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
+}
+
+void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
+{
+	const float sp = 3;
+	cached_size = ImGui::GetItemRectSize();
+	if (sameLine) {
+		cached_pos.x -= sp;
+		cached_size.x += 2 * sp;
+	}
+	else {
+		cached_pos.y -= sp;
+		cached_size.y += 2 * sp;
+	}
 }
 
 void Separator::DoExport(std::ostream& os, UIContext& ctx)
 {
+	os << ctx.ind << "ImGui::SeparatorEx("
+		<< (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal")
+		<< ");\n";
 }
 
 void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -1361,7 +1374,6 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 //----------------------------------------------------
 
 Text::Text(UIContext& ctx)
-	: Widget(ctx)
 {
 }
 
@@ -1531,7 +1543,6 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 //----------------------------------------------------
 
 Selectable::Selectable(UIContext& ctx)
-	: Widget(ctx)
 {
 	flags.prefix("ImGuiSelectableFlags_");
 	flags.add$(ImGuiSelectableFlags_DontClosePopups);
@@ -1813,7 +1824,6 @@ bool Selectable::EventUI(int i, UIContext& ctx)
 //----------------------------------------------------
 
 Button::Button(UIContext& ctx)
-	: Widget(ctx)
 {
 	modalResult.add(" ", ImRad::None);
 	modalResult.add$(ImRad::Ok);
@@ -2188,7 +2198,6 @@ bool Button::EventUI(int i, UIContext& ctx)
 //-----------------------------------------------------
 
 CheckBox::CheckBox(UIContext& ctx)
-	: Widget(ctx)
 {
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", initValue ? "true" : "false", CppGen::Var::Interface));
@@ -2326,7 +2335,6 @@ bool CheckBox::EventUI(int i, UIContext& ctx)
 //-----------------------------------------------------
 
 RadioButton::RadioButton(UIContext& ctx)
-	: Widget(ctx)
 {
 	//variable is shared among buttons so don't generate new here
 }
@@ -2408,7 +2416,6 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 //---------------------------------------------------
 
 Input::Input(UIContext& ctx)
-	: Widget(ctx)
 {
 	flags.prefix("ImGuiInputTextFlags_");
 	flags.add$(ImGuiInputTextFlags_CharsDecimal);
@@ -2828,7 +2835,6 @@ bool Input::EventUI(int i, UIContext& ctx)
 //---------------------------------------------------
 
 Combo::Combo(UIContext& ctx)
-	: Widget(ctx)
 {
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
@@ -3018,7 +3024,6 @@ bool Combo::EventUI(int i, UIContext& ctx)
 //---------------------------------------------------
 
 Slider::Slider(UIContext& ctx)
-	: Widget(ctx)
 {
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type=="angle" ? "float" : type, "", CppGen::Var::Interface));
@@ -3271,7 +3276,6 @@ bool Slider::EventUI(int i, UIContext& ctx)
 //----------------------------------------------------
 
 Image::Image(UIContext& ctx)
-	: Widget(ctx)
 {
 	if (!ctx.importState)
 		*fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
@@ -3460,7 +3464,6 @@ Table::ColumnData::ColumnData()
 }
 
 Table::Table(UIContext& ctx)
-	: Widget(ctx)
 {
 	flags.prefix("ImGuiTableFlags_");
 	flags.add$(ImGuiTableFlags_Resizable);
@@ -3742,7 +3745,6 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 //---------------------------------------------------------
 
 Child::Child(UIContext& ctx)
-	: Widget(ctx)
 {
 }
 
@@ -3991,7 +3993,6 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 //---------------------------------------------------------
 
 CollapsingHeader::CollapsingHeader(UIContext& ctx)
-	: Widget(ctx)
 {
 }
 
@@ -4097,7 +4098,6 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 //---------------------------------------------------------
 
 TabBar::TabBar(UIContext& ctx)
-	: Widget(ctx)
 {
 	flags.prefix("ImGuiTabBarFlags_");
 	flags.add$(ImGuiTabBarFlags_NoTabListScrollingButtons);
@@ -4237,7 +4237,6 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 //---------------------------------------------------------
 
 TabItem::TabItem(UIContext& ctx)
-	: Widget(ctx)
 {
 }
 
@@ -4411,7 +4410,6 @@ bool TabItem::PropertyUI(int i, UIContext& ctx)
 //---------------------------------------------------------
 
 MenuBar::MenuBar(UIContext& ctx)
-	: Widget(ctx)
 {
 	if (!ctx.importState)
 		children.push_back(std::make_unique<MenuIt>(ctx));
@@ -4461,7 +4459,6 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 //---------------------------------------------------------
 
 MenuIt::MenuIt(UIContext& ctx)
-	: Widget(ctx)
 {
 }
 

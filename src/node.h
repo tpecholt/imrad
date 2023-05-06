@@ -113,7 +113,6 @@ struct Widget : UINode
 
 	static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
-	Widget(UIContext& ctx);
 	void Draw(UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
@@ -133,10 +132,13 @@ struct Widget : UINode
 
 struct Separator : Widget
 {
+	Separator(UIContext&);
 	void DoDraw(UIContext& ctx);
+	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	bool PropertyUI(int, UIContext& ctx);
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return "--"; }
 };
 
 struct Text : Widget

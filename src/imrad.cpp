@@ -84,6 +84,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
 		{ ICON_FA_SLIDERS, "Slider" },
 		{ ICON_FA_IMAGE, "Image" },
+		{ "--", "Separator" },
 	}},
 	{ "Containers", {
 		{ ICON_FA_SQUARE_FULL, "Child" },
