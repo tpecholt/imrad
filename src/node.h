@@ -65,7 +65,8 @@ struct UINode
 	};
 	enum SnapOptions {
 		SnapSides = 0x1,
-		SnapInterior = 0x2
+		SnapInterior = 0x2,
+		SnapGrandparentClip = 0x4,
 	};
 
 	virtual ~UINode() {}
@@ -239,6 +240,7 @@ struct RadioButton : Widget
 struct Input : Widget
 {
 	field_ref<> fieldName;
+	direct_val<std::string> label = "";
 	direct_val<std::string> type = "std::string";
 	direct_val<std::string> hint = "";
 	direct_val<float> step = 1;
@@ -262,6 +264,7 @@ struct Input : Widget
 
 struct Combo : Widget
 {
+	direct_val<std::string> label = "";
 	field_ref<int> fieldName;
 	bindable<std::vector<std::string>> items;
 	bindable<float> size_x = 200;
@@ -280,6 +283,7 @@ struct Combo : Widget
 
 struct Slider : Widget
 {
+	direct_val<std::string> label = "";
 	field_ref<> fieldName;
 	direct_val<std::string> type = "float";
 	direct_val<float> min = 0;
@@ -403,7 +407,7 @@ struct TabItem : Widget
 	bindable<std::string> label = "TabItem";
 
 	TabItem(UIContext& ctx);
-	int SnapBehavior() { return SnapInterior; }
+	int SnapBehavior() { return SnapInterior | SnapGrandparentClip; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;

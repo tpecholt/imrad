@@ -90,7 +90,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	if (i == pchildren.size())
 		return;
 	UINode* clip = parent;
-	if (dynamic_cast<TabItem*>(clip)) //todo
+	if (clip->SnapBehavior() & SnapGrandparentClip)
 		clip = ctx.parents[ctx.parents.size() - 3];
 	if (m.x < clip->cached_pos.x ||
 		m.y < clip->cached_pos.y ||
@@ -2434,8 +2434,12 @@ void Input::DoDraw(UIContext& ctx)
 {
 	float ftmp[4] = {};
 	int itmp[4] = {};
+	double dtmp[4] = {};
 	std::string stmp;
 
+	std::string id = label;
+	if (id.empty())
+		id = "##" + fieldName.value();
 	if (flags & ImGuiInputTextFlags_Multiline)
 	{
 		ImVec2 size{ 0, 0 };
@@ -2443,37 +2447,39 @@ void Input::DoDraw(UIContext& ctx)
 			size.x = size_x.value();
 		if (size_y.has_value())
 			size.y = size_y.value();
-		ImGui::InputTextMultiline("##", &stmp, size, flags);
+		ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
 	}
 	else if (type == "std::string")
 	{
 		if (size_x.has_value())
 			ImGui::SetNextItemWidth(size_x.value());
 		if (hint != "")
-			ImGui::InputTextWithHint("##", hint.c_str(), &stmp, flags);
+			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
 		else
-			ImGui::InputText("##", &stmp, flags);
+			ImGui::InputText(id.c_str(), &stmp, flags);
 	}
 	else
 	{
 		if (size_x.has_value())
 			ImGui::SetNextItemWidth(size_x.value());
 		if (type == "int")
-			ImGui::InputInt("##", itmp, (int)step);
+			ImGui::InputInt(id.c_str(), itmp, (int)step);
 		else if (type == "int2")
-			ImGui::InputInt2("##", itmp);
+			ImGui::InputInt2(id.c_str(), itmp);
 		else if (type == "int3")
-			ImGui::InputInt3("##", itmp);
+			ImGui::InputInt3(id.c_str(), itmp);
 		else if (type == "int4")
-			ImGui::InputInt4("##", itmp);
+			ImGui::InputInt4(id.c_str(), itmp);
 		else if (type == "float")
-			ImGui::InputFloat("##", ftmp, step, 0.f, format.c_str());
+			ImGui::InputFloat(id.c_str(), ftmp, step, 0.f, format.c_str());
 		else if (type == "float2")
-			ImGui::InputFloat2("##", ftmp, format.c_str());
+			ImGui::InputFloat2(id.c_str(), ftmp, format.c_str());
 		else if (type == "float3")
-			ImGui::InputFloat3("##", ftmp, format.c_str());
+			ImGui::InputFloat3(id.c_str(), ftmp, format.c_str());
 		else if (type == "float4")
-			ImGui::InputFloat4("##", ftmp, format.c_str());
+			ImGui::InputFloat4(id.c_str(), ftmp, format.c_str());
+		else if (type == "double")
+			ImGui::InputDouble(id.c_str(), dtmp, step, 0, format.c_str());
 	}
 	
 }
@@ -2496,30 +2502,40 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 
 	std::string cap = type;
 	cap[0] = std::toupper(cap[0]);
+	std::string id = label.to_arg();
+	if (label.empty())
+		id = "\"##" + fieldName.value() + "\"";
+	
 	if (type == "int")
 	{
-		os << "ImGui::InputInt(\"##" << fieldName.c_str() << "\", &"
+		os << "ImGui::InputInt(" << id << ", &"
 			<< fieldName.to_arg() << ", " << (int)step << ")";
 	}
 	else if (type == "float")
 	{
-		os << "ImGui::InputFloat(\"##" << fieldName.c_str() << "\", &"
+		os << "ImGui::InputFloat(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.f, "
+			<< format.to_arg() << ")";
+	}
+	else if (type == "double")
+	{
+		os << "ImGui::InputDouble(" << id << ", &"
+			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.0, "
 			<< format.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 3, "int"))
 	{
-		os << "ImGui::Input"<< cap << "(\"##" << fieldName.c_str() << "\", &"
+		os << "ImGui::Input"<< cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 5, "float"))
 	{
-		os << "ImGui::Input" << cap << "(\"##" << fieldName.c_str() << "\", &"
+		os << "ImGui::Input" << cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ", " << format.to_arg() << ")";
 	}
 	else if (flags & ImGuiInputTextFlags_Multiline)
 	{
-		os << "ImGui::InputTextMultiline(\"##" << fieldName.c_str() << "\", &" 
+		os << "ImGui::InputTextMultiline(" << id << ", &" 
 			<< fieldName.to_arg()
 			<< ", { " << size_x.to_arg() << ", " << size_y.to_arg() << " }, "
 			<< flags.to_arg() << ")";
@@ -2527,9 +2543,9 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	else
 	{
 		if (hint != "")
-			os << "ImGui::InputTextWithHint(\"##" << fieldName.c_str() << "\", " << hint.to_arg() << ", ";
+			os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
 		else
-			os << "ImGui::InputText(\"##" << fieldName.c_str() << "\", ";
+			os << "ImGui::InputText(" << id << ", ";
 		os << "&" << fieldName.to_arg() << ", " << flags.to_arg() << ")";
 	}
 
@@ -2551,6 +2567,12 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		type = "std::string";
 
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+		
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
 			fieldName.set_from_arg(sit->params[1].substr(1));
 			std::string fn = fieldName.c_str();
@@ -2642,6 +2664,7 @@ Input::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "input.flags", &flags },
+		{ "label", &label, true },
 		{ "input.type", &type },
 		{ "input.field_name", &fieldName },
 		{ "input.hint", &hint },
@@ -2666,6 +2689,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		"float2",
 		"float3",
 		"float4",
+		"double",
 	};
 
 	bool changed = false;
@@ -2684,6 +2708,12 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Indent();
 		break;
 	case 1:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##label", label.access());
+		break;
+	case 2:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2700,14 +2730,14 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 2:
+	case 3:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 3:
+	case 4:
 		ImGui::BeginDisabled(type != "std::string");
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
@@ -2715,7 +2745,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##hint", hint.access());
 		ImGui::EndDisabled();
 		break;
-	case 4:
+	case 5:
 		ImGui::BeginDisabled(type != "int" && type != "float");
 		ImGui::Text("step");
 		ImGui::TableNextColumn();
@@ -2730,7 +2760,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 5:
+	case 6:
 		ImGui::BeginDisabled(type.access()->compare(0, 5, "float"));
 		ImGui::Text("format");
 		ImGui::TableNextColumn();
@@ -2738,13 +2768,13 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##format", format.access());
 		ImGui::EndDisabled();
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("keyboardFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##kbf", keyboardFocus.access());
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2752,7 +2782,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 8:
+	case 9:
 		ImGui::BeginDisabled(type != "std::string" || !(flags & ImGuiInputTextFlags_Multiline));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -2763,7 +2793,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 9, ctx);
+		return Widget::PropertyUI(i - 10, ctx);
 	}
 	return changed;
 }
@@ -2809,16 +2839,18 @@ void Combo::DoDraw(UIContext& ctx)
 	int zero = 0;
 	if (size_x.has_value())
 		ImGui::SetNextItemWidth(size_x.value());
-	std::string label = std::string("##") + fieldName.c_str();
+	std::string id = label;
+	if (id.empty())
+		id = std::string("##") + fieldName.c_str();
 	auto vars = items.used_variables();
 	if (vars.empty())
 	{
-		ImGui::Combo(label.c_str(), &zero, items.c_str());
+		ImGui::Combo(id.c_str(), &zero, items.c_str());
 	}
 	else
 	{
 		std::string tmp = '{' + vars[0] + "}\0";
-		ImGui::Combo(label.c_str(), &zero, tmp.c_str());
+		ImGui::Combo(id.c_str(), &zero, tmp.c_str());
 	}
 }
 
@@ -2831,15 +2863,18 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 	if (!onChange.empty())
 		os << "if (";
 
+	std::string id = label.to_arg();
+	if (label.empty())
+		id = std::string("\"##") + fieldName.c_str() + "\"";
 	auto vars = items.used_variables();
 	if (vars.empty())
 	{
-		os << "ImGui::Combo(\"##" << fieldName.c_str() << "\", &"
+		os << "ImGui::Combo(" << id << ", &"
 			<< fieldName.to_arg() << ", " << items.to_arg() << ")";
 	}
 	else
 	{
-		os << "ImRad::Combo(\"##" << fieldName.c_str() << "\", &"
+		os << "ImRad::Combo(" << id << ", &"
 			<< fieldName.to_arg() << ", " << items.to_arg() << ")";
 	}
 
@@ -2859,6 +2894,12 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if ((sit->kind == cpp::CallExpr && (sit->callee == "ImGui::Combo" || sit->callee == "ImRad::Combo")) ||
 		(sit->kind == cpp::IfCallThenCall && (sit->cond == "ImGui::Combo" || sit->cond == "ImRad::Combo")))
 	{
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
 			fieldName.set_from_arg(sit->params[1].substr(1));
 			std::string fn = fieldName.c_str();
@@ -2886,6 +2927,7 @@ Combo::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "label", &label, true },
 		{ "combo.field_name", &fieldName },
 		{ "combo.items", &items },
 		{ "size_x", &size_x },
@@ -2899,13 +2941,19 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##label", label.access());
+		break;
+	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, false, ctx);
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("items");
 		ImGui::TableNextColumn();
 		//ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2926,7 +2974,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("items", &items, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2935,7 +2983,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 3, ctx);
+		return Widget::PropertyUI(i - 4, ctx);
 	}
 	return changed;
 }
@@ -2980,15 +3028,17 @@ void Slider::DoDraw(UIContext& ctx)
 {
 	float ftmp[4] = {};
 	int itmp[4] = {};
-	
+
 	if (size_x.has_value())
 		ImGui::SetNextItemWidth(size_x.value());
 
 	const char* fmt = nullptr;
 	if (!format.empty())
 		fmt = format.c_str();
+	std::string id = label;
+	if (label.empty())
+		id = "##" + fieldName.value();
 
-	std::string id = "##" + fieldName.value();
 	if (type == "int")
 		ImGui::SliderInt(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
 	else if (type == "int2")
@@ -3023,8 +3073,11 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
 
 	std::string cap = type;
 	cap[0] = std::toupper(cap[0]);
-	
-	os << "ImGui::Slider" << cap << "(\"##" << fieldName.c_str() << "\", &"
+	std::string id = label.to_arg();
+	if (label.empty())
+		id = "\"##" + fieldName.value() + "\"";
+
+	os << "ImGui::Slider" << cap << "(" << id << ", &"
 		<< fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg() 
 		<< ", " << fmt << ")";
 	
@@ -3049,6 +3102,12 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		else
 			type = sit->cond.substr(13);
 		type.access()->front() = std::tolower(type.c_str()[0]);
+
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
 
 		if (sit->params.size() > 1 && !sit->params[1].compare(0, 1, "&"))
 			fieldName.set_from_arg(sit->params[1].substr(1));
@@ -3078,6 +3137,7 @@ Slider::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "label", &label, true },
 		{ "slider.type", &type },
 		{ "slider.field_name", &fieldName },
 		{ "slider.min", &min },
@@ -3106,6 +3166,12 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##label", label.access());
+		break;
+	case 1:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3122,14 +3188,14 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 1:
+	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::Text("min");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3142,7 +3208,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 			changed = ImGui::InputFloat("##min", min.access());
 		}
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("max");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3155,7 +3221,13 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 			changed = ImGui::InputFloat("##max", max.access());
 		}
 		break;
-	case 4:
+	case 5:
+		ImGui::Text("format");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##format", format.access());
+		break;
+	case 6:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3163,14 +3235,8 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 5:
-		ImGui::Text("format");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##format", format.access());
-		break;
 	default:
-		return Widget::PropertyUI(i - 6, ctx);
+		return Widget::PropertyUI(i - 7, ctx);
 	}
 	return changed;
 }
