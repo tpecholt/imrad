@@ -1352,6 +1352,7 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 		cached_size.x += 2 * sp;
 	}
 	else {
+		cached_pos.x -= ImGui::GetStyle().ItemSpacing.x;
 		cached_pos.y -= sp;
 		cached_size.y += 2 * sp;
 	}

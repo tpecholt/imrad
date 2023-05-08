@@ -83,8 +83,9 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_CIRCLE_DOT, "RadioButton" },
 		{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
 		{ ICON_FA_SLIDERS, "Slider" },
+		{ ICON_FA_CIRCLE_HALF_STROKE, "ColorEdit" },
 		{ ICON_FA_IMAGE, "Image" },
-		{ "--", "Separator" },
+		{ ICON_FA_WINDOW_MINIMIZE, "Separator" },
 	}},
 	{ "Containers", {
 		{ ICON_FA_SQUARE_FULL, "Child" },
@@ -535,7 +536,7 @@ void ToolbarUI()
 	
 	ImGui::SameLine();
 	ImGui::BeginDisabled(activeTab < 0);
-	if (ImGui::Button(ICON_FA_RECTANGLE_LIST) ||
+	if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
 		(ImGui::IsKeyPressed(ImGuiKey_P, false) && io.KeyCtrl)) 
 		ShowCode();
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))

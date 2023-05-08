@@ -138,7 +138,7 @@ struct Separator : Widget
 	bool PropertyUI(int, UIContext& ctx);
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
-	const char* GetIcon() const { return "--"; }
+	const char* GetIcon() const { return ICON_FA_WINDOW_MINIMIZE; }// "-- "; }
 };
 
 struct Text : Widget

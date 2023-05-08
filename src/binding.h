@@ -497,7 +497,7 @@ struct bindable<std::vector<std::string>> : property_base
 	void set_from_arg(std::string_view s)
 	{
 		str = cpp::parse_str_arg(s);
-		if (str.empty() && !s.empty())
+		if (str.empty() && s != "\"\"")
 			str = "{" + s + "}";
 	}
 	std::string to_arg() const
