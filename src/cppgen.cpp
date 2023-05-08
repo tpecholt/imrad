@@ -677,6 +677,27 @@ CppGen::ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& i
 	return {};
 }
 
+std::string DecorateType(const std::string& type)
+{
+	if (type == "int2")
+		return "ImRad::Int2";
+	if (type == "int3")
+		return "ImRad::Int3";
+	if (type == "int4")
+		return "ImRad::Int4";
+	if (type == "float2")
+		return "ImRad::Float2";
+	if (type == "float3")
+		return "ImRad::Float3";
+	if (type == "float4")
+		return "ImRad::Float4";
+	if (type == "color3")
+		return "ImRad::Color3";
+	if (type == "color4")
+		return "ImRad::Color4";
+	return type;
+}
+
 std::string CppGen::CreateVar(const std::string& type, const std::string& init, int flags, const std::string& scope)
 {
 	auto vit = m_fields.find(scope);
@@ -699,25 +720,8 @@ std::string CppGen::CreateVar(const std::string& type, const std::string& init, 
 		}
 	}
 	std::string name = "value" + std::to_string(++max);
-	vit->second.push_back(Var(name, type, init, flags));
+	vit->second.push_back(Var(name, DecorateType(type), init, flags));
 	return name;
-}
-
-std::string DecorateType(const std::string& type)
-{
-	if (type == "int2")
-		return "ImRad::Int2";
-	if (type == "int3")
-		return "ImRad::Int3";
-	if (type == "int4")
-		return "ImRad::Int4";
-	if (type == "float2")
-		return "ImRad::Float2";
-	if (type == "float3")
-		return "ImRad::Float3";
-	if (type == "float4")
-		return "ImRad::Float4";
-	return type;
 }
 
 bool CppGen::CreateNamedVar(const std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope)

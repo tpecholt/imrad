@@ -22,6 +22,8 @@ using Int4 = int[4];
 using Float2 = float[2];
 using Float3 = float[3];
 using Float4 = float[4];
+using Color3 = float[3];
+using Color4 = float[4];
 
 enum ModalResult {
 	None = 0,
@@ -29,7 +31,10 @@ enum ModalResult {
 	Cancel = 0x2,
 	Yes = 0x4,
 	No = 0x8,
-	All = 0x10,
+	Abort = 0x10,
+	Retry = 0x20,
+	Ignore = 0x40,
+	All = 0x80,
 };
 
 enum Alignment {

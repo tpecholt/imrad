@@ -698,6 +698,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Combo>(ctx);
 	else if (name == "Slider")
 		return std::make_unique<Slider>(ctx);
+	else if (name == "ColorEdit")
+		return std::make_unique<ColorEdit>(ctx);
 	else if (name == "Image")
 		return std::make_unique<Image>(ctx);
 	else if (name == "Table")
@@ -3257,6 +3259,220 @@ Slider::Events()
 }
 
 bool Slider::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("onChange");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onChange", &onChange, ctx);
+		break;
+	default:
+		return Widget::EventUI(i - 1, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------
+
+ColorEdit::ColorEdit(UIContext& ctx)
+{
+	flags.prefix("ImGuiColorEditFlags_");
+	flags.add$(ImGuiColorEditFlags_NoAlpha);
+	flags.add$(ImGuiColorEditFlags_NoPicker);
+	flags.add$(ImGuiColorEditFlags_NoOptions);
+	flags.add$(ImGuiColorEditFlags_NoSmallPreview);
+	flags.add$(ImGuiColorEditFlags_NoInputs);
+	flags.add$(ImGuiColorEditFlags_NoTooltip);
+	flags.add$(ImGuiColorEditFlags_NoLabel);
+	flags.add$(ImGuiColorEditFlags_NoSidePreview);
+	flags.add$(ImGuiColorEditFlags_NoDragDrop);
+	flags.add$(ImGuiColorEditFlags_NoBorder);
+
+	if (!ctx.importState)
+		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+}
+
+void ColorEdit::DoDraw(UIContext& ctx)
+{
+	float ftmp[4] = {};
+	
+	std::string id = label;
+	if (id.empty())
+		id = "##" + fieldName.value();
+	if (size_x.has_value())
+		ImGui::SetNextItemWidth(size_x.value());
+	
+	if (type == "color3")
+		ImGui::ColorEdit3(id.c_str(), ftmp, flags);
+	else if (type == "color4")
+		ImGui::ColorEdit4(id.c_str(), ftmp, flags);
+}
+
+void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
+{
+	if (!size_x.empty())
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+
+	os << ctx.ind;
+	if (!onChange.empty())
+		os << "if (";
+
+	std::string id = label.to_arg();
+	if (label.empty())
+		id = "\"##" + fieldName.value() + "\"";
+
+	if (type == "color3")
+	{
+		os << "ImGui::ColorEdit3(" << id << ", "
+			<< fieldName.to_arg() << ", " << flags.to_arg() << ")";
+	}
+	else if (type == "color4")
+	{
+		os << "ImGui::ColorEdit4(" << id << ", "
+			<< fieldName.to_arg() << ", " << flags.to_arg() << ")";
+	}
+
+	if (!onChange.empty()) {
+		os << ")\n";
+		ctx.ind_up();
+		os << ctx.ind << onChange.to_arg() << "();\n";
+		ctx.ind_down();
+	}
+	else {
+		os << ";\n";
+	}
+}
+
+void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 16, "ImGui::ColorEdit")) ||
+		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 16, "ImGui::ColorEdit")))
+	{
+		if (sit->kind == cpp::CallExpr)
+			type = sit->callee.substr(16, 1) == "3" ? "color3" : "color4";
+		else
+			type = sit->cond.substr(16, 1) == "3" ? "color3" : "color4";
+
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+
+		if (sit->params.size() >= 2) {
+			fieldName.set_from_arg(sit->params[1]);
+			std::string fn = fieldName.c_str();
+			if (!ctx.codeGen->GetVar(fn))
+				ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
+		}
+
+		if (sit->params.size() >= 3)
+			flags.set_from_arg(sit->params[2]);
+
+		if (sit->kind == cpp::IfCallThenCall)
+			onChange.set_from_arg(sit->callee);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
+	{
+		if (sit->params.size())
+			size_x.set_from_arg(sit->params[0]);
+	}
+}
+
+std::vector<UINode::Prop>
+ColorEdit::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "color.flags", &flags },
+		{ "label", &label, true },
+		{ "color.type", &type },
+		{ "color.field_name", &fieldName },
+		{ "size_x", &size_x },
+		});
+	return props;
+}
+
+bool ColorEdit::PropertyUI(int i, UIContext& ctx)
+{
+	static const char* TYPES[]{
+		"color3",
+		"color4",
+	};
+
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Unindent();
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (ImGui::TreeNode("flags")) {
+			ImGui::TableNextColumn();
+			changed = CheckBoxFlags(&flags);
+			ImGui::TreePop();
+		}
+		ImGui::Spacing();
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+		break;
+	case 1:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##label", label.access());
+		break;
+	case 2:
+		ImGui::Text("type");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##type", type.c_str()))
+		{
+			for (const auto& tp : TYPES)
+			{
+				if (ImGui::Selectable(tp, type == tp)) {
+					changed = true;
+					type = tp;
+					ctx.codeGen->ChangeVar(fieldName.c_str(), type, "");
+				}
+			}
+			ImGui::EndCombo();
+		}
+		break;
+	case 3:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("fieldName");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
+		break;
+	case 4:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_x", &size_x, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 5, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+ColorEdit::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onChange", &onChange }
+		});
+	return props;
+}
+
+bool ColorEdit::EventUI(int i, UIContext& ctx)
 {
 	bool changed = false;
 	switch (i)

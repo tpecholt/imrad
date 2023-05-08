@@ -305,6 +305,26 @@ struct Slider : Widget
 	const char* GetIcon() const { return ICON_FA_SLIDERS; }
 };
 
+struct ColorEdit : Widget
+{
+	field_ref<> fieldName;
+	direct_val<std::string> label = "";
+	direct_val<std::string> type = "color3";
+	flags_helper flags = ImGuiColorEditFlags_None;
+	bindable<float> size_x = 200;
+	event<> onChange;
+
+	ColorEdit(UIContext& ctx);
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	auto Events()->std::vector<Prop>;
+	bool EventUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_CIRCLE_HALF_STROKE; }
+};
+
 struct Image : Widget
 {
 	bindable<std::string> fileName = "";
