@@ -100,6 +100,8 @@ void UINode::DrawSnap(UIContext& ctx)
 		
 	bool lastItem = i + 1 == pchildren.size();
 	ImGuiDir snapDir = ImGuiDir_None;
+	//allow to snap in space between widgets too (don't check all coordinates)
+	//works well with parent clip
 	if (mind > MARGIN)
 		snapDir = ImGuiDir_None;
 	else if (d1.x == mind && d1.y >= 0 && d2.y >= 0)
@@ -712,6 +714,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<TabBar>(ctx);
 	else if (name == "TabItem")
 		return std::make_unique<TabItem>(ctx);
+	else if (name == "TreeNode")
+		return std::make_unique<TreeNode>(ctx);
 	else if (name == "MenuBar")
 		return std::make_unique<MenuBar>(ctx);
 	else if (name == "MenuIt")
@@ -4313,6 +4317,153 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 }
 
 //---------------------------------------------------------
+
+TreeNode::TreeNode(UIContext& ctx)
+{
+	flags.prefix("ImGuiTreeNodeFlags_");
+	//flags.add$(ImGuiTreeNodeFlags_Framed);
+	flags.add$(ImGuiTreeNodeFlags_FramePadding);
+	flags.add$(ImGuiTreeNodeFlags_Leaf);
+	flags.add$(ImGuiTreeNodeFlags_OpenOnArrow);
+	flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);
+	flags.add$(ImGuiTreeNodeFlags_SpanAvailWidth);
+	flags.add$(ImGuiTreeNodeFlags_SpanFullWidth);
+}
+
+void TreeNode::DoDraw(UIContext& ctx)
+{
+	bool open = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
+	if (open) //todo
+		ImGui::SetNextItemOpen(open);
+	tmpOpen = false;
+	if (ImGui::TreeNodeEx(label.c_str(), flags))
+	{
+		tmpOpen = true;
+		for (const auto& child : children)
+			child->Draw(ctx);
+
+		ImGui::TreePop();
+	}
+}
+
+void TreeNode::CalcSizeEx(ImVec2 p1, UIContext& ctx)
+{
+	cached_size = ImGui::GetItemRectSize();
+	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+	
+	if (flags & (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_SpanFullWidth))
+	{
+		cached_size.x = ImGui::GetContentRegionAvail().x - p1.x + sp.x;
+	}
+	else
+	{
+		cached_size.x = ImGui::CalcTextSize(label.c_str(), 0, true).x + 4 * sp.x;
+	}
+
+	if (tmpOpen)
+	{
+		for (const auto& child : children)
+		{
+			auto p2 = child->cached_pos + child->cached_size;
+			cached_size.x = std::max(cached_size.x, p2.x - cached_pos.x);
+			cached_size.y = std::max(cached_size.y, p2.y - cached_pos.y);
+		}
+	}
+}
+
+void TreeNode::DoExport(std::ostream& os, UIContext& ctx)
+{
+	if (open.has_value())
+		os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ", ImGuiCond_Appearing);\n";
+	else if (!open.empty())
+		os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ");\n";
+
+	os << ctx.ind << "if (ImGui::TreeNodeEx(" << label.to_arg() << ", " << flags.to_arg() << "))\n";
+	os << ctx.ind << "{\n";
+
+	ctx.ind_up();
+	os << ctx.ind << "/// @separator\n\n";
+
+	for (const auto& child : children)
+	{
+		child->Export(os, ctx);
+	}
+
+	os << ctx.ind << "/// @separator\n";
+	os << ctx.ind << "ImGui::TreePop();\n";
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+}
+
+void TreeNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::TreeNodeEx")
+	{
+		if (sit->params.size() >= 1)
+			label.set_from_arg(sit->params[0]);
+
+		if (sit->params.size() >= 2)
+			flags.set_from_arg(sit->params[1]);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemOpen")
+	{
+		if (sit->params.size())
+			open.set_from_arg(sit->params[0]);
+	}
+}
+
+std::vector<UINode::Prop>
+TreeNode::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "flags", &flags },
+		{ "label", &label, true },
+		{ "open", &open },
+		});
+	return props;
+}
+
+bool TreeNode::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Unindent();
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (ImGui::TreeNode("flags")) {
+			ImGui::TableNextColumn();
+			changed = CheckBoxFlags(&flags);
+			ImGui::TreePop();
+		}
+		ImGui::Spacing();
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+		break;
+	case 1:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##label", &label, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("label", &label, ctx);
+		break;
+	case 2:
+		ImGui::Text("open");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##open", &open, true, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("open", &open, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 3, ctx);
+	}
+	return changed;
+}
+
+//--------------------------------------------------------------
 
 TabBar::TabBar(UIContext& ctx)
 {

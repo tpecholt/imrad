@@ -440,6 +440,24 @@ struct TabItem : Widget
 	const char* GetIcon() const { return ICON_FA_FOLDER; }
 };
 
+struct TreeNode : Widget
+{
+	flags_helper flags = ImGuiTreeNodeFlags_None;
+	bindable<std::string> label = "Node";
+	bindable<bool> open = true;
+	bool tmpOpen;
+
+	TreeNode(UIContext& ctx);
+	int SnapBehavior() { return SnapInterior | SnapSides; }
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_SITEMAP; }
+};
+
 struct MenuBar : Widget
 {
 	MenuBar(UIContext& ctx);

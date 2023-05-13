@@ -272,6 +272,9 @@ public:
 		f &= ff;
 		return *this;
 	}
+	int operator& (int ff) {
+		return f & ff;
+	}
 	flags_helper& prefix(const char* p) {
 		pre = p;
 		return *this;

@@ -92,6 +92,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_TABLE_CELLS_LARGE, "Table" },
 		{ ICON_FA_ARROW_DOWN_WIDE_SHORT, "CollapsingHeader" },
 		{ ICON_FA_FOLDER_PLUS, "TabBar" },
+		{ ICON_FA_SITEMAP, "TreeNode" },
 	}}
 	/*{ ICON_MD_NORTH_WEST, "" },
 	{ ICON_MD_CHECK_BOX_OUTLINE_BLANK, "child" },
