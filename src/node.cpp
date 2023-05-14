@@ -294,6 +294,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.root = this;
 	ctx.popupWins.clear();
 	ctx.parents = { this };
+	ctx.selUpdated = false;
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.modalPopup = modalPopup;
@@ -318,22 +319,10 @@ void TopWindow::Draw(UIContext& ctx)
 
 	bool tmp;
 	ImGui::Begin(cap.c_str(), &tmp, fl);
+
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
 	assert(ctx.rootWin);
-
-	if (!ctx.snapMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
-	{
-		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-			; //don't participate in group selection
-		else
-			ctx.selected = { this };
-		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
-	}
-	if (ctx.snapMode && ImGui::IsWindowHovered())
-	{
-		DrawSnap(ctx);
-	}
-
+	
 	ImGui::GetCurrentContext()->NavDisableMouseHover = true;
 	for (size_t i = 0; i < children.size(); ++i)
 	{
@@ -348,6 +337,21 @@ void TopWindow::Draw(UIContext& ctx)
 	cached_pos = ImGui::GetWindowPos() + mi;
 	cached_size = ma - mi;
 
+	if (!ctx.snapMode && !ctx.selUpdated &&
+		ImGui::IsWindowHovered() &&
+		ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+	{
+		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
+			; //don't participate in group selection
+		else
+			ctx.selected = { this };
+		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
+	}
+	if (ctx.snapMode && !ctx.snapParent && ImGui::IsWindowHovered())
+	{
+		DrawSnap(ctx);
+	}
+	
 	/*if (ctx.selected == this)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -750,7 +754,6 @@ void Widget::Draw(UIContext& ctx)
 	
 	ImGui::PushID(this);
 	ctx.parents.push_back(this);
-	auto lastSel = ctx.selected; //this recognizes selection in a child widget
 	auto lastHovered = ctx.hovered;
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
@@ -769,9 +772,10 @@ void Widget::Draw(UIContext& ctx)
 		ctx.hovered = this;
 	}
 	if (!ctx.snapMode && allowed && 
-		ctx.selected == lastSel && hovered && 
+		!ctx.selUpdated && hovered && 
 		ImGui::IsMouseClicked(0)) //this works even for non-items like TabControl etc.  
 	{
+		ctx.selUpdated = true;
 		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 			toggle(ctx.selected, this);
 		else
@@ -4219,10 +4223,12 @@ CollapsingHeader::CollapsingHeader(UIContext& ctx)
 
 void CollapsingHeader::DoDraw(UIContext& ctx)
 {
-	//currently we always keep open in the designer regardless of open property
-	//because open relates to generated code only
-	ImGui::SetNextItemOpen(true);
-
+	//automatically expand to show selected child and collapse to save space
+	//in the window and avoid potential scrolling
+	if (ctx.selected.size() == 1)
+	{
+		ImGui::SetNextItemOpen(FindChild(ctx.selected[0]));
+	}
 	if (ImGui::CollapsingHeader(label.c_str()))
 	{
 		for (size_t i = 0; i < children.size(); ++i)
@@ -4332,13 +4338,16 @@ TreeNode::TreeNode(UIContext& ctx)
 
 void TreeNode::DoDraw(UIContext& ctx)
 {
-	bool open = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
-	if (open) //todo
-		ImGui::SetNextItemOpen(open);
-	tmpOpen = false;
+	if (ctx.selected.size() == 1)
+	{
+		//automatically expand to show selection and collapse to save space
+		//in the window and avoid potential scrolling
+		ImGui::SetNextItemOpen(FindChild(ctx.selected[0]));
+	}
+	lastOpen = false;
 	if (ImGui::TreeNodeEx(label.c_str(), flags))
 	{
-		tmpOpen = true;
+		lastOpen = true;
 		for (const auto& child : children)
 			child->Draw(ctx);
 
@@ -4360,7 +4369,7 @@ void TreeNode::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 		cached_size.x = ImGui::CalcTextSize(label.c_str(), 0, true).x + 4 * sp.x;
 	}
 
-	if (tmpOpen)
+	if (lastOpen)
 	{
 		for (const auto& child : children)
 		{

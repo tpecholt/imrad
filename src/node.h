@@ -21,6 +21,7 @@ struct UIContext
 	//set from outside
 	bool snapMode = false;
 	std::vector<UINode*> selected;
+	bool selUpdated;
 	CppGen* codeGen = nullptr;
 	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
 	ImVec2 wpos;
@@ -445,7 +446,7 @@ struct TreeNode : Widget
 	flags_helper flags = ImGuiTreeNodeFlags_None;
 	bindable<std::string> label = "Node";
 	bindable<bool> open = true;
-	bool tmpOpen;
+	bool lastOpen;
 
 	TreeNode(UIContext& ctx);
 	int SnapBehavior() { return SnapInterior | SnapSides; }
