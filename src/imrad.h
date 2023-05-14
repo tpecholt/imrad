@@ -6,6 +6,10 @@
 #include <imgui_internal.h> //for NextIemData
 #include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
 
+#ifdef IMRAD_WITH_FMT
+#include <fmt/format.h>
+#endif
+
 #ifdef IMRAD_WITH_GLFW_TEXTURE
 #include <stb_image.h> //for LoadTextureFromFile
 #include <GLFW/glfw3.h> //for LoadTextureFromFile
@@ -62,8 +66,11 @@ inline std::string Format(std::string_view fmt)
 }
 
 template <class A1, class... A>
-std::string Format(std::string_view fmt, A1&& arg, A... args)
+std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 {
+#ifdef IMRAD_WITH_FMT
+	return fmt::format(fmt, std::forward<A1>(arg), std::forward<A1>(args)...);
+#else
 	//todo
 	std::string s;
 	for (size_t i = 0; i < fmt.size(); ++i)
@@ -88,6 +95,7 @@ std::string Format(std::string_view fmt, A1&& arg, A... args)
 			s += fmt[i];
 	}
 	return s;
+#endif
 }
 
 struct Texture
