@@ -223,7 +223,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 						!(var.flags & Var::Impl))
 						continue;
 					if (!var.type.compare(0, 5, "void("))
-						out << INDENT << "void " << var.name << "();\n";
+						out << INDENT << "void " << var.name << var.type.substr(4) << ";\n";
 					else {
 						out << INDENT << var.type << " " << var.name;
 						if (var.init != "")
@@ -445,7 +445,8 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 		if (var.type.compare(0, 5, "void("))
 			continue;
 		if (!events.count(var.name))
-			fout << "\nvoid " << m_name << "::" << var.name << "()\n{\n}\n";
+			fout << "\nvoid " << m_name << "::" << var.name << var.type.substr(4) 
+			<< "\n{\n}\n";
 	}
 }
 

@@ -708,6 +708,10 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<ColorEdit>(ctx);
 	else if (name == "Image")
 		return std::make_unique<Image>(ctx);
+	else if (name == "Separator")
+		return std::make_unique<Separator>(ctx);
+	else if (name == "UserWidget")
+		return std::make_unique<UserWidget>(ctx);
 	else if (name == "Table")
 		return std::make_unique<Table>(ctx);
 	else if (name == "Child")
@@ -724,8 +728,6 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<MenuBar>(ctx);
 	else if (name == "MenuIt")
 		return std::make_unique<MenuIt>(ctx);
-	else if (name == "Separator")
-		return std::make_unique<Separator>(ctx);
 	else
 		return {};
 }
@@ -3674,6 +3676,116 @@ void Image::RefreshTexture(UIContext& ctx)
 		else
 			ctx.errors.push_back("Image: can't read " + fname);
 	}
+}
+
+//----------------------------------------------------
+
+UserWidget::UserWidget(UIContext& ctx)
+{
+}
+
+void UserWidget::DoDraw(UIContext& ctx)
+{
+	ImVec2 size{ 20, 20 };
+	if (size_x.has_value())
+		size.x = size_x.value();
+	if (size_y.has_value())
+		size.y = size_y.value();
+
+	std::string id = std::to_string((uintptr_t)this);
+	ImGui::BeginChild(id.c_str(), size, true);
+	ImGui::EndChild();
+}
+
+void UserWidget::DoExport(std::ostream& os, UIContext& ctx)
+{
+	if (onDraw.empty()) {
+		ctx.errors.push_back("UserWidget: OnDraw not set!");
+		return;
+	}
+
+	os << ctx.ind << onDraw.to_arg() << "({ " 
+		<< size_x.to_arg() << ", " << size_y.to_arg() 
+		<< " });\n";
+}
+
+void UserWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::CallExpr)
+	{
+		onDraw.set_from_arg(sit->callee);
+
+		if (sit->params.size()) {
+			auto size = cpp::parse_size(sit->params[0]);
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
+		}
+	}
+}
+
+std::vector<UINode::Prop>
+UserWidget::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "size_x", &size_x },
+		{ "size_y", &size_y },
+		});
+	return props;
+}
+
+bool UserWidget::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_x", &size_x, ctx);
+		break;
+	case 1:
+		ImGui::Text("size_y");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_y", &size_y, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 2, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+UserWidget::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onDraw", &onDraw },
+		});
+	return props;
+}
+
+bool UserWidget::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("onDraw");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onDraw", &onDraw, ctx);
+		break;
+	default:
+		return Widget::EventUI(i - 1, ctx);
+	}
+	return changed;
 }
 
 //---------------------------------------------------

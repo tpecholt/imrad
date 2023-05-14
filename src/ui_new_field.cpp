@@ -102,9 +102,7 @@ void NewFieldPopup::Draw()
 			
 			if (mode == NewField || mode == NewStruct || mode == NewEvent)
 			{
-				std::string type = mode == NewStruct ? "struct" :
-					mode == NewEvent ? "void()" : 
-					varType;
+				std::string type = mode == NewStruct ? "struct" : varType;
 				auto ret = codeGen->CheckVarExpr(varName, type, scope);
 				if (ret == CppGen::New_ImplicitStruct) {
 					messageBox.title = "New";

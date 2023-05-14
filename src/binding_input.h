@@ -14,7 +14,9 @@
 template <class T>
 std::string typeid_name()
 {
-	if constexpr (std::is_same_v<T, std::string>)
+	if constexpr (std::is_same_v<T, void>)
+		return "";
+	else if (std::is_same_v<T, std::string>)
 		return "std::string";
 	else if (std::is_same_v<T, color32>)
 		return "color32";
@@ -28,6 +30,8 @@ std::string typeid_name()
 		return "size_t";
 	else if (std::is_same_v<T, bool>)
 		return "bool";
+	else if (std::is_same_v<T, ImVec2>)
+		return "ImVec2";
 	else if (std::is_same_v<T, std::vector<std::string>>)
 		return "std::vector<std::string>";
 	else
@@ -230,9 +234,11 @@ template <>
 inline bool InputFieldRef(const char* label, field_ref<void>* val, bool allowEmpty, UIContext& ctx) = delete;
 
 
-inline bool InputEvent(const char* label, event<>* val, UIContext& ctx)
+template <class Arg>
+inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 {
 	bool changed = false;
+	std::string type = "void(" + typeid_name<Arg>() + ")";
 	if (ImGui::BeginCombo(label, val->c_str()))
 	{
 		if (ImGui::Selectable("None"))
@@ -242,7 +248,7 @@ inline bool InputEvent(const char* label, event<>* val, UIContext& ctx)
 		}
 		if (ImGui::Selectable("New Method..."))
 		{
-			newFieldPopup.varType = "void()";
+			newFieldPopup.varType = type;
 			newFieldPopup.codeGen = ctx.codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewEvent;
 			newFieldPopup.OpenPopup([val] {
@@ -254,7 +260,7 @@ inline bool InputEvent(const char* label, event<>* val, UIContext& ctx)
 		const auto& vars = ctx.codeGen->GetVars();
 		for (const auto& v : vars)
 		{
-			if (v.type == "void()" && ImGui::Selectable(v.name.c_str(), v.name == val->c_str()))
+			if (v.type == type && ImGui::Selectable(v.name.c_str(), v.name == val->c_str()))
 			{
 				*val->access() = v.name;
 				changed = true;

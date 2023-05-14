@@ -344,6 +344,23 @@ struct Image : Widget
 	const char* GetIcon() const { return ICON_FA_IMAGE; }
 };
 
+struct UserWidget : Widget
+{
+	bindable<float> size_x = 0;
+	bindable<float> size_y = 0;
+	event<ImVec2> onDraw;
+	
+	UserWidget(UIContext& ctx);
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	auto Events()->std::vector<Prop>;
+	bool EventUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_SQUARE; }
+};
+
 struct Table : Widget
 {
 	struct ColumnData 
