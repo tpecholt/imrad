@@ -123,6 +123,24 @@ void NewFile(TopWindow::Kind k)
 	ActivateTab((int)fileTabs.size() - 1);
 }
 
+void NewTemplate(int type)
+{
+	nfdchar_t *outPath = NULL;
+	nfdresult_t result = NFD_SaveDialog("cpp", NULL, &outPath);
+	if (result != NFD_OKAY)
+		return;
+	fs::path p = outPath;
+	if (!p.has_extension())
+		p.replace_extension(".cpp");
+
+	switch (type)
+	{
+	case 0:
+		fs::copy_file("template/glfw-main.cpp", p);
+		break;
+	}
+}
+
 void DoOpenFile(const std::string& path)
 {
 	File file;
@@ -494,12 +512,28 @@ void ToolbarUI()
 
 	const float BTN_SIZE = 30;
 	const auto& io = ImGui::GetIO();
-	if (ImGui::Button(ICON_FA_FILE) ||
-		(ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl)) 
-		NewFile(TopWindow::Window);
+	if (ImGui::Button(ICON_FA_FILE " " ICON_FA_CARET_DOWN))
+		ImGui::OpenPopup("NewMenu");
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("New File (Ctrl+N)");
-	
+	if (ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl)
+		NewFile(TopWindow::Window);
+	ImGui::SetNextWindowPos(ImGui::GetCursorPos());
+	if (ImGui::BeginPopup("NewMenu"))
+	{
+		if (ImGui::MenuItem("Window"))
+			NewFile(TopWindow::Window);
+		if (ImGui::MenuItem("Popup"))
+			NewFile(TopWindow::Popup);
+		if (ImGui::MenuItem("Modal Popup"))
+			NewFile(TopWindow::ModalPopup);
+		ImGui::Separator();
+		if (ImGui::MenuItem("GLFW template", "(main.cpp)"))
+			NewTemplate(0);
+
+		ImGui::EndPopup();
+	}
+
 	ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
 		(ImGui::IsKeyPressed(ImGuiKey_O, false) && io.KeyCtrl))

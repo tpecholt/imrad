@@ -29,3 +29,8 @@ include(cmake/fa.cmake)
 include(cmake/stb.cmake)
 
 add_subdirectory(src)
+
+install(
+    DIRECTORY "template" 
+    DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
