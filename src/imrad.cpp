@@ -496,7 +496,7 @@ void ToolbarUI()
 	const auto& io = ImGui::GetIO();
 	if (ImGui::Button(ICON_FA_FILE) ||
 		(ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl)) 
-		NewFile();
+		NewFile(TopWindow::Window);
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("New File (Ctrl+N)");
 	
@@ -1013,7 +1013,7 @@ int main(int argc, const char* argv[])
 	// Our state
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-	NewFile();
+	NewFile(TopWindow::Window);
 
 	firstTime = true;
 	bool lastVisible = true;
