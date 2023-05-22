@@ -21,7 +21,6 @@ struct UIContext
 	//set from outside
 	bool snapMode = false;
 	std::vector<UINode*> selected;
-	bool selUpdated;
 	CppGen* codeGen = nullptr;
 	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
 	ImVec2 wpos;
@@ -36,6 +35,7 @@ struct UIContext
 	bool snapSetNextSameLine;
 	
 	//recursive info
+	bool selUpdated;
 	UINode* hovered = nullptr;
 	int groupLevel = 0;
 	int importLevel;
@@ -44,8 +44,8 @@ struct UIContext
 	ImGuiWindow* rootWin = nullptr;
 	std::vector<ImGuiWindow*> popupWins;
 	std::vector<UINode*> parents;
-	bool modalPopup = false;
-	bool table = false;
+	bool inPopup = false;
+	bool inTable = false;
 	std::string ind;
 	std::vector<std::string> errors;
 
@@ -344,13 +344,13 @@ struct Image : Widget
 	const char* GetIcon() const { return ICON_FA_IMAGE; }
 };
 
-struct UserWidget : Widget
+struct CustomWidget : Widget
 {
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
-	event<ImVec2> onDraw;
+	event<ImRad::CustomWidgetArgs> onDraw;
 	
-	UserWidget(UIContext& ctx);
+	CustomWidget(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -358,7 +358,7 @@ struct UserWidget : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
-	const char* GetIcon() const { return ICON_FA_SQUARE; }
+	const char* GetIcon() const { return ICON_FA_EXPAND; }
 };
 
 struct Table : Widget
@@ -510,8 +510,10 @@ struct MenuIt : Widget
 
 struct TopWindow : UINode
 {
+	enum Kind { Window, Popup, ModalPopup };
+
 	flags_helper flags = ImGuiWindowFlags_NoCollapse;
-	bool modalPopup = false;
+	Kind kind = Window;
 	bindable<std::string> title = "title";
 	float size_x = 640;
 	float size_y = 480;

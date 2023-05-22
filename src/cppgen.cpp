@@ -42,7 +42,7 @@ std::string CppGen::AltFName(const std::string& path)
 	return "";
 }
 
-bool CppGen::Export(const std::string& fname, bool trunc, UINode* node, std::string& err)
+bool CppGen::Export(const std::string& fname, bool trunc, TopWindow* node, std::string& err)
 {
 	//enforce uppercase for class name
 	/*auto ext = name.find('.');
@@ -74,7 +74,7 @@ bool CppGen::Export(const std::string& fname, bool trunc, UINode* node, std::str
 	fin.close();
 	fprev.seekg(0);
 	std::ofstream fout(hpath, std::ios::trunc);
-	auto origNames = ExportH(fout, fprev, ctx.modalPopup);
+	auto origNames = ExportH(fout, fprev, node->kind);
 	fout.close();
 
 	auto fpath = fs::path(fname).replace_extension(".cpp");
@@ -91,7 +91,7 @@ bool CppGen::Export(const std::string& fname, bool trunc, UINode* node, std::str
 	fin.close();
 	fprev.seekg(0);
 	fout.open(fpath, std::ios::trunc);
-	ExportCpp(fout, fprev, origNames, ctx.modalPopup, code.str());
+	ExportCpp(fout, fprev, origNames, node->kind, code.str());
 
 	err = "";
 	for (const std::string& e : ctx.errors)
@@ -108,10 +108,12 @@ void CppGen::CreateH(std::ostream& out)
 	out << "#include \"imrad.h\"\n";
 
 	out << "\nclass " << m_name << "\n{\npublic:\n";
-	out << INDENT << "/// @interface\n";
+	out << INDENT << "/// @begin interface\n";
+	out << INDENT << "/// @end interface\n";
 
 	out << "\nprivate:\n";
-	out << INDENT << "/// @impl\n";
+	out << INDENT << "/// @begin impl\n";
+	out << INDENT << "/// @end impl\n";
 
 	out << "};\n\n";
 
@@ -131,7 +133,7 @@ void CppGen::CreateCpp(std::ostream& out, const std::string& hName)
 
 //follows fprev and overwrites generated members/functions only
 std::array<std::string, 2> 
-CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
+CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 {
 	int level = 0;
 	bool in_class = false;
@@ -157,16 +159,21 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 		std::string tok = *iter;
 		if (in_class && level == 1) //class scope
 		{
-			if (tok == "/// @interface")
+			if (tok == "/// @interface" || tok == "/// @begin interface")
 			{
 				ignore_section = true;
 				copy_content();
 				out << "\n";
 
 				//write special members
-				if (modalPopup)
+				if (kind == TopWindow::ModalPopup)
 				{
 					out << INDENT << "void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});\n";
+					out << INDENT << "void ClosePopup();\n";
+				}
+				else if (kind == TopWindow::Popup)
+				{
+					out << INDENT << "void OpenPopup();\n";
 					out << INDENT << "void ClosePopup();\n";
 				}
 				else
@@ -175,7 +182,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 					out << INDENT << "void Close();\n";
 				}
 
-				out << INDENT << "void Draw();\n\n";
+				out << INDENT << "void Draw();\n";
 
 				//write fields
 				for (const auto& scope : m_fields)
@@ -210,7 +217,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 					}
 				}
 			}
-			else if (tok == "/// @impl")
+			else if (tok == "/// @impl" || tok == "/// @begin impl")
 			{
 				ignore_section = true;
 				copy_content();
@@ -222,8 +229,13 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 					if ((var.flags & Var::UserCode) ||
 						!(var.flags & Var::Impl))
 						continue;
-					if (!var.type.compare(0, 5, "void("))
-						out << INDENT << "void " << var.name << var.type.substr(4) << ";\n";
+					if (!var.type.compare(0, 5, "void(")) {
+						out << INDENT << "void " << var.name << "(";
+						std::string arg = var.type.substr(5, var.type.size() - 6);
+						if (arg.size())
+							out << "const " << arg << "& args";
+						out << ");\n";
+					}
 					else {
 						out << INDENT << var.type << " " << var.name;
 						if (var.init != "")
@@ -232,18 +244,28 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 					}
 				}
 				//write special fields
-				if (modalPopup)
+				out << "\n";
+				if (kind == TopWindow::ModalPopup)
 				{
-					out << "\n";
 					out << INDENT << "bool requestOpen = false;\n";
 					out << INDENT << "bool requestClose = false;\n";
 					out << INDENT << "std::function<void(ImRad::ModalResult)> callback;\n\n";
 				}
+				else if (kind == TopWindow::Popup)
+				{
+					out << INDENT << "bool requestOpen = false;\n";
+					out << INDENT << "bool requestClose = false;\n";
+				}
 				else
 				{
-					out << "\n";
 					out << INDENT << "bool isOpen = true;\n";
 				}
+			}
+			else if (tok == "/// @end interface" || tok == "/// @end impl")
+			{
+				ignore_section = false;
+				fpos = fprev.tellg();
+				out << INDENT << tok;
 			}
 			else if (!tok.compare(0, 1, "#") || !tok.compare(0, 2, "//"))
 				;
@@ -323,7 +345,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, bool modalPopup)
 }
 
 //follows fprev and overwrites generated members/functions only only
-void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array<std::string, 2>& origNames, bool modalPopup, const std::string& code)
+void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array<std::string, 2>& origNames, TopWindow::Kind kind, const std::string& code)
 {
 	int level = 0;
 	int skip_to_level = -1;
@@ -402,7 +424,7 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 	copy_content();
 
 	//add missing members
-	if (modalPopup && !events.count("OpenPopup"))
+	if (kind == TopWindow::ModalPopup && !events.count("OpenPopup"))
 	{
 		fout << "\nvoid " << m_name << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
 		fout << INDENT << "callback = clb;\n";
@@ -411,20 +433,28 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 		fout << INDENT << "//*** Add your init code here\n";
 		fout << "}\n";
 	}
-	if (modalPopup && !events.count("ClosePopup"))
+	if (kind == TopWindow::Popup && !events.count("OpenPopup"))
+	{
+		fout << "\nvoid " << m_name << "::OpenPopup()\n{\n";
+		fout << INDENT << "requestOpen = true;\n";
+		fout << INDENT << "requestClose = false;\n\n";
+		fout << INDENT << "//*** Add your init code here\n";
+		fout << "}\n";
+	}
+	if ((kind == TopWindow::Popup || kind == TopWindow::ModalPopup) &&
+		!events.count("ClosePopup"))
 	{
 		fout << "\nvoid " << m_name << "::ClosePopup()\n{\n";
 		fout << INDENT << "requestClose = true;\n";
 		fout << "}\n";
 	}
-
-	if (!modalPopup && !events.count("Open"))
+	if (kind == TopWindow::Window && !events.count("Open"))
 	{
 		fout << "\nvoid " << m_name << "::Open()\n{\n";
 		fout << INDENT << "isOpen = true;\n";
 		fout << "}\n";
 	}
-	if (!modalPopup && !events.count("Close"))
+	if (kind == TopWindow::Window && !events.count("Close"))
 	{
 		fout << "\nvoid " << m_name << "::Close()\n{\n";
 		fout << INDENT << "isOpen = false;\n";
@@ -444,13 +474,17 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 			continue;
 		if (var.type.compare(0, 5, "void("))
 			continue;
-		if (!events.count(var.name))
-			fout << "\nvoid " << m_name << "::" << var.name << var.type.substr(4) 
-			<< "\n{\n}\n";
+		if (events.count(var.name))
+			continue;
+		fout << "\nvoid " << m_name << "::" << var.name << "(";
+		std::string arg = var.type.substr(5, var.type.size() - 6);
+		if (arg.size())
+			fout << "const " << arg << "& args";
+		fout << ")\n{\n}\n";
 	}
 }
 
-std::unique_ptr<UINode> 
+std::unique_ptr<TopWindow> 
 CppGen::Import(const std::string& path, std::string& err)
 {
 	m_fields.clear();
@@ -458,7 +492,7 @@ CppGen::Import(const std::string& path, std::string& err)
 	m_name = m_vname = "";
 	m_error = "";
 	ctx_fname = path;
-	std::unique_ptr<UINode> node;
+	std::unique_ptr<TopWindow> node;
 
 	auto fpath = fs::path(path).replace_extension("h");
 	std::ifstream fin(fpath.string());
@@ -492,10 +526,10 @@ CppGen::Import(const std::string& path, std::string& err)
 	return node;
 }
 
-std::unique_ptr<UINode> 
+std::unique_ptr<TopWindow> 
 CppGen::ImportCode(std::istream& fin)
 {
-	std::unique_ptr<UINode> node;
+	std::unique_ptr<TopWindow> node;
 	cpp::token_iterator iter(fin);
 	int level = 0;
 	bool in_class = false;
@@ -653,7 +687,7 @@ std::string CppGen::IsMemFun0(const std::vector<std::string>& line, const std::s
 	return "";
 }
 
-std::unique_ptr<UINode>
+std::unique_ptr<TopWindow>
 CppGen::ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& iter)
 {
 	if (IsMemFun0(line, m_name) == "Draw")

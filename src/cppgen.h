@@ -12,8 +12,8 @@ public:
 	static const std::string INDENT;
 
 	CppGen();
-	bool Export(const std::string& name, bool trunc, UINode* node, std::string& err);
-	auto Import(const std::string& path, std::string& err) -> std::unique_ptr<UINode>;
+	bool Export(const std::string& name, bool trunc, TopWindow* node, std::string& err);
+	auto Import(const std::string& path, std::string& err) -> std::unique_ptr<TopWindow>;
 	static auto AltFName(const std::string& path) -> std::string;
 
 	struct Var
@@ -51,14 +51,14 @@ private:
 
 	void CreateH(std::ostream& out);
 	void CreateCpp(std::ostream& out, const std::string& hName);
-	auto ExportH(std::ostream& out, std::istream& prev, bool modalPopup) -> std::array<std::string, 2>;
-	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 2>& origNames, bool modalPopup, const std::string& code);
-	auto ImportCode(std::istream& in) -> std::unique_ptr<UINode>;
+	auto ExportH(std::ostream& out, std::istream& prev, TopWindow::Kind k) -> std::array<std::string, 2>;
+	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 2>& origNames, TopWindow::Kind k, const std::string& code);
+	auto ImportCode(std::istream& in) -> std::unique_ptr<TopWindow>;
 
 	bool ParseFieldDecl(const std::string& stype, const std::vector<std::string>& line, int flags);
 	auto IsMemFun(const std::vector<std::string>& line, const std::string& cname)->std::string;
 	auto IsMemFun0(const std::vector<std::string>& line, const std::string& cname) -> std::string;
-	auto ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& iter) -> std::unique_ptr<UINode>;
+	auto ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& iter) -> std::unique_ptr<TopWindow>;
 
 	std::map<std::string, std::vector<Var>> m_fields;
 	std::string m_name, m_vname;

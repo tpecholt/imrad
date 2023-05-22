@@ -50,7 +50,7 @@ struct File
 {
 	std::string fname;
 	CppGen codeGen;
-	std::unique_ptr<UINode> rootNode;
+	std::unique_ptr<TopWindow> rootNode;
 	bool modified = false;
 	fs::file_time_type time[2];
 };
@@ -86,7 +86,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_CIRCLE_HALF_STROKE, "ColorEdit" },
 		{ ICON_FA_IMAGE, "Image" },
 		{ ICON_FA_WINDOW_MINIMIZE, "Separator" },
-		{ ICON_FA_SQUARE, "UserWidget" },
+		{ ICON_FA_EXPAND, "CustomWidget" },
 	}},
 	{ "Containers", {
 		{ ICON_FA_SQUARE_FULL, "Child" },
@@ -95,13 +95,6 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_FOLDER_PLUS, "TabBar" },
 		{ ICON_FA_SITEMAP, "TreeNode" },
 	}}
-	/*{ ICON_MD_NORTH_WEST, "" },
-	{ ICON_MD_CHECK_BOX_OUTLINE_BLANK, "child" },
-	{ ICON_MD_TEXT_FORMAT, "text" },
-	{ ICON_MD_VIEW_COMPACT_ALT, "button" },
-	{ ICON_MD_INPUT, "input" },
-	{ ICON_MD_CHECK_BOX, "checkbox" },
-	{ ICON_MD_RADIO_BUTTON_CHECKED, "radio" },*/
 };
 
 void ActivateTab(int i)
@@ -121,10 +114,12 @@ void ActivateTab(int i)
 	ctx.fname = tab.fname;
 }
 
-void NewFile()
+void NewFile(TopWindow::Kind k)
 {
+	auto top = std::make_unique<TopWindow>(ctx);
+	top->kind = k;
 	fileTabs.push_back({});
-	fileTabs.back().rootNode = std::make_unique<TopWindow>(ctx);
+	fileTabs.back().rootNode = std::move(top);
 	ActivateTab((int)fileTabs.size() - 1);
 }
 

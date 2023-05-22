@@ -297,8 +297,8 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.selUpdated = false;
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
-	ctx.modalPopup = modalPopup;
-	ctx.table = false;
+	ctx.inPopup = kind == Kind::Popup || kind == Kind::ModalPopup;
+	ctx.inTable = false;
 
 	std::string cap = title.value();
 	if (cap.empty())
@@ -374,7 +374,7 @@ void TopWindow::Draw(UIContext& ctx)
 void TopWindow::Export(std::ostream& os, UIContext& ctx)
 {
 	ctx.groupLevel = 0;
-	ctx.modalPopup = modalPopup;
+	ctx.inPopup = kind == Popup || kind == ModalPopup;
 	ctx.errors.clear();
 	
 	std::string tit = title.to_arg();
@@ -400,7 +400,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			<< ", ImGuiCond_Appearing);\n";
 	}
 
-	if (modalPopup)
+	if (ctx.inPopup)
 	{
 		os << ctx.ind << "if (requestOpen) {\n";
 		ctx.ind_up();
@@ -408,10 +408,19 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::OpenPopup(" << tit << ");\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
-		os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
-		os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
-		os << ctx.ind << "bool tmpOpen = true;\n";
-		os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
+		
+		if (kind == ModalPopup)
+		{
+			os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
+			os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
+			os << ctx.ind << "bool tmpOpen = true;\n";
+			os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
+		}
+		else
+		{
+			os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << flags.to_arg() << "))\n";
+		}
+
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		os << ctx.ind << "if (requestClose)\n";
@@ -435,7 +444,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "/// @separator\n";
 	
-	if (modalPopup)
+	if (ctx.inPopup)
 	{
 		os << ctx.ind << "ImGui::EndPopup();\n";
 		ctx.ind_down();
@@ -515,15 +524,24 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
 			sit->callee == "ImGui::BeginPopupModal")
 		{
-			modalPopup = true;
+			kind = ModalPopup;
 			title.set_from_arg(sit->params[0]);
 
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
 		}
+		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
+			sit->callee == "ImGui::BeginPopup")
+		{
+			kind = Popup;
+			title.set_from_arg(sit->params[0]);
+
+			if (sit->params.size() >= 2)
+				flags.set_from_arg(sit->params[1]);
+		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Begin")
 		{
-			modalPopup = false;
+			kind = Window;
 			title.set_from_arg(sit->params[0]);
 
 			if (sit->params.size() >= 3)
@@ -567,9 +585,9 @@ std::vector<UINode::Prop>
 TopWindow::Properties()
 {
 	return {
+		{ "top.kind", nullptr },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
-		{ "top.modalPopup", nullptr },
 		{ "size_x", nullptr },
 		{ "size_y", nullptr },
 		{ "top.style_padding", nullptr },
@@ -583,6 +601,19 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+	{
+		ImGui::Text("kind");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		int tmp = (int)kind;
+		if (ImGui::Combo("##kind", &tmp, "Window\0Popup\0Modal Popup\0"))
+		{
+			changed = true;
+			kind = (Kind)tmp;
+		}
+		break;
+	}
+	case 1:
 		ImGui::Unindent();
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
 		if (ImGui::TreeNode("flags")) {
@@ -600,19 +631,13 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::PopStyleVar();
 		ImGui::Indent();
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("title");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##title", &title, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("title", &title, ctx);
-		break;
-	case 2:
-		ImGui::Text("modalPopup");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##modal", &modalPopup);
 		break;
 	case 3:
 		ImGui::Text("size_x");
@@ -710,8 +735,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Image>(ctx);
 	else if (name == "Separator")
 		return std::make_unique<Separator>(ctx);
-	else if (name == "UserWidget")
-		return std::make_unique<UserWidget>(ctx);
+	else if (name == "CustomWidget")
+		return std::make_unique<CustomWidget>(ctx);
 	else if (name == "Table")
 		return std::make_unique<Table>(ctx);
 	else if (name == "Child")
@@ -735,7 +760,7 @@ Widget::Create(const std::string& name, UIContext& ctx)
 void Widget::Draw(UIContext& ctx)
 {
 	if (nextColumn) {
-		if (ctx.table)
+		if (ctx.inTable)
 			ImGui::TableNextColumn();
 		else
 			ImGui::NextColumn();
@@ -832,7 +857,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (nextColumn)
 	{
-		if (ctx.table)
+		if (ctx.inTable)
 			os << ctx.ind << "ImGui::TableNextColumn();\n";
 		else
 			os << ctx.ind << "ImGui::NextColumn();\n";
@@ -1843,6 +1868,9 @@ Button::Button(UIContext& ctx)
 	modalResult.add$(ImRad::Cancel);
 	modalResult.add$(ImRad::Yes);
 	modalResult.add$(ImRad::No);
+	modalResult.add$(ImRad::Abort);
+	modalResult.add$(ImRad::Retry);
+	modalResult.add$(ImRad::Ignore);
 	modalResult.add$(ImRad::All);
 	
 	arrowDir.add$(ImGuiDir_None);
@@ -1969,7 +1997,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	if (!color.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << color.to_arg() << ");\n";
 
-	bool closePopup = ctx.modalPopup && modalResult != ImRad::None;
+	bool closePopup = ctx.inPopup && modalResult != ImRad::None;
 	os << ctx.ind;
 	if (!onChange.empty() || closePopup)
 		os << "if (";
@@ -2120,7 +2148,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 2:
 	{
-		ImGui::BeginDisabled(!ctx.modalPopup);
+		ImGui::BeginDisabled(!ctx.inPopup);
 		ImGui::Text("modalResult");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3680,11 +3708,11 @@ void Image::RefreshTexture(UIContext& ctx)
 
 //----------------------------------------------------
 
-UserWidget::UserWidget(UIContext& ctx)
+CustomWidget::CustomWidget(UIContext& ctx)
 {
 }
 
-void UserWidget::DoDraw(UIContext& ctx)
+void CustomWidget::DoDraw(UIContext& ctx)
 {
 	ImVec2 size{ 20, 20 };
 	if (size_x.has_value())
@@ -3695,28 +3723,33 @@ void UserWidget::DoDraw(UIContext& ctx)
 	std::string id = std::to_string((uintptr_t)this);
 	ImGui::BeginChild(id.c_str(), size, true);
 	ImGui::EndChild();
+
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	auto clr = ImGui::GetStyle().Colors[ImGuiCol_Border];
+	dl->AddLine(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr));
+	dl->AddLine(cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(cached_size.x, 0), ImGui::ColorConvertFloat4ToU32(clr));
 }
 
-void UserWidget::DoExport(std::ostream& os, UIContext& ctx)
+void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (onDraw.empty()) {
 		ctx.errors.push_back("UserWidget: OnDraw not set!");
 		return;
 	}
 
-	os << ctx.ind << onDraw.to_arg() << "({ " 
+	os << ctx.ind << onDraw.to_arg() << "({{ " 
 		<< size_x.to_arg() << ", " << size_y.to_arg() 
-		<< " });\n";
+		<< " }});\n";
 }
 
-void UserWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+void CustomWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if (sit->kind == cpp::CallExpr)
 	{
 		onDraw.set_from_arg(sit->callee);
 
-		if (sit->params.size()) {
-			auto size = cpp::parse_size(sit->params[0]);
+		if (sit->params.size() && sit->params[0][0] == '{' && sit->params[0].back() == '}') {
+			auto size = cpp::parse_size(sit->params[0].substr(1, sit->params[0].size() - 2));
 			size_x.set_from_arg(size.first);
 			size_y.set_from_arg(size.second);
 		}
@@ -3724,7 +3757,7 @@ void UserWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 }
 
 std::vector<UINode::Prop>
-UserWidget::Properties()
+CustomWidget::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
@@ -3734,7 +3767,7 @@ UserWidget::Properties()
 	return props;
 }
 
-bool UserWidget::PropertyUI(int i, UIContext& ctx)
+bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 {
 	bool changed = false;
 	switch (i)
@@ -3762,7 +3795,7 @@ bool UserWidget::PropertyUI(int i, UIContext& ctx)
 }
 
 std::vector<UINode::Prop>
-UserWidget::Events()
+CustomWidget::Events()
 {
 	auto props = Widget::Events();
 	props.insert(props.begin(), {
@@ -3771,16 +3804,16 @@ UserWidget::Events()
 	return props;
 }
 
-bool UserWidget::EventUI(int i, UIContext& ctx)
+bool CustomWidget::EventUI(int i, UIContext& ctx)
 {
 	bool changed = false;
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onDraw");
+		ImGui::Text("OnDraw");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
-		changed = InputEvent("##onDraw", &onDraw, ctx);
+		changed = InputEvent("##OnDraw", &onDraw, ctx);
 		break;
 	default:
 		return Widget::EventUI(i - 1, ctx);
@@ -3851,14 +3884,14 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::TableNextRow();
 		ImGui::TableSetColumnIndex(0);
 		
-		bool tmp = ctx.table;
-		ctx.table = true;
+		bool tmp = ctx.inTable;
+		ctx.inTable = true;
 		for (int i = 0; i < (int)children.size(); ++i)
 		{
 			children[i]->Draw(ctx);
 			//ImGui::Text("cell");
 		}
-		ctx.table = tmp;
+		ctx.inTable = tmp;
 
 		ImGui::EndTable();
 	}
@@ -3985,8 +4018,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	if (header)
 		os << ctx.ind << "ImGui::TableHeadersRow();\n";
 
-	bool tmp = ctx.table;
-	ctx.table = true;
+	bool tmp = ctx.inTable;
+	ctx.inTable = true;
 	if (!rowCount.empty()) 
 	{
 		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR 
@@ -4015,7 +4048,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
-	ctx.table = tmp;
+	ctx.inTable = tmp;
 
 	os << ctx.ind << "ImGui::EndTable();\n";
 	ctx.ind_down();

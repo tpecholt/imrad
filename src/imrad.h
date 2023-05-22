@@ -50,6 +50,18 @@ enum Alignment {
 	AlignVCenter = 0x20,
 };
 
+struct Texture
+{
+	ImTextureID id = 0;
+	int w, h;
+	explicit operator bool() const { return id != 0; }
+};
+
+struct CustomWidgetArgs
+{
+	ImVec2 size;
+};
+
 inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)
 {
 	//todo: BeginCombo/Selectable
@@ -69,7 +81,7 @@ template <class A1, class... A>
 std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 {
 #ifdef IMRAD_WITH_FMT
-	return fmt::format(fmt, std::forward<A1>(arg), std::forward<A1>(args)...);
+	return fmt::format(fmt, std::forward<A1>(arg), std::forward<A>(args)...);
 #else
 	//todo
 	std::string s;
@@ -98,12 +110,6 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 #endif
 }
 
-struct Texture
-{
-	ImTextureID id = 0;
-	int w, h;
-	explicit operator bool() const { return id != 0; }
-};
 
 #ifdef IMRAD_WITH_GLFW_TEXTURE
 // Simple helper function to load an image into a OpenGL texture with common settings
