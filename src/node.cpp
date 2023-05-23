@@ -13,13 +13,6 @@
 #include <algorithm>
 #include <array>
 
-const color32 SNAP_COLOR[] {
-	IM_COL32(128, 128, 255, 255),
-	IM_COL32(255, 0, 255, 255),
-	IM_COL32(0, 255, 255, 255),
-	IM_COL32(0, 255, 0, 255),
-};
-
 const color32 FIELD_NAME_CLR = IM_COL32(202, 202, 255, 255);
 
 void toggle(std::vector<UINode*>& c, UINode* val)
@@ -66,7 +59,8 @@ void UINode::DrawSnap(UIContext& ctx)
 	ImVec2 d1 = m - cached_pos;
 	ImVec2 d2 = cached_pos + cached_size - m;
 	float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
-	
+	int snapCount = UIContext::Color::COUNT - UIContext::Color::Snap1;
+
 	//snap interior
 	if ((snapOp & SnapInterior) && mind >= 0 &&
 		!stx::count_if(children, [](const auto& ch) { return ch->SnapBehavior() & SnapSides; }))
@@ -74,7 +68,7 @@ void UINode::DrawSnap(UIContext& ctx)
 		ctx.snapParent = this;
 		ctx.snapIndex = children.size();
 		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size, SNAP_COLOR[level % std::size(SNAP_COLOR)], 0, 0, 3);
+		dl->AddRect(cached_pos, cached_pos + cached_size, ctx.colors[UIContext::Snap1 + level % snapCount], 0, 0, 3);
 		return;
 	}
 
@@ -245,7 +239,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	}
 
 	ImDrawList* dl = ImGui::GetWindowDrawList();
-	dl->AddLine(p, p + ImVec2(w, h), SNAP_COLOR[(level - 1) % std::size(SNAP_COLOR)], 3);
+	dl->AddLine(p, p + ImVec2(w, h), ctx.colors[UIContext::Snap1 + (level - 1)], 3);
 }
 
 bool UINode::FindChild(const UINode* ch)
@@ -307,6 +301,10 @@ void TopWindow::Draw(UIContext& ctx)
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	fl |= flags;
 
+	if (font != "") {
+		auto it = ctx.fontMap.find(font);
+		ImGui::PushFont(it != ctx.fontMap.end() ? it->second : nullptr);
+	}
 	if (stylePading)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, *stylePading);
 	if (styleSpacing)
@@ -369,6 +367,8 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PopStyleVar();
 	if (stylePading)
 		ImGui::PopStyleVar();
+	if (font != "")
+		ImGui::PopFont();
 }
 
 void TopWindow::Export(std::ostream& os, UIContext& ctx)
@@ -383,6 +383,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "/// @begin TopWindow\n";
 	
+	if (font != "")
+	{
+		os << ctx.ind << "ImGui::PushFont(ImRad::GetFont(\"" << font << "\"));\n";
+	}
 	if (stylePading)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { "
@@ -461,6 +465,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (stylePading)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	if (font != "")
+		os << ctx.ind << "ImGui::PopFont();\n";
 
 	os << ctx.ind << "/// @end TopWindow\n";
 }
@@ -505,6 +511,11 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (ctx.userCode != "")
 				ctx.userCode += "\n";
 			ctx.userCode += sit->line;
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
+		{
+			if (sit->params.size() && !sit->params[0].compare(0, 16, "ImRad::GetFont(\""))
+				font = sit->params[0].substr(16, sit->params[0].size() - 16 - 2);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 		{
@@ -588,6 +599,7 @@ TopWindow::Properties()
 		{ "top.kind", nullptr },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
+		{ "font", nullptr },
 		{ "size_x", nullptr },
 		{ "size_y", nullptr },
 		{ "top.style_padding", nullptr },
@@ -640,18 +652,32 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		BindingButton("title", &title, ctx);
 		break;
 	case 3:
+		ImGui::Text("font");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##font", font.c_str()))
+		{
+			for (const auto& f : ctx.fontMap)
+			{
+				if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == font.c_str()))
+					font = f.first;
+			}
+			ImGui::EndCombo();
+		}
+		break;
+	case 4:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputFloat("##size_x", &size_x);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputFloat("##size_y", &size_y);
 		break;
-	case 5:
+	case 6:
 	{
 		ImGui::Text("style_padding");
 		ImGui::TableNextColumn();
@@ -671,7 +697,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	}
-	case 6:
+	case 7:
 	{
 		ImGui::Text("style_spacing");
 		ImGui::TableNextColumn();
@@ -784,11 +810,20 @@ void Widget::Draw(UIContext& ctx)
 	auto lastHovered = ctx.hovered;
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
+	if (font != "") 
+	{
+		auto it = ctx.fontMap.find(font);
+		ImGui::PushFont(it != ctx.fontMap.end() ? it->second : nullptr);
+	}
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
+
 	DoDraw(ctx);
+	
 	ImGui::EndDisabled();
 	CalcSizeEx(p1, ctx);
-	
+	if (font != "")
+		ImGui::PopFont();
+
 	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
 	bool allowed = ctx.popupWins.empty() || stx::count(ctx.popupWins, ImGui::GetCurrentWindow());
@@ -814,7 +849,7 @@ void Widget::Draw(UIContext& ctx)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
 		dl->AddRect(cached_pos, cached_pos + cached_size, 
-			selected ? 0xff0000ff : 0x8000ffff,
+			selected ? ctx.colors[UIContext::Selected] : ctx.colors[UIContext::Hovered],
 			0, 0, selected ? 2.f : 1.f);
 	}
 	if (selected)
@@ -892,6 +927,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::BeginDisabled(" << disabled.c_str() << ");\n";
 	}
+	if (font != "")
+	{
+		os << ctx.ind << "ImGui::PushFont(ImRad::GetFont(" << font.to_arg() << "));\n";
+	}
 
 	ctx.parents.push_back(this);
 	DoExport(os, ctx);
@@ -910,6 +949,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		ctx.ind_up();
 		os << ctx.ind << "ImGui::SetTooltip(" << tooltip.to_arg() << ");\n";
 		ctx.ind_down();
+	}
+	if (font != "")
+	{
+		os << ctx.ind << "ImGui::PopFont();\n";
 	}
 	if (!disabled.has_value() || disabled.value())
 	{
@@ -1062,6 +1105,11 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				disabled.set_from_arg(sit->params[0]);
 		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
+		{
+			if (sit->params.size() && !sit->params[0].compare(0, 16, "ImRad::GetFont(\""))
+				font = sit->params[0].substr(16, sit->params[0].size() - 16 - 2);
+		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemHovered")
 		{
 			if (sit->callee == "ImGui::SetTooltip")
@@ -1108,8 +1156,9 @@ Widget::Properties()
 {
 	std::vector<UINode::Prop> props{
 		{ "visible", &visible },
-		{ "cursor", &cursor },
+		{ "font", &font },
 		{ "tooltip", &tooltip },
+		{ "cursor", &cursor },
 		{ "disabled", &disabled },
 	};
 	if (SnapBehavior() & SnapSides)
@@ -1127,7 +1176,7 @@ Widget::Properties()
 bool Widget::PropertyUI(int i, UIContext& ctx)
 {
 	int sat = (i & 1) ? 202 : 164;
-	if (i <= 3)
+	if (i <= 4)
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(sat, 255, sat, 255));
 	else
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
@@ -1144,10 +1193,18 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		BindingButton("visible", &visible, ctx);
 		break;
 	case 1:
-		ImGui::Text("cursor");
+		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Combo("##cursor", cursor.access(), "Arrow\0TextInput\0ResizeAll\0ResizeNS\0ResizeEW\0ResizeNESW\0ResizeNWSE\0Hand\0NotAllowed\0\0");
+		if (ImGui::BeginCombo("##font", font.c_str()))
+		{
+			for (const auto& f : ctx.fontMap)
+			{
+				if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == font.c_str()))
+					font = f.first;
+			}
+			ImGui::EndCombo();
+		}
 		break;
 	case 2:
 		ImGui::Text("tooltip");
@@ -1158,6 +1215,12 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		BindingButton("tooltip", &tooltip, ctx);
 		break;
 	case 3:
+		ImGui::Text("cursor");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Combo("##cursor", cursor.access(), "Arrow\0TextInput\0ResizeAll\0ResizeNS\0ResizeEW\0ResizeNESW\0ResizeNWSE\0Hand\0NotAllowed\0\0");
+		break;
+	case 4:
 		ImGui::Text("disabled");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1165,7 +1228,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("disabled", &disabled, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::BeginDisabled(sameLine);
 		ImGui::Text("indent");
 		ImGui::TableNextColumn();
@@ -1178,7 +1241,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 5:
+	case 6:
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1189,7 +1252,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 			spacing = 0;
 		}
 		break;
-	case 6:
+	case 7:
 		ImGui::BeginDisabled(nextColumn);
 		ImGui::Text("sameLine");
 		ImGui::TableNextColumn();
@@ -1200,17 +1263,17 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("beginGroup");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##beginGroup", beginGroup.access());
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("endGroup");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##endGroup", endGroup.access());
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("nextColumn");
 		ImGui::TableNextColumn();
 		if (ImGui::Checkbox("##nextColumn", nextColumn.access())) {
@@ -1417,10 +1480,6 @@ Text::Text(UIContext& ctx)
 
 void Text::DoDraw(UIContext& ctx)
 {
-	//ImGui::GetIO().Fonts->AddFontFromFileTTF("font.ttf", size_pixels);
-	//PushFont
-	//PopFont
-
 	std::optional<color32> clr;
 	if (grayed)
 		clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -4781,6 +4840,7 @@ void TabItem::DrawExtra(UIContext& ctx)
 
 	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+	ImGui::PushFont(ctx.fontMap[""]);
 	assert(ctx.parents.back() == this);
 	auto* parent = ctx.parents[ctx.parents.size() - 2];
 	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
@@ -4815,6 +4875,7 @@ void TabItem::DrawExtra(UIContext& ctx)
 
 	ImGui::End();
 	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
+	ImGui::PopFont();
 }
 
 void TabItem::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -5049,7 +5110,8 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	//no WindowFlags_StayOnTop
 	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-	
+	ImGui::PushFont(ctx.fontMap[""]);
+
 	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 	const ImVec2 bsize{ 30, 30 };
 	ImVec2 pos = cached_pos;
@@ -5094,6 +5156,7 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	ImGui::EndDisabled();
 
 	ImGui::End();
+	ImGui::PopFont();
 	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
 }
 

@@ -25,6 +25,9 @@ struct UIContext
 	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
 	ImVec2 wpos;
 	std::string fname;
+	enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
+	std::array<ImU32, Color::COUNT> colors;
+	std::map<std::string, ImFont*> fontMap;
 
 	//snap result
 	UINode* snapParent = nullptr;
@@ -102,6 +105,7 @@ struct Widget : UINode
 	direct_val<int> spacing = 0;
 	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
+	direct_val<std::string> font = "";
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
 	event<> onItemHovered;
@@ -517,6 +521,7 @@ struct TopWindow : UINode
 	bindable<std::string> title = "title";
 	float size_x = 640;
 	float size_y = 480;
+	std::string font = "";
 	std::optional<ImVec2> stylePading;
 	std::optional<ImVec2> styleSpacing;
 

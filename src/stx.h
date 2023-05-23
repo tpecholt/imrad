@@ -42,6 +42,12 @@ namespace stx {
 	}
 
 	template <class C, class T>
+	decltype(auto) fill(C& c, const T& val)
+	{
+		return std::fill(std::begin(c), std::end(c), val);
+	}
+
+	template <class C, class T>
 	decltype(auto) replace(C& c, const T& oldv, const T& newv)
 	{
 		return std::replace(std::begin(c), std::end(c), oldv, newv);

@@ -62,7 +62,10 @@ std::vector<File> fileTabs;
 int activeTab = -1;
 ImGuiID dock_id_top, dock_id_right, dock_id_right2;
 bool pgFocused;
-int styleIdx = 0;
+int styleIdx;
+std::vector<std::pair<std::string, std::string>> styleNames; //name, path
+bool reloadStyle = true;
+ImGuiStyle style; 
 GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
 std::string activeButton = "";
@@ -445,6 +448,125 @@ void StyleColors()
 			}
 		}
 	}
+
+	//ImRad::SaveStyle("style/debug.ini");
+}
+
+void GetStyles()
+{
+	styleNames = { 
+		{ "Classic", "" }, 
+		{ "Light", "" }, 
+		{ "Dark", "" } 
+	};
+	styleIdx = 2;
+
+	for (fs::directory_iterator it("style/"); it != fs::directory_iterator(); ++it)
+	{
+		if (it->path().extension() != ".ini")
+			continue;
+		styleNames.push_back({ it->path().stem().string(), it->path().string() });
+	}
+}
+
+void LoadStyle()
+{
+	if (!reloadStyle)
+		return;
+	
+	reloadStyle = false;
+	auto& io = ImGui::GetIO();
+	io.Fonts->Clear();
+	
+	//reload ImRAD UI first
+	StyleColors();
+	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 20.0f);
+	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+	ImFontConfig icons_config;
+	icons_config.MergeMode = true;
+	//icons_config.PixelSnapH = true;
+	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &icons_config, icons_ranges);
+
+	ctx.fontMap.clear();
+	stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
+	auto& s = styleNames[styleIdx];
+	if (s.first == "Classic")
+	{
+		ImGui::StyleColorsClassic(&style);
+		ctx.fontMap[""] = ImGui::GetDefaultFont();
+		ctx.colors = {
+			IM_COL32(255, 255, 0, 128),
+			IM_COL32(255, 0, 0, 255),
+			IM_COL32(128, 128, 255, 255),
+			IM_COL32(255, 0, 255, 255),
+			IM_COL32(0, 255, 255, 255),
+			IM_COL32(0, 255, 0, 255),
+		};
+	}
+	else if (s.first == "Light")
+	{	
+		ImGui::StyleColorsLight(&style);
+		ctx.fontMap[""] = ImGui::GetDefaultFont();
+		ctx.colors = {
+			IM_COL32(255, 0, 0, 255),
+			IM_COL32(255, 0, 0, 255),
+			IM_COL32(128, 128, 255, 255),
+			IM_COL32(255, 0, 255, 255),
+			IM_COL32(0, 128, 128, 255),
+			IM_COL32(0, 255, 0, 255),
+		};
+	}
+	else if (s.first == "Dark")
+	{
+		ImGui::StyleColorsDark(&style);
+		ctx.fontMap[""] = ImGui::GetDefaultFont();
+		ctx.colors = {
+			IM_COL32(255, 255, 0, 128),
+			IM_COL32(255, 0, 0, 255),
+			IM_COL32(128, 128, 255, 255),
+			IM_COL32(255, 0, 255, 255),
+			IM_COL32(0, 255, 255, 255),
+			IM_COL32(0, 255, 0, 255),
+		};
+	}
+	else
+	{
+		std::map<std::string, std::string> extra;
+		try {
+			ImRad::LoadStyle(s.second, style, ctx.fontMap, &extra);
+		}
+		catch (std::exception& e)
+		{
+			messageBox.title = "Error";
+			messageBox.message = e.what();
+			messageBox.buttons = ImRad::Ok;
+			messageBox.OpenPopup();
+			return;
+		}
+		for (const auto& ex : extra) {
+			if (ex.first.compare(0, 13, "imrad.colors."))
+				continue;
+			std::istringstream is(ex.second);
+			int r, g, b, a;
+			is >> r >> g >> b >> a;
+			auto clr = IM_COL32(r, g, b, a);
+			std::string key = ex.first.substr(13);
+
+#define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
+			SET_CLR(Selected);
+			SET_CLR(Hovered);
+			SET_CLR(Snap1);
+			SET_CLR(Snap2);
+			SET_CLR(Snap3);
+			SET_CLR(Snap4);
+			SET_CLR(Snap5);
+#undef SET_CLR
+		}
+	}
+
+	ImGui_ImplOpenGL3_DestroyFontsTexture();
+	ImGui_ImplOpenGL3_CreateFontsTexture();
 }
 
 void DockspaceUI()
@@ -561,7 +683,20 @@ void ToolbarUI()
 	ImGui::Text("Theme:");
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(100);
-	ImGui::Combo("##style", &styleIdx, "Dark\0Light\0Classic\0\0");
+	if (ImGui::BeginCombo("##style", styleNames[styleIdx].first.c_str()))
+	{
+		for (size_t i = 0; i < styleNames.size(); ++i)
+		{
+			if (ImGui::Selectable(styleNames[i].first.c_str(), i == styleIdx))
+			{
+				styleIdx = (int)i;
+				reloadStyle = true;
+			}
+			if (i == 2 && i + 1 < styleNames.size())
+				ImGui::Separator();
+		}
+		ImGui::EndCombo();
+	}
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	
@@ -681,7 +816,8 @@ void TabsUI()
 				//const auto* viewport = ImGui::GetMainViewport();
 				//ctx.wpos = viewport->GetCenter() + ImVec2(min.x, max.y) / 2;
 			}
-			if (!notClosed)
+			if (!notClosed ||
+				(i == activeTab && ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))
 			{
 				ActivateTab(i);
 				CloseFile();
@@ -838,20 +974,18 @@ void PopupUI()
 
 void Draw()
 {
-	if (activeTab >= 0 && fileTabs[activeTab].rootNode)
-	{
-		auto tmpStyle = ImGui::GetStyle();
-		switch (styleIdx) {
-			case 0: ImGui::StyleColorsDark(); break;
-			case 1: ImGui::StyleColorsLight(); break;
-			case 2: ImGui::StyleColorsClassic(); break;
-		}
-		ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
+	if (activeTab < 0 || !fileTabs[activeTab].rootNode)
+		return;
 
-		fileTabs[activeTab].rootNode->Draw(ctx);
+	auto tmpStyle = ImGui::GetStyle();
+	ImGui::GetStyle() = style;
+	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
+	ImGui::PushFont(ctx.fontMap[""]);
+
+	fileTabs[activeTab].rootNode->Draw(ctx);
 	
-		ImGui::GetStyle() = tmpStyle;
-	}
+	ImGui::PopFont();
+	ImGui::GetStyle() = tmpStyle;
 }
 
 std::pair<UINode*, size_t>
@@ -1010,11 +1144,6 @@ int main(int argc, const char* argv[])
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-	// Setup Dear ImGui style
-	//ImGui::StyleColorsDark();
-	//ImGui::StyleColorsLight();
-	StyleColors();
-
 	// Setup Platform/Renderer backends
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
@@ -1026,27 +1155,11 @@ int main(int argc, const char* argv[])
 	// - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
 	// - Read 'docs/FONTS.md' for more instructions and details.
 	// - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-	//io.Fonts->AddFontDefault();
-	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f);
-	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-	ImFontConfig icons_config; 
-	icons_config.MergeMode = true; 
-	icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f, &icons_config, icons_ranges);
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f, &icons_config, icons_ranges);
-	//icons_ranges[0] = ICON_MIN_FA; icons_ranges[1] = ICON_MAX_16_FA;
-	//io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 20.0f, &icons_config, icons_ranges);
-	ImFont* fontBig = io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 32.0f);
-
-	//io.Fonts->AddFontFromFileTTF("misc/fonts/Cousine-Regular.ttf", 15.0f);
-	//io.Fonts->AddFontFromFileTTF("misc/fonts/DroidSans.ttf", 16.0f);
-	//io.Fonts->AddFontFromFileTTF("misc/fonts/ProggyTiny.ttf", 10.0f);
-	//ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-	//IM_ASSERT(font != NULL);
-
+	
 	// Our state
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+	GetStyles();
 	NewFile(TopWindow::Window);
 
 	firstTime = true;
@@ -1064,6 +1177,9 @@ int main(int argc, const char* argv[])
 			break;
 #endif
 		}
+
+		//font loading must be called before NewFrame
+		LoadStyle();
 
 		// Poll and handle events (inputs, window resize, etc.)
 		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.

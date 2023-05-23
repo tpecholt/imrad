@@ -34,3 +34,7 @@ install(
     DIRECTORY "template" 
     DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
+install(
+    DIRECTORY "style" 
+    DESTINATION ${CMAKE_INSTALL_PREFIX}
+)

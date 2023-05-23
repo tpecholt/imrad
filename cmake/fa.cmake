@@ -9,4 +9,4 @@ INTERFACE
 install(FILES 
 	"${FA_INCLUDE_DIR}/fa-solid-900.ttf"
 	"${FA_INCLUDE_DIR}/fa-regular-400.ttf"
-	DESTINATION ".")
+	DESTINATION "style")
