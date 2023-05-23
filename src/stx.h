@@ -53,6 +53,12 @@ namespace stx {
 		return std::replace(std::begin(c), std::end(c), oldv, newv);
 	}
 
+	template <class C>
+	decltype(auto) unique(C& c)
+	{
+		return std::unique(std::begin(c), std::begin(c));
+	}
+
 	template <class C, class F>
 	decltype(auto) erase_if(C& c, F&& fun)
 	{

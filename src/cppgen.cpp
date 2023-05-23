@@ -922,7 +922,7 @@ std::string DefaultInitFor(const std::string& stype)
 
 //accepts patterns recognized by CheckVarExpr
 //corrects [xyz]
-bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const std::string& scope1)
+bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const std::string& init, const std::string& scope1)
 {
 	std::string type = DecorateType(type_);
 	auto SingularUpperForm = [](const std::string& id) {
@@ -976,8 +976,8 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 			}
 			else if (!array) {
 				bool fun = !stype.compare(0, 5, "void(");
-				std::string init = DefaultInitFor(stype); //initialize scalar variables
-				if (!CreateNamedVar(id, stype, init, fun ? Var::Impl : Var::Interface, scope))
+				std::string ninit = init.size() ? init : DefaultInitFor(stype); //initialize scalar variables
+				if (!CreateNamedVar(id, stype, ninit, fun ? Var::Impl : Var::Interface, scope))
 					return false;
 				if (!stype.compare(0, 12, "std::vector<")) {
 					std::string etype = stype.substr(12, stype.size() - 12 - 1);
@@ -986,7 +986,7 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 				}
 			}
 			else {
-				if (!CreateNamedVar(id, "std::vector<" + stype + ">", "", Var::Interface, scope))
+				if (!CreateNamedVar(id, "std::vector<" + stype + ">", init, Var::Interface, scope))
 					return false;
 				m_fields[stype];
 			}

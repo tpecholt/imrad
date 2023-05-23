@@ -105,7 +105,7 @@ inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, U
 
 inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& ctx)
 {
-	static const std::array<std::pair<const char*, color32>, 9> COLORS{ {
+	static const std::array<std::pair<const char*, color32>, 10> COLORS{ {
 		{ "red", IM_COL32(255, 77, 77, 255) },
 		{ "green", IM_COL32(40, 167, 69, 255) },
 		{ "blue", IM_COL32(24, 144, 255, 255) },
@@ -115,6 +115,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 		{ "orange", IM_COL32(250, 128, 68, 255) },
 		{ "dark", IM_COL32(52, 58, 64, 255) },
 		{ "light", IM_COL32(108, 117, 125, 255) },
+		{ "white", IM_COL32(255, 255, 255, 255) },
 	} };
 
 	bool changed = false;

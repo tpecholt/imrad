@@ -10,8 +10,8 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 //must come last:
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+//#define STB_IMAGE_IMPLEMENTATION
+//#include <stb_image.h>
 
 static void glfw_error_callback(int error, const char* description)
 {

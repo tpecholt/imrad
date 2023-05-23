@@ -35,7 +35,7 @@ public:
 
 	std::string CreateVar(const std::string& type, const std::string& init, int flags, const std::string& scope = "");
 	bool CreateNamedVar(const std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope = "");
-	bool RenameVar(const std::string& oldn, const std::string& newn,const std::string& scope = "");
+	bool RenameVar(const std::string& oldn, const std::string& newn, const std::string& scope = "");
 	bool RemoveVar(const std::string& name, const std::string& scope = "");
 	bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
 	const Var* GetVar(const std::string& name, const std::string& scope = "") const;
@@ -43,7 +43,7 @@ public:
 	std::vector<std::string> GetStructTypes();
 	enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
 	VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");
-	bool CreateVarExpr(std::string& name, const std::string& type, const std::string& scope = "");
+	bool CreateVarExpr(std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
 	std::vector<std::pair<std::string, std::string>> GetVarExprs(const std::string& type);
 
 private:

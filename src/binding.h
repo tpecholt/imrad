@@ -87,9 +87,39 @@ struct property_base
 {
 	virtual std::string to_arg() const = 0;
 	virtual void set_from_arg(std::string_view s) = 0;
+	virtual const char* c_str() const = 0;
 	virtual std::vector<std::string> used_variables() const = 0;
 	virtual void rename_variable(const std::string& oldn, const std::string& newn) = 0;
-	virtual const char* c_str() const = 0;
+};
+
+struct parent_property : property_base
+{
+	std::vector<property_base*> props;
+	
+	parent_property(std::initializer_list<property_base*> li)
+		: props(li)
+	{}
+
+	std::string to_arg() const { return ""; }
+	void set_from_arg(std::string_view) {}
+	const char* c_str() const { return nullptr; }
+
+	std::vector<std::string> used_variables() const 
+	{
+		std::vector<std::string> used;
+		for (auto* prop : props) {
+			auto vars = prop->used_variables();
+			used.insert(used.end(), vars.begin(), vars.end());
+		}
+		stx::sort(used);
+		used.erase(stx::unique(used), used.end());
+		return used;
+	}
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{
+		for (auto* prop : props)
+			prop->rename_variable(oldn, newn);
+	}
 };
 
 //member variable expression like id, id.member, id[0], id.size()
@@ -247,7 +277,7 @@ struct direct_val<std::string> : property_base
 	{}
 	std::string* access() { return &val; }
 	const char* c_str() const { return val.c_str(); }
-	bool empty() const { return val.empty(); }
+	bool empty() const { return false; }
 	bool operator== (const std::string& dv) const {
 		return val == dv;
 	}
@@ -256,6 +286,38 @@ struct direct_val<std::string> : property_base
 	}
 private:
 	std::string val;
+};
+
+template <>
+struct direct_val<ImVec2> : property_base
+{
+	direct_val(const ImVec2& v) : val(v) {}
+	
+	operator ImVec2&() { return val; }
+	operator const ImVec2&() const { return val; }
+	void set_from_arg(std::string_view s) {
+		val = cpp::parse_fsize(std::string(s));
+	}
+	std::string to_arg() const {
+		std::ostringstream os;
+		os << "{ " << val[0] << ", " << val[1] << " }";
+		return os.str();
+	}
+	std::vector<std::string> used_variables() const {
+		return {};
+	}
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{}
+	ImVec2* access() { return &val; }
+	const char* c_str() const { return nullptr; }
+	bool operator== (const ImVec2& dv) const {
+		return val[0] == dv[0] && val[1] == dv[1];
+	}
+	bool operator!= (const ImVec2& dv) const {
+		return !(*this == dv);
+	}
+private:
+	ImVec2 val;
 };
 
 #define add$(f) add(#f, f)

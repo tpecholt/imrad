@@ -195,9 +195,11 @@ struct Button : Widget
 	direct_val<bool> small = false;
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
-	bindable<color32> color;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
+	bindable<color32> style_color;
+	direct_val<float> style_rounding = 0;
+	parent_property style{ &style_color, &style_rounding };
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -375,12 +377,16 @@ struct Table : Widget
 		ColumnData();
 	};
 	flags_helper flags = ImGuiTableFlags_Borders;
-	direct_val<bool> style_padding = true;
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
 	field_ref<size_t> rowCount;
+	direct_val<bool> style_padding = true;
+	bindable<color32> style_headerBg;
+	bindable<color32> style_rowBg;
+	bindable<color32> style_rowBgAlt;
+	parent_property style;
 
 	Table(UIContext&);
 	int SnapBehavior() { return SnapSides | SnapInterior; }
@@ -397,12 +403,13 @@ struct Child : Widget
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;
 	direct_val<bool> border = false;
-	direct_val<bool> style_padding = true;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
 	std::vector<bindable<float>> columnsWidths{ 0.f };
 	field_ref<size_t> data_size;
-	bindable<color32> styleBg;
+	direct_val<bool> style_padding = true;
+	bindable<color32> style_bg;
+	parent_property style{ &style_bg, &style_padding };
 
 	Child(UIContext& ctx);
 	int SnapBehavior() { return SnapSides | SnapInterior; }

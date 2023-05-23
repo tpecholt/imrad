@@ -19,8 +19,16 @@ void NewFieldPopup::OpenPopup(std::function<void()> clb)
 	if (varTypeArray)
 		varType = "std::vector<>";
 	varName = "";
-	hint = "syntax error";
-	clr = IM_COL32(255, 0, 0, 255);
+	varInit = "";
+	if (mode == RenameField) {
+		varName = varOldName;
+		auto* var = codeGen->GetVar(varOldName);
+		if (var) {
+			varInit = var->init;
+			varType = var->type;
+		}
+	}
+	CheckVarName();
 }
 
 void NewFieldPopup::ClosePopup()
@@ -76,6 +84,14 @@ void NewFieldPopup::Draw()
 		if (ImGui::InputText("##varName", &varName, ImGuiInputTextFlags_CharsNoBlank))
 			change = true;
 
+		if (mode == NewField || mode == RenameField)
+		{
+			ImGui::Spacing();
+			ImGui::Text("Initial value:");
+			if (ImGui::InputText("##init", &varInit))
+				change = true;
+		}
+
 		if (change)
 		{
 			if (varTypeArray && varName != "") {
@@ -94,9 +110,10 @@ void NewFieldPopup::Draw()
 
 		ImGui::Spacing();
 
+		ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 2 * 100));
 		ImGui::BeginDisabled(hint != "");
 		if (ImGui::Button("OK", { 100, 0 }) ||
-			(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
+			(hint == "" && ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
 		{
 			CheckVarName();
 			
@@ -117,13 +134,15 @@ void NewFieldPopup::Draw()
 						});
 				}
 				else if (ret == CppGen::New) {
-					codeGen->CreateVarExpr(varName, type, scope);
+					codeGen->CreateVarExpr(varName, type, varInit, scope);
 					ClosePopup();
 					callback();
 				}
 			}
 			else if (mode == RenameField)
 			{
+				assert(varType != "");
+				codeGen->ChangeVar(varOldName, varType, varInit, scope);
 				codeGen->RenameVar(varOldName, varName, scope);
 				ClosePopup();
 				callback();
@@ -158,6 +177,17 @@ void NewFieldPopup::CheckVarName()
 	{
 		if (!cpp::is_id(varName)) {
 			hint = "expected simple id";
+			clr = IM_COL32(255, 0, 0, 255);
+		}
+	}
+	else if (mode == RenameField)
+	{
+		if (!cpp::is_id(varName)) {
+			hint = "expected simple id";
+			clr = IM_COL32(255, 0, 0, 255);
+		}
+		else if (varName != varOldName && codeGen->CheckVarExpr(varName, varType, scope) != CppGen::New) {
+			hint = "same field already exists";
 			clr = IM_COL32(255, 0, 0, 255);
 		}
 	}

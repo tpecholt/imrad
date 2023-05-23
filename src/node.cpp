@@ -42,6 +42,28 @@ void UIContext::ind_down()
 		ind.resize(ind.size() - codeGen->INDENT.size());
 }
 
+template <class F>
+void TreeNodeProp(const char* name, bool pack, F&& f)
+{
+	ImVec2 pad = ImGui::GetStyle().FramePadding;
+	ImGui::Unindent();
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
+	if (ImGui::TreeNode(name)) {
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+		if (pack)
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 });
+		f();
+		if (pack)
+			ImGui::PopStyleVar();
+		ImGui::TreePop();
+		ImGui::Unindent();
+	}
+	else
+		ImGui::PopStyleVar();
+	ImGui::Indent();
+}
+
 //----------------------------------------------------
 
 void UINode::DrawSnap(UIContext& ctx)
@@ -626,10 +648,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	case 1:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
+		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
+			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
 			bool flagsMB = flags & ImGuiWindowFlags_MenuBar;
@@ -637,11 +658,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 				children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
 			else if (!flagsMB && hasMB)
 				children.erase(children.begin());
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
+			});
 		break;
 	case 2:
 		ImGui::Text("title");
@@ -1805,16 +1822,11 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
+		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
+			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::PopStyleVar();
-		ImGui::Spacing();
-		ImGui::Indent();
+			});
 		break;
 	case 1:
 		ImGui::Text("label");
@@ -1941,9 +1953,12 @@ Button::Button(UIContext& ctx)
 
 void Button::DoDraw(UIContext& ctx)
 {
-	if (color.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Button, color.value());
-	
+	if (style_rounding)
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding);
+
+	if (style_color.has_value())
+		ImGui::PushStyleColor(ImGuiCol_Button, style_color.value());
+
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
 	else if (small)
@@ -1961,8 +1976,11 @@ void Button::DoDraw(UIContext& ctx)
 			//ImGui::SetItemDefaultFocus();
 	}
 	
-	if (color.has_value())
+	if (style_color.has_value())
 		ImGui::PopStyleColor();
+
+	if (style_rounding)
+		ImGui::PopStyleVar();
 }
 
 std::string CodeShortcut(const std::string& sh)
@@ -2053,8 +2071,10 @@ std::string ParseShortcut(const std::string& line)
 
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!color.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << color.to_arg() << ");\n";
+	if (style_rounding)
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg() << ");\n";
+	if (!style_color.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_color.to_arg() << ");\n";
 
 	bool closePopup = ctx.inPopup && modalResult != ImRad::None;
 	os << ctx.ind;
@@ -2105,8 +2125,10 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ";\n";
 	}
 
-	if (!color.empty())
+	if (!style_color.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (style_rounding)
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
 void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -2114,9 +2136,14 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Button")
-			color.set_from_arg(sit->params[1]);
+			style_color.set_from_arg(sit->params[1]);
 	}
-	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) && 
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
+	{
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
+			style_rounding.set_from_arg(sit->params[1]);
+	}
+	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::Button")
 	{
 		ctx.importLevel = sit->level;
@@ -2161,11 +2188,11 @@ Button::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "button.style", &style },
 		{ "button.arrowDir", &arrowDir },
 		{ "label", &label, true },
-		{ "button.modalResult", &modalResult },
 		{ "shortcut", &shortcut },
-		{ "color", &color },
+		{ "button.modalResult", &modalResult },
 		{ "button.small", &small },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
@@ -2179,6 +2206,24 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		TreeNodeProp("style", false, [&] {
+			ImGui::Text("color");
+			ImGui::Spacing();
+			ImGui::Text("rounding");
+
+			ImGui::TableNextColumn();
+			ImGui::Text("");
+
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##color", &style_color, ctx) || changed;
+			ImGui::SameLine(0, 0);
+			BindingButton("color", &style_color, ctx);
+
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = ImGui::InputFloat("##rounding", style_rounding.access(), 0, 0, "%.0f") || changed;
+			});
+		break;
+	case 1:
 	{
 		ImGui::Text("arrowDir");
 		ImGui::TableNextColumn();
@@ -2195,7 +2240,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	}
-	case 1:
+	case 2:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
@@ -2205,7 +2250,13 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 2:
+	case 3:
+		ImGui::Text("shortcut");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##shortcut", shortcut.access());
+		break;
+	case 4:
 	{
 		ImGui::BeginDisabled(!ctx.inPopup);
 		ImGui::Text("modalResult");
@@ -2227,20 +2278,6 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	}
-	case 3:
-		ImGui::Text("shortcut");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##shortcut", shortcut.access());
-		break;
-	case 4:
-		ImGui::Text("color");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &color, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("color", &color, ctx);
-		break;
 	case 5:
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
@@ -2803,16 +2840,11 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
+		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
+			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
+			});
 		break;
 	case 1:
 		ImGui::Text("label");
@@ -3505,16 +3537,11 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
+		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
+			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
+			});
 		break;
 	case 1:
 		ImGui::Text("label");
@@ -3893,6 +3920,7 @@ Table::ColumnData::ColumnData()
 }
 
 Table::Table(UIContext& ctx)
+: style{ &style_padding, &style_headerBg, &style_rowBg, &style_rowBgAlt }
 {
 	flags.prefix("ImGuiTableFlags_");
 	flags.add$(ImGuiTableFlags_Resizable);
@@ -3926,9 +3954,16 @@ Table::Table(UIContext& ctx)
 
 void Table::DoDraw(UIContext& ctx)
 {
-	int n = std::max(1, (int)columnData.size());
 	if (!style_padding)
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 });
+	if (style_headerBg.has_value())
+		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.value());
+	if (style_rowBg.has_value())
+		ImGui::PushStyleColor(ImGuiCol_TableRowBg, style_rowBg.value());
+	if (style_rowBgAlt.has_value())
+		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.value());
+
+	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ 0, 0 };
 	if (size_x.has_value())
 		size.x = size_x.value();
@@ -3954,8 +3989,15 @@ void Table::DoDraw(UIContext& ctx)
 
 		ImGui::EndTable();
 	}
+
 	if (!style_padding)
 		ImGui::PopStyleVar();
+	if (style_headerBg.has_value())
+		ImGui::PopStyleColor();
+	if (style_rowBg.has_value())
+		ImGui::PopStyleColor();
+	if (style_rowBgAlt.has_value())
+		ImGui::PopStyleColor();
 }
 
 std::vector<UINode::Prop>
@@ -3964,8 +4006,8 @@ Table::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "table.flags", &flags },
+		{ "table.style", &style },
 		{ "table.columns", nullptr },
-		{ "style_padding", &style_padding },
 		{ "table.header", &header },
 		{ "table.row_count", &rowCount },
 		{ "size_x", &size_x },
@@ -3980,19 +4022,39 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags"))
-		{
+		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
+			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
+			});
 		break;
 	case 1:
+		TreeNodeProp("style", false, [&] {
+			ImGui::Text("padding");
+			ImGui::Spacing();
+			ImGui::Text("headerBg");
+			ImGui::Spacing();
+			ImGui::Text("rowBg");
+			ImGui::Spacing();
+			ImGui::Text("rowBgAlt");
+			ImGui::Spacing();
+
+			ImGui::TableNextColumn();
+			ImGui::Text("");
+
+			changed = ImGui::Checkbox("##style_padding", style_padding.access()) || changed;
+			
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##headerbg", &style_headerBg, ctx) || changed;
+			
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##rowbg", &style_rowBg, ctx) || changed;
+			
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##rowbgalt", &style_rowBgAlt, ctx) || changed;
+			});
+		break;
+	case 2:
 	{
 		ImGui::Text("columns");
 		ImGui::TableNextColumn();
@@ -4016,11 +4078,6 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		}*/
 		break;
 	}
-	case 2:
-		ImGui::Text("style_padding");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##style_padding", style_padding.access());
-		break;
 	case 3:
 		ImGui::Text("header");
 		ImGui::TableNextColumn();
@@ -4181,8 +4238,8 @@ void Child::DoDraw(UIContext& ctx)
 {
 	if (!style_padding)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	if (styleBg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, styleBg.value());
+	if (style_bg.has_value())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
 
 	ImVec2 sz(0, 0);
 	if (size_x.has_value()) 
@@ -4236,7 +4293,7 @@ void Child::DoDraw(UIContext& ctx)
 		
 	ImGui::EndChild();
 
-	if (styleBg.has_value())
+	if (style_bg.has_value())
 		ImGui::PopStyleColor();
 	if (!style_padding)
 		ImGui::PopStyleVar();
@@ -4246,8 +4303,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!style_padding)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });\n";
-	if (!styleBg.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << styleBg.to_arg() << ");\n";
+	if (!style_bg.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 
 	os << ctx.ind << "ImGui::BeginChild(\"child" << (uint64_t)this << "\", "
 		<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " }, "
@@ -4290,7 +4347,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
-	if (!styleBg.empty())
+	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_padding)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -4301,7 +4358,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
 		if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_ChildBg")
-			styleBg.set_from_arg(sit->params[1]);
+			style_bg.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
@@ -4348,7 +4405,7 @@ Child::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style_color", &styleBg },
+		{ "child.style", &style },
 		{ "border", &border },
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
@@ -4365,12 +4422,20 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("style_color");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &styleBg, ctx);
-		ImGui::SameLine(0, 0);
-		BindingButton("style_color", &styleBg, ctx);
+		TreeNodeProp("style", false, [&]{
+			ImGui::Text("color");
+			ImGui::Spacing();
+			ImGui::Text("padding");
+			ImGui::TableNextColumn();
+			ImGui::Text("");
+
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##color", &style_bg, ctx) || changed;
+			ImGui::SameLine(0, 0);
+			BindingButton("color", &style_bg, ctx);
+
+			changed = ImGui::Checkbox("", style_padding.access()) || changed;
+		});
 		break;
 	case 1:
 		ImGui::Text("border");
@@ -4643,16 +4708,11 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
+		TreeNodeProp("flags", true, [&]{
 			ImGui::TableNextColumn();
-			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
+			ImGui::Spacing();
+			changed = CheckBoxFlags(&flags) || changed;
+			});
 		break;
 	case 1:
 		ImGui::Text("label");
@@ -4681,6 +4741,8 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 TabBar::TabBar(UIContext& ctx)
 {
 	flags.prefix("ImGuiTabBarFlags_");
+	flags.add$(ImGuiTabBarFlags_Reorderable);
+	flags.add$(ImGuiTabBarFlags_TabListPopupButton);
 	flags.add$(ImGuiTabBarFlags_NoTabListScrollingButtons);
 
 	if (!ctx.importState)
@@ -4784,16 +4846,11 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Unindent();
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
-		if (ImGui::TreeNode("flags")) {
+		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
+			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
-			ImGui::TreePop();
-		}
-		ImGui::Spacing();
-		ImGui::PopStyleVar();
-		ImGui::Indent();
+			});
 		break;
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
