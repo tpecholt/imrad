@@ -71,7 +71,7 @@ void BindingDlg::Draw()
 
             /// @begin Text
             ImGui::AlignTextToFramePadding();
-			ImGui::TextUnformatted("Available fields:");
+			ImGui::TextUnformatted(ImRad::Format("Available fields ({}):", type).c_str());
             /// @end Text
 
             /// @begin Child

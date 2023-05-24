@@ -60,7 +60,11 @@ void TreeNodeProp(const char* name, bool pack, F&& f)
 		ImGui::Unindent();
 	}
 	else
+	{
 		ImGui::PopStyleVar();
+		ImGui::TableNextColumn();
+		ImGui::TextDisabled("...");
+	}
 	ImGui::Indent();
 }
 
@@ -636,6 +640,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	{
 	case 0:
 	{
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(164, 164, 164, 255));
 		ImGui::Text("kind");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1179,14 +1184,16 @@ Widget::Properties()
 		{ "disabled", &disabled },
 	};
 	if (SnapBehavior() & SnapSides)
+	{
 		props.insert(props.end(), {
-			{ "indent", &indent },
-			{ "spacing", &spacing },
-			{ "sameLine", &sameLine },
-			{ "beginGroup", &beginGroup },
-			{ "endGroup", &endGroup },
-			{ "nextColumn", &nextColumn },
+		{ "indent", &indent },
+		{ "spacing", &spacing },
+		{ "sameLine", &sameLine },
+		{ "beginGroup", &beginGroup },
+		{ "endGroup", &endGroup },
+		{ "nextColumn", &nextColumn },
 			});
+	}
 	return props;
 }
 
@@ -1989,6 +1996,7 @@ std::string CodeShortcut(const std::string& sh)
 		return "";
 	size_t i = -1;
 	std::ostringstream os;
+	os << "!ImRad::IsItemDisabled()";
 	int count = 0;
 	while (true) 
 	{
@@ -2030,7 +2038,7 @@ std::string CodeShortcut(const std::string& sh)
 	std::string code;
 	if (count > 1)
 		code += "(";
-	code += os.str().substr(4);
+	code += os.str(); // .substr(4);
 	if (count > 1)
 		code += ")";
 	return code;
@@ -4010,6 +4018,7 @@ Table::Properties()
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
 		{ "table.row_count", &rowCount },
+		{ "table.row_filter", &rowFilter },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -4091,6 +4100,16 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##rowCount", &rowCount, true, ctx);
 		break;
 	case 5:
+		ImGui::BeginDisabled(rowCount.empty());
+		ImGui::Text("rowFilter");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputText("##rowFilter", rowFilter.access());
+		ImGui::SameLine(0, 0);
+		BindingButton("rowFilter", &rowFilter, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 6:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4098,7 +4117,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4107,7 +4126,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 7, ctx);
+		return Widget::PropertyUI(i - 8, ctx);
 	}
 	return changed;
 }
@@ -4142,6 +4161,14 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 			<< " < " << rowCount.to_arg() << "; ++" << FOR_VAR
 			<< ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
+
+		if (!rowFilter.empty())
+		{
+			os << ctx.ind << "if (!(" << rowFilter.to_arg() << "))\n";
+			ctx.ind_up();
+			os << ctx.ind << "continue;\n";
+			ctx.ind_down();
+		}
 		os << ctx.ind << "ImGui::TableNextRow();\n";
 		os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
 		os << ctx.ind << "ImGui::PushID((int)" << FOR_VAR << ");\n";
@@ -4225,6 +4252,11 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		if (!sit->cond.compare(0, FOR_VAR.size()+1, std::string(FOR_VAR) + "<")) //VS bug without std::string()
 			rowCount.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
+	}
+	else if (sit->kind == cpp::IfStmt && 
+		!sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
+	{
+		rowFilter.set_from_arg(sit->cond.substr(2, sit->cond.size() - 3));
 	}
 }
 

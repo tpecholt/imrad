@@ -382,6 +382,7 @@ struct Table : Widget
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
 	field_ref<size_t> rowCount;
+	bindable<bool> rowFilter;
 	direct_val<bool> style_padding = true;
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;

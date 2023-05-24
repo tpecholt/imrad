@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <sstream> 
 #include <map>
-#include <imgui_internal.h> //for NextIemData
+#include <imgui_internal.h> //for CurrentItemFlags
 #include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
 
 #ifdef IMRAD_WITH_FMT
@@ -73,6 +73,11 @@ inline bool Combo(const char* label, int* curr, const std::vector<std::string>& 
 	for (size_t i = 0; i < items.size(); ++i)
 		citems[i] = items[i].c_str();
 	return ImGui::Combo(label, curr, citems.data(), (int)citems.size(), maxh);
+}
+
+inline bool IsItemDisabled()
+{
+	return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;
 }
 
 //this is a poor man Format and should be implemented using c++20 format or fmt library

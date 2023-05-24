@@ -395,6 +395,10 @@ namespace cpp
 			}
 
 			callee = stx::join(tokens.begin() + i, tokens.begin() + b, "");
+			if (callee.empty())
+				return false;
+			if (!std::isalnum(callee.back()) && callee.back() != '_')
+				return false; //not a call expr
 			//params
 			params.clear();
 			++b;
