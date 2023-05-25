@@ -171,6 +171,7 @@ struct Selectable : Widget
 	flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
 	direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
 	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
+	direct_val<bool> alignToFrame = false;
 	field_ref<bool> fieldName;
 	bindable<float> size_x = 0;
 	bindable<float> size_y = 0;

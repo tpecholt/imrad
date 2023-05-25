@@ -277,7 +277,7 @@ struct direct_val<std::string> : property_base
 	{}
 	std::string* access() { return &val; }
 	const char* c_str() const { return val.c_str(); }
-	bool empty() const { return false; }
+	bool empty() const { return val.empty(); }
 	bool operator== (const std::string& dv) const {
 		return val == dv;
 	}

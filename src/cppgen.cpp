@@ -182,7 +182,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 					out << INDENT << "void Close();\n";
 				}
 
-				out << INDENT << "void Draw();\n";
+				out << INDENT << "void Draw();\n\n";
 
 				//write fields
 				for (const auto& scope : m_fields)

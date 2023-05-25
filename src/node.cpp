@@ -298,14 +298,17 @@ void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 TopWindow::TopWindow(UIContext& ctx)
 {
 	flags.prefix("ImGuiWindowFlags_");
+	flags.add$(ImGuiWindowFlags_NoTitleBar);
+	flags.add$(ImGuiWindowFlags_NoResize);
+	flags.add$(ImGuiWindowFlags_NoMove);
+	flags.add$(ImGuiWindowFlags_NoCollapse);
 	flags.add$(ImGuiWindowFlags_AlwaysAutoResize);
+	flags.add$(ImGuiWindowFlags_NoBackground);
+	flags.add$(ImGuiWindowFlags_NoSavedSettings);
+	flags.add$(ImGuiWindowFlags_MenuBar);
 	flags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 	flags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
-	flags.add$(ImGuiWindowFlags_MenuBar);
-	flags.add$(ImGuiWindowFlags_NoCollapse);
 	flags.add$(ImGuiWindowFlags_NoDocking);
-	flags.add$(ImGuiWindowFlags_NoResize);
-	flags.add$(ImGuiWindowFlags_NoTitleBar);
 }
 
 void TopWindow::Draw(UIContext& ctx)
@@ -427,7 +430,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	if ((flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
 	{
 		os << ctx.ind << "ImGui::SetNextWindowSize({ " << size_x << ", " << size_y << " }"
-			<< ", ImGuiCond_Appearing);\n";
+			<< ", ImGuiCond_FirstUseEver);\n";
 	}
 
 	if (ctx.inPopup)
@@ -1608,7 +1611,7 @@ Text::Properties()
 		{ "text", &text, true },
 		{ "text.grayed", &grayed },
 		{ "color", &color },
-		{ "text.alignToFramePadding", &alignToFrame },
+		{ "alignToFramePadding", &alignToFrame },
 		{ "text.wrap", &wrap },
 	});
 	return props;
@@ -1696,6 +1699,9 @@ void Selectable::DoDraw(UIContext& ctx)
 		alignment.y = 1.f;
 	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, alignment);
 
+	if (alignToFrame)
+		ImGui::AlignTextToFramePadding();
+
 	ImVec2 size(0, 0);
 	if (size_x.has_value())
 		size.x = size_x.value();
@@ -1731,6 +1737,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 		<< ", "
 		<< (vertAlignment == ImRad::AlignTop ? "0" : vertAlignment == ImRad::AlignVCenter ? "0.5f" : "1.f")
 		<< " });\n";
+
+	if (alignToFrame)
+		os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -1804,6 +1813,10 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				vertAlignment = ImRad::AlignBottom;
 		}
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::AlignTextToFramePadding")
+	{
+		alignToFrame = true;
+	}
 }
 
 std::vector<UINode::Prop>
@@ -1816,6 +1829,7 @@ Selectable::Properties()
 		{ "color", &color },
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
+		{ "alignToFrame", &alignToFrame },
 		{ "selectable.fieldName", &fieldName },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }
@@ -1882,13 +1896,18 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 5:
+		ImGui::Text("alignToFramePadding");
+		ImGui::TableNextColumn();
+		changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
+		break;
+	case 6:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, true, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1896,7 +1915,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1905,7 +1924,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 8, ctx);
+		return Widget::PropertyUI(i - 9, ctx);
 	}
 	return changed;
 }
@@ -2588,6 +2607,7 @@ void Input::DoDraw(UIContext& ctx)
 	int itmp[4] = {};
 	double dtmp[4] = {};
 	std::string stmp;
+	static ImGuiTextFilter filter;
 
 	std::string id = label;
 	if (id.empty())
@@ -2609,6 +2629,16 @@ void Input::DoDraw(UIContext& ctx)
 			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
 		else
 			ImGui::InputText(id.c_str(), &stmp, flags);
+	}
+	else if (type == "ImGuiTextFilter")
+	{
+		if (size_x.has_value())
+			ImGui::SetNextItemWidth(size_x.value());
+		if (hint != "")
+			//filter.DrawWithHint(id.c_str(), hint.c_str());
+			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp);
+		else
+			filter.Draw(id.c_str());
 	}
 	else
 	{
@@ -2633,7 +2663,6 @@ void Input::DoDraw(UIContext& ctx)
 		else if (type == "double")
 			ImGui::InputDouble(id.c_str(), dtmp, step, 0, format.c_str());
 	}
-	
 }
 
 void Input::DoExport(std::ostream& os, UIContext& ctx)
@@ -2646,7 +2675,8 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 	}
 
-	os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+	if (!(flags & ImGuiInputTextFlags_Multiline))
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
 	
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -2692,13 +2722,21 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 			<< ", { " << size_x.to_arg() << ", " << size_y.to_arg() << " }, "
 			<< flags.to_arg() << ")";
 	}
-	else
+	else if (type == "std::string")
 	{
 		if (hint != "")
 			os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
 		else
 			os << "ImGui::InputText(" << id << ", ";
 		os << "&" << fieldName.to_arg() << ", " << flags.to_arg() << ")";
+	}
+	else if (type == "ImGuiTextFilter")
+	{
+		os << fieldName.to_arg(); ;
+		if (hint != "") //relies on https://github.com/ocornut/imgui/issues/6395
+			os << ".DrawWithHint(" << id << ", " << hint.to_arg() << ")";
+		else
+			os << ".Draw(" << id << ")";
 	}
 
 	if (!onChange.empty()) {
@@ -2749,14 +2787,24 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		type = "std::string";
 
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+		
 		size_t ex = 0;
 		if (sit->callee == "ImGui::InputTextWithHint" || sit->cond == "ImGui::InputTextWithHint") {
 			hint = cpp::parse_str_arg(sit->params[1]);
 			++ex;
 		}
 
-		if (sit->params.size() > 1 + ex && !sit->params[1 + ex].compare(0, 1, "&"))
+		if (sit->params.size() > 1 + ex && !sit->params[1 + ex].compare(0, 1, "&")) {
 			fieldName.set_from_arg(sit->params[1 + ex].substr(1));
+			std::string fn = fieldName.c_str();
+			if (!ctx.codeGen->GetVar(fn))
+				ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
+		}
 
 		if (sit->params.size() > 2 + ex)
 			flags.set_from_arg(sit->params[2 + ex]);
@@ -2774,8 +2822,18 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		
 		type.access()->front() = std::tolower(std::string(type)[0]);
 
-		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+
+		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
 			fieldName.set_from_arg(sit->params[1].substr(1));
+			std::string fn = fieldName.c_str();
+			if (!ctx.codeGen->GetVar(fn))
+				ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
+		}
 
 		if (type == "int") 
 		{
@@ -2798,11 +2856,30 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee);
 	}
+	else if (sit->kind == cpp::CallExpr && 
+		(!sit->callee.compare(sit->callee.size() - 5, 5, ".Draw") ||
+		!sit->callee.compare(sit->callee.size() - 13, 13, ".DrawWithHint")))
+	{
+		type = "ImGuiTextFilter";
+		size_t i = sit->callee.rfind('.');
+		fieldName.set_from_arg(sit->callee.substr(0, i));
+		std::string fn = fieldName.c_str();
+		if (!ctx.codeGen->GetVar(fn))
+			ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
+
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+
+		if (sit->params.size() >= 2)
+			hint.set_from_arg(sit->params[1]);
+	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
 	{
-		if (sit->params.size()) {
+		if (sit->params.size()) 
 			size_x.set_from_arg(sit->params[0]);
-		}
 	}
 	else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::SetKeyboardFocusHere")
 	{
@@ -2833,6 +2910,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 {
 	static const char* TYPES[] {
 		"std::string",
+		"ImGuiTextFilter",
 		"int",
 		"int2",
 		"int3",
@@ -2885,7 +2963,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
 	case 4:
-		ImGui::BeginDisabled(type != "std::string");
+		ImGui::BeginDisabled(type != "std::string" && type != "ImGuiTextFilter");
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
