@@ -149,6 +149,40 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 		ImGui::EndCombo();
 	}
 
+	/*ImVec4 color{ 0, 0, 0, 255 };
+	if (clr)
+		color = ImGui::ColorConvertU32ToFloat4(*clr);
+	ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+	if (ImGui::ColorButton(label, color, ImGuiColorEditFlags_NoSmallPreview))
+	{
+		ImGui::OpenPopup(label);
+	}
+
+	ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos(), ImGuiCond_Always, { 1, 0 });
+	if (ImGui::BeginPopup(label))
+	{
+		ImGui::Text("Standard colors:");
+		for (const auto& c : COLORS)
+		{
+			if (ImGui::ColorButton(c.first, ImGui::ColorConvertU32ToFloat4(c.second)))
+			{
+				*val->access() = c.second;
+				changed = true;
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine(0, 0);
+		}
+		ImGui::Spacing();
+		ImGui::NewLine();
+		if (ImGui::ColorPicker4("##picker", &color.x))
+		{
+			*val->access() = ImGui::ColorConvertFloat4ToU32(color);
+			changed = true;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}*/
+
 	return changed;
 }
 

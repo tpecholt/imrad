@@ -75,6 +75,11 @@ inline bool Combo(const char* label, int* curr, const std::vector<std::string>& 
 	return ImGui::Combo(label, curr, citems.data(), (int)citems.size(), maxh);
 }
 
+inline bool IsItemDoubleClicked()
+{
+	return ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered();
+}
+
 inline bool IsItemDisabled()
 {
 	return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;

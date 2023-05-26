@@ -947,10 +947,11 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 			size_t b = id.find('[');
 			if (b == std::string::npos)
 				return false;
+			/* why replace any index expr to FOR_VAR??
 			name.erase(i + b + 1, id.size() - b - 2);
 			name.insert(i + b + 1, FOR_VAR);
 			if (j != std::string::npos)
-				j += FOR_VAR.size() - (id.size() - b - 2);
+				j += FOR_VAR.size() - (id.size() - b - 2);*/
 			id.resize(b);
 		}
 		const Var* var = FindVar(id, scope);
@@ -988,7 +989,8 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 			else {
 				if (!CreateNamedVar(id, "std::vector<" + stype + ">", init, Var::Interface, scope))
 					return false;
-				m_fields[stype];
+				if (!leaf)
+					m_fields[stype]; 
 			}
 			scope = stype;
 		}

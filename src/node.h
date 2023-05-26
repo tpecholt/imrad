@@ -199,8 +199,9 @@ struct Button : Widget
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
 	bindable<color32> style_color;
+	bindable<color32> style_bg;
 	direct_val<float> style_rounding = 0;
-	parent_property style{ &style_color, &style_rounding };
+	parent_property style;
 	event<> onChange;
 
 	Button(UIContext& ctx);

@@ -1000,7 +1000,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (!onItemDoubleClicked.empty())
 	{
-		os << ctx.ind << "if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered())\n";
+		os << ctx.ind << "if (ImRad::IsItemDoubleClicked())\n";
 		ctx.ind_up();
 		os << ctx.ind << onItemDoubleClicked.c_str() << "();\n";
 		ctx.ind_down();
@@ -1148,7 +1148,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			onItemClicked.set_from_arg(sit->callee);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsMouseDoubleClicked")
+		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::IsItemDoubleClicked")
 		{
 			onItemDoubleClicked.set_from_arg(sit->callee);
 		}
@@ -1959,6 +1959,7 @@ bool Selectable::EventUI(int i, UIContext& ctx)
 //----------------------------------------------------
 
 Button::Button(UIContext& ctx)
+	: style{ &style_bg, &style_color, &style_rounding }
 {
 	modalResult.add(" ", ImRad::None);
 	modalResult.add$(ImRad::Ok);
@@ -1981,9 +1982,10 @@ void Button::DoDraw(UIContext& ctx)
 {
 	if (style_rounding)
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding);
-
+	if (style_bg.has_value())
+		ImGui::PushStyleColor(ImGuiCol_Button, style_bg.value());
 	if (style_color.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Button, style_color.value());
+		ImGui::PushStyleColor(ImGuiCol_Text, style_color.value());
 
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
@@ -2004,7 +2006,8 @@ void Button::DoDraw(UIContext& ctx)
 	
 	if (style_color.has_value())
 		ImGui::PopStyleColor();
-
+	if (style_bg.has_value())
+		ImGui::PopStyleColor();
 	if (style_rounding)
 		ImGui::PopStyleVar();
 }
@@ -2100,8 +2103,10 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (style_rounding)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg() << ");\n";
+	if (!style_bg.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_bg.to_arg() << ");\n";
 	if (!style_color.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_color.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_color.to_arg() << ");\n";
 
 	bool closePopup = ctx.inPopup && modalResult != ImRad::None;
 	os << ctx.ind;
@@ -2110,7 +2115,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	
 	if (arrowDir != ImGuiDir_None)
 	{
-		os << "ImGui::ArrowButton(\"###arrow\", " << arrowDir.to_arg() << ")";
+		os << "ImGui::ArrowButton(\"##" << label.c_str() << "\", " << arrowDir.to_arg() << ")";
 	}
 	else if (small)
 	{
@@ -2154,6 +2159,8 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!style_color.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_bg.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (style_rounding)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
@@ -2163,6 +2170,8 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Button")
+			style_bg.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
 			style_color.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
@@ -2236,6 +2245,8 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("style", false, [&] {
 			ImGui::Text("color");
 			ImGui::Spacing();
+			ImGui::Text("bg");
+			ImGui::Spacing();
 			ImGui::Text("rounding");
 
 			ImGui::TableNextColumn();
@@ -2246,6 +2257,11 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			ImGui::SameLine(0, 0);
 			BindingButton("color", &style_color, ctx);
 
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##bg", &style_bg, ctx) || changed;
+			ImGui::SameLine(0, 0);
+			BindingButton("bg", &style_bg, ctx);
+			
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			changed = ImGui::InputFloat("##rounding", style_rounding.access(), 0, 0, "%.0f") || changed;
 			});
@@ -2306,25 +2322,31 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	case 5:
+		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##small", small.access());
+		ImGui::EndDisabled();
 		break;
 	case 6:
+		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
+		ImGui::EndDisabled();
 		break;
 	case 7:
+		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
+		ImGui::EndDisabled();
 		break;
 	default:
 		return Widget::PropertyUI(i - 8, ctx);

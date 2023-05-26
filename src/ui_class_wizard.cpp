@@ -66,6 +66,7 @@ void ClassWizard::FindUsed(UINode* node, std::vector<std::string>& used)
 void ClassWizard::Draw()
 {
 	const float BWIDTH = 150;
+	bool doRenameField = false;
 	/// @begin TopWindow
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 12, 12 });
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 12, 5 });
@@ -183,6 +184,8 @@ void ClassWizard::Draw()
 				/// @begin Selectable
 				if (ImGui::Selectable(icon, selRow == i, ImGuiSelectableFlags_SpanAllColumns))
 					selRow = i;
+				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered())
+					doRenameField = true;
 				//if (ImGui::IsItemHovered() && ImGui::GetMousePos().x < 20)
 				//	ImGui::SetTooltip(tooltip);
 				/// @end Selectable
@@ -230,7 +233,8 @@ void ClassWizard::Draw()
 		ImGui::Spacing();
 		ImGui::Spacing();
 		ImGui::BeginDisabled(selRow < 0 || selRow >= (int)fields.size());
-		if (ImGui::Button("Rename Field...", { BWIDTH, 0 }))
+		if (ImGui::Button("Rename Field...", { BWIDTH, 0 }) ||
+			(!ImRad::IsItemDisabled() && doRenameField))
 		{
 			newFieldPopup.codeGen = codeGen;
 			newFieldPopup.mode = NewFieldPopup::RenameField;

@@ -11,6 +11,7 @@
 struct color32
 {
 	color32(ImU32 c = 0) : c(c) {}
+	color32& operator= (ImU32 cc) { c = cc; return *this; }
 	operator ImU32 () const { return c; }
 	operator ImU32& () { return c; }
 	bool operator== (const color32& a) const { return c == a.c; }
