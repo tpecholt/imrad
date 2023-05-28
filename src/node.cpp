@@ -1959,7 +1959,7 @@ bool Selectable::EventUI(int i, UIContext& ctx)
 //----------------------------------------------------
 
 Button::Button(UIContext& ctx)
-	: style{ &style_bg, &style_color, &style_rounding }
+	: style{ &col_button, &col_hovered, &col_text, &var_rounding }
 {
 	modalResult.add(" ", ImRad::None);
 	modalResult.add$(ImRad::Ok);
@@ -1980,13 +1980,15 @@ Button::Button(UIContext& ctx)
 
 void Button::DoDraw(UIContext& ctx)
 {
-	if (style_rounding)
-		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding);
-	if (style_bg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Button, style_bg.value());
-	if (style_color.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_color.value());
-
+	if (var_rounding)
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, var_rounding);
+	if (col_button.has_value())
+		ImGui::PushStyleColor(ImGuiCol_Button, col_button.value());
+	if (col_hovered.has_value())
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col_hovered.value());
+	if (col_text.has_value())
+		ImGui::PushStyleColor(ImGuiCol_Text, col_text.value());
+	
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
 	else if (small)
@@ -2004,11 +2006,13 @@ void Button::DoDraw(UIContext& ctx)
 			//ImGui::SetItemDefaultFocus();
 	}
 	
-	if (style_color.has_value())
+	if (col_text.has_value())
 		ImGui::PopStyleColor();
-	if (style_bg.has_value())
+	if (col_hovered.has_value())
 		ImGui::PopStyleColor();
-	if (style_rounding)
+	if (col_button.has_value())
+		ImGui::PopStyleColor();
+	if (var_rounding)
 		ImGui::PopStyleVar();
 }
 
@@ -2101,12 +2105,14 @@ std::string ParseShortcut(const std::string& line)
 
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (style_rounding)
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg() << ");\n";
-	if (!style_bg.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_bg.to_arg() << ");\n";
-	if (!style_color.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_color.to_arg() << ");\n";
+	if (var_rounding)
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << var_rounding.to_arg() << ");\n";
+	if (!col_button.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << col_button.to_arg() << ");\n";
+	if (!col_button.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonHovered, " << col_hovered.to_arg() << ");\n";
+	if (!col_text.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << col_text.to_arg() << ");\n";
 
 	bool closePopup = ctx.inPopup && modalResult != ImRad::None;
 	os << ctx.ind;
@@ -2157,11 +2163,13 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ";\n";
 	}
 
-	if (!style_color.empty())
+	if (!col_button.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (!style_bg.empty())
+	if (!col_hovered.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (style_rounding)
+	if (!col_text.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (var_rounding)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
@@ -2170,14 +2178,16 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Button")
-			style_bg.set_from_arg(sit->params[1]);
+			col_button.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ButtonHovered")
+			col_hovered.set_from_arg(sit->params[1]);
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
-			style_color.set_from_arg(sit->params[1]);
+			col_text.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
-			style_rounding.set_from_arg(sit->params[1]);
+			var_rounding.set_from_arg(sit->params[1]);
 	}
 	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::Button")
@@ -2243,9 +2253,11 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 	{
 	case 0:
 		TreeNodeProp("style", false, [&] {
-			ImGui::Text("color");
+			ImGui::Text("text");
 			ImGui::Spacing();
-			ImGui::Text("bg");
+			ImGui::Text("button");
+			ImGui::Spacing();
+			ImGui::Text("hovered");
 			ImGui::Spacing();
 			ImGui::Text("rounding");
 
@@ -2253,17 +2265,22 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			ImGui::Text("");
 
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-			changed = InputBindable("##color", &style_color, ctx) || changed;
+			changed = InputBindable("##color", &col_text, ctx) || changed;
 			ImGui::SameLine(0, 0);
-			BindingButton("color", &style_color, ctx);
+			BindingButton("color", &col_text, ctx);
 
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-			changed = InputBindable("##bg", &style_bg, ctx) || changed;
+			changed = InputBindable("##bg", &col_button, ctx) || changed;
 			ImGui::SameLine(0, 0);
-			BindingButton("bg", &style_bg, ctx);
+			BindingButton("bg", &col_button, ctx);
 			
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-			changed = ImGui::InputFloat("##rounding", style_rounding.access(), 0, 0, "%.0f") || changed;
+			changed = InputBindable("##hovered", &col_hovered, ctx) || changed;
+			ImGui::SameLine(0, 0);
+			BindingButton("hovered", &col_hovered, ctx);
+			
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = ImGui::InputFloat("##rounding", var_rounding.access(), 0, 0, "%.0f") || changed;
 			});
 		break;
 	case 1:
@@ -2386,13 +2403,15 @@ bool Button::EventUI(int i, UIContext& ctx)
 CheckBox::CheckBox(UIContext& ctx)
 {
 	if (!ctx.importState)
-		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", initValue ? "true" : "false", CppGen::Var::Interface));
+		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
 }
 
 void CheckBox::DoDraw(UIContext& ctx)
 {
-	static bool dummy;
-	dummy = initValue;
+	bool dummy;
+	const auto* var = ctx.codeGen->GetVar(fieldName.c_str());
+	if (var)
+		dummy = var->init == "true";
 	ImGui::Checkbox(label.c_str(), &dummy);
 }
 
@@ -2433,8 +2452,6 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			const auto* var = ctx.codeGen->GetVar(fn);
 			if (!var)
 				ctx.errors.push_back("CheckBox: field_name variable '" + fn + "' doesn't exist");
-			else
-				initValue = var->init == "true";
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
@@ -2448,7 +2465,6 @@ CheckBox::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "label", &label, true },
-		{ "check.init_value", &initValue },
 		{ "check.field_name", &fieldName },
 		});
 	return props;
@@ -2468,15 +2484,6 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		break;
 	case 1:
-		ImGui::Text("initValue");
-		ImGui::TableNextColumn();
-		if (ImGui::Checkbox("##init_value", initValue.access()))
-		{
-			changed = true;
-			ctx.codeGen->ChangeVar(fieldName.c_str(), "bool", initValue ? "true" : "false");
-		}
-		break;
-	case 2:
 	{
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
@@ -2486,7 +2493,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	default:
-		return Widget::PropertyUI(i - 3, ctx);
+		return Widget::PropertyUI(i - 2, ctx);
 	}
 	return changed;
 }

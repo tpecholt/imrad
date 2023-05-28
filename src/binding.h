@@ -10,7 +10,7 @@
 
 struct color32
 {
-	color32(ImU32 c = 0) : c(c) {}
+	color32(ImU32 c = 0) : c(c) {} //0 means style default color
 	color32& operator= (ImU32 cc) { c = cc; return *this; }
 	operator ImU32 () const { return c; }
 	operator ImU32& () { return c; }
@@ -18,6 +18,8 @@ struct color32
 	bool operator!= (const color32& a) const { return c != a.c; }
 	friend std::ostream& operator<< (std::ostream& os, color32 clr)
 	{
+		if (!clr)
+			return os;
 		return os << "0x" << std::hex << std::setw(2*4) 
 			<< std::setfill('0') << (ImU32)clr;
 		/*os.fill('0');
@@ -31,10 +33,14 @@ struct color32
 	{
 		//std::string tmp;
 		//std::getline(is, tmp);
-		if (is.get() != '0')
+		if (is.get() != '0') {
+			c = color32();
 			return is;
-		if (is.get() != 'x')
+		}
+		if (is.get() != 'x') {
+			c = color32();
 			return is;
+		}
 		ImU32 cc = 0;
 		for (int i = 0; i < 8; ++i)
 		{
@@ -62,7 +68,7 @@ struct color32
 
 
 private:
-	ImU32 c = 0;
+	ImU32 c;
 };
 
 //------------------------------------------------------------

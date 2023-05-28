@@ -105,7 +105,7 @@ inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, U
 
 inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& ctx)
 {
-	static const std::array<std::pair<const char*, color32>, 10> COLORS{ {
+	/*static const std::array<std::pair<const char*, color32>, 10> COLORS{ {
 		{ "red", IM_COL32(255, 77, 77, 255) },
 		{ "green", IM_COL32(40, 167, 69, 255) },
 		{ "blue", IM_COL32(24, 144, 255, 255) },
@@ -128,7 +128,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 		if (it != COLORS.end())
 			str = it->first;
 	}
-	if (ImGui::BeginCombo(label, str))
+	/*if (ImGui::BeginCombo(label, str))
 	{
 		if (ImGui::Selectable(" ", val->empty()))
 		{
@@ -147,41 +147,124 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 			}
 		}
 		ImGui::EndCombo();
-	}
+	}*/
 
-	/*ImVec4 color{ 0, 0, 0, 255 };
-	if (clr)
-		color = ImGui::ColorConvertU32ToFloat4(*clr);
-	ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-	if (ImGui::ColorButton(label, color, ImGuiColorEditFlags_NoSmallPreview))
+	auto nextData = ImGui::GetCurrentContext()->NextItemData; //copy
+	color32 color = val->has_value() ? val->value() : color32();
+	static std::string lastColor; //could be bound
+	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+	ImVec4 clr = color ? ImGui::ColorConvertU32ToFloat4(color) : ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+	if (ImGui::ColorButton(label, clr, ImGuiColorEditFlags_NoTooltip))
 	{
+		lastColor = val->c_str();
 		ImGui::OpenPopup(label);
 	}
+	ImGui::PopStyleColor();
+	if (nextData.Flags & ImGuiNextItemDataFlags_HasWidth)
+	{
+		ImGui::SameLine(0, 0);
+		float w = nextData.Width;
+		if (w < 0)
+			w += ImGui::GetContentRegionAvail().x;
+		ImGui::Dummy({ w, 1 });
+	}
 
-	ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos(), ImGuiCond_Always, { 1, 0 });
+	static color32 COLORS[]{
+		/*IM_COL32(0, 0, 0, 255),
+		IM_COL32(80, 80, 80, 255),
+		IM_COL32(192, 192, 192, 255),
+		IM_COL32(255, 255, 255, 255),
+		IM_COL32(0, 0, 128, 255),
+		IM_COL32(0, 0, 255, 255),
+		IM_COL32(0, 128, 128, 255),
+		IM_COL32(0, 255, 255, 255),
+		IM_COL32(0, 128, 0, 255),
+		IM_COL32(0, 255, 0, 255),
+		IM_COL32(128, 128, 0, 255),
+		IM_COL32(255, 255, 0, 255),
+		IM_COL32(128, 0, 0, 255),
+		IM_COL32(255, 0, 0, 255),
+		IM_COL32(128, 0, 128, 255),
+		IM_COL32(255, 0, 255, 255),
+		IM_COL32(255, 128, 64, 255),
+		IM_COL32(0, 0, 0, 0),*/
+		IM_COL32(255, 255, 255, 255),
+		IM_COL32(246, 246, 194, 255),
+		IM_COL32(202, 23, 55, 255),
+		IM_COL32(246, 58, 56, 255),
+		IM_COL32(162, 34, 31, 255),
+		IM_COL32(7, 17, 115, 255),
+		IM_COL32(159, 215, 252, 255),
+		IM_COL32(15, 63, 25, 255),
+		IM_COL32(96, 231, 66, 255),
+		IM_COL32(205, 255, 202, 255),
+		IM_COL32(246, 253, 85, 255),
+		IM_COL32(248, 117, 0, 255),
+		IM_COL32(244, 180, 118, 255),
+		IM_COL32(104, 102, 90, 255),
+		IM_COL32(165, 166, 160, 255),
+		IM_COL32(54, 8, 81, 255),
+		IM_COL32(148, 35, 213, 255),
+		IM_COL32(248, 181, 248, 255),
+		IM_COL32(204, 22, 182, 255),
+		IM_COL32(219, 190, 2, 255),
+		IM_COL32(10, 226, 211, 255),
+		IM_COL32(2, 251, 171, 255),
+		IM_COL32(143, 105, 69, 255),
+		IM_COL32(59, 33, 8, 255),
+		IM_COL32(0, 0, 0, 255),
+	};
+	bool changed = false;
+	static std::string lastOpen;
+	ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos(), ImGuiCond_Always, { 0, 0 });
 	if (ImGui::BeginPopup(label))
 	{
-		ImGui::Text("Standard colors:");
-		for (const auto& c : COLORS)
+		lastOpen = label;
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 });
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
+		if (ImGui::Button("Default", { 30 * 5, 30 }))
 		{
-			if (ImGui::ColorButton(c.first, ImGui::ColorConvertU32ToFloat4(c.second)))
-			{
-				*val->access() = c.second;
-				changed = true;
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine(0, 0);
-		}
-		ImGui::Spacing();
-		ImGui::NewLine();
-		if (ImGui::ColorPicker4("##picker", &color.x))
-		{
-			*val->access() = ImGui::ColorConvertFloat4ToU32(color);
 			changed = true;
+			lastColor = "";
+			*val = color32();
 			ImGui::CloseCurrentPopup();
 		}
+		if (ImGui::IsItemHovered())
+		{
+			*val = color32();
+		}
+		for (int i = 0; i < stx::ssize(COLORS); ++i)
+		{
+			ImGui::PushID(i);
+			ImGui::PushStyleColor(ImGuiCol_Button, COLORS[i]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, COLORS[i]);
+			if (ImGui::Button("##clr", { 30, 30 }))
+			{
+				changed = true;
+				*val = COLORS[i];
+				std::ostringstream os;
+				os << COLORS[i];
+				lastColor = os.str();
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::IsItemHovered())
+			{
+				*val = COLORS[i];
+			}
+			ImGui::PopStyleColor(2);
+			ImGui::PopID();
+			if ((i + 1) % 5)
+				ImGui::SameLine();
+		}
+		ImGui::PopStyleVar(2);
 		ImGui::EndPopup();
-	}*/
+	}
+	else if (lastOpen == label)
+	{
+		lastOpen = "";
+		//return last value if the current color was hovered only
+		*val->access() = lastColor;
+	}
 
 	return changed;
 }

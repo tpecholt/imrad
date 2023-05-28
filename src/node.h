@@ -198,9 +198,10 @@ struct Button : Widget
 	bindable<float> size_y = 0;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
-	bindable<color32> style_color;
-	bindable<color32> style_bg;
-	direct_val<float> style_rounding = 0;
+	bindable<color32> col_text;
+	bindable<color32> col_button;
+	bindable<color32> col_hovered;
+	direct_val<float> var_rounding = 0;
 	parent_property style;
 	event<> onChange;
 
@@ -218,7 +219,6 @@ struct Button : Widget
 struct CheckBox : Widget
 {
 	bindable<std::string> label = "label";
-	direct_val<bool> initValue = false;
 	field_ref<bool> fieldName;
 	event<> onChange;
 
