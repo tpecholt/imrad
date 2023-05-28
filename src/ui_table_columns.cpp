@@ -149,14 +149,11 @@ void TableColumns::Draw()
 		ImGui::SetItemDefaultFocus();
 		/// @end Button
 
-		//ImGui::Spacing();
-		//ImGui::Spacing();
-		/*ImGui::Spacing();
-		ImGui::Spacing();
-		if (ImGui::Button("Cancel", { 120, 30 }))
+		if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
 		{
 			ImGui::CloseCurrentPopup();
-		}*/
+		}
+
 		ImGui::EndGroup();
 		
 		ImGui::SetCursorPos({ ImGui::GetStyle().ItemSpacing.x, selY });

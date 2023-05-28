@@ -103,6 +103,8 @@ struct parent_property : property_base
 {
 	std::vector<property_base*> props;
 	
+	parent_property() 
+	{}
 	parent_property(std::initializer_list<property_base*> li)
 		: props(li)
 	{}

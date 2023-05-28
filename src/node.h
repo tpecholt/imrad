@@ -105,7 +105,8 @@ struct Widget : UINode
 	direct_val<int> spacing = 0;
 	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
-	direct_val<std::string> font = "";
+	direct_val<std::string> style_font = "";
+	parent_property style;
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
 	event<> onItemHovered;
@@ -150,10 +151,10 @@ struct Text : Widget
 {
 	bindable<std::string> text = "text";
 	direct_val<bool> grayed = false; //Widget::disabled is already bindable
-	bindable<color32> color;
+	bindable<color32> style_color;
 	direct_val<bool> alignToFrame = false;
 	direct_val<bool> wrap = false;
-
+	
 	Text(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
@@ -167,7 +168,7 @@ struct Text : Widget
 struct Selectable : Widget
 {
 	bindable<std::string> label = "label";
-	bindable<color32> color;
+	bindable<color32> style_color;
 	flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
 	direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
 	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
@@ -198,11 +199,10 @@ struct Button : Widget
 	bindable<float> size_y = 0;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
-	bindable<color32> col_text;
-	bindable<color32> col_button;
-	bindable<color32> col_hovered;
-	direct_val<float> var_rounding = 0;
-	parent_property style;
+	bindable<color32> style_text;
+	bindable<color32> style_button;
+	bindable<color32> style_hovered;
+	direct_val<float> style_rounding = 0;
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -220,6 +220,7 @@ struct CheckBox : Widget
 {
 	bindable<std::string> label = "label";
 	field_ref<bool> fieldName;
+	bindable<color32> style_color;
 	event<> onChange;
 
 	CheckBox(UIContext& ctx);
@@ -237,6 +238,7 @@ struct RadioButton : Widget
 {
 	bindable<std::string> label = "label";
 	direct_val<int> valueID = 0;
+	bindable<color32> style_color;
 	field_ref<int> fieldName;
 
 	RadioButton(UIContext& ctx);
@@ -389,7 +391,6 @@ struct Table : Widget
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;
-	parent_property style;
 
 	Table(UIContext&);
 	int SnapBehavior() { return SnapSides | SnapInterior; }
@@ -531,9 +532,10 @@ struct TopWindow : UINode
 	bindable<std::string> title = "title";
 	float size_x = 640;
 	float size_y = 480;
-	std::string font = "";
-	std::optional<ImVec2> stylePading;
-	std::optional<ImVec2> styleSpacing;
+	std::string style_font = "";
+	std::optional<ImVec2> style_pading;
+	std::optional<ImVec2> style_spacing;
+	parent_property style;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);
