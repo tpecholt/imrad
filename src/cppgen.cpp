@@ -552,13 +552,19 @@ CppGen::ImportCode(std::istream& fin)
 			;
 		else if (!level || in_class) //global or class scope
 		{
-			if (in_class && tok == "/// @interface") {
+			if (in_class && (tok == "/// @interface" || tok == "/// @begin interface")) {
 				in_interface = true;
 				found_interface = true;
 			}
-			else if (in_class && tok == "/// @impl") {
+			else if (in_class && (tok == "/// @impl" || tok == "/// @begin impl")) {
 				in_impl = true;
 				found_impl = true;
+			}
+			else if (in_class && tok == "/// @end interface") {
+				in_interface = false;
+			}
+			else if (in_class && tok == "/// @end impl") {
+				in_impl = false;
 			}
 			else if (!tok.compare(0, 1, "#") || !tok.compare(0, 2, "//"))
 				;
