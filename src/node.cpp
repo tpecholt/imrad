@@ -777,6 +777,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Combo>(ctx);
 	else if (name == "Slider")
 		return std::make_unique<Slider>(ctx);
+	else if (name == "ProgressBar")
+		return std::make_unique<ProgressBar>(ctx);
 	else if (name == "ColorEdit")
 		return std::make_unique<ColorEdit>(ctx);
 	else if (name == "Image")
@@ -3644,6 +3646,116 @@ bool Slider::EventUI(int i, UIContext& ctx)
 		break;
 	default:
 		return Widget::EventUI(i - 1, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------
+
+ProgressBar::ProgressBar(UIContext& ctx)
+{
+	if (!ctx.importState)
+		fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
+}
+
+void ProgressBar::DoDraw(UIContext& ctx)
+{
+	float w = 0, h = 0;
+	if (size_x.has_value())
+		w = size_x.value();
+	if (size_y.has_value())
+		h = size_y.value();
+
+	ImGui::ProgressBar(0.5f, { w, h }, indicator ? nullptr : "");
+}
+
+void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
+{
+	std::string fmt = indicator ? "nullptr" : "\"\"";
+	
+	os << ctx.ind << "ImGui::ProgressBar(" 
+		<< fieldName.to_arg() << ", { "
+		<< size_x.to_arg() << ", " << size_y.to_arg() << " }, " 
+		<< fmt << ");\n";
+}
+
+void ProgressBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::CallExpr && !sit->callee.compare(0, 18, "ImGui::ProgressBar"))
+	{
+		if (sit->params.size()) {
+			label.set_from_arg(sit->params[0]);
+			if (!label.access()->compare(0, 2, "##"))
+				label = "";
+		}
+
+		if (sit->params.size() > 1)
+			fieldName.set_from_arg(sit->params[0]);
+
+		if (sit->params.size() > 2) {
+			auto siz = cpp::parse_size(sit->params[1]);
+			size_x.set_from_arg(siz.first);
+			size_y.set_from_arg(siz.second);
+		}
+
+		if (sit->params.size() > 3)
+			indicator = sit->params[2] == "nullptr";
+	}
+}
+
+std::vector<UINode::Prop>
+ProgressBar::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "progress.field_name", &fieldName },
+		{ "progress.indicator", &indicator },
+		{ "size_x", &size_x },
+		{ "size_y", &size_y },
+		});
+	return props;
+}
+
+bool ProgressBar::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("fieldName");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##fieldName", &fieldName, "float", false, ctx);
+		break;
+	case 1:
+	{
+		ImGui::Text("indicator");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		bool ind = indicator;
+		if (ImGui::Checkbox("##indicator", &ind))
+			indicator = ind;
+		break;
+	}
+	case 2:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_x", &size_x, ctx);
+		break;
+	case 3:
+		ImGui::Text("size_y");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_y", &size_y, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 4, ctx);
 	}
 	return changed;
 }

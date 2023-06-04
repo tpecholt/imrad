@@ -87,6 +87,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
 		{ ICON_FA_SLIDERS, "Slider" },
 		{ ICON_FA_CIRCLE_HALF_STROKE, "ColorEdit" },
+		{ ICON_FA_BATTERY_HALF, "ProgressBar" },
 		{ ICON_FA_IMAGE, "Image" },
 		{ ICON_FA_WINDOW_MINIMIZE, "Separator" },
 		{ ICON_FA_EXPAND, "CustomWidget" },

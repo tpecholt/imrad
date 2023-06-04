@@ -316,6 +316,23 @@ struct Slider : Widget
 	const char* GetIcon() const { return ICON_FA_SLIDERS; }
 };
 
+struct ProgressBar : Widget
+{
+	direct_val<std::string> label = "";
+	direct_val<bool> indicator = true;
+	field_ref<float> fieldName;
+	bindable<float> size_x = 200;
+	bindable<float> size_y = 0;
+	
+	ProgressBar(UIContext& ctx);
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_BATTERY_HALF; }
+};
+
 struct ColorEdit : Widget
 {
 	field_ref<> fieldName;
