@@ -99,7 +99,11 @@ int main(int argc, const char* argv[])
 	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f, &icons_config, icons_ranges);
 	*/
 	ImGui::StyleColorsDark();
-	
+
+	//Alternatively load style and fonts from the imrad ini file
+	//std::map<std::string, ImFont*> fontMap;
+	//ImRad::LoadStyle("my-style.ini", ImGui::GetStyle(), fontMap);
+
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	while (true)

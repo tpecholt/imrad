@@ -11,16 +11,26 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/latest")
 
 if(MSVC)
-	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
     add_definitions(-D_USE_MATH_DEFINES)
 else()
-	# boost errors
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings -fext-numeric-literals")
-	# strip binaries
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s") 
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
+    # boost errors
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings -fext-numeric-literals")
+    # strip binaries
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s") 
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
 endif()
+
+# before includes
+install(
+    DIRECTORY "template/" 
+    DESTINATION "template"
+)
+install(
+    DIRECTORY "style/" 
+    DESTINATION "style"
+)
 
 include(cmake/glfw.cmake)
 include(cmake/imgui.cmake)
@@ -30,11 +40,3 @@ include(cmake/stb.cmake)
 
 add_subdirectory(src)
 
-install(
-    DIRECTORY "template" 
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
-)
-install(
-    DIRECTORY "style" 
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
-)

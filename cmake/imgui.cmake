@@ -24,11 +24,11 @@ target_link_libraries(imgui
     
 set_target_properties(imgui PROPERTIES LINKER_LANGUAGE CXX)
 
-add_custom_command(TARGET imgui POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy
-	"${IMGUI_INCLUDE_DIR}/misc/fonts/Roboto-Medium.ttf"
-	"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/style"
-)
+#add_custom_command(TARGET imgui POST_BUILD
+#	COMMAND ${CMAKE_COMMAND} -E copy
+#	"${IMGUI_INCLUDE_DIR}/misc/fonts/Roboto-Medium.ttf"
+#	"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/style/"
+#)
 install(FILES 
 	"${IMGUI_INCLUDE_DIR}/misc/fonts/Roboto-Medium.ttf" 
-	DESTINATION "style")
+	DESTINATION "style/")
