@@ -65,6 +65,21 @@ for up-to date version clone & build the repository using CMake.
 
 Somewhat older version can be downloaded from [Releases](https://github.com/tpecholt/imrad/releases)
 
+# How to build
+
+## Windows
+1. Use CMake GUI to configure and generate sln file
+2. Open the generated sln file in Visual Studio 2017 or newer (you can use Express or Community editions which are downloadable for free)
+3. Build the INSTALL project
+4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
+
+## Linux
+1. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
+
+   ```sudo ./release-linux 0.5```
+
+2. ImRAD will be installed into *./install/imrad-0.5*
+
 # Screenshots
 
 ![screen1](https://github.com/tpecholt/imrad/blob/main/doc/screen1.png)
