@@ -481,7 +481,7 @@ void GetStyles()
 		return st.first == DEFAULT_STYLE; 
 		});
 	assert(it != styleNames.end());
-	styleIdx = it - styleNames.begin();
+	styleIdx = int(it - styleNames.begin());
 
 	for (fs::directory_iterator it("style/"); it != fs::directory_iterator(); ++it)
 	{

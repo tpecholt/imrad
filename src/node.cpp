@@ -579,7 +579,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size() >= 2)
 				flags.set_from_arg(sit->params[1]);
 		}
-		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Begin")
+		else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
 		{
 			kind = Window;
 			title.set_from_arg(sit->params[0]);
