@@ -318,7 +318,6 @@ struct Slider : Widget
 
 struct ProgressBar : Widget
 {
-	direct_val<std::string> label = "";
 	direct_val<bool> indicator = true;
 	field_ref<float> fieldName;
 	bindable<float> size_x = 200;

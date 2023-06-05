@@ -19,7 +19,7 @@ std::string typeid_name()
 	else if (std::is_same_v<T, std::string>)
 		return "std::string";
 	else if (std::is_same_v<T, color32>)
-		return "color32";
+		return "color4";
 	else if (std::is_same_v<T, int>)
 		return "int";
 	else if (std::is_same_v<T, float>)
@@ -220,7 +220,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 	if (ImGui::BeginPopup(label))
 	{
 		lastOpen = label;
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 1, 1 });
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
 		if (ImGui::Button("Default", { 30 * 5, 30 }))
 		{

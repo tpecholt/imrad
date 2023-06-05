@@ -30,8 +30,8 @@ using Int4 = int[4];
 using Float2 = float[2];
 using Float3 = float[3];
 using Float4 = float[4];
-using Color3 = float[3];
-using Color4 = float[4];
+using Color3 = ImVec4;
+using Color4 = ImVec4;
 
 enum ModalResult {
 	None = 0,

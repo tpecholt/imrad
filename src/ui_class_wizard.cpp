@@ -35,9 +35,14 @@ void ClassWizard::Refresh()
 		stypeIdx = 0;
 	
 	fields = codeGen->GetVars(stypeIdx ? stypes[stypeIdx] : "");
-	//CppGen exports user code as-is so no modification allowed here
 	stx::erase_if(fields, [](CppGen::Var& var) {
-		return var.flags & CppGen::Var::UserCode;
+		//CppGen exports user code as-is so no modification allowed here
+		if (var.flags & CppGen::Var::UserCode)
+			return true;
+		//skip member functions 
+		if (var.type.back() == ')')
+			return true;
+		return false;
 		});
 
 	used.clear();

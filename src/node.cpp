@@ -3683,22 +3683,16 @@ void ProgressBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if (sit->kind == cpp::CallExpr && !sit->callee.compare(0, 18, "ImGui::ProgressBar"))
 	{
-		if (sit->params.size()) {
-			label.set_from_arg(sit->params[0]);
-			if (!label.access()->compare(0, 2, "##"))
-				label = "";
-		}
-
-		if (sit->params.size() > 1)
+		if (sit->params.size() >= 1)
 			fieldName.set_from_arg(sit->params[0]);
 
-		if (sit->params.size() > 2) {
+		if (sit->params.size() >= 2) {
 			auto siz = cpp::parse_size(sit->params[1]);
 			size_x.set_from_arg(siz.first);
 			size_y.set_from_arg(siz.second);
 		}
 
-		if (sit->params.size() > 3)
+		if (sit->params.size() >= 3)
 			indicator = sit->params[2] == "nullptr";
 	}
 }
@@ -3782,7 +3776,7 @@ ColorEdit::ColorEdit(UIContext& ctx)
 
 void ColorEdit::DoDraw(UIContext& ctx)
 {
-	float ftmp[4] = {};
+	ImVec4 ftmp = {};
 	
 	std::string id = label;
 	if (id.empty())
@@ -3791,9 +3785,9 @@ void ColorEdit::DoDraw(UIContext& ctx)
 		ImGui::SetNextItemWidth(size_x.value());
 	
 	if (type == "color3")
-		ImGui::ColorEdit3(id.c_str(), ftmp, flags);
+		ImGui::ColorEdit3(id.c_str(), (float*)&ftmp, flags);
 	else if (type == "color4")
-		ImGui::ColorEdit4(id.c_str(), ftmp, flags);
+		ImGui::ColorEdit4(id.c_str(), (float*)&ftmp, flags);
 }
 
 void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
@@ -3808,15 +3802,15 @@ void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
 	std::string id = label.to_arg();
 	if (label.empty())
 		id = "\"##" + fieldName.value() + "\"";
-
+	
 	if (type == "color3")
 	{
-		os << "ImGui::ColorEdit3(" << id << ", "
+		os << "ImGui::ColorEdit3(" << id << ", (float*)&"
 			<< fieldName.to_arg() << ", " << flags.to_arg() << ")";
 	}
 	else if (type == "color4")
 	{
-		os << "ImGui::ColorEdit4(" << id << ", "
+		os << "ImGui::ColorEdit4(" << id << ", (float*)&"
 			<< fieldName.to_arg() << ", " << flags.to_arg() << ")";
 	}
 
@@ -3847,8 +3841,8 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				label = "";
 		}
 
-		if (sit->params.size() >= 2) {
-			fieldName.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 9, "(float*)&")) {
+			fieldName.set_from_arg(sit->params[1].substr(9));
 			std::string fn = fieldName.c_str();
 			if (!ctx.codeGen->GetVar(fn))
 				ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
