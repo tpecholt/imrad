@@ -45,6 +45,7 @@ static void glfw_error_callback(int error, const char* description)
 const float TB_SIZE = 40;
 const float TAB_SIZE = 25; //todo examine
 const std::string UNTITLED = "Untitled";
+const std::string DEFAULT_STYLE = "Dark";
 
 struct File
 {
@@ -53,6 +54,7 @@ struct File
 	std::unique_ptr<TopWindow> rootNode;
 	bool modified = false;
 	fs::file_time_type time[2];
+	std::string styleName;
 };
 
 bool firstTime;
@@ -116,6 +118,13 @@ void ActivateTab(int i)
 	ctx.selected = { tab.rootNode.get() };
 	ctx.codeGen = &tab.codeGen;
 	ctx.fname = tab.fname;
+	auto st = stx::find_if(styleNames, [&](const auto& sn) { 
+		return sn.first == tab.styleName; 
+		});
+	if (st != styleNames.end()) {
+		styleIdx = int(st - styleNames.begin());
+		reloadStyle = true;
+	}
 }
 
 void NewFile(TopWindow::Kind k)
@@ -124,6 +133,7 @@ void NewFile(TopWindow::Kind k)
 	top->kind = k;
 	fileTabs.push_back({});
 	fileTabs.back().rootNode = std::move(top);
+	fileTabs.back().styleName = DEFAULT_STYLE;
 	ActivateTab((int)fileTabs.size() - 1);
 }
 
@@ -152,13 +162,20 @@ void DoOpenFile(const std::string& path)
 	file.time[0] = fs::last_write_time(file.fname);
 	std::error_code err;
 	file.time[1] = fs::last_write_time(file.codeGen.AltFName(file.fname), err);
-	file.rootNode = file.codeGen.Import(file.fname, messageBox.error);
+	file.rootNode = file.codeGen.Import(file.fname, file.styleName, messageBox.error);
 	if (!file.rootNode) {
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful import because of errors";
 		messageBox.buttons = ImRad::Ok;
 		messageBox.OpenPopup();
 		return;
+	}
+	bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
+		return st.first == file.styleName;
+		});
+	if (!styleFound) {
+		messageBox.error = "Unknown style \"" + file.styleName + "\" used\n" + messageBox.error; 
+		file.styleName = DEFAULT_STYLE;
 	}
 
 	auto it = stx::find_if(fileTabs, [&](const File& f) { return f.fname == file.fname; });
@@ -229,7 +246,7 @@ void ReloadFiles()
 		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
 			if (mr != ImRad::Yes)
 				return;
-			tab.rootNode = tab.codeGen.Import(tab.fname, messageBox.error);
+			tab.rootNode = tab.codeGen.Import(tab.fname, tab.styleName, messageBox.error);
 			tab.modified = false;
 			if (&tab == &fileTabs[activeTab])
 				ctx.snapMode = false;
@@ -293,7 +310,7 @@ void SaveFile(bool thenClose)
 		trunc = true;
 	}
 	
-	if (!tab.codeGen.Export(tab.fname, trunc, tab.rootNode.get(), messageBox.error))
+	if (!tab.codeGen.Export(tab.fname, trunc, tab.rootNode.get(), tab.styleName, messageBox.error))
 	{
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
@@ -460,7 +477,11 @@ void GetStyles()
 		{ "Light", "" }, 
 		{ "Dark", "" } 
 	};
-	styleIdx = 2;
+	auto it = stx::find_if(styleNames, [&](const auto& st) {
+		return st.first == DEFAULT_STYLE; 
+		});
+	assert(it != styleNames.end());
+	styleIdx = it - styleNames.begin();
 
 	for (fs::directory_iterator it("style/"); it != fs::directory_iterator(); ++it)
 	{
@@ -494,6 +515,7 @@ void LoadStyle()
 	auto& s = styleNames[styleIdx];
 	if (s.first == "Classic")
 	{
+		style = ImGuiStyle();
 		ImGui::StyleColorsClassic(&style);
 		ctx.fontMap[""] = ImGui::GetDefaultFont();
 		ctx.colors = {
@@ -507,6 +529,7 @@ void LoadStyle()
 	}
 	else if (s.first == "Light")
 	{	
+		style = ImGuiStyle();
 		ImGui::StyleColorsLight(&style);
 		ctx.fontMap[""] = ImGui::GetDefaultFont();
 		ctx.colors = {
@@ -520,6 +543,7 @@ void LoadStyle()
 	}
 	else if (s.first == "Dark")
 	{
+		style = ImGuiStyle();
 		ImGui::StyleColorsDark(&style);
 		ctx.fontMap[""] = ImGui::GetDefaultFont();
 		ctx.colors = {
@@ -533,6 +557,7 @@ void LoadStyle()
 	}
 	else
 	{
+		style = ImGuiStyle();
 		std::map<std::string, std::string> extra;
 		try {
 			ImRad::LoadStyle(s.second, style, ctx.fontMap, &extra);
@@ -692,6 +717,10 @@ void ToolbarUI()
 			{
 				styleIdx = (int)i;
 				reloadStyle = true;
+				if (activeTab >= 0) {
+					fileTabs[activeTab].modified = true;
+					fileTabs[activeTab].styleName = styleNames[i].first;
+				}
 			}
 			if (i == 2 && i + 1 < styleNames.size())
 				ImGui::Separator();
@@ -977,7 +1006,7 @@ void Draw()
 {
 	if (activeTab < 0 || !fileTabs[activeTab].rootNode)
 		return;
-
+	
 	auto tmpStyle = ImGui::GetStyle();
 	ImGui::GetStyle() = style;
 	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];

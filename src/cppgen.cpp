@@ -42,7 +42,7 @@ std::string CppGen::AltFName(const std::string& path)
 	return "";
 }
 
-bool CppGen::Export(const std::string& fname, bool trunc, TopWindow* node, std::string& err)
+bool CppGen::Export(const std::string& fname, bool trunc, TopWindow* node, const std::string& styleName, std::string& err)
 {
 	//enforce uppercase for class name
 	/*auto ext = name.find('.');
@@ -91,7 +91,7 @@ bool CppGen::Export(const std::string& fname, bool trunc, TopWindow* node, std::
 	fin.close();
 	fprev.seekg(0);
 	fout.open(fpath, std::ios::trunc);
-	ExportCpp(fout, fprev, origNames, node->kind, code.str());
+	ExportCpp(fout, fprev, origNames, styleName, node->kind, code.str());
 
 	err = "";
 	for (const std::string& e : ctx.errors)
@@ -345,7 +345,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 }
 
 //follows fprev and overwrites generated members/functions only only
-void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array<std::string, 2>& origNames, TopWindow::Kind kind, const std::string& code)
+void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array<std::string, 2>& origNames, const std::string& styleName, TopWindow::Kind kind, const std::string& code)
 {
 	int level = 0;
 	int skip_to_level = -1;
@@ -384,6 +384,7 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 						skip_to_level = level - 1;
 						copy_content();
 						//write draw code
+						fout << "\n" << INDENT << "/// @style " << styleName;
 						fout << "\n" << code;
 					}
 				}
@@ -485,7 +486,7 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 }
 
 std::unique_ptr<TopWindow> 
-CppGen::Import(const std::string& path, std::string& err)
+CppGen::Import(const std::string& path, std::string& styleName, std::string& err)
 {
 	m_fields.clear();
 	m_fields[""];
@@ -499,7 +500,7 @@ CppGen::Import(const std::string& path, std::string& err)
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";
 	else
-		node = ImportCode(fin);
+		node = ImportCode(fin, styleName);
 	fin.close();
 
 	fpath = fs::path(path).replace_extension("cpp");
@@ -507,7 +508,7 @@ CppGen::Import(const std::string& path, std::string& err)
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";
 	else {
-		auto node2 = ImportCode(fin);
+		auto node2 = ImportCode(fin, styleName);
 		if (!node)
 			node = std::move(node2);
 	}
@@ -527,7 +528,7 @@ CppGen::Import(const std::string& path, std::string& err)
 }
 
 std::unique_ptr<TopWindow> 
-CppGen::ImportCode(std::istream& fin)
+CppGen::ImportCode(std::istream& fin, std::string& styleName)
 {
 	std::unique_ptr<TopWindow> node;
 	cpp::token_iterator iter(fin);
@@ -537,6 +538,7 @@ CppGen::ImportCode(std::istream& fin)
 	bool in_impl = false;
 	bool found_interface = false;
 	bool found_impl = false;
+	styleName = "";
 	std::string sname;
 	std::vector<std::string> line;
 	while (iter != cpp::token_iterator())
@@ -590,7 +592,7 @@ CppGen::ImportCode(std::istream& fin)
 					}
 				}
 				else {
-					auto nod = ParseFunDef(line, iter);
+					auto nod = ParseDrawFun(line, iter, styleName);
 					if (nod)
 						node = std::move(nod);
 				}
@@ -694,13 +696,16 @@ std::string CppGen::IsMemFun0(const std::vector<std::string>& line, const std::s
 }
 
 std::unique_ptr<TopWindow>
-CppGen::ParseFunDef(const std::vector<std::string>& line, cpp::token_iterator& iter)
+CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::string& styleName)
 {
 	if (IsMemFun0(line, m_name) == "Draw")
 	{
+		styleName = "";
 		cpp::stmt_iterator sit(iter);
 		while (sit != cpp::stmt_iterator()) 
 		{
+			if (!sit->line.compare(0, 11, "/// @style "))
+				styleName = sit->line.substr(11);
 			if (sit->line == "/// @begin TopWindow")
 				break;
 			++sit;

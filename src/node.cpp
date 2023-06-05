@@ -850,7 +850,9 @@ void Widget::Draw(UIContext& ctx)
 
 	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
-	bool allowed = ctx.popupWins.empty() || stx::count(ctx.popupWins, ImGui::GetCurrentWindow());
+	bool allowed = ImGui::GetTopMostAndVisiblePopupModal() == nullptr;
+	if (allowed)
+		allowed = ctx.popupWins.empty() || stx::count(ctx.popupWins, ImGui::GetCurrentWindow());
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
 	if (!ctx.snapMode && allowed && 
 		ctx.hovered == lastHovered && hovered)
@@ -1246,11 +1248,12 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputInt("##indent", indent.access());
+		/* negative indent is useful
 		if (ImGui::IsItemDeactivatedAfterEdit() && indent < 0)
 		{
 			changed = true;
 			indent = 0;
-		}
+		}*/
 		ImGui::EndDisabled();
 		break;
 	case 5:
