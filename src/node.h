@@ -27,7 +27,8 @@ struct UIContext
 	std::string fname;
 	enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
 	std::array<ImU32, Color::COUNT> colors;
-	std::map<std::string, ImFont*> fontMap;
+	std::vector<std::string> fontNames;
+	ImFont* defaultFont = nullptr;
 
 	//snap result
 	UINode* snapParent = nullptr;

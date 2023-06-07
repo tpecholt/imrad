@@ -24,12 +24,6 @@ void Draw()
 	ImGui::ShowDemoWindow();
 }
 
-ImFont* GetFont(const char* name)
-{
-	//Implement in case your generated UI uses alternate fonts
-	return nullptr;
-}
-
 // On Windows if you want to avoid console window to be shown 
 // Use /SUBSYSTEM:WINDOWS and implement w/WinMain instead
 int main(int argc, const char* argv[])
@@ -82,13 +76,12 @@ int main(int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	// Load Fonts
-	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-	// - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-	// - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-	// - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-	// - Read 'docs/FONTS.md' for more instructions and details.
-	// - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+	// Load custom style and fonts from the ImRAD INI file
+	//ImRad::LoadStyle("my-style.ini");
+
+	// Alternatively set ImGui style and fonts manually
+	// Read 'docs/FONTS.md' for more instructions and details.
+	ImGui::StyleColorsDark();
 	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f);
 	/*
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
@@ -98,12 +91,7 @@ int main(int argc, const char* argv[])
 	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f, &icons_config, icons_ranges);
 	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f, &icons_config, icons_ranges);
 	*/
-	ImGui::StyleColorsDark();
-
-	//Alternatively load style and fonts from the imrad ini file
-	//std::map<std::string, ImFont*> fontMap;
-	//ImRad::LoadStyle("my-style.ini", ImGui::GetStyle(), fontMap);
-
+	
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	while (true)

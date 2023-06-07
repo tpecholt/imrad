@@ -330,10 +330,8 @@ void TopWindow::Draw(UIContext& ctx)
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	fl |= flags;
 
-	if (style_font != "") {
-		auto it = ctx.fontMap.find(style_font);
-		ImGui::PushFont(it != ctx.fontMap.end() ? it->second : nullptr);
-	}
+	if (style_font != "")
+		ImGui::PushFont(ImRad::GetFontByName(style_font));
 	if (style_pading)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, *style_pading);
 	if (style_spacing)
@@ -414,7 +412,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	
 	if (style_font != "")
 	{
-		os << ctx.ind << "ImGui::PushFont(ImRad::GetFont(\"" << style_font << "\"));\n";
+		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(\"" << style_font << "\"));\n";
 	}
 	if (style_pading)
 	{
@@ -543,8 +541,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
-			if (sit->params.size() && !sit->params[0].compare(0, 16, "ImRad::GetFont(\""))
-				style_font = sit->params[0].substr(16, sit->params[0].size() - 16 - 2);
+			if (sit->params.size() && !sit->params[0].compare(0, 22, "ImRad::GetFontByName(\""))
+				style_font = sit->params[0].substr(22, sit->params[0].size() - 22 - 2);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 		{
@@ -697,10 +695,12 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::BeginCombo("##font", style_font.c_str()))
 			{
-				for (const auto& f : ctx.fontMap)
+				for (const auto& f : ctx.fontNames)
 				{
-					if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == style_font.c_str()))
-						style_font = f.first;
+					if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
+						changed = true;
+						style_font = f;
+					}
 				}
 				ImGui::EndCombo();
 			}
@@ -835,10 +835,7 @@ void Widget::Draw(UIContext& ctx)
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
 	if (style_font != "") 
-	{
-		auto it = ctx.fontMap.find(style_font);
-		ImGui::PushFont(it != ctx.fontMap.end() ? it->second : nullptr);
-	}
+		ImGui::PushFont(ImRad::GetFontByName(style_font.c_str()));
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
 
 	DoDraw(ctx);
@@ -955,7 +952,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (style_font != "")
 	{
-		os << ctx.ind << "ImGui::PushFont(ImRad::GetFont(" << style_font.to_arg() << "));\n";
+		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(" << style_font.to_arg() << "));\n";
 	}
 
 	ctx.parents.push_back(this);
@@ -1133,8 +1130,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
-			if (sit->params.size() && !sit->params[0].compare(0, 16, "ImRad::GetFont(\""))
-				style_font = sit->params[0].substr(16, sit->params[0].size() - 16 - 2);
+			if (sit->params.size() && !sit->params[0].compare(0, 22, "ImRad::GetFontByName(\""))
+				style_font = sit->params[0].substr(22, sit->params[0].size() - 22 - 2);
 		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemHovered")
 		{
@@ -1628,10 +1625,10 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::BeginCombo("##font", style_font.c_str()))
 			{
-				for (const auto& f : ctx.fontMap)
+				for (const auto& f : ctx.fontNames)
 				{
-					if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == style_font.c_str()))
-						style_font = f.first;
+					if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str()))
+						style_font = f;
 				}
 				ImGui::EndCombo();
 			}
@@ -1864,10 +1861,12 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::BeginCombo("##font", style_font.c_str()))
 			{
-				for (const auto& f : ctx.fontMap)
+				for (const auto& f : ctx.fontNames)
 				{
-					if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == style_font.c_str()))
-						style_font = f.first;
+					if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
+						changed = true;
+						style_font = f;
+					}
 				}
 				ImGui::EndCombo();
 			}
@@ -2311,10 +2310,12 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::BeginCombo("##font", style_font.c_str()))
 			{
-				for (const auto& f : ctx.fontMap)
+				for (const auto& f : ctx.fontNames)
 				{
-					if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == style_font.c_str()))
-						style_font = f.first;
+					if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
+						changed = true;
+						style_font = f;
+					}
 				}
 				ImGui::EndCombo();
 			}
@@ -2548,12 +2549,11 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::BeginCombo("##font", style_font.c_str()))
 			{
-				for (const auto& f : ctx.fontMap)
+				for (const auto& f : ctx.fontNames)
 				{
-					if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == style_font.c_str()))
-					{
+					if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
 						changed = true;
-						style_font = f.first;
+						style_font = f;
 					}
 				}
 				ImGui::EndCombo();
@@ -2700,12 +2700,11 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::BeginCombo("##font", style_font.c_str()))
 			{
-				for (const auto& f : ctx.fontMap)
+				for (const auto& f : ctx.fontNames)
 				{
-					if (ImGui::Selectable(f.first == "" ? " " : f.first.c_str(), f.first == style_font.c_str()))
-					{
+					if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
 						changed = true;
-						style_font = f.first;
+						style_font = f;
 					}
 				}
 				ImGui::EndCombo();
@@ -5275,7 +5274,7 @@ void TabItem::DrawExtra(UIContext& ctx)
 
 	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-	ImGui::PushFont(ctx.fontMap[""]);
+	ImGui::PushFont(nullptr);
 	assert(ctx.parents.back() == this);
 	auto* parent = ctx.parents[ctx.parents.size() - 2];
 	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
@@ -5545,7 +5544,7 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	//no WindowFlags_StayOnTop
 	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-	ImGui::PushFont(ctx.fontMap[""]);
+	ImGui::PushFont(nullptr);
 
 	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 	const ImVec2 bsize{ 30, 30 };

@@ -122,8 +122,10 @@ void ActivateTab(int i)
 		return sn.first == tab.styleName; 
 		});
 	if (st != styleNames.end()) {
-		styleIdx = int(st - styleNames.begin());
-		reloadStyle = true;
+		int idx = int(st - styleNames.begin());
+		if (idx != styleIdx)
+			reloadStyle = true;
+		styleIdx = idx;
 	}
 }
 
@@ -510,14 +512,15 @@ void LoadStyle()
 	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &icons_config, icons_ranges);
 	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &icons_config, icons_ranges);
 
-	ctx.fontMap.clear();
+	ctx.defaultFont = nullptr;
+	ctx.fontNames.clear();
 	stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
 	auto& s = styleNames[styleIdx];
 	if (s.first == "Classic")
 	{
 		style = ImGuiStyle();
 		ImGui::StyleColorsClassic(&style);
-		ctx.fontMap[""] = ImGui::GetDefaultFont();
+		ctx.fontNames = { "" };
 		ctx.colors = {
 			IM_COL32(255, 255, 0, 128),
 			IM_COL32(255, 0, 0, 255),
@@ -531,7 +534,7 @@ void LoadStyle()
 	{	
 		style = ImGuiStyle();
 		ImGui::StyleColorsLight(&style);
-		ctx.fontMap[""] = ImGui::GetDefaultFont();
+		ctx.fontNames = { "" };
 		ctx.colors = {
 			IM_COL32(255, 0, 0, 255),
 			IM_COL32(255, 0, 0, 255),
@@ -545,7 +548,7 @@ void LoadStyle()
 	{
 		style = ImGuiStyle();
 		ImGui::StyleColorsDark(&style);
-		ctx.fontMap[""] = ImGui::GetDefaultFont();
+		ctx.fontNames = { "" };
 		ctx.colors = {
 			IM_COL32(255, 255, 0, 128),
 			IM_COL32(255, 0, 0, 255),
@@ -558,9 +561,10 @@ void LoadStyle()
 	else
 	{
 		style = ImGuiStyle();
+		std::map<std::string, ImFont*> fontMap;
 		std::map<std::string, std::string> extra;
 		try {
-			ImRad::LoadStyle(s.second, style, ctx.fontMap, &extra);
+			ImRad::LoadStyle(s.second, &style, &fontMap, &extra);
 		}
 		catch (std::exception& e)
 		{
@@ -569,6 +573,10 @@ void LoadStyle()
 			messageBox.buttons = ImRad::Ok;
 			messageBox.OpenPopup();
 			return;
+		}
+		ctx.defaultFont = fontMap[""];
+		for (const auto& f : fontMap) {
+			ctx.fontNames.push_back(f.first);
 		}
 		for (const auto& ex : extra) {
 			if (ex.first.compare(0, 13, "imrad.colors."))
@@ -1010,7 +1018,7 @@ void Draw()
 	auto tmpStyle = ImGui::GetStyle();
 	ImGui::GetStyle() = style;
 	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
-	ImGui::PushFont(ctx.fontMap[""]);
+	ImGui::PushFont(ctx.defaultFont);
 
 	fileTabs[activeTab].rootNode->Draw(ctx);
 	

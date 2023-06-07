@@ -184,7 +184,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 
 				out << INDENT << "void Draw();\n\n";
 
-				//write fields
+				//write stuctures
 				for (const auto& scope : m_fields)
 				{
 					if (scope.first == "")
@@ -202,13 +202,16 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 					}
 					out << INDENT << "};\n";
 				}
+				//write fields
 				for (const auto& var : m_fields[""])
 				{
-					if ((var.flags & Var::UserCode) ||
-						!(var.flags & Var::Interface))
+					if ((var.flags & Var::UserCode) || !(var.flags & Var::Interface))
 						continue;
-					if (!var.type.compare(0, 5, "void("))
+					if (!var.type.compare(0, 5, "void(")) {
+						if (var.name == "Close" || var.name == "ClosePopup")
+							continue;
 						out << INDENT << "void " << var.name << "();\n";
+					}
 					else {
 						out << INDENT << var.type << " " << var.name;
 						if (var.init != "")
@@ -223,11 +226,10 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 				copy_content();
 				out << "\n";
 
-				//write events
+				//write fields
 				for (const auto& var : m_fields[""])
 				{
-					if ((var.flags & Var::UserCode) ||
-						!(var.flags & Var::Impl))
+					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
 						continue;
 					if (!var.type.compare(0, 5, "void(")) {
 						out << INDENT << "void " << var.name << "(";

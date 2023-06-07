@@ -128,11 +128,12 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 #ifdef IMRAD_WITH_GLFW_TEXTURE
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
-inline Texture LoadTextureFromFile(const std::string& filename)
+inline Texture LoadTextureFromFile(std::string_view filename)
 {
 	// Load from file
 	Texture tex;
-	unsigned char* image_data = stbi_load(filename.c_str(), &tex.w, &tex.h, NULL, 4);
+	std::string tmp(filename);
+	unsigned char* image_data = stbi_load(tmp.c_str(), &tex.w, &tex.h, NULL, 4);
 	if (image_data == NULL)
 		return {};
 
@@ -161,15 +162,10 @@ inline Texture LoadTextureFromFile(const std::string& filename)
 Texture LoadTextureFromFile(const std::string& filename);
 #endif
 
-//This function will be called from the generated code when alternate font
-//is used.
-//Implement in your code
-ImFont* GetFont(const char* name);
-
 //For debugging pruposes
-inline void SaveStyle(const std::string& fname)
+inline void SaveStyle(std::string_view fname)
 {
-	std::ofstream fout(fname);
+	std::ofstream fout(std::string(fname.begin(), fname.end()));
 	const auto& s = ImGui::GetStyle();
 
 	fout << "[colors]\n";
@@ -220,19 +216,20 @@ inline void SaveStyle(const std::string& fname)
 
 //This function can be used in your code to load style and fonts from the INI file
 //It is also used by ImRAD when switching themes
-inline void LoadStyle(const std::string& fname, ImGuiStyle& style, std::map<std::string, ImFont*>& fontMap, std::map<std::string, std::string>* extra = nullptr)
+inline void LoadStyle(std::string_view fname, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
 {
-	style = ImGuiStyle();
+	ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
+	*style = ImGuiStyle();
 	auto& io = ImGui::GetIO();
 
-	std::string parentPath = fname;
-	size_t i = parentPath.find_last_of("/\\");
-	if (i != std::string::npos)
-		parentPath.resize(i + 1);
+	std::string parentPath(fname);
+	size_t ix = parentPath.find_last_of("/\\");
+	if (ix != std::string::npos)
+		parentPath.resize(ix + 1);
 
-	std::ifstream fin(fname);
+	std::ifstream fin(std::string(fname.begin(), fname.end()));
 	if (!fin)
-		throw std::runtime_error("Can't read " + fname);
+		throw std::runtime_error("Can't read " + std::string(fname));
 	std::string line;
 	std::string cat;
 	int lastClr = -1;
@@ -260,17 +257,17 @@ inline void LoadStyle(const std::string& fname, ImGuiStyle& style, std::map<std:
 						lastClr = i;
 						int r, g, b, a;
 						is >> r >> g >> b >> a;
-						style.Colors[i].x = r / 255.f;
-						style.Colors[i].y = g / 255.f;
-						style.Colors[i].z = b / 255.f;
-						style.Colors[i].w = a / 255.f;
+						style->Colors[i].x = r / 255.f;
+						style->Colors[i].y = g / 255.f;
+						style->Colors[i].z = b / 255.f;
+						style->Colors[i].w = a / 255.f;
 						break;
 					}
 			}
 			else if (cat == "variables")
 			{
-#define READ_FLT(a) if (key == #a) is >> style.a;
-#define READ_VEC(a) if (key == #a) is >> style.a.x >> style.a.y;
+#define READ_FLT(a) if (key == #a) is >> style->a;
+#define READ_VEC(a) if (key == #a) is >> style->a.x >> style->a.y;
 				
 				READ_FLT(Alpha);
 				READ_FLT(DisabledAlpha);
@@ -323,13 +320,15 @@ inline void LoadStyle(const std::string& fname, ImGuiStyle& style, std::map<std:
 				}
 
 				ImFontConfig cfg;
+				strncpy(cfg.Name, key.c_str(), sizeof(cfg.Name));
+				cfg.Name[sizeof(cfg.Name) - 1] = '\0';
 				cfg.MergeMode = key == lastFont;
 				cfg.GlyphRanges = hasRange ? rngs.back().get() : nullptr;
 				ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &cfg);
 				if (!fnt)
 					throw std::runtime_error("Can't load " + path);
-				if (!cfg.MergeMode)
-					fontMap[lastFont == "" ? "" : key] = fnt;
+				if (!cfg.MergeMode && fontMap)
+					(*fontMap)[lastFont == "" ? "" : key] = fnt;
 			
 				lastFont = key;
 			}
@@ -339,8 +338,21 @@ inline void LoadStyle(const std::string& fname, ImGuiStyle& style, std::map<std:
 			}
 		}
 	}
-	if (!fontMap.count(""))
-		fontMap[""] = io.Fonts->AddFontDefault();
+	if (fontMap && !(*fontMap).count(""))
+		(*fontMap)[""] = io.Fonts->AddFontDefault();
+}
+
+//This function will be called from the generated code when alternate font is used
+inline ImFont* GetFontByName(std::string_view name)
+{
+	const auto& io = ImGui::GetIO();
+	for (const auto& cfg : io.Fonts->ConfigData) {
+		if (cfg.MergeMode)
+			continue;
+		if (name == cfg.Name)
+			return cfg.DstFont;
+	}
+	return nullptr;
 }
 
 }
