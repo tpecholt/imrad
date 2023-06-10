@@ -213,8 +213,8 @@ void OpenFile()
 	{
 		ActivateTab(int(it - fileTabs.begin()));
 		if (it->modified) {
+			messageBox.title = "Open File";
 			messageBox.message = "Reload and lose unsaved changes?";
-			messageBox.error = "";
 			messageBox.buttons = ImRad::Yes | ImRad::No;
 			messageBox.OpenPopup([=](ImRad::ModalResult mr) {
 				if (mr == ImRad::Yes)
@@ -244,8 +244,8 @@ void ReloadFiles()
 		tab.time[0] = time1;
 		tab.time[1] = time2;
 		auto fn = fs::path(tab.fname).filename().string();
+		messageBox.title = "Reload";
 		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
-		messageBox.error = "";
 		messageBox.buttons = ImRad::Yes | ImRad::No;
 		
 		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
@@ -521,11 +521,14 @@ void LoadStyle()
 	StyleColors();
 	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 20.0f);
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-	ImFontConfig icons_config;
-	icons_config.MergeMode = true;
+	ImFontConfig cfg;
+	cfg.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &icons_config, icons_ranges);
-	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
+	cfg.MergeMode = false;
+	strcpy(cfg.Name, "H1");
+	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 30, &cfg);
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();

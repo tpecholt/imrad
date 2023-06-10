@@ -29,7 +29,7 @@ void AboutDlg::ClosePopup()
 void AboutDlg::Draw()
 {
     /// @begin TopWindow
-    ImGui::SetNextWindowSize({ 300, 140 }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({ 300, 150 }, ImGuiCond_Appearing);
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ID = ImGui::GetID("About");
@@ -40,7 +40,9 @@ void AboutDlg::Draw()
         /// @separator
 
         /// @begin Text
-        ImGui::TextUnformatted(VER_STR.c_str());
+		ImGui::PushFont(ImRad::GetFontByName("H1"));
+		ImGui::TextUnformatted(VER_STR.c_str());
+		ImGui::PopFont();
         /// @end Text
 
         /// @begin Text
@@ -71,7 +73,8 @@ void AboutDlg::Draw()
 
         /// @begin Button
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 100) / 2);
-        if (ImGui::Button("OK", { 100, 0 }))
+        if (ImGui::Button("OK", { 100, 0 }) ||
+			ImGui::IsKeyPressed(ImGuiKey_Escape))
         {
             ClosePopup();
             callback(ImRad::Ok);

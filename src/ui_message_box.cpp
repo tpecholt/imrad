@@ -1,4 +1,5 @@
 #include "ui_message_box.h"
+#include "IconsFontAwesome6.h"
 
 MessageBox messageBox;
 
@@ -21,10 +22,18 @@ void MessageBox::Draw()
 	{
 		if (error != "")
 		{
+			ImGui::Spacing();
+			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(192, 0, 0, 255));
+			ImGui::Text(ICON_FA_TRIANGLE_EXCLAMATION " ");
+			ImGui::PopStyleColor();
+			ImGui::SameLine();
 			ImGui::TextWrapped(message.c_str());
 			ImGui::Spacing();
 			ImGui::Spacing();
-			ImGui::InputTextMultiline("##err", &error, { 500, 300 });
+			ImGui::Spacing();
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(164, 164, 164, 255));
+			ImGui::InputTextMultiline("##err", &error, { 500, 300 }, ImGuiInputTextFlags_ReadOnly);
+			ImGui::PopStyleColor();
 		}
 		else
 		{
@@ -45,7 +54,8 @@ void MessageBox::Draw()
 				ImGui::SetKeyboardFocusHere();
 			ImGui::SetCursorPos({ x, y });
 			if (ImGui::Button("OK", { 80, 30 }) ||
-				(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
+				(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)) ||
+				(buttons == ImRad::Ok && ImGui::IsKeyPressed(ImGuiKey_Escape)))
 			{
 				ImGui::CloseCurrentPopup();
 				callback(ImRad::Ok);
