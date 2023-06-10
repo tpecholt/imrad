@@ -64,6 +64,9 @@ struct Texture
 struct CustomWidgetArgs
 {
 	ImVec2 size;
+
+	CustomWidgetArgs(const ImVec2& sz) : size(sz) {}
+	CustomWidgetArgs(float x, float y) : size(x, y) {}
 };
 
 inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)

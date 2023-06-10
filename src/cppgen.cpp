@@ -42,7 +42,13 @@ std::string CppGen::AltFName(const std::string& path)
 	return "";
 }
 
-bool CppGen::Export(const std::string& fname, bool trunc, TopWindow* node, const std::string& styleName, std::string& err)
+bool CppGen::Export(
+	const std::string& fname, 
+	bool trunc, 
+	TopWindow* node, 
+	const std::map<std::string, std::string>& params, 
+	std::string& err
+)
 {
 	//enforce uppercase for class name
 	/*auto ext = name.find('.');
@@ -91,7 +97,7 @@ bool CppGen::Export(const std::string& fname, bool trunc, TopWindow* node, const
 	fin.close();
 	fprev.seekg(0);
 	fout.open(fpath, std::ios::trunc);
-	ExportCpp(fout, fprev, origNames, styleName, node->kind, code.str());
+	ExportCpp(fout, fprev, origNames, params, node->kind, code.str());
 
 	err = "";
 	for (const std::string& e : ctx.errors)
@@ -347,7 +353,14 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 }
 
 //follows fprev and overwrites generated members/functions only only
-void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array<std::string, 2>& origNames, const std::string& styleName, TopWindow::Kind kind, const std::string& code)
+void CppGen::ExportCpp(
+	std::ostream& fout, 
+	std::istream& fprev, 
+	const std::array<std::string, 2>& origNames, 
+	const std::map<std::string, std::string>& params, 
+	TopWindow::Kind kind, 
+	const std::string& code
+)
 {
 	int level = 0;
 	int skip_to_level = -1;
@@ -386,7 +399,8 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 						skip_to_level = level - 1;
 						copy_content();
 						//write draw code
-						fout << "\n" << INDENT << "/// @style " << styleName;
+						for (const auto& p : params)
+							fout << "\n" << INDENT << "/// @" << p.first << " " << p.second;
 						fout << "\n" << code;
 					}
 				}
@@ -467,6 +481,8 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 	if (!events.count("Draw"))
 	{
 		fout << "\nvoid " << m_name << "::Draw()\n{\n";
+		for (const auto& p : params)
+			fout << INDENT << "/// @" << p.first << " " << p.second << "\n";
 		fout << code << "}\n";
 	}
 
@@ -488,7 +504,11 @@ void CppGen::ExportCpp(std::ostream& fout, std::istream& fprev, const std::array
 }
 
 std::unique_ptr<TopWindow> 
-CppGen::Import(const std::string& path, std::string& styleName, std::string& err)
+CppGen::Import(
+	const std::string& path, 
+	std::map<std::string, std::string>& params, 
+	std::string& err
+)
 {
 	m_fields.clear();
 	m_fields[""];
@@ -502,7 +522,7 @@ CppGen::Import(const std::string& path, std::string& styleName, std::string& err
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";
 	else
-		node = ImportCode(fin, styleName);
+		node = ImportCode(fin, params);
 	fin.close();
 
 	fpath = fs::path(path).replace_extension("cpp");
@@ -510,7 +530,7 @@ CppGen::Import(const std::string& path, std::string& styleName, std::string& err
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";
 	else {
-		auto node2 = ImportCode(fin, styleName);
+		auto node2 = ImportCode(fin, params);
 		if (!node)
 			node = std::move(node2);
 	}
@@ -530,7 +550,7 @@ CppGen::Import(const std::string& path, std::string& styleName, std::string& err
 }
 
 std::unique_ptr<TopWindow> 
-CppGen::ImportCode(std::istream& fin, std::string& styleName)
+CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params)
 {
 	std::unique_ptr<TopWindow> node;
 	cpp::token_iterator iter(fin);
@@ -540,7 +560,6 @@ CppGen::ImportCode(std::istream& fin, std::string& styleName)
 	bool in_impl = false;
 	bool found_interface = false;
 	bool found_impl = false;
-	styleName = "";
 	std::string sname;
 	std::vector<std::string> line;
 	while (iter != cpp::token_iterator())
@@ -594,7 +613,7 @@ CppGen::ImportCode(std::istream& fin, std::string& styleName)
 					}
 				}
 				else {
-					auto nod = ParseDrawFun(line, iter, styleName);
+					auto nod = ParseDrawFun(line, iter, params);
 					if (nod)
 						node = std::move(nod);
 				}
@@ -698,18 +717,23 @@ std::string CppGen::IsMemFun0(const std::vector<std::string>& line, const std::s
 }
 
 std::unique_ptr<TopWindow>
-CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::string& styleName)
+CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params)
 {
 	if (IsMemFun0(line, m_name) == "Draw")
 	{
-		styleName = "";
 		cpp::stmt_iterator sit(iter);
 		while (sit != cpp::stmt_iterator()) 
 		{
-			if (!sit->line.compare(0, 11, "/// @style "))
-				styleName = sit->line.substr(11);
 			if (sit->line == "/// @begin TopWindow")
 				break;
+			if (!sit->line.compare(0, 5, "/// @")) {
+				std::string key = sit->line.substr(5);
+				size_t i1 = key.find_first_of(" \t");
+				size_t i2 = i1 + 1;
+				while (i2 + 1 < key.size() && (key[i2 + 1] == ' ' || key[i2 + 1] == '\t'))
+					++i2;
+				params[key.substr(0, i1)] = key.substr(i2);
+			}
 			++sit;
 		}
 		UIContext ctx;

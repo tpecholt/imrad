@@ -164,7 +164,9 @@ void DoOpenFile(const std::string& path)
 	file.time[0] = fs::last_write_time(file.fname);
 	std::error_code err;
 	file.time[1] = fs::last_write_time(file.codeGen.AltFName(file.fname), err);
-	file.rootNode = file.codeGen.Import(file.fname, file.styleName, messageBox.error);
+	std::map<std::string, std::string> params;
+	file.rootNode = file.codeGen.Import(file.fname, params, messageBox.error);
+	file.styleName = params["style"];
 	if (!file.rootNode) {
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful import because of errors";
@@ -245,10 +247,20 @@ void ReloadFiles()
 		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
 		messageBox.error = "";
 		messageBox.buttons = ImRad::Yes | ImRad::No;
+		
 		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
 			if (mr != ImRad::Yes)
 				return;
-			tab.rootNode = tab.codeGen.Import(tab.fname, tab.styleName, messageBox.error);
+			std::map<std::string, std::string> params;
+			tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
+			tab.styleName = params["style"];
+			bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
+				return st.first == tab.styleName;
+				});
+			if (!styleFound) {
+				messageBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + messageBox.error;
+				tab.styleName = DEFAULT_STYLE;
+			}
 			tab.modified = false;
 			if (&tab == &fileTabs[activeTab])
 				ctx.snapMode = false;
@@ -311,8 +323,11 @@ void SaveFile(bool thenClose)
 			fs::path(tab.fname).stem().string());
 		trunc = true;
 	}
-	
-	if (!tab.codeGen.Export(tab.fname, trunc, tab.rootNode.get(), tab.styleName, messageBox.error))
+
+	std::map<std::string, std::string> params{
+		{ "style", tab.styleName }
+	};
+	if (!tab.codeGen.Export(tab.fname, trunc, tab.rootNode.get(), params, messageBox.error))
 	{
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
@@ -705,6 +720,19 @@ void ToolbarUI()
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Save File (Ctrl+S)");
 	
+	/*ImGui::SameLine(0, 0);
+	if (ImGui::Button(ICON_FA_CARET_DOWN))
+		ImGui::OpenPopup("SaveMenu");
+	ImGui::SetNextWindowPos(ImGui::GetCursorPos());
+	if (ImGui::BeginPopup("SaveMenu"))
+	{
+		if (ImGui::MenuItem("Save As"))
+			;
+		if (ImGui::MenuItem("Save All"))
+			;
+		ImGui::EndPopup();
+	}*/
+
 	/*ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_WINDOW_RESTORE))
 		SaveAll();

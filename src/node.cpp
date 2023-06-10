@@ -4173,10 +4173,9 @@ void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.errors.push_back("UserWidget: OnDraw not set!");
 		return;
 	}
-
-	os << ctx.ind << onDraw.to_arg() << "({{ " 
+	os << ctx.ind << onDraw.to_arg() << "({ " 
 		<< size_x.to_arg() << ", " << size_y.to_arg() 
-		<< " }});\n";
+		<< " });\n";
 }
 
 void CustomWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -4185,8 +4184,8 @@ void CustomWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		onDraw.set_from_arg(sit->callee);
 
-		if (sit->params.size() && sit->params[0][0] == '{' && sit->params[0].back() == '}') {
-			auto size = cpp::parse_size(sit->params[0].substr(1, sit->params[0].size() - 2));
+		if (sit->params.size()) {
+			auto size = cpp::parse_size(sit->params[0]);
 			size_x.set_from_arg(size.first);
 			size_y.set_from_arg(size.second);
 		}
@@ -4811,7 +4810,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 			ImGui::SameLine(0, 0);
 			BindingButton("color", &style_bg, ctx);
 
-			changed = ImGui::Checkbox("", style_padding.access()) || changed;
+			changed = ImGui::Checkbox("##padding", style_padding.access()) || changed;
 		});
 		break;
 	case 1:

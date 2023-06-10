@@ -12,8 +12,8 @@ public:
 	static const std::string INDENT;
 
 	CppGen();
-	bool Export(const std::string& fname, bool trunc, TopWindow* node, const std::string& styleName, std::string& err);
-	auto Import(const std::string& path, std::string& styleName, std::string& err) -> std::unique_ptr<TopWindow>;
+	bool Export(const std::string& fname, bool trunc, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
+	auto Import(const std::string& path, std::map<std::string, std::string>& params, std::string& err) -> std::unique_ptr<TopWindow>;
 	static auto AltFName(const std::string& path) -> std::string;
 
 	struct Var
@@ -52,13 +52,13 @@ private:
 	void CreateH(std::ostream& out);
 	void CreateCpp(std::ostream& out, const std::string& hName);
 	auto ExportH(std::ostream& out, std::istream& prev, TopWindow::Kind k) -> std::array<std::string, 2>;
-	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 2>& origNames, const std::string& styleName, TopWindow::Kind k, const std::string& code);
-	auto ImportCode(std::istream& in, std::string& styleName) -> std::unique_ptr<TopWindow>;
+	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 2>& origNames, const std::map<std::string, std::string>& params, TopWindow::Kind k, const std::string& code);
+	auto ImportCode(std::istream& in, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	bool ParseFieldDecl(const std::string& stype, const std::vector<std::string>& line, int flags);
 	auto IsMemFun(const std::vector<std::string>& line, const std::string& cname)->std::string;
 	auto IsMemFun0(const std::vector<std::string>& line, const std::string& cname) -> std::string;
-	auto ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::string& styleName) -> std::unique_ptr<TopWindow>;
+	auto ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	std::map<std::string, std::vector<Var>> m_fields;
 	std::string m_name, m_vname;
