@@ -12,7 +12,7 @@ public:
 	static const std::string INDENT;
 
 	CppGen();
-	bool Export(const std::string& fname, bool trunc, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
+	bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
 	auto Import(const std::string& path, std::map<std::string, std::string>& params, std::string& err) -> std::unique_ptr<TopWindow>;
 	static auto AltFName(const std::string& path) -> std::string;
 

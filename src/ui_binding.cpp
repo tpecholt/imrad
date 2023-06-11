@@ -26,16 +26,17 @@ void BindingDlg::ClosePopup()
 
 void BindingDlg::Draw()
 {
+    /// @style Dark
     /// @begin TopWindow
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
-    ImGui::SetNextWindowSize({ 480, 480 }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({ 480, 480 }, ImGuiCond_FirstUseEver);
     if (requestOpen) {
         requestOpen = false;
         ImGui::OpenPopup("Binding");
     }
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Binding", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
@@ -47,9 +48,16 @@ void BindingDlg::Draw()
 
         /// @begin Text
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff4d4dff);
-		ImGui::TextUnformatted(ImRad::Format(" {}=", name).c_str());
+        ImGui::TextUnformatted(ImRad::Format(" {}=", name).c_str());
         ImGui::PopStyleColor();
         /// @end Text
+
+        /// @begin Selectable
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
+        ImGui::Selectable(ImRad::Format("{}", type).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_Disabled, { 0, 0 });
+        ImGui::PopStyleVar();
+        /// @end Selectable
 
         /// @begin Input
         if (ImGui::IsWindowAppearing())
@@ -60,7 +68,7 @@ void BindingDlg::Draw()
 
         /// @begin Table
         ImGui::Spacing();
-        if (ImGui::BeginTable("table2292654500064", 3, ImGuiTableFlags_None, { 0, 0 }))
+        if (ImGui::BeginTable("table2201201799584", 3, ImGuiTableFlags_None, { 0, 0 }))
         {
             ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthStretch, 0);
@@ -71,12 +79,12 @@ void BindingDlg::Draw()
 
             /// @begin Text
             ImGui::AlignTextToFramePadding();
-			ImGui::TextUnformatted(ImRad::Format("Available fields ({}):", type).c_str());
+            ImGui::TextUnformatted("Available fields:");
             /// @end Text
 
             /// @begin Child
             ImGui::TableNextColumn();
-            ImGui::BeginChild("child2292652021456", { 0, 20 }, false);
+            ImGui::BeginChild("child2201294508848", { 0, 20 }, false);
             {
                 /// @separator
 
@@ -98,7 +106,7 @@ void BindingDlg::Draw()
         /// @end Table
 
         /// @begin Table
-        if (ImGui::BeginTable("table2292651633824", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 0, -44 }))
+        if (ImGui::BeginTable("table2201201801200", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 0, -44 }))
         {
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);
@@ -112,14 +120,16 @@ void BindingDlg::Draw()
                 /// @separator
 
                 /// @begin Selectable
+                ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
                 ImGui::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 });
-                if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered())
-                    OnVarClicked();
+                ImGui::PopStyleVar();
                 /// @end Selectable
 
                 /// @begin Selectable
                 ImGui::TableNextColumn();
+                ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
                 ImGui::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
+                ImGui::PopStyleVar();
                 /// @end Selectable
 
 
@@ -132,7 +142,7 @@ void BindingDlg::Draw()
 
         /// @begin Table
         ImGui::Spacing();
-        if (ImGui::BeginTable("table2292653111104", 3, ImGuiTableFlags_None, { 0, -1 }))
+        if (ImGui::BeginTable("table2201201806048", 3, ImGuiTableFlags_None, { 0, -1 }))
         {
             ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthFixed, 0);
@@ -142,7 +152,7 @@ void BindingDlg::Draw()
             /// @separator
 
             /// @begin Button
-            if (ImGui::Button(" New Field... ", { 0, 0 }))
+            if (ImGui::Button(" New Field... ", { 110, 0 }))
             {
                 OnNewField();
             }
@@ -160,7 +170,7 @@ void BindingDlg::Draw()
             /// @begin Button
             ImGui::TableNextColumn();
             if (ImGui::Button("Cancel", { 90, 0 }) ||
-                ImGui::IsKeyPressed(ImGuiKey_Escape))
+                (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
             {
                 ClosePopup();
             }

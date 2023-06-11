@@ -166,7 +166,8 @@ void DoOpenFile(const std::string& path)
 	file.time[1] = fs::last_write_time(file.codeGen.AltFName(file.fname), err);
 	std::map<std::string, std::string> params;
 	file.rootNode = file.codeGen.Import(file.fname, params, messageBox.error);
-	file.styleName = params["style"];
+	auto pit = params.find("style");
+	file.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
 	if (!file.rootNode) {
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful import because of errors";
@@ -253,7 +254,8 @@ void ReloadFiles()
 				return;
 			std::map<std::string, std::string> params;
 			tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
-			tab.styleName = params["style"];
+			auto pit = params.find("style");
+			tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
 			bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
 				return st.first == tab.styleName;
 				});
@@ -276,7 +278,7 @@ void DoCloseFile()
 	ActivateTab(activeTab);
 }
 
-void SaveFile(bool thenClose = false);
+bool SaveFile(bool thenClose = false);
 
 void CloseFile()
 {
@@ -303,31 +305,13 @@ void CloseFile()
 	}
 }
 
-void SaveFile(bool thenClose)
+void DoSaveFile(bool thenClose)
 {
 	auto& tab = fileTabs[activeTab];
-	bool trunc = false;
-	if (tab.fname == "") {
-		nfdchar_t *outPath = NULL;
-		nfdresult_t result = NFD_SaveDialog("h", NULL, &outPath);
-		if (result != NFD_OKAY) {
-			if (thenClose)
-				DoCloseFile();
-			return;
-		}
-		tab.fname = outPath;
-		if (!fs::path(tab.fname).has_extension())
-			tab.fname += ".h";
-		ctx.fname = tab.fname;
-		tab.codeGen.SetNamesFromId(
-			fs::path(tab.fname).stem().string());
-		trunc = true;
-	}
-
 	std::map<std::string, std::string> params{
 		{ "style", tab.styleName }
 	};
-	if (!tab.codeGen.Export(tab.fname, trunc, tab.rootNode.get(), params, messageBox.error))
+	if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, messageBox.error))
 	{
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
@@ -338,7 +322,7 @@ void SaveFile(bool thenClose)
 			});
 		return;
 	}
-	
+
 	tab.modified = false;
 	tab.time[0] = fs::last_write_time(tab.fname);
 	std::error_code err;
@@ -357,6 +341,50 @@ void SaveFile(bool thenClose)
 
 	if (thenClose)
 		DoCloseFile();
+}
+
+bool SaveFileAs(bool thenClose = false)
+{
+	nfdchar_t *outPath = NULL;
+	nfdresult_t result = NFD_SaveDialog("h", NULL, &outPath);
+	if (result != NFD_OKAY) {
+		if (thenClose)
+			DoCloseFile();
+		return false;
+	}
+	auto& tab = fileTabs[activeTab];
+	tab.fname = fs::path(outPath).replace_extension(".h").string();
+	//remove files so CppGen won't try to parse it as with Save
+	fs::remove(tab.fname);
+	fs::remove(fs::path(tab.fname).replace_extension(".cpp"));
+	ctx.fname = tab.fname;
+	tab.codeGen.SetNamesFromId(fs::path(tab.fname).stem().string());
+	
+	DoSaveFile(thenClose);
+	return true;
+}
+
+bool SaveFile(bool thenClose)
+{
+	auto& tab = fileTabs[activeTab];
+	if (tab.fname == "")
+		return SaveFileAs(thenClose);
+	else {
+		DoSaveFile(thenClose);
+		return true;
+	}
+}
+
+void SaveAll()
+{
+	int tmp = activeTab;
+	for (activeTab = 0; activeTab < fileTabs.size(); ++activeTab)
+	{
+		if (fileTabs[activeTab].modified)
+			if (!SaveFile(false))
+				break;
+	}
+	activeTab = tmp;
 }
 
 void ShowCode()
@@ -527,8 +555,8 @@ void LoadStyle()
 	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &cfg, icons_ranges);
 	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
 	cfg.MergeMode = false;
-	strcpy(cfg.Name, "H1");
-	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 30, &cfg);
+	strcpy(cfg.Name, "imrad.H1");
+	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 26, &cfg);
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
@@ -693,20 +721,22 @@ void ToolbarUI()
 	if (ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl)
 		NewFile(TopWindow::Window);
 	ImGui::SetNextWindowPos(ImGui::GetCursorPos());
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
 	if (ImGui::BeginPopup("NewMenu"))
 	{
-		if (ImGui::MenuItem("Window"))
+		if (ImGui::MenuItem(ICON_FA_WINDOW_MAXIMIZE " Window"))
 			NewFile(TopWindow::Window);
-		if (ImGui::MenuItem("Popup"))
+		if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE " Popup"))
 			NewFile(TopWindow::Popup);
-		if (ImGui::MenuItem("Modal Popup"))
+		if (ImGui::MenuItem(ICON_FA_TABLET_SCREEN_BUTTON " Modal Popup"))
 			NewFile(TopWindow::ModalPopup);
 		ImGui::Separator();
-		if (ImGui::MenuItem("GLFW template", "(main.cpp)"))
+		if (ImGui::MenuItem(ICON_FA_FILE_PEN " GLFW template", "\tmain.cpp"))
 			NewTemplate(0);
 
 		ImGui::EndPopup();
 	}
+	ImGui::PopStyleVar();
 
 	ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
@@ -716,25 +746,31 @@ void ToolbarUI()
 		ImGui::SetTooltip("Open File (Ctrl+O)");
 	
 	ImGui::BeginDisabled(activeTab < 0);
+	
 	ImGui::SameLine();
+	float cx = ImGui::GetCursorPosX();
 	if (ImGui::Button(ICON_FA_FLOPPY_DISK) ||
-		(ImGui::IsKeyPressed(ImGuiKey_S, false) && io.KeyCtrl))
+		(ImGui::IsKeyPressed(ImGuiKey_S, false) && io.KeyMods == ImGuiMod_Ctrl))
 		SaveFile();
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Save File (Ctrl+S)");
 	
-	/*ImGui::SameLine(0, 0);
-	if (ImGui::Button(ICON_FA_CARET_DOWN))
+	ImGui::SameLine(0, 0);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 2, ImGui::GetStyle().FramePadding.y });
+	if (ImGui::Button(ICON_FA_CARET_DOWN)) 
 		ImGui::OpenPopup("SaveMenu");
-	ImGui::SetNextWindowPos(ImGui::GetCursorPos());
+	ImGui::PopStyleVar();
+	ImGui::SetNextWindowPos({ cx, ImGui::GetCursorPosY() });
 	if (ImGui::BeginPopup("SaveMenu"))
 	{
-		if (ImGui::MenuItem("Save As"))
-			;
-		if (ImGui::MenuItem("Save All"))
-			;
+		if (ImGui::MenuItem("Save As..."))
+			SaveFileAs();
+		if (ImGui::MenuItem("Save All", "\tCtrl+Shift+S"))
+			SaveAll();
 		ImGui::EndPopup();
-	}*/
+	}
+	if (io.KeyMods == (ImGuiMod_Ctrl | ImGuiMod_Shift) && ImGui::IsKeyPressed(ImGuiKey_S))
+		SaveAll();
 
 	/*ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_WINDOW_RESTORE))
@@ -745,7 +781,7 @@ void ToolbarUI()
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	ImGui::SameLine();
-	ImGui::Text("Theme:");
+	ImGui::Text("Style");
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(100);
 	if (ImGui::BeginCombo("##style", styleNames[styleIdx].first.c_str()))
@@ -787,6 +823,7 @@ void ToolbarUI()
 	}
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Class Wizard");
+	
 	ImGui::EndDisabled();
 	
 	ImGui::SameLine();

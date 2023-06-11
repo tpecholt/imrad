@@ -47,6 +47,7 @@ void MessageBox::Draw()
 		int n = (bool)(buttons & ImRad::Ok) + (bool)(buttons & ImRad::Cancel) + (bool)(buttons & ImRad::Yes) + (bool)(buttons & ImRad::No);
 		float w = (n * 80) + (n - 1) * ImGui::GetStyle().ItemSpacing.x;
 		float x = (ImGui::GetContentRegionAvail().x + ImGui::GetStyle().FramePadding.x - w) / 2.f;
+		x += ImGui::GetStyle().WindowPadding.x;
 		float y = ImGui::GetCursorPosY();
 		if (buttons & ImRad::Ok)
 		{

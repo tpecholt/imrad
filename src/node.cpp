@@ -200,7 +200,10 @@ void UINode::DrawSnap(UIContext& ctx)
 		bool topmost = true;
 		for (int j = (int)i; j >= 0; --j)
 		{
-			if (j && !pchildren[j]->sameLine && !pchildren[j]->nextColumn)
+			if (j && 
+				(pchildren[j - 1]->SnapBehavior() & SnapSides) && //ignore preceeding MenuBar
+				!pchildren[j]->sameLine && 
+				!pchildren[j]->nextColumn)
 				topmost = false;
 		}
 		size_t i1 = i, i2 = i;
@@ -1673,6 +1676,7 @@ Selectable::Selectable(UIContext& ctx)
 	flags.prefix("ImGuiSelectableFlags_");
 	flags.add$(ImGuiSelectableFlags_DontClosePopups);
 	flags.add$(ImGuiSelectableFlags_SpanAllColumns);
+	flags.add$(ImGuiSelectableFlags_Disabled);
 
 	horizAlignment.add("AlignLeft", ImRad::AlignLeft);
 	horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
@@ -1732,7 +1736,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 		clr = style_color.to_arg();
 
 	if (clr != "")
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Header, " << clr << ");\n";
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << clr << ");\n";
 
 	os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { "
 		<< (horizAlignment == ImRad::AlignLeft ? "0" : horizAlignment == ImRad::AlignHCenter ? "0.5f" : "1.f")
@@ -1794,7 +1798,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Header")
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
 		{
 			style_color.set_from_arg(sit->params[1]);
 		}
@@ -2039,17 +2043,15 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::PopStyleVar();
 }
 
-std::string CodeShortcut(const std::string& sh)
+std::string CodeShortcut(const std::string& sh, const std::string& disabled)
 {
 	if (sh.empty())
 		return "";
 	size_t i = -1;
-	std::ostringstream os;
-	os << "!ImRad::IsItemDisabled()";
-	int count = 0;
+	std::vector<std::string> cond;
+	std::string mod;
 	while (true) 
 	{
-		++count;
 		size_t j = sh.find_first_of("+-", i + 1);
 		if (j == std::string::npos)
 			j = sh.size();
@@ -2062,34 +2064,42 @@ std::string CodeShortcut(const std::string& sh)
 		stx::for_each(lk, [](char& c) { c = std::tolower(c); });
 		//todo
 		if (lk == "ctrl")
-			os << " && ImGui::GetIO().KeyCtrl";
+			mod += "ImGuiMod_Ctrl|";
 		else if (lk == "alt")
-			os << " && ImGui::GetIO().KeyAlt";
+			mod += "ImGuiMod_Alt|";
 		else if (lk == "shift")
-			os << " && ImGui::GetIO().KeyShift";
+			mod += "ImGuiMod_Shift|";
 		else if (key == "+")
-			os << " && ImGui::IsKeyPressed(ImGuiKey_Equal, false)";
+			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Equal, false)");
 		else if (key == "-")
-			os << " && ImGui::IsKeyPressed(ImGuiKey_Minus, false)";
+			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Minus, false)");
 		else if (key == ".")
-			os << " && ImGui::IsKeyPressed(ImGuiKey_Period, false)";
+			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Period, false)");
 		else if (key == ",")
-			os << " && ImGui::IsKeyPressed(ImGuiKey_Comma, false)";
+			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Comma, false)");
 		else if (key == "/")
-			os << " && ImGui::IsKeyPressed(ImGuiKey_Slash, false)";
+			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Slash, false)");
 		else
-			os << " && ImGui::IsKeyPressed(ImGuiKey_" << (char)std::toupper(key[0])
-			<< key.substr(1) << ", false)";
+			cond.push_back(std::string("ImGui::IsKeyPressed(ImGuiKey_")  
+				+ (char)std::toupper(key[0])
+				+ key.substr(1) + ", false)");
 		i = j;
 		if (j == sh.size())
 			break;
 	}
+	if (mod != "") {
+		mod.pop_back();
+		if (stx::count(mod, '|'))
+			mod = "(" + mod + ")";
+		cond.insert(cond.begin(), "ImGui::GetIO().KeyMods == " + mod);
+	}
+	if (disabled != "")
+		cond.insert(cond.begin(), "!" + disabled);
+
 	std::string code;
-	if (count > 1)
-		code += "(";
-	code += os.str(); // .substr(4);
-	if (count > 1)
-		code += ")";
+	code += "(";
+	code += stx::join(cond, " && ");
+	code += ")";
 	return code;
 }
 
@@ -2100,7 +2110,7 @@ std::string ParseShortcut(const std::string& line)
 	while (true)
 	{
 		size_t j1 = line.find("ImGui::IsKeyPressed(ImGuiKey_", i + 1);
-		size_t j2 = line.find("ImGui::GetIO().Key", i + 1);
+		size_t j2 = line.find("ImGuiMod_", i + 1);
 		if (j1 == std::string::npos && j2 == std::string::npos)
 			break;
 		if (j1 < j2) {
@@ -2114,10 +2124,12 @@ std::string ParseShortcut(const std::string& line)
 		}
 		else
 		{
-			j2 += 18;
+			j2 += 9;
 			sh += "+";
-			while (j2 < line.size() && std::isalpha(line[j2]))
-				sh += line[j2++];
+			size_t end = std::find_if(line.begin() + j2, line.end(), [](char c) {
+				return !std::isalpha(c);
+				}) - line.begin();
+			sh += line.substr(j2, end - j2);
 			i = j2;
 		}
 	}
@@ -2160,7 +2172,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	if (shortcut != "") {
 		os << " ||\n";
 		ctx.ind_up();
-		os << ctx.ind << CodeShortcut(shortcut);
+		os << ctx.ind << CodeShortcut(shortcut, "ImRad::IsItemDisabled()");
 		ctx.ind_down();
 	}
 
@@ -5449,11 +5461,24 @@ void MenuBar::CalcSizeEx(ImVec2 x1, UIContext& ctx)
 	cached_size = ImGui::GetCurrentWindow()->MenuBarRect().GetSize();
 }
 
+void ExportShortcuts(Widget* item, std::ostream& os, UIContext& ctx)
+{
+	for (const auto& ch : item->children) 
+	{
+		MenuIt* chm = dynamic_cast<MenuIt*>(ch.get());
+		if (chm) chm->ExportShortcut(os, ctx);
+		ExportShortcuts(ch.get(), os, ctx);
+	}
+}
+
 void MenuBar::DoExport(std::ostream& os, UIContext& ctx)
 {
 	os << ctx.ind << "if (ImGui::BeginMenuBar())\n";
 	os << ctx.ind << "{\n";
 	ctx.ind_up();
+	
+	ExportShortcuts(this, os, ctx);
+
 	os << ctx.ind << "/// @separator\n\n";
 
 	for (const auto& child : children)
@@ -5635,10 +5660,6 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 			os << "&" << checked.to_arg();
 		os << ")";
 
-		std::string sh = CodeShortcut(shortcut.c_str());
-		if (sh.size())
-			os << " ||\n" << ctx.ind << (ifstmt ? "   " : "") << sh;
-
 		if (ifstmt) {
 			os << ")\n";
 			ctx.ind_up();
@@ -5663,6 +5684,20 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
+}
+
+void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
+{
+	if (shortcut.empty())
+		return;
+
+	os << ctx.ind << "if " << CodeShortcut(shortcut, disabled.to_arg()) << "\n";
+	ctx.ind_up();
+	if (!onChange.empty())
+		os << ctx.ind << onChange.to_arg() << "();\n";
+	else
+		os << ctx.ind << ";\n";
+	ctx.ind_down();
 }
 
 void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)

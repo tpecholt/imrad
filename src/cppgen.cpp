@@ -42,9 +42,8 @@ std::string CppGen::AltFName(const std::string& path)
 	return "";
 }
 
-bool CppGen::Export(
+bool CppGen::ExportUpdate(
 	const std::string& fname, 
-	bool trunc, 
 	TopWindow* node, 
 	const std::map<std::string, std::string>& params, 
 	std::string& err
@@ -67,7 +66,7 @@ bool CppGen::Export(
 	node->Export(code, ctx);
 	
 	auto hpath = fs::path(fname).replace_extension(".h");
-	if (trunc || !fs::exists(hpath) || fs::is_empty(hpath))
+	if (!fs::exists(hpath) || fs::is_empty(hpath))
 	{
 		std::ofstream fout(hpath);
 		CreateH(fout);
@@ -84,7 +83,7 @@ bool CppGen::Export(
 	fout.close();
 
 	auto fpath = fs::path(fname).replace_extension(".cpp");
-	if (trunc || !fs::exists(fpath) || fs::is_empty(fpath))
+	if (!fs::exists(fpath) || fs::is_empty(fpath))
 	{
 		std::ofstream fout(fpath);
 		CreateCpp(fout, hpath.filename().string());

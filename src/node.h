@@ -535,6 +535,7 @@ struct MenuIt : Widget
 	auto Events()->std::vector<Prop>;
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
+	void ExportShortcut(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_LIST; }
