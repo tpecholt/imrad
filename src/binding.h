@@ -288,7 +288,8 @@ private:
 template <>
 struct direct_val<dimension> : property_base
 {
-	direct_val(dimension v) : val(v) {}
+	direct_val(dimension dim) : direct_val((float)dim) {}
+	direct_val(float v) : val(v) {}
 
 	operator float&() { return val; }
 	operator const float() const { return val; }
@@ -576,7 +577,10 @@ struct bindable<dimension> : property_base
 {
 	bindable() {
 	}
-	bindable(dimension val) {
+	bindable(dimension val)
+		: bindable((float)val)
+	{}
+	bindable(float val) {
 		std::ostringstream os;
 		os << val;
 		str = os.str();
@@ -658,7 +662,7 @@ struct bindable<dimension> : property_base
 	{
 		if (has_value()) {
 			float val = (int)std::round(100 * value() * scale) / 100.f;
-			*this = dimension(val);
+			*this = val;
 		}
 	}
 	const char* c_str() const { return str.c_str(); }
