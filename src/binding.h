@@ -291,7 +291,7 @@ struct direct_val<dimension> : property_base
 	direct_val(dimension v) : val(v) {}
 
 	operator float&() { return val; }
-	operator const float&() const { return val; }
+	operator const float() const { return val; }
 	bool operator== (dimension dv) const {
 		return val == dv;
 	}
