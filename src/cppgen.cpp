@@ -62,6 +62,9 @@ bool CppGen::ExportUpdate(
 	UIContext ctx;
 	ctx.codeGen = this;
 	ctx.ind = INDENT;
+	auto uit = params.find("unit");
+	if (uit != params.end())
+		ctx.unit = uit->second;
 	std::ostringstream code;
 	node->Export(code, ctx);
 	
@@ -738,6 +741,9 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
 		UIContext ctx;
 		ctx.codeGen = this;
 		ctx.fname = ctx_fname;
+		auto uit = params.find("unit");
+		if (uit != params.end())
+			ctx.unit = uit->second;
 		auto node = std::make_unique<TopWindow>(ctx);
 		node->Import(sit, ctx);
 		iter = sit.base();

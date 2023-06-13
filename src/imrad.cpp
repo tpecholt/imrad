@@ -353,11 +353,31 @@ bool SaveFileAs(bool thenClose = false)
 		return false;
 	}
 	auto& tab = fileTabs[activeTab];
-	tab.fname = fs::path(outPath).replace_extension(".h").string();
-	//remove files so CppGen won't try to parse it as with Save
-	fs::remove(tab.fname);
-	fs::remove(fs::path(tab.fname).replace_extension(".cpp"));
-	ctx.fname = tab.fname;
+	std::string oldName = tab.fname;
+	std::string newName = fs::path(outPath).replace_extension(".h").string();
+	try {
+		if (oldName != "") {
+			//copy files first so CppGen can parse it and preserve user content as with Save
+			fs::copy_file(oldName, newName, fs::copy_options::overwrite_existing);
+			fs::copy_file(
+				fs::path(oldName).replace_extension(".cpp"), 
+				fs::path(newName).replace_extension(".cpp"),
+				fs::copy_options::overwrite_existing);
+		}
+		else {
+			fs::remove(newName);
+			fs::remove(fs::path(newName).replace_extension(".cpp"));
+		}
+	}
+	catch (std::exception& e) {
+		messageBox.title = "error";
+		messageBox.message = e.what();
+		messageBox.buttons = ImRad::Ok;
+		messageBox.OpenPopup();
+		return false;
+	}
+
+	tab.fname = newName;
 	tab.codeGen.SetNamesFromId(fs::path(tab.fname).stem().string());
 	
 	DoSaveFile(thenClose);
