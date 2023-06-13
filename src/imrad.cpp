@@ -46,6 +46,7 @@ const float TB_SIZE = 40;
 const float TAB_SIZE = 25; //todo examine
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
+const std::string DEFAULT_UNIT = "px";
 
 struct File
 {
@@ -55,6 +56,7 @@ struct File
 	bool modified = false;
 	fs::file_time_type time[2];
 	std::string styleName;
+	std::string unit;
 };
 
 bool firstTime;
@@ -64,7 +66,6 @@ std::vector<File> fileTabs;
 int activeTab = -1;
 ImGuiID dock_id_top, dock_id_right, dock_id_right2;
 bool pgFocused;
-int styleIdx;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 bool reloadStyle = true;
 ImGuiStyle style; 
@@ -105,6 +106,10 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 
 void ActivateTab(int i)
 {
+	/*doesn't work when activeTab is closed
+	std::string lastStyle;
+	if (activeTab >= 0)
+		lastStyle = fileTabs[activeTab].styleName;*/
 	if (i >= fileTabs.size())
 		i = (int)fileTabs.size() - 1;
 	if (i < 0) {
@@ -117,25 +122,18 @@ void ActivateTab(int i)
 	auto& tab = fileTabs[i];
 	ctx.selected = { tab.rootNode.get() };
 	ctx.codeGen = &tab.codeGen;
-	ctx.fname = tab.fname;
-	auto st = stx::find_if(styleNames, [&](const auto& sn) { 
-		return sn.first == tab.styleName; 
-		});
-	if (st != styleNames.end()) {
-		int idx = int(st - styleNames.begin());
-		if (idx != styleIdx)
-			reloadStyle = true;
-		styleIdx = idx;
-	}
+	reloadStyle = true;
 }
 
 void NewFile(TopWindow::Kind k)
 {
 	auto top = std::make_unique<TopWindow>(ctx);
 	top->kind = k;
-	fileTabs.push_back({});
-	fileTabs.back().rootNode = std::move(top);
-	fileTabs.back().styleName = DEFAULT_STYLE;
+	File file;
+	file.rootNode = std::move(top);
+	file.styleName = DEFAULT_STYLE;
+	file.unit = DEFAULT_UNIT;
+	fileTabs.push_back(std::move(file));
 	ActivateTab((int)fileTabs.size() - 1);
 }
 
@@ -168,6 +166,8 @@ void DoOpenFile(const std::string& path)
 	file.rootNode = file.codeGen.Import(file.fname, params, messageBox.error);
 	auto pit = params.find("style");
 	file.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
+	pit = params.find("unit");
+	file.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
 	if (!file.rootNode) {
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful import because of errors";
@@ -256,6 +256,8 @@ void ReloadFiles()
 			tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
 			auto pit = params.find("style");
 			tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
+			pit = params.find("unit");
+			tab.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
 			bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
 				return st.first == tab.styleName;
 				});
@@ -309,7 +311,8 @@ void DoSaveFile(bool thenClose)
 {
 	auto& tab = fileTabs[activeTab];
 	std::map<std::string, std::string> params{
-		{ "style", tab.styleName }
+		{ "style", tab.styleName },
+		{ "unit", tab.unit },
 	};
 	if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, messageBox.error))
 	{
@@ -379,7 +382,6 @@ bool SaveFileAs(bool thenClose = false)
 
 	tab.fname = newName;
 	tab.codeGen.SetNamesFromId(fs::path(tab.fname).stem().string());
-	
 	DoSaveFile(thenClose);
 	return true;
 }
@@ -542,12 +544,6 @@ void GetStyles()
 		{ "Light", "" }, 
 		{ "Dark", "" } 
 	};
-	auto it = stx::find_if(styleNames, [&](const auto& st) {
-		return st.first == DEFAULT_STYLE; 
-		});
-	assert(it != styleNames.end());
-	styleIdx = int(it - styleNames.begin());
-
 	for (fs::directory_iterator it("style/"); it != fs::directory_iterator(); ++it)
 	{
 		if (it->path().extension() != ".ini")
@@ -559,6 +555,8 @@ void GetStyles()
 void LoadStyle()
 {
 	if (!reloadStyle)
+		return;
+	if (activeTab < 0)
 		return;
 	
 	reloadStyle = false;
@@ -581,10 +579,10 @@ void LoadStyle()
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
 	stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
-	auto& s = styleNames[styleIdx];
-	if (s.first == "Classic")
+	style = ImGuiStyle();
+	std::string styleName = fileTabs[activeTab].styleName;
+	if (styleName == "Classic")
 	{
-		style = ImGuiStyle();
 		ImGui::StyleColorsClassic(&style);
 		ctx.fontNames = { "" };
 		ctx.colors = {
@@ -596,9 +594,8 @@ void LoadStyle()
 			IM_COL32(0, 255, 0, 255),
 		};
 	}
-	else if (s.first == "Light")
+	else if (styleName == "Light")
 	{	
-		style = ImGuiStyle();
 		ImGui::StyleColorsLight(&style);
 		ctx.fontNames = { "" };
 		ctx.colors = {
@@ -610,9 +607,8 @@ void LoadStyle()
 			IM_COL32(0, 255, 0, 255),
 		};
 	}
-	else if (s.first == "Dark")
+	else if (styleName == "Dark")
 	{
-		style = ImGuiStyle();
 		ImGui::StyleColorsDark(&style);
 		ctx.fontNames = { "" };
 		ctx.colors = {
@@ -626,11 +622,11 @@ void LoadStyle()
 	}
 	else
 	{
-		style = ImGuiStyle();
 		std::map<std::string, ImFont*> fontMap;
 		std::map<std::string, std::string> extra;
 		try {
-			ImRad::LoadStyle(s.second, &style, &fontMap, &extra);
+			auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
+			ImRad::LoadStyle(it->second, 1.f, &style, &fontMap, &extra);
 		}
 		catch (std::exception& e)
 		{
@@ -804,23 +800,48 @@ void ToolbarUI()
 	ImGui::Text("Style");
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(100);
-	if (ImGui::BeginCombo("##style", styleNames[styleIdx].first.c_str()))
+	std::string styleName;
+	if (activeTab >= 0)
+		styleName = fileTabs[activeTab].styleName;
+	if (ImGui::BeginCombo("##style", styleName.c_str()))
 	{
 		for (size_t i = 0; i < styleNames.size(); ++i)
 		{
-			if (ImGui::Selectable(styleNames[i].first.c_str(), i == styleIdx))
+			if (ImGui::Selectable(styleNames[i].first.c_str(), styleNames[i].first == styleName))
 			{
-				styleIdx = (int)i;
 				reloadStyle = true;
-				if (activeTab >= 0) {
-					fileTabs[activeTab].modified = true;
-					fileTabs[activeTab].styleName = styleNames[i].first;
-				}
+				assert(activeTab >= 0);
+				fileTabs[activeTab].modified = true;
+				fileTabs[activeTab].styleName = styleNames[i].first;
 			}
 			if (i == 2 && i + 1 < styleNames.size())
 				ImGui::Separator();
 		}
 		ImGui::EndCombo();
+	}
+	ImGui::SameLine();
+	ImGui::Text("Units");
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(100);
+	int usel = activeTab >= 0 && fileTabs[activeTab].unit == "fs" ? 1 : 0;
+	if (ImGui::Combo("##units", &usel, "px\0fs\0"))
+	{
+		messageBox.title = "Dialog units";
+		messageBox.message = "Scale all dimensions now ?";
+		messageBox.buttons = ImRad::Yes | ImRad::Cancel;
+		messageBox.OpenPopup([usel](ImRad::ModalResult mr) {
+			if (mr != ImRad::Yes)
+				return;
+			auto& tab = fileTabs[activeTab];
+			float scale = 1;
+			if (tab.unit == "fs")
+				scale = ImGui::GetFontSize();
+			tab.unit = usel ? "fs" : "px";
+			if (tab.unit == "fs")
+				scale /= ImGui::GetFontSize();
+			tab.rootNode->ScaleDimensions(scale);
+			tab.modified = true;
+			});
 	}
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -1034,7 +1055,7 @@ void PropertyRowsUI(bool pr)
 				fileTabs[activeTab].modified = true;
 				if (props[i].property) {
 					pname = props[i].name;
-					pval = props[i].property->to_arg();
+					pval = props[i].property->to_arg(ctx.unit);
 				}
 			}
 		}
@@ -1103,13 +1124,16 @@ void Draw()
 	if (activeTab < 0 || !fileTabs[activeTab].rootNode)
 		return;
 	
+	auto& tab = fileTabs[activeTab];
 	auto tmpStyle = ImGui::GetStyle();
 	ImGui::GetStyle() = style;
 	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
 	ImGui::PushFont(ctx.defaultFont);
 
-	fileTabs[activeTab].rootNode->Draw(ctx);
-	
+	ctx.fname = tab.fname;
+	ctx.unit = tab.unit;
+	tab.rootNode->Draw(ctx);
+
 	ImGui::PopFont();
 	ImGui::GetStyle() = tmpStyle;
 }

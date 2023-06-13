@@ -296,6 +296,18 @@ void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 		child->RenameFieldVars(oldn, newn);
 }
 
+void UINode::ScaleDimensions(float scale)
+{
+	auto props = Properties();
+	for (auto& p : props) {
+		if (!p.property)
+			continue;
+		p.property->scale_dimension(scale);
+	}
+	for (auto& child : children)
+		child->ScaleDimensions(scale);
+}
+
 //----------------------------------------------------
 
 TopWindow::TopWindow(UIContext& ctx)
@@ -335,15 +347,21 @@ void TopWindow::Draw(UIContext& ctx)
 
 	if (style_font != "")
 		ImGui::PushFont(ImRad::GetFontByName(style_font));
-	if (style_pading)
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, *style_pading);
+	if (style_padding)
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { style_padding->first.value_px(ctx.unit), style_padding->second.value_px(ctx.unit) });
 	if (style_spacing)
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, *style_spacing);
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { style_spacing->first.value_px(ctx.unit), style_spacing->second.value_px(ctx.unit) });
 	
 	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
-	if (!(fl & ImGuiWindowFlags_AlwaysAutoResize))
-		ImGui::SetNextWindowSize({ size_x, size_y });
+	if (!(fl & ImGuiWindowFlags_AlwaysAutoResize)) {
+		float w = 640, h = 480;
+		if (size_x.has_value())
+			w = size_x.value_px(ctx.unit);
+		if (size_y.has_value())
+			h = size_y.value_px(ctx.unit);
+		ImGui::SetNextWindowSize({ w, h });
+	}
 
 	bool tmp;
 	ImGui::Begin(cap.c_str(), &tmp, fl);
@@ -395,7 +413,7 @@ void TopWindow::Draw(UIContext& ctx)
 	
 	if (style_spacing)
 		ImGui::PopStyleVar();
-	if (style_pading)
+	if (style_padding)
 		ImGui::PopStyleVar();
 	if (style_font != "")
 		ImGui::PopFont();
@@ -413,25 +431,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "/// @begin TopWindow\n";
 	
-	if (style_font != "")
+	if (ctx.unit == "fs")
 	{
-		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(\"" << style_font << "\"));\n";
-	}
-	if (style_pading)
-	{
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { "
-			<< style_pading->x << ", " << style_pading->y << " });\n";
-	}
-	if (style_spacing)
-	{
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { "
-			<< style_spacing->x << ", " << style_spacing->y << " });\n";
-	}
-
-	if ((flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
-	{
-		os << ctx.ind << "ImGui::SetNextWindowSize({ " << size_x << ", " << size_y << " }"
-			<< ", ImGuiCond_FirstUseEver);\n";
+		os << ctx.ind << "float fs = ImGui::GetFontSize();\n";
 	}
 
 	if (ctx.inPopup)
@@ -442,7 +444,32 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::OpenPopup(" << tit << ");\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
-		
+	}
+
+	if (style_font != "")
+	{
+		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(\"" << style_font << "\"));\n";
+	}
+	if (style_padding)
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { "
+			<< style_padding->first.to_arg(ctx.unit) << ", " << style_padding->second.to_arg(ctx.unit) << " });\n";
+	}
+	if (style_spacing)
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { "
+			<< style_spacing->first.to_arg(ctx.unit) << ", " << style_spacing->second.to_arg(ctx.unit) << " });\n";
+	}
+
+	if ((flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
+	{
+		os << ctx.ind << "ImGui::SetNextWindowSize({ " 
+			<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
+			<< "ImGuiCond_FirstUseEver);\n";
+	}
+
+	if (ctx.inPopup)
+	{
 		if (kind == ModalPopup)
 		{
 			os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
@@ -493,7 +520,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	if (style_spacing)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
-	if (style_pading)
+	if (style_padding)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_font != "")
 		os << ctx.ind << "ImGui::PopFont();\n";
@@ -549,17 +576,25 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 		{
-			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding")
-				style_pading = cpp::parse_fsize(sit->params[1]);
-			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing")
-				style_spacing = cpp::parse_fsize(sit->params[1]);
+			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding") {
+				auto sz = cpp::parse_size(sit->params[1]);
+				style_padding = { direct_val<dimension>(0), direct_val<dimension>(0) };
+				style_padding->first.set_from_arg(sz.first);
+				style_padding->second.set_from_arg(sz.second);
+			}
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing") {
+				auto sz = cpp::parse_size(sit->params[1]);
+				style_spacing = { direct_val<dimension>(0), direct_val<dimension>(0) };
+				style_spacing->first.set_from_arg(sz.first);
+				style_spacing->second.set_from_arg(sz.second);
+			}
 		}
 		if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
 		{
 			if (sit->params.size()) {
-				auto size = cpp::parse_fsize(sit->params[0]);
-				size_x = size.x;
-				size_y = size.y;
+				auto size = cpp::parse_size(sit->params[0]);
+				size_x.set_from_arg(size.first);
+				size_y.set_from_arg(size.second);
 			}
 		}
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
@@ -630,8 +665,8 @@ TopWindow::Properties()
 		{ "top.style", nullptr },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
-		{ "size_x", nullptr },
-		{ "size_y", nullptr },
+		{ "size_x", &size_x },
+		{ "size_y", &size_y },
 	};
 }
 
@@ -666,24 +701,24 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 			ImGui::Text("");
 			
 			int v[2] = { -1, -1 };
-			if (style_pading) {
-				v[0] = (int)style_pading->x;
-				v[1] = (int)style_pading->y;
+			if (style_padding) {
+				v[0] = (int)style_padding->first;
+				v[1] = (int)style_padding->second;
 			}
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::InputInt2("##style_padding", v))
 			{
 				changed = true;
 				if (v[0] >= 0 || v[1] >= 0)
-					style_pading = { (float)v[0], (float)v[1] };
+					style_padding = { (float)v[0], (float)v[1] };
 				else
-					style_pading = {};
+					style_padding = {};
 			}
 			
 			v[0] = v[1] = -1;
 			if (style_spacing) {
-				v[0] = (int)style_spacing->x;
-				v[1] = (int)style_spacing->y;
+				v[0] = (int)style_spacing->first;
+				v[1] = (int)style_spacing->second;
 			}
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			if (ImGui::InputInt2("##style_spacing", v))
@@ -734,13 +769,13 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat("##size_x", &size_x);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		break;
 	case 5:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat("##size_y", &size_y);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		break;
 	default:
 		return false;
@@ -757,6 +792,20 @@ TopWindow::Events()
 bool TopWindow::EventUI(int i, UIContext& ctx)
 {
 	return false;
+}
+
+void TopWindow::ScaleDimensions(float scale)
+{
+	UINode::ScaleDimensions(scale);
+
+	if (style_padding) {
+		style_padding->first.scale_dimension(scale);
+		style_padding->second.scale_dimension(scale);
+	}
+	if (style_spacing) {
+		style_spacing->first.scale_dimension(scale);
+		style_spacing->second.scale_dimension(scale);
+	}
 }
 
 //-------------------------------------------------
@@ -1710,9 +1759,9 @@ void Selectable::DoDraw(UIContext& ctx)
 
 	ImVec2 size(0, 0);
 	if (size_x.has_value())
-		size.x = size_x.value();
+		size.x = size_x.value_px(ctx.unit);
 	if (size_y.has_value())
-		size.y = size_y.value();
+		size.y = size_y.value_px(ctx.unit);
 	ImGui::Selectable(label.c_str(), false, flags, size);
 
 	ImGui::PopStyleVar();
@@ -1758,7 +1807,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 		os << "&" << fieldName.to_arg();
 	
 	os << ", " << flags.to_arg() << ", "
-		<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " })";
+		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " })";
 	
 	if (!onChange.empty()) {
 		os << ")\n";
@@ -1906,7 +1955,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 4:
-		ImGui::BeginDisabled(size_y.has_value() && !size_y.value());
+		ImGui::BeginDisabled(size_y.has_value() && !size_y.value_px(ctx.unit));
 		ImGui::Text("vertAlignment");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1937,7 +1986,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -1945,7 +1994,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		break;
@@ -2024,9 +2073,9 @@ void Button::DoDraw(UIContext& ctx)
 	{
 		ImVec2 size{ 0, 0 };
 		if (size_x.has_value())
-			size.x = size_x.value();
+			size.x = size_x.value_px(ctx.unit);
 		if (size_y.has_value())
-			size.y = size_y.value();
+			size.y = size_y.value_px(ctx.unit);
 		ImGui::Button(label.c_str(), size);
 
 		//if (ctx.modalPopup && text.value() == "OK")
@@ -2141,7 +2190,7 @@ std::string ParseShortcut(const std::string& line)
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (style_rounding)
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_button.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_button.to_arg() << ");\n";
 	if (!style_button.empty())
@@ -2165,7 +2214,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	else
 	{
 		os << "ImGui::Button(" << label.to_arg() << ", "
-			<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " }"
+			<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }"
 			<< ")";
 	}
 
@@ -2400,7 +2449,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
@@ -2410,7 +2459,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
@@ -2789,15 +2838,15 @@ void Input::DoDraw(UIContext& ctx)
 	{
 		ImVec2 size{ 0, 0 };
 		if (size_x.has_value())
-			size.x = size_x.value();
+			size.x = size_x.value_px(ctx.unit);
 		if (size_y.has_value())
-			size.y = size_y.value();
+			size.y = size_y.value_px(ctx.unit);
 		ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
 	}
 	else if (type == "std::string")
 	{
 		if (size_x.has_value())
-			ImGui::SetNextItemWidth(size_x.value());
+			ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
 		if (hint != "")
 			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
 		else
@@ -2806,7 +2855,7 @@ void Input::DoDraw(UIContext& ctx)
 	else if (type == "ImGuiTextFilter")
 	{
 		if (size_x.has_value())
-			ImGui::SetNextItemWidth(size_x.value());
+			ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
 		if (hint != "")
 			//filter.DrawWithHint(id.c_str(), hint.c_str());
 			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp);
@@ -2816,7 +2865,7 @@ void Input::DoDraw(UIContext& ctx)
 	else
 	{
 		if (size_x.has_value())
-			ImGui::SetNextItemWidth(size_x.value());
+			ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
 		if (type == "int")
 			ImGui::InputInt(id.c_str(), itmp, (int)step);
 		else if (type == "int2")
@@ -2849,7 +2898,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	}
 
 	if (!(flags & ImGuiInputTextFlags_Multiline))
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
 	
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -2892,7 +2941,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		os << "ImGui::InputTextMultiline(" << id << ", &" 
 			<< fieldName.to_arg()
-			<< ", { " << size_x.to_arg() << ", " << size_y.to_arg() << " }, "
+			<< ", { " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
 			<< flags.to_arg() << ")";
 	}
 	else if (type == "std::string")
@@ -3176,7 +3225,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -3185,7 +3234,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
@@ -3235,7 +3284,7 @@ void Combo::DoDraw(UIContext& ctx)
 {
 	int zero = 0;
 	if (size_x.has_value())
-		ImGui::SetNextItemWidth(size_x.value());
+		ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
 	std::string id = label;
 	if (id.empty())
 		id = std::string("##") + fieldName.c_str();
@@ -3254,7 +3303,7 @@ void Combo::DoDraw(UIContext& ctx)
 void Combo::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!size_x.empty())
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -3375,7 +3424,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -3426,7 +3475,7 @@ void Slider::DoDraw(UIContext& ctx)
 	int itmp[4] = {};
 
 	if (size_x.has_value())
-		ImGui::SetNextItemWidth(size_x.value());
+		ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
 
 	const char* fmt = nullptr;
 	if (!format.empty())
@@ -3457,7 +3506,7 @@ void Slider::DoDraw(UIContext& ctx)
 
 void Slider::DoExport(std::ostream& os, UIContext& ctx)
 {
-	os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+	os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -3627,7 +3676,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -3676,9 +3725,9 @@ void ProgressBar::DoDraw(UIContext& ctx)
 {
 	float w = 0, h = 0;
 	if (size_x.has_value())
-		w = size_x.value();
+		w = size_x.value_px(ctx.unit);
 	if (size_y.has_value())
-		h = size_y.value();
+		h = size_y.value_px(ctx.unit);
 
 	ImGui::ProgressBar(0.5f, { w, h }, indicator ? nullptr : "");
 }
@@ -3689,7 +3738,7 @@ void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
 	
 	os << ctx.ind << "ImGui::ProgressBar(" 
 		<< fieldName.to_arg() << ", { "
-		<< size_x.to_arg() << ", " << size_y.to_arg() << " }, " 
+		<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, " 
 		<< fmt << ");\n";
 }
 
@@ -3750,7 +3799,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -3758,7 +3807,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		break;
@@ -3796,7 +3845,7 @@ void ColorEdit::DoDraw(UIContext& ctx)
 	if (id.empty())
 		id = "##" + fieldName.value();
 	if (size_x.has_value())
-		ImGui::SetNextItemWidth(size_x.value());
+		ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
 	
 	if (type == "color3")
 		ImGui::ColorEdit3(id.c_str(), (float*)&ftmp, flags);
@@ -3807,7 +3856,7 @@ void ColorEdit::DoDraw(UIContext& ctx)
 void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!size_x.empty())
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -3940,7 +3989,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -3993,11 +4042,11 @@ void Image::DoDraw(UIContext& ctx)
 	}
 
 	float w = (float)tex.w;
-	if (size_x.has_value() && size_x.value())
-		w = size_x.value();
+	if (size_x.has_value() && size_x.value_px(ctx.unit))
+		w = size_x.value_px(ctx.unit);
 	float h = (float)tex.h;
-	if (size_y.has_value() && size_y.value())
-		h = size_y.value();
+	if (size_y.has_value() && size_y.value_px(ctx.unit))
+		h = size_y.value_px(ctx.unit);
 	
 	ImGui::Image(tex.id, { w, h });
 }
@@ -4016,17 +4065,17 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "ImGui::Image(" << fieldName.to_arg() << ".id, { ";
 	
-	if (size_x.has_value() && !size_x.value())
+	if (size_x.has_value() && !size_x.value_px(ctx.unit))
 		os << "(float)" << fieldName.to_arg() << ".w";
 	else
-		os << size_x.to_arg();
+		os << size_x.to_arg(ctx.unit);
 	
 	os << ", ";
 	
-	if (size_y.has_value() && !size_y.value())
+	if (size_y.has_value() && !size_y.value_px(ctx.unit))
 		os << "(float)" << fieldName.to_arg() << ".h";
 	else
-		os << size_y.to_arg();
+		os << size_y.to_arg(ctx.unit);
 	
 	os << " });\n";
 }
@@ -4101,7 +4150,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -4109,7 +4158,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		break;
@@ -4165,9 +4214,9 @@ void CustomWidget::DoDraw(UIContext& ctx)
 {
 	ImVec2 size{ 20, 20 };
 	if (size_x.has_value())
-		size.x = size_x.value();
+		size.x = size_x.value_px(ctx.unit);
 	if (size_y.has_value())
-		size.y = size_y.value();
+		size.y = size_y.value_px(ctx.unit);
 
 	std::string id = std::to_string((uintptr_t)this);
 	ImGui::BeginChild(id.c_str(), size, true);
@@ -4186,7 +4235,7 @@ void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 		return;
 	}
 	os << ctx.ind << onDraw.to_arg() << "({ " 
-		<< size_x.to_arg() << ", " << size_y.to_arg() 
+		<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) 
 		<< " });\n";
 }
 
@@ -4224,7 +4273,7 @@ bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -4232,7 +4281,7 @@ bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		break;
@@ -4329,9 +4378,9 @@ void Table::DoDraw(UIContext& ctx)
 	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ 0, 0 };
 	if (size_x.has_value())
-		size.x = size_x.value();
+		size.x = size_x.value_px(ctx.unit);
 	if (size_y.has_value())
-		size.y = size_y.value();
+		size.y = size_y.value_px(ctx.unit);
 	if (ImGui::BeginTable(("table" + std::to_string((uint64_t)this)).c_str(), n, flags, size))
 	{
 		for (size_t i = 0; i < (int)columnData.size(); ++i)
@@ -4468,7 +4517,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -4476,7 +4525,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		break;
@@ -4489,13 +4538,13 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 void Table::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!style_padding)
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 });\n";
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 }); //remove padding, keep borders\n";
 	
 	os << ctx.ind << "if (ImGui::BeginTable("
 		<< "\"table" << (uint64_t)this << "\", " 
 		<< columnData.size() << ", " 
 		<< flags.to_arg() << ", "
-		<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " }"
+		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }"
 		<< "))\n"
 		<< ctx.ind << "{\n";
 	ctx.ind_up();
@@ -4503,7 +4552,14 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	for (const auto& cd : columnData)
 	{
 		os << ctx.ind << "ImGui::TableSetupColumn(\"" << cd.label << "\", "
-			<< cd.flags.to_arg() << ", " << cd.width << ");\n";
+			<< cd.flags.to_arg() << ", ";
+		if (cd.flags & ImGuiTableColumnFlags_WidthFixed) {
+			direct_val<dimension> dim(cd.width);
+			os << dim.to_arg(ctx.unit);
+		}
+		else
+			os << cd.width;
+		os << ");\n";
 	}
 	if (header)
 		os << ctx.ind << "ImGui::TableHeadersRow();\n";
@@ -4615,6 +4671,20 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 }
 
+void Table::ScaleDimensions(float scale)
+{
+	UINode::ScaleDimensions(scale);
+
+	for (auto& col : columnData)
+	{
+		if (col.flags & ImGuiTableColumnFlags_WidthFixed) {
+			direct_val<dimension> dim(col.width);
+			dim.scale_dimension(scale);
+			col.width = *dim.access();
+		}
+	}
+}
+
 //---------------------------------------------------------
 
 Child::Child(UIContext& ctx)
@@ -4630,9 +4700,9 @@ void Child::DoDraw(UIContext& ctx)
 
 	ImVec2 sz(0, 0);
 	if (size_x.has_value()) 
-		sz.x = size_x.value();
+		sz.x = size_x.value_px(ctx.unit);
 	if (size_y.has_value())
-		sz.y = size_y.value();
+		sz.y = size_y.value_px(ctx.unit);
 	if (!sz.x && children.empty())
 		sz.x = 30;
 	if (!sz.y && children.empty())
@@ -4649,28 +4719,7 @@ void Child::DoDraw(UIContext& ctx)
 
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
-		int n = columnCount.value();
-		//ImGui::SetColumnWidth doesn't support auto size columns
-		//We compute it ourselves
-		float fixedWidth = (n - 1) * 10.f; //spacing
-		int autoSized = 0;
-		for (size_t i = 0; i < columnsWidths.size(); ++i)
-		{
-			if (columnsWidths[i].has_value() && columnsWidths[i].value())
-				fixedWidth += columnsWidths[i].value();
-			else
-				++autoSized;
-		}
-		float autoSizeW = (ImGui::GetContentRegionAvail().x - fixedWidth) / autoSized;
-		
-		ImGui::Columns(n, "columns", columnBorder);
-		for (int i = 0; i < (int)columnsWidths.size(); ++i)
-		{
-			if (columnsWidths[i].has_value() && columnsWidths[i].value())
-				ImGui::SetColumnWidth(i, columnsWidths[i].value());
-			else
-				ImGui::SetColumnWidth(i, autoSizeW);
-		}
+		ImGui::Columns(columnCount.value(), "columns", columnBorder);
 	}
 
 	for (size_t i = 0; i < children.size(); ++i)
@@ -4694,7 +4743,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 
 	os << ctx.ind << "ImGui::BeginChild(\"child" << (uint64_t)this << "\", "
-		<< "{ " << size_x.to_arg() << ", " << size_y.to_arg() << " }, "
+		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
 		<< std::boolalpha << border
 		<< ");\n";
 	os << ctx.ind << "{\n";
@@ -4773,11 +4822,6 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->params.size() >= 3)
 			columnBorder = sit->params[2] == "true";
-
-		if (columnCount.has_value())
-			columnsWidths.resize(columnCount.value(), 0.f);
-		else
-			columnsWidths.resize(1, 0.f);
 	}
 	else if (sit->kind == cpp::ForBlock)
 	{
@@ -4854,7 +4898,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, 0.f, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
@@ -4862,7 +4906,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, 0.f, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("size_y", &size_y, ctx);
 		break;

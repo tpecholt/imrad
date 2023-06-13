@@ -219,7 +219,7 @@ inline void SaveStyle(std::string_view fname)
 
 //This function can be used in your code to load style and fonts from the INI file
 //It is also used by ImRAD when switching themes
-inline void LoadStyle(std::string_view fname, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
+inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
 {
 	ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
 	*style = ImGuiStyle();
@@ -327,7 +327,7 @@ inline void LoadStyle(std::string_view fname, ImGuiStyle* dst = nullptr, std::ma
 				cfg.Name[sizeof(cfg.Name) - 1] = '\0';
 				cfg.MergeMode = key == lastFont;
 				cfg.GlyphRanges = hasRange ? rngs.back().get() : nullptr;
-				ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &cfg);
+				ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size * fontScaling, &cfg);
 				if (!fnt)
 					throw std::runtime_error("Can't load " + path);
 				if (!cfg.MergeMode && fontMap)

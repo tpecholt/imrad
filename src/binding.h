@@ -8,6 +8,14 @@
 #include "utils.h"
 #include "cpp_parser.h"
 
+struct dimension
+{
+	float value;
+	dimension(float v = 0) : value(v) {}
+	operator float& () { return value; }
+	operator const float () const { return value; }
+};
+
 struct color32
 {
 	color32(ImU32 c = 0) : c(c) {} //0 means style default color
@@ -92,11 +100,12 @@ private:
 
 struct property_base
 {
-	virtual std::string to_arg() const = 0;
+	virtual std::string to_arg(std::string_view unit) const = 0;
 	virtual void set_from_arg(std::string_view s) = 0;
 	virtual const char* c_str() const = 0;
 	virtual std::vector<std::string> used_variables() const = 0;
 	virtual void rename_variable(const std::string& oldn, const std::string& newn) = 0;
+	virtual void scale_dimension(float scale) = 0;
 };
 
 struct parent_property : property_base
@@ -109,7 +118,7 @@ struct parent_property : property_base
 		: props(li)
 	{}
 
-	std::string to_arg() const { return ""; }
+	std::string to_arg(std::string_view) const { return ""; }
 	void set_from_arg(std::string_view) {}
 	const char* c_str() const { return nullptr; }
 
@@ -129,6 +138,11 @@ struct parent_property : property_base
 		for (auto* prop : props)
 			prop->rename_variable(oldn, newn);
 	}
+	void scale_dimension(float scale)
+	{
+		for (auto* prop : props)
+			prop->scale_dimension(scale);
+	}
 };
 
 //member variable expression like id, id.member, id[0], id.size()
@@ -144,7 +158,7 @@ struct field_ref : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg() const {
+	std::string to_arg(std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -159,6 +173,8 @@ struct field_ref : property_base
 		if (str.substr(0, i) == oldn)
 			str.replace(0, i, newn);
 	}
+	void scale_dimension(float)
+	{}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -175,7 +191,7 @@ struct event : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg() const {
+	std::string to_arg(std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -188,6 +204,8 @@ struct event : property_base
 		if (str == oldn)
 			str = newn;
 	}
+	void scale_dimension(float)
+	{}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -241,7 +259,7 @@ struct direct_val : property_base
 			}
 		}
 	}
-	std::string to_arg() const {
+	std::string to_arg(std::string_view = "") const {
 		if (ids.size()) {
 			auto it = stx::find_if(ids, [this](const auto& id) { return id.second == val; });
 			return it != ids.end() ? it->first : "";
@@ -257,12 +275,72 @@ struct direct_val : property_base
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{}
+	void scale_dimension(float scale)
+	{}
 	T* access() { return &val; }
 	const char* c_str() const { return nullptr; }
 
 private:
 	T val;
 	std::vector<std::pair<std::string, T>> ids;
+};
+
+template <>
+struct direct_val<dimension> : property_base
+{
+	direct_val(dimension v) : val(v) {}
+
+	operator float&() { return val; }
+	operator const float&() const { return val; }
+	bool operator== (dimension dv) const {
+		return val == dv;
+	}
+	bool operator!= (dimension dv) const {
+		return val != dv;
+	}
+	direct_val& operator= (dimension v) {
+		val = v;
+		return *this;
+	}
+	float value_px(std::string_view unit) const {
+		if (unit == "fs")
+			return val * ImGui::GetFontSize();
+		return val;
+	}
+	void set_from_arg(std::string_view s) {
+		std::istringstream is;
+		is.str(std::string(s));
+		is >> val;
+		//strip unit calculation
+		if (s.size() > 3 && s.substr(s.size() - 3) == "*fs")
+		{
+			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
+			dimension v;
+			if ((is >> v) && is.eof())
+				val = v;
+		}
+	}
+	std::string to_arg(std::string_view unit) const {
+		std::ostringstream os;
+		os << val;
+		if (unit == "fs")
+			os << "*fs";
+		return os.str();
+	}
+	std::vector<std::string> used_variables() const {
+		return {};
+	}
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{}
+	void scale_dimension(float scale)
+	{
+		val = (int)std::round(100 * val * scale) / 100.f;
+	}
+	float* access() { return &val.value; }
+	const char* c_str() const { return nullptr; }
+
+private:
+	dimension val;
 };
 
 template <>
@@ -278,13 +356,15 @@ struct direct_val<std::string> : property_base
 	void set_from_arg(std::string_view s) {
 		val = cpp::parse_str_arg(s);
 	}
-	std::string to_arg() const {
+	std::string to_arg(std::string_view = "") const {
 		return cpp::to_str_arg(val);
 	}
 	std::vector<std::string> used_variables() const {
 		return {};
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
+	{}
+	void scale_dimension(float)
 	{}
 	std::string* access() { return &val; }
 	const char* c_str() const { return val.c_str(); }
@@ -299,7 +379,7 @@ private:
 	std::string val;
 };
 
-template <>
+/*template <>
 struct direct_val<ImVec2> : property_base
 {
 	direct_val(const ImVec2& v) : val(v) {}
@@ -309,7 +389,7 @@ struct direct_val<ImVec2> : property_base
 	void set_from_arg(std::string_view s) {
 		val = cpp::parse_fsize(std::string(s));
 	}
-	std::string to_arg() const {
+	std::string to_arg(std::string_view) const {
 		std::ostringstream os;
 		os << "{ " << val[0] << ", " << val[1] << " }";
 		return os.str();
@@ -329,7 +409,7 @@ struct direct_val<ImVec2> : property_base
 	}
 private:
 	ImVec2 val;
-};
+};*/
 
 #define add$(f) add(#f, f)
 struct flags_helper : property_base
@@ -365,7 +445,7 @@ public:
 	}
 	operator int() const { return f; }
 	int* access() { return &f; }
-	std::string to_arg() const {
+	std::string to_arg(std::string_view = "") const {
 		std::string str;
 		for (const auto& id : ids)
 			if ((f & id.second) && id.first != "")
@@ -400,6 +480,7 @@ public:
 	const auto& get_ids() const { return ids; }
 	std::vector<std::string> used_variables() const { return {}; }
 	void rename_variable(const std::string& oldn, const std::string& newn) {}
+	void scale_dimension(float) {}
 	const char* c_str() const { return nullptr; }
 
 private:
@@ -442,7 +523,7 @@ struct bindable : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg() const {
+	std::string to_arg(std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -483,9 +564,115 @@ struct bindable : property_base
 		}
 
 	}
+	void scale_dimension(float scale) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
+	std::string str;
+};
+
+template <>
+struct bindable<dimension> : property_base
+{
+	bindable() {
+	}
+	bindable(dimension val) {
+		std::ostringstream os;
+		os << val;
+		str = os.str();
+	}
+	bool empty() const { return str.empty(); }
+	bool has_value() const {
+		if (empty())
+			return false;
+		std::istringstream is(str);
+		dimension val;
+		if (!(is >> val))
+			return false;
+		if (is.eof())
+			return true;
+		return is.tellg() == str.size();
+	}
+	float value_px(std::string_view unit) const {
+		if (!has_value())
+			return {};
+		if (unit == "fs")
+			return value() * ImGui::GetFontSize();
+		return value();
+	}
+	void set_from_arg(std::string_view s) {
+		str = s;
+		//strip unit calculation
+		if (s.size() > 3 && s.substr(s.size() - 3) == "*fs") 
+		{
+			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
+			dimension val;
+			if ((is >> val) && is.eof())
+				str = s.substr(0, s.size() - 3);
+		}
+	}
+	std::string to_arg(std::string_view unit) const {
+		if (unit == "fs" && has_value())
+			return str + "*fs";
+		return str;
+	}
+	std::vector<std::string> used_variables() const {
+		if (empty() || has_value())
+			return {};
+		std::vector<std::string> vars;
+		size_t i = 0;
+		while (true) {
+			i = str.find_first_not_of("!+-*/%~^&|()<>[]{}=0123456789., ", i);
+			if (i == std::string::npos)
+				break;
+			size_t j;
+			for (j = i + 1; j < str.size(); ++j)
+				if (stx::count("!+-*/%~^&|()<>[]{}=., ", str[j]))
+					break;
+			vars.push_back(str.substr(i, j - i));
+			i = j;
+		}
+		return vars;
+	};
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{
+		if (empty() || has_value())
+			return;
+		std::vector<std::string> vars;
+		size_t i = 0;
+		while (true) {
+			i = str.find_first_not_of("!+-*/%~^&|()<>[]{}=0123456789., ", i);
+			if (i == std::string::npos)
+				break;
+			size_t j;
+			for (j = i + 1; j < str.size(); ++j)
+				if (stx::count("!+-*/%~^&|()<>[]{}=., ", str[j]))
+					break;
+			if (str.substr(i, j - i) == oldn)
+				str.replace(i, j - i, newn);
+			i = j;
+		}
+
+	}
+	void scale_dimension(float scale)
+	{
+		if (has_value()) {
+			float val = (int)std::round(100 * value() * scale) / 100.f;
+			*this = dimension(val);
+		}
+	}
+	const char* c_str() const { return str.c_str(); }
+	std::string* access() { return &str; }
+
+private:
+	dimension value() const {
+		if (!has_value()) return {};
+		std::istringstream is(str);
+		dimension val{};
+		is >> val;
+		return val;
+	}
+
 	std::string str;
 };
 
@@ -506,7 +693,7 @@ struct bindable<std::string> : property_base
 	{
 		str = cpp::parse_str_arg(s);
 	}
-	std::string to_arg() const
+	std::string to_arg(std::string_view = "") const
 	{
 		return cpp::to_str_arg(str);
 	}
@@ -551,7 +738,8 @@ struct bindable<std::string> : property_base
 					str.replace(i, e - i, newn);
 			}
 		}
-	};
+	}
+	void scale_dimension(float) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -576,7 +764,7 @@ struct bindable<std::vector<std::string>> : property_base
 		if (str.empty() && s != "\"\"")
 			str = "{" + s + "}";
 	}
-	std::string to_arg() const
+	std::string to_arg(std::string_view = "") const
 	{
 		auto vars = used_variables();
 		if (vars.empty())
@@ -625,6 +813,7 @@ struct bindable<std::vector<std::string>> : property_base
 			}
 		}
 	};
+	void scale_dimension(float) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
