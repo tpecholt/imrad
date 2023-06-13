@@ -122,6 +122,7 @@ struct Widget : UINode
 
 	static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
+	void InitDimensions(UIContext& ctx);
 	void Draw(UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
@@ -177,8 +178,8 @@ struct Selectable : Widget
 	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
 	direct_val<bool> alignToFrame = false;
 	field_ref<bool> fieldName;
-	bindable<dimension> size_x = 0;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 0.f;
+	bindable<dimension> size_y = 0.f;
 	event<> onChange;
 
 	Selectable(UIContext& ctx);
@@ -198,14 +199,14 @@ struct Button : Widget
 	bindable<std::string> label = "\xef\x80\x82 Search";
 	direct_val<ImGuiDir> arrowDir = ImGuiDir_None;
 	direct_val<bool> small = false;
-	bindable<dimension> size_x = 0;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 0.f;
+	bindable<dimension> size_y = 0.f;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
 	bindable<color32> style_text;
 	bindable<color32> style_button;
 	bindable<color32> style_hovered;
-	direct_val<dimension> style_rounding = 0;
+	direct_val<dimension> style_rounding = 0.f;
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -261,8 +262,8 @@ struct Input : Widget
 	direct_val<std::string> hint = "";
 	direct_val<float> step = 1;
 	direct_val<std::string> format = "%.3f";
-	bindable<dimension> size_x = 200;
-	bindable<dimension> size_y = 100;
+	bindable<dimension> size_x = 200.f;
+	bindable<dimension> size_y = 100.f;
 	flags_helper flags = 0;
 	direct_val<bool> keyboardFocus = false;
 	event<> onChange;
@@ -283,7 +284,7 @@ struct Combo : Widget
 	direct_val<std::string> label = "";
 	field_ref<int> fieldName;
 	bindable<std::vector<std::string>> items;
-	bindable<dimension> size_x = 200;
+	bindable<dimension> size_x = 200.f;
 	event<> onChange;
 
 	Combo(UIContext& ctx);
@@ -305,7 +306,7 @@ struct Slider : Widget
 	direct_val<float> min = 0;
 	direct_val<float> max = 1;
 	direct_val<std::string> format = "";
-	bindable<dimension> size_x = 200;
+	bindable<dimension> size_x = 200.f;
 	event<> onChange;
 
 	Slider(UIContext& ctx);
@@ -323,8 +324,8 @@ struct ProgressBar : Widget
 {
 	direct_val<bool> indicator = true;
 	field_ref<float> fieldName;
-	bindable<dimension> size_x = 200;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 200.f;
+	bindable<dimension> size_y = 0.f;
 	
 	ProgressBar(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
@@ -341,7 +342,7 @@ struct ColorEdit : Widget
 	direct_val<std::string> label = "";
 	direct_val<std::string> type = "color3";
 	flags_helper flags = ImGuiColorEditFlags_None;
-	bindable<dimension> size_x = 200;
+	bindable<dimension> size_x = 200.f;
 	event<> onChange;
 
 	ColorEdit(UIContext& ctx);
@@ -358,8 +359,8 @@ struct ColorEdit : Widget
 struct Image : Widget
 {
 	bindable<std::string> fileName = "";
-	bindable<dimension> size_x = 0;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 0.f;
+	bindable<dimension> size_y = 0.f;
 	field_ref<ImRad::Texture> fieldName;
 	ImRad::Texture tex;
 
@@ -375,8 +376,8 @@ struct Image : Widget
 
 struct CustomWidget : Widget
 {
-	bindable<dimension> size_x = 0;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 0.f;
+	bindable<dimension> size_y = 0.f;
 	event<ImRad::CustomWidgetArgs> onDraw;
 	
 	CustomWidget(UIContext& ctx);
@@ -400,8 +401,8 @@ struct Table : Widget
 		ColumnData();
 	};
 	flags_helper flags = ImGuiTableFlags_Borders;
-	bindable<dimension> size_x = 0;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 0.f;
+	bindable<dimension> size_y = 0.f;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
 	field_ref<size_t> rowCount;
@@ -424,8 +425,8 @@ struct Table : Widget
 
 struct Child : Widget
 {
-	bindable<dimension> size_x = 0;
-	bindable<dimension> size_y = 0;
+	bindable<dimension> size_x = 0.f;
+	bindable<dimension> size_y = 0.f;
 	direct_val<bool> border = false;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
@@ -550,8 +551,8 @@ struct TopWindow : UINode
 	flags_helper flags = ImGuiWindowFlags_NoCollapse;
 	Kind kind = Window;
 	bindable<std::string> title = "title";
-	bindable<dimension> size_x = 640;
-	bindable<dimension> size_y = 480;
+	bindable<dimension> size_x = 640.f;
+	bindable<dimension> size_y = 480.f;
 	std::string style_font = "";
 	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_padding;
 	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_spacing;

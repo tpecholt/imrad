@@ -859,6 +859,17 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return {};
 }
 
+void Widget::InitDimensions(UIContext& ctx)
+{
+	//adjust initial values like size_x in case fontSize unit is used
+	//should be called from all widget constructors
+	if (ctx.unit == "fs")
+	{
+		float scale = 1.f / ImGui::GetFontSize();
+		ScaleDimensions(scale);
+	}
+}
+
 void Widget::Draw(UIContext& ctx)
 {
 	if (nextColumn) {
@@ -1497,8 +1508,10 @@ void Widget::TreeUI(UIContext& ctx)
 
 //----------------------------------------------------
 
-Separator::Separator(UIContext&)
-{}
+Separator::Separator(UIContext& ctx)
+{
+	InitDimensions(ctx);
+}
 
 void Separator::DoDraw(UIContext& ctx)
 {
@@ -1541,6 +1554,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 Text::Text(UIContext& ctx)
 {
 	style = { &style_font, &style_color };
+	InitDimensions(ctx);
 }
 
 void Text::DoDraw(UIContext& ctx)
@@ -1733,6 +1747,8 @@ Selectable::Selectable(UIContext& ctx)
 	vertAlignment.add("AlignTop", ImRad::AlignTop);
 	vertAlignment.add("AlignVCenter", ImRad::AlignVCenter);
 	vertAlignment.add("AlignBottom", ImRad::AlignBottom);
+
+	InitDimensions(ctx);
 }
 
 void Selectable::DoDraw(UIContext& ctx)
@@ -2052,6 +2068,8 @@ Button::Button(UIContext& ctx)
 	arrowDir.add$(ImGuiDir_Right);
 	arrowDir.add$(ImGuiDir_Up);
 	arrowDir.add$(ImGuiDir_Down);
+
+	InitDimensions(ctx);
 }
 
 void Button::DoDraw(UIContext& ctx)
@@ -2504,6 +2522,8 @@ CheckBox::CheckBox(UIContext& ctx)
 	style = { &style_font, &style_color };
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+
+	InitDimensions(ctx);
 }
 
 void CheckBox::DoDraw(UIContext& ctx)
@@ -2677,6 +2697,7 @@ RadioButton::RadioButton(UIContext& ctx)
 {
 	style = { &style_font, &style_color };
 	//variable is shared among buttons so don't generate new here
+	InitDimensions(ctx);
 }
 
 void RadioButton::DoDraw(UIContext& ctx)
@@ -2821,6 +2842,8 @@ Input::Input(UIContext& ctx)
 
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+
+	InitDimensions(ctx);
 }
 
 void Input::DoDraw(UIContext& ctx)
@@ -3278,6 +3301,8 @@ Combo::Combo(UIContext& ctx)
 {
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
+
+	InitDimensions(ctx);
 }
 
 void Combo::DoDraw(UIContext& ctx)
@@ -3467,6 +3492,8 @@ Slider::Slider(UIContext& ctx)
 {
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type=="angle" ? "float" : type, "", CppGen::Var::Interface));
+
+	InitDimensions(ctx);
 }
 
 void Slider::DoDraw(UIContext& ctx)
@@ -3719,6 +3746,8 @@ ProgressBar::ProgressBar(UIContext& ctx)
 {
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
+
+	InitDimensions(ctx);
 }
 
 void ProgressBar::DoDraw(UIContext& ctx)
@@ -3835,6 +3864,8 @@ ColorEdit::ColorEdit(UIContext& ctx)
 
 	if (!ctx.importState)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+
+	InitDimensions(ctx);
 }
 
 void ColorEdit::DoDraw(UIContext& ctx)
@@ -4032,6 +4063,8 @@ Image::Image(UIContext& ctx)
 {
 	if (!ctx.importState)
 		*fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
+
+	InitDimensions(ctx);
 }
 
 void Image::DoDraw(UIContext& ctx)
@@ -4208,6 +4241,7 @@ void Image::RefreshTexture(UIContext& ctx)
 
 CustomWidget::CustomWidget(UIContext& ctx)
 {
+	InitDimensions(ctx);
 }
 
 void CustomWidget::DoDraw(UIContext& ctx)
@@ -4362,6 +4396,8 @@ Table::Table(UIContext& ctx)
 	columnData.resize(3);
 	for (size_t i = 0; i < columnData.size(); ++i)
 		columnData[i].label = char('A' + i);
+
+	InitDimensions(ctx);
 }
 
 void Table::DoDraw(UIContext& ctx)
@@ -4689,6 +4725,7 @@ void Table::ScaleDimensions(float scale)
 
 Child::Child(UIContext& ctx)
 {
+	InitDimensions(ctx);
 }
 
 void Child::DoDraw(UIContext& ctx)
@@ -4920,6 +4957,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 
 CollapsingHeader::CollapsingHeader(UIContext& ctx)
 {
+	InitDimensions(ctx);
 }
 
 void CollapsingHeader::DoDraw(UIContext& ctx)
@@ -5035,6 +5073,8 @@ TreeNode::TreeNode(UIContext& ctx)
 	flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);
 	flags.add$(ImGuiTreeNodeFlags_SpanAvailWidth);
 	flags.add$(ImGuiTreeNodeFlags_SpanFullWidth);
+
+	InitDimensions(ctx);
 }
 
 void TreeNode::DoDraw(UIContext& ctx)
@@ -5179,6 +5219,8 @@ TabBar::TabBar(UIContext& ctx)
 
 	if (!ctx.importState)
 		children.push_back(std::make_unique<TabItem>(ctx));
+
+	InitDimensions(ctx);
 }
 
 void TabBar::DoDraw(UIContext& ctx)
@@ -5308,6 +5350,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 
 TabItem::TabItem(UIContext& ctx)
 {
+	InitDimensions(ctx);
 }
 
 void TabItem::DoDraw(UIContext& ctx)
@@ -5485,6 +5528,8 @@ MenuBar::MenuBar(UIContext& ctx)
 {
 	if (!ctx.importState)
 		children.push_back(std::make_unique<MenuIt>(ctx));
+
+	InitDimensions(ctx);
 }
 
 void MenuBar::DoDraw(UIContext& ctx)
@@ -5545,6 +5590,7 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 MenuIt::MenuIt(UIContext& ctx)
 {
+	InitDimensions(ctx);
 }
 
 void MenuIt::DoDraw(UIContext& ctx)
