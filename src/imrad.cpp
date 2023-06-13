@@ -133,6 +133,7 @@ void NewFile(TopWindow::Kind k)
 	file.rootNode = std::move(top);
 	file.styleName = DEFAULT_STYLE;
 	file.unit = DEFAULT_UNIT;
+	file.modified = true;
 	fileTabs.push_back(std::move(file));
 	ActivateTab((int)fileTabs.size() - 1);
 }
