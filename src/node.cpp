@@ -768,14 +768,18 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 4:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
+		ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
+		ImGui::EndDisabled();
 		break;
 	case 5:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
+		ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
+		ImGui::EndDisabled();
 		break;
 	default:
 		return false;
@@ -2211,7 +2215,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_button.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_button.to_arg() << ");\n";
-	if (!style_button.empty())
+	if (!style_hovered.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonHovered, " << style_hovered.to_arg() << ");\n";
 	if (!style_text.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_text.to_arg() << ");\n";

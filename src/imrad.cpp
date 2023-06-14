@@ -457,7 +457,7 @@ void StyleColors()
 	style.FrameRounding = 3.0f;
 	style.WindowRounding = 3.f;
 	style.Colors[ImGuiCol_Text] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-	style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+	style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
 	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.94f, 0.94f, 0.94f, 0.94f);
 	style.Colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 	style.Colors[ImGuiCol_PopupBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.94f);
@@ -1002,7 +1002,9 @@ void PropertyRowsUI(bool pr)
 		ImGui::GetIO().AddInputCharacter(addInputCharacter);
 		addInputCharacter = 0;
 	}
-	if (!ImGui::GetIO().WantTextInput && !(ImGui::GetIO().KeyMods & ~ImGuiMod_Shift))
+	if (!ImGui::GetIO().WantTextInput && 
+		!(ImGui::GetIO().KeyMods & ~ImGuiMod_Shift) &&
+		!ImGui::GetTopMostPopupModal()) //TopMostAndVisible doesn't work with ClassWizard open??
 	{
 		for (int key = ImGuiKey_A; key <= ImGuiKey_Z; ++key)
 			if (ImGui::IsKeyPressed((ImGuiKey)key)) {
