@@ -32,6 +32,7 @@
 #include "ui_about_dlg.h"
 #include "ui_binding.h"
 #include "ui_combo_dlg.h"
+#include "ui_horiz_layout.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -844,6 +845,24 @@ void ToolbarUI()
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	
 	ImGui::SameLine();
+	bool showHelper = ctx.selected.size() == 1 && 
+		(ctx.selected[0]->SnapBehavior() & UINode::SnapSides);
+	ImGui::BeginDisabled(!showHelper);
+	if (ImGui::Button(ICON_FA_LEFT_RIGHT))
+	{
+		horizLayout.root = fileTabs[activeTab].rootNode.get();
+		HorizLayout::ExpandSelection(horizLayout.root, ctx.selected);
+		horizLayout.selected = ctx.selected;
+		horizLayout.ctx = &ctx;
+		horizLayout.OpenPopup();
+	}
+	ImGui::EndDisabled();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Horizontal Layout Helper");
+	ImGui::SameLine();
+	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+	ImGui::SameLine();
 	ImGui::BeginDisabled(activeTab < 0);
 	if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
 		(ImGui::IsKeyPressed(ImGuiKey_P, false) && io.KeyCtrl)) 
@@ -1116,6 +1135,8 @@ void PopupUI()
 	aboutDlg.Draw();
 
 	bindingDlg.Draw();
+
+	horizLayout.Draw();
 }
 
 void Draw()
@@ -1135,20 +1156,6 @@ void Draw()
 
 	ImGui::PopFont();
 	ImGui::GetStyle() = tmpStyle;
-}
-
-std::pair<UINode*, size_t>
-FindParentIndex(UINode* node, const UINode* n)
-{
-	for (size_t i = 0; i < node->children.size(); ++i)
-	{
-		if (node->children[i].get() == n)
-			return { node, i };
-		auto pi = FindParentIndex(node->children[i].get(), n);
-		if (pi.first)
-			return pi;
-	}
-	return { nullptr, 0 };
 }
 
 void Work()
@@ -1196,22 +1203,22 @@ void Work()
 		if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !pgFocused)
 		{
 			fileTabs[activeTab].modified = true;
-			auto pi1 = FindParentIndex(fileTabs[activeTab].rootNode.get(), ctx.selected[0]);
+			auto pi1 = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
 			for (UINode* node : ctx.selected)
 			{
 				if (node == fileTabs[activeTab].rootNode.get())
 					continue;
-				auto pi = FindParentIndex(fileTabs[activeTab].rootNode.get(), node);
-				if (!pi.first)
+				auto pi = fileTabs[activeTab].rootNode->FindChild(node);
+				if (!pi)
 					continue;
 				Widget* wdg = dynamic_cast<Widget*>(node);
 				bool sameLine = wdg->sameLine;
 				bool nextColumn = wdg->nextColumn;
 				bool beginGroup = wdg->beginGroup;
-				pi.first->children.erase(pi.first->children.begin() + pi.second);
-				if (pi.second < pi.first->children.size())
+				pi->first->children.erase(pi->first->children.begin() + pi->second);
+				if (pi->second < pi->first->children.size())
 				{
-					wdg = dynamic_cast<Widget*>(pi.first->children[pi.second].get());
+					wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
 					if (nextColumn)
 						wdg->nextColumn = true;
 					if (!sameLine)
@@ -1221,14 +1228,14 @@ void Work()
 				}
 			}
 			//move selection. Useful for things like menu items
-			if (ctx.selected.size() == 1 && pi1.first)
+			if (ctx.selected.size() == 1 && pi1)
 			{
-				if (pi1.second < pi1.first->children.size())
-					ctx.selected[0] = pi1.first->children[pi1.second].get();
-				else if (pi1.second)
-					ctx.selected[0] = pi1.first->children[pi1.second - 1].get();
+				if (pi1->second < pi1->first->children.size())
+					ctx.selected[0] = pi1->first->children[pi1->second].get();
+				else if (pi1->second)
+					ctx.selected[0] = pi1->first->children[pi1->second - 1].get();
 				else
-					ctx.selected[0] = pi1.first;
+					ctx.selected[0] = pi1->first;
 			}
 			else
 			{

@@ -129,14 +129,6 @@ namespace cpp
 							tok = "";
 							in_comment = 2;
 						}
-						else if (tok[0] == ':')
-						{
-							if (c != ':') {
-								tok.resize(tok.size() - 1);
-								in->putback(c);
-								break;
-							}
-						}
 						else if (c == '\"')
 						{
 							if (tok.size() >= 2) {
@@ -155,8 +147,12 @@ namespace cpp
 							}
 							in_pre = true;
 						}
-						else if (c == '{' || c == '}' || c == ';' || c == '(' || c == ')' || c == ',' || 
-							c == '[' || c == ']' || c == '<' || c == '>')
+						else if (c == '{' || c == '}' || c == '(' || c == ')' || 
+							c == '[' || c == ']' || c == '<' || c == '>' ||
+							c == ';' || c == ':' || c == '.' || c == ',' ||
+							c == '?' || c == '+' || c == '-' || c == '%' ||
+							c == '*' || c == '^' || c == '&' || c == '|' || 
+							c == '~' || c == '=' || c == '!')
 						{
 							if (tok.size() >= 2) {
 								tok.resize(tok.size() - 1);
@@ -164,19 +160,24 @@ namespace cpp
 								break;
 							}
 							if ((c == '<' && in->peek() == '<') ||
-								(c == '>' && in->peek() == '>'))
+								(c == '<' && in->peek() == '=') ||
+								(c == '>' && in->peek() == '>') ||
+								(c == '>' && in->peek() == '=') ||
+								(c == '=' && in->peek() == '=') ||
+								(c == '!' && in->peek() == '=') ||
+								(c == ':' && in->peek() == ':') ||
+								(c == '-' && in->peek() == '>') ||
+								(c == '&' && in->peek() == '&') ||
+								(c == '|' && in->peek() == '|'))
 							{
 								tok += in->get();
 							}
 							break;
 						}
-						else if (c == ':')
+						else if (c == '/')
 						{
-							if (tok.size() >= 2) {
-								tok.resize(tok.size() - 1);
-								in->putback(c);
+							if (in->peek() != '/' && in->peek() != '*')
 								break;
-							}
 						}
 					}
 				}
@@ -435,6 +436,33 @@ namespace cpp
 		data_t data;
 	};
 
+	inline bool is_cstr(std::string_view s)
+	{
+		return s.size() >= 2 && s[0] == '"' && s.back() == '"';
+	}
+
+	inline bool is_id(std::string_view s)
+	{
+		if (s.empty())
+			return false;
+		if (!std::isalpha(s[0]) && s[0] != '_')
+			return false;
+		for (size_t i = 1; i < s.size(); ++i)
+			if (!std::isalnum(s[i]) && s[i] != '_')
+				return false;
+		return true;
+	}
+
+	inline bool is_builtin(std::string_view s)
+	{
+		if (!s.compare(0, 6, "const "))
+			s.remove_prefix(6);
+		return s == "int" || s == "short" || s == "unsigned" || s == "long" ||
+			s == "unsigned int" || s == "unsigned short" || s == "unsigned long" ||
+			s == "long long" || s == "unsigned long long" || s == "char" ||
+			s == "unsigned char" || s == "char*" || s == "bool";
+	}
+
 	//replaces identifier but ignores strings, preprocessor
 	inline void replace_id(std::string& code, std::string_view old, std::string news)
 	{
@@ -467,31 +495,46 @@ namespace cpp
 		code = out;
 	}
 
-	inline bool is_cstr(std::string_view s)
+	//ImGui::GetStyle().Colors[alignment==0 ? ImGuiCol_X : ImGuiCol_Y] --> alignment, ImGuiCol_X, ImGuiCol_Y
+	inline std::string_view find_id(const std::string& expr, size_t& i)
 	{
-		return s.size() >= 2 && s[0] == '"' && s.back() == '"';
-	}
-
-	inline bool is_id(std::string_view s)
-	{
-		if (s.empty())
-			return false;
-		if (!std::isalpha(s[0]) && s[0] != '_')
-			return false;
-		for (size_t i = 1; i < s.size(); ++i)
-			if (!std::isalnum(s[i]) && s[i] != '_')
-				return false;
-		return true;
-	}
-
-	inline bool is_builtin(std::string_view s)
-	{
-		if (!s.compare(0, 6, "const "))
-			s.remove_prefix(6);
-		return s == "int" || s == "short" || s == "unsigned" || s == "long" ||
-			s == "unsigned int" || s == "unsigned short" || s == "unsigned long" ||
-			s == "long long" || s == "unsigned long long" || s == "char" ||
-			s == "unsigned char" || s == "char*" || s == "bool";
+		std::istringstream in(expr);
+		in.seekg(i);
+		std::string_view id;
+		bool ignore_ids = false;
+		for (token_iterator it(in); it != token_iterator(); ++it)
+		{
+			if (is_id(*it) || *it == "::") {
+				if (ignore_ids)
+					;
+				else if (id != "") //append
+					id = std::string_view(expr).substr(id.data() - expr.data(), expr.data() + in.tellg() - id.data());
+				else {
+					size_t pos = !in ? expr.size() : (size_t)in.tellg();
+					id = std::string_view(expr).substr(pos - it->size(), it->size());
+				}
+			}
+			else if (*it == "." || *it == "->") {
+				ignore_ids = true;
+				if (id != "") {
+					i = (size_t)in.tellg() - it->size();
+					return id;
+				}
+			}
+			else if (id != "" && *it == "(") { //function call
+				id = "";
+				ignore_ids = false;
+			}
+			else {
+				ignore_ids = false;
+				if (id != "") {
+					i = (size_t)in.tellg() - it->size();
+					return id;
+				}
+			}
+		}
+		i = std::string::npos;
+		return id;
 	}
 
 	inline std::string parse_var_args(const std::vector<std::string>& f)

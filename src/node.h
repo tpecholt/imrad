@@ -64,7 +64,7 @@ using children_t = std::vector<std::unique_ptr<Widget>>;
 struct UINode
 {
 	struct Prop {
-		const char* name;
+		std::string_view name;
 		property_base* property;
 		bool kbdInput = false; //this property accepts keyboard input by default
 	};
@@ -88,7 +88,7 @@ struct UINode
 	void DrawSnap(UIContext& ctx);
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
 	void ScaleDimensions(float scale);
-	bool FindChild(const UINode*);
+	auto FindChild(const UINode*) -> std::optional<std::pair<UINode*, int>>;
 
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
@@ -398,6 +398,7 @@ struct Table : Widget
 		flags_helper flags = 0;
 		float width = 0;
 		ColumnData();
+		ColumnData(std::string_view l, int f, float w = 0) : label(l), flags(f), width(w) {}
 	};
 	flags_helper flags = ImGuiTableFlags_Borders;
 	bindable<dimension> size_x = 0.f;
@@ -406,7 +407,8 @@ struct Table : Widget
 	direct_val<bool> header = true;
 	field_ref<size_t> rowCount;
 	bindable<bool> rowFilter;
-	direct_val<bool> style_padding = true;
+	direct_val<dimension> style_padding_x = -1.f;
+	direct_val<dimension> style_padding_y = -1.f;
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;

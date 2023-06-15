@@ -271,14 +271,20 @@ void UINode::DrawSnap(UIContext& ctx)
 	dl->AddLine(p, p + ImVec2(w, h), ctx.colors[UIContext::Snap1 + (level - 1)], 3);
 }
 
-bool UINode::FindChild(const UINode* ch)
+std::optional<std::pair<UINode*, int>>
+UINode::FindChild(const UINode* ch)
 {
 	if (ch == this)
-		return true;
-	for (const auto& child : children)
-		if (child->FindChild(ch))
-			return true;
-	return false;
+		return std::pair{ nullptr, 0 };
+	for (size_t i = 0; i < children.size(); ++i) {
+		const auto& child = children[i];
+		if (child.get() == ch)
+			return std::pair{ this, (int)i };
+		auto tmp = child->FindChild(ch);
+		if (tmp)
+			return tmp;
+	}
+	return {};
 }
 
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
@@ -1171,8 +1177,9 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SameLine")
 		{
 			sameLine = true;
+			spacing = 1; 
 			if (sit->params.size() == 2)
-				spacing.set_from_arg(sit->params[1]);
+				spacing.set_from_arg(sit->params[1]);	
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Spacing") //compatibility
 		{
@@ -4377,7 +4384,7 @@ Table::ColumnData::ColumnData()
 
 Table::Table(UIContext& ctx)
 {
-	style = { &style_padding, &style_headerBg, &style_rowBg, &style_rowBgAlt };
+	style = { &style_padding_x, &style_padding_y, &style_headerBg, &style_rowBg, &style_rowBgAlt };
 
 	flags.prefix("ImGuiTableFlags_");
 	flags.add$(ImGuiTableFlags_Resizable);
@@ -4413,8 +4420,8 @@ Table::Table(UIContext& ctx)
 
 void Table::DoDraw(UIContext& ctx)
 {
-	if (!style_padding)
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 });
+	if (style_padding_x >= 0 || style_padding_y >= 0)
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { style_padding_x, style_padding_y });
 	if (style_headerBg.has_value())
 		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.value());
 	if (style_rowBg.has_value())
@@ -4446,7 +4453,7 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::EndTable();
 	}
 
-	if (!style_padding)
+	if (style_padding_x >= 0 || style_padding_y >= 0)
 		ImGui::PopStyleVar();
 	if (style_headerBg.has_value())
 		ImGui::PopStyleColor();
@@ -4480,7 +4487,9 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	{
 	case 0:
 		TreeNodeProp("style", false, [&] {
-			ImGui::Text("padding");
+			ImGui::Text("padding_x");
+			ImGui::Spacing();
+			ImGui::Text("padding_y");
 			ImGui::Spacing();
 			ImGui::Text("headerBg");
 			ImGui::Spacing();
@@ -4492,7 +4501,11 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 			ImGui::TableNextColumn();
 			ImGui::Text("");
 
-			changed = ImGui::Checkbox("##style_padding", style_padding.access()) || changed;
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = ImGui::InputFloat("##style_padding_x", style_padding_x.access()) || changed;
+			
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = ImGui::InputFloat("##style_padding_y", style_padding_y.access()) || changed;
 			
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 			changed = InputBindable("##headerbg", &style_headerBg, ctx) || changed;
@@ -4581,9 +4594,13 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 
 void Table::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!style_padding)
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 1, 1 }); //remove padding, keep borders\n";
-	
+	if (style_padding_x >= 0 || style_padding_y >= 0)
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { "
+			<< style_padding_x.to_arg(ctx.unit) << ", " << style_padding_y.to_arg(ctx.unit)
+			<< " });\n";
+	}
+
 	os << ctx.ind << "if (ImGui::BeginTable("
 		<< "\"table" << (uint64_t)this << "\", " 
 		<< columnData.size() << ", " 
@@ -4649,7 +4666,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
-	if (!style_padding)
+	if (style_padding_x >= 0 || style_padding_y >= 0)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
@@ -4658,7 +4675,11 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
 		if (sit->params.size() && sit->params[0] == "ImGuiStyleVar_CellPadding")
-			style_padding = false;
+		{
+			auto sz = cpp::parse_fsize(sit->params[1]);
+			style_padding_x = sz[0];
+			style_padding_y = sz[1];
+		}
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTable")
 	{
@@ -4971,7 +4992,7 @@ void CollapsingHeader::DoDraw(UIContext& ctx)
 	//in the window and avoid potential scrolling
 	if (ctx.selected.size() == 1)
 	{
-		ImGui::SetNextItemOpen(FindChild(ctx.selected[0]));
+		ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
 	}
 	if (ImGui::CollapsingHeader(label.c_str()))
 	{
@@ -5088,7 +5109,7 @@ void TreeNode::DoDraw(UIContext& ctx)
 	{
 		//automatically expand to show selection and collapse to save space
 		//in the window and avoid potential scrolling
-		ImGui::SetNextItemOpen(FindChild(ctx.selected[0]));
+		ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
 	}
 	lastOpen = false;
 	if (ImGui::TreeNodeEx(label.c_str(), flags))
