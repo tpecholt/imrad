@@ -73,7 +73,7 @@ void TreeNodeProp(const char* name, bool pack, F&& f)
 void UINode::DrawSnap(UIContext& ctx)
 {
 	ctx.snapSameLine = false;
-	ctx.snapNextColumn = false;
+	ctx.snapNextColumn = 0;
 	ctx.snapBeginGroup = false;
 	ctx.snapSetNextSameLine = false;
 
@@ -186,7 +186,7 @@ void UINode::DrawSnap(UIContext& ctx)
 		ctx.snapParent = parent;
 		ctx.snapIndex = i + 1;
 		ctx.snapSameLine = true;
-		ctx.snapNextColumn = false;
+		ctx.snapNextColumn = 0;
 		break;
 	}
 	case ImGuiDir_Up:
@@ -249,7 +249,7 @@ void UINode::DrawSnap(UIContext& ctx)
 			ctx.snapParent = parent;
 			ctx.snapIndex = i2 + 1;
 			ctx.snapSameLine = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
-			ctx.snapNextColumn = false;
+			ctx.snapNextColumn = 0;
 		}
 		else
 		{
@@ -336,8 +336,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.inPopup = kind == Kind::Popup || kind == Kind::ModalPopup;
-	ctx.inTable = false;
-
+	
 	std::string cap = title.value();
 	if (cap.empty())
 		cap = "error";
@@ -867,27 +866,23 @@ void Widget::InitDimensions(UIContext& ctx)
 {
 	//adjust initial values like size_x in case fontSize unit is used
 	//should be called from all widget constructors
-	if (ctx.unit == "fs")
-	{
-		float scale = 1.f / ImGui::GetFontSize();
-		ScaleDimensions(scale);
-	}
+	ScaleDimensions(ScaleFactor("", ctx.unit));
 }
 
 void Widget::Draw(UIContext& ctx)
 {
 	if (nextColumn) {
-		if (ctx.inTable)
-			ImGui::TableNextColumn();
+		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+		if (inTable)
+			ImRad::TableNextColumn(nextColumn);
 		else
-			ImGui::NextColumn();
+			ImRad::NextColumn(nextColumn);
 	}
 	if (sameLine) {
 		ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
 	} 
 	else {
-		for (int i = 0; i < spacing; ++i)
-			ImGui::Spacing();
+		ImRad::Spacing(spacing);
 	}
 	if (indent)
 		ImGui::Indent(indent * ImGui::GetStyle().IndentSpacing / 2);
@@ -982,10 +977,11 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (nextColumn)
 	{
-		if (ctx.inTable)
-			os << ctx.ind << "ImGui::TableNextColumn();\n";
+		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+		if (inTable)
+			os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
 		else
-			os << ctx.ind << "ImGui::NextColumn();\n";
+			os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
 	}
 	if (sameLine)
 	{
@@ -994,10 +990,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 			os << "0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x";
 		os << ");\n";
 	}
-	else
+	else if (spacing)
 	{
-		for (int i = 0; i < spacing; ++i)
-			os << ctx.ind << "ImGui::Spacing();\n";
+		os << ctx.ind << "ImRad::Spacing(" << spacing << ");\n";
 	}
 	if (indent)
 	{
@@ -1163,9 +1158,15 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			visible.set_from_arg(sit->cond);
 		}
 		else if (sit->kind == cpp::CallExpr && 
-			(sit->callee == "ImGui::NextColumn" || sit->callee == "ImGui::TableNextColumn"))
+			(sit->callee == "ImGui::NextColumn" || sit->callee == "ImGui::TableNextColumn")) //compatibility
 		{
-			nextColumn = true;
+			nextColumn = 1;
+		}
+		else if (sit->kind == cpp::CallExpr &&
+			(sit->callee == "ImRad::NextColumn" || sit->callee == "ImRad::TableNextColumn"))
+		{
+			if (sit->params.size())
+				nextColumn.set_from_arg(sit->params[0]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SameLine")
 		{
@@ -1173,9 +1174,14 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size() == 2)
 				spacing.set_from_arg(sit->params[1]);
 		}
-		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Spacing")
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Spacing") //compatibility
 		{
 			++spacing;
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::Spacing")
+		{
+			if (sit->params.size())
+				spacing.set_from_arg(sit->params[0]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Indent")
 		{
@@ -1355,7 +1361,8 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 	case 9:
 		ImGui::Text("nextColumn");
 		ImGui::TableNextColumn();
-		if (ImGui::Checkbox("##nextColumn", nextColumn.access())) {
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::InputInt("##nextColumn", nextColumn.access())) {
 			changed = true;
 			if (nextColumn)
 				sameLine = false;
@@ -4430,15 +4437,12 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::TableNextRow();
 		ImGui::TableSetColumnIndex(0);
 		
-		bool tmp = ctx.inTable;
-		ctx.inTable = true;
 		for (int i = 0; i < (int)children.size(); ++i)
 		{
 			children[i]->Draw(ctx);
 			//ImGui::Text("cell");
 		}
-		ctx.inTable = tmp;
-
+		
 		ImGui::EndTable();
 	}
 
@@ -4604,8 +4608,6 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	if (header)
 		os << ctx.ind << "ImGui::TableHeadersRow();\n";
 
-	bool tmp = ctx.inTable;
-	ctx.inTable = true;
 	if (!rowCount.empty()) 
 	{
 		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR 
@@ -4642,8 +4644,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
-	ctx.inTable = tmp;
-
+	
 	os << ctx.ind << "ImGui::EndTable();\n";
 	ctx.ind_down();
 	os << ctx.ind << "}\n";

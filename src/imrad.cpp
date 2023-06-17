@@ -834,13 +834,9 @@ void ToolbarUI()
 			if (mr != ImRad::Yes)
 				return;
 			auto& tab = fileTabs[activeTab];
-			float scale = 1;
-			if (tab.unit == "fs")
-				scale = ImGui::GetFontSize();
+			auto oldUnit = tab.unit;
 			tab.unit = usel ? "fs" : "px";
-			if (tab.unit == "fs")
-				scale /= ImGui::GetFontSize();
-			tab.rootNode->ScaleDimensions(scale);
+			tab.rootNode->ScaleDimensions(ScaleFactor(oldUnit, tab.unit));
 			tab.modified = true;
 			});
 	}

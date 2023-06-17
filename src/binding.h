@@ -303,6 +303,10 @@ struct direct_val<dimension> : property_base
 		val = v;
 		return *this;
 	}
+	direct_val& operator= (float f) {
+		val = f;
+		return *this;
+	}
 	float value_px(std::string_view unit) const {
 		if (unit == "fs")
 			return val * ImGui::GetFontSize();
@@ -418,6 +422,10 @@ struct flags_helper : property_base
 public:
 	flags_helper(int f) : f(f)
 	{}
+	flags_helper& operator= (int ff) {
+		f = ff;
+		return *this;
+	}
 	flags_helper& operator|= (int ff) {
 		f |= ff;
 		return *this;
@@ -533,15 +541,10 @@ struct bindable : property_base
 		std::vector<std::string> vars;
 		size_t i = 0;
 		while (true) {
-			i = str.find_first_not_of("!+-*/%~^&|()<>[]{}=0123456789., ", i);
-			if (i == std::string::npos)
+			auto id = cpp::find_id(str, i);
+			if (id == "")
 				break;
-			size_t j;
-			for (j = i + 1; j < str.size(); ++j)
-				if (stx::count("!+-*/%~^&|()<>[]{}=., ", str[j]))
-					break;
-			vars.push_back(str.substr(i, j - i));
-			i = j;
+			vars.push_back(std::string(id));
 		}
 		return vars;
 	};
@@ -552,16 +555,11 @@ struct bindable : property_base
 		std::vector<std::string> vars;
 		size_t i = 0;
 		while (true) {
-			i = str.find_first_not_of("!+-*/%~^&|()<>[]{}=0123456789., ", i);
-			if (i == std::string::npos)
+			auto id = cpp::find_id(str, i);
+			if (id == "")
 				break;
-			size_t j;
-			for (j = i + 1; j < str.size(); ++j)
-				if (stx::count("!+-*/%~^&|()<>[]{}=., ", str[j]))
-					break;
-			if (str.substr(i, j - i) == oldn)
-				str.replace(i, j - i, newn);
-			i = j;
+			if (id == oldn)
+				str.replace(id.data() - str.data(), id.size(), newn);
 		}
 
 	}
@@ -626,15 +624,10 @@ struct bindable<dimension> : property_base
 		std::vector<std::string> vars;
 		size_t i = 0;
 		while (true) {
-			i = str.find_first_not_of("!+-*/%~^&|()<>[]{}=0123456789., ", i);
-			if (i == std::string::npos)
+			std::string_view id = cpp::find_id(str, i);
+			if (id == "")
 				break;
-			size_t j;
-			for (j = i + 1; j < str.size(); ++j)
-				if (stx::count("!+-*/%~^&|()<>[]{}=., ", str[j]))
-					break;
-			vars.push_back(str.substr(i, j - i));
-			i = j;
+			vars.push_back(std::string(id));
 		}
 		return vars;
 	};
@@ -645,16 +638,13 @@ struct bindable<dimension> : property_base
 		std::vector<std::string> vars;
 		size_t i = 0;
 		while (true) {
-			i = str.find_first_not_of("!+-*/%~^&|()<>[]{}=0123456789., ", i);
-			if (i == std::string::npos)
+			std::string_view id = cpp::find_id(str, i);
+			if (id == "")
 				break;
-			size_t j;
-			for (j = i + 1; j < str.size(); ++j)
-				if (stx::count("!+-*/%~^&|()<>[]{}=., ", str[j]))
-					break;
-			if (str.substr(i, j - i) == oldn)
-				str.replace(i, j - i, newn);
-			i = j;
+			if (id == oldn) {
+				size_t i1 = id.data() - str.data();
+				str.replace(i1, id.size(), newn);
+			}
 		}
 
 	}
@@ -680,7 +670,7 @@ private:
 	std::string str;
 };
 
-//Hi {name} you are {age:2} yers old
+//Hi {names[i]} you are {ages[i]:2} years old out of {names.size()}
 template <>
 struct bindable<std::string> : property_base
 {
@@ -718,8 +708,16 @@ struct bindable<std::string> : property_base
 						break;
 				if (e >= str.size())
 					break;
-				if (e > i)
-					vars.push_back(str.substr(i, e - i));
+				if (e > i) {
+					auto s = str.substr(i, e - i);
+					size_t k = 0;
+					while (true) {
+						auto id = cpp::find_id(s, k);
+						if (id == "")
+							break;
+						vars.push_back(std::string(id));
+					}
+				}
 			}
 		}
 		return vars;
@@ -738,8 +736,15 @@ struct bindable<std::string> : property_base
 				size_t e = std::min(str.find(':', i), str.find('}', i));
 				if (e == std::string::npos)
 					break;
-				if (str.substr(i, e - i) == oldn)
-					str.replace(i, e - i, newn);
+				auto s = str.substr(i, e - i);
+				size_t k = 0;
+				while (true) {
+					auto id = cpp::find_id(s, k);
+					if (id == "")
+						break;
+					if (id == oldn)
+						str.replace(id.data() - str.data(), id.size(), newn);
+				}
 			}
 		}
 	}
@@ -793,7 +798,14 @@ struct bindable<std::vector<std::string>> : property_base
 						break;
 				if (e == str.size())
 					break;
-				vars.push_back(str.substr(i, e - i));
+				auto s = str.substr(i, e - i);
+				size_t k = 0;
+				while (true) {
+					auto id = cpp::find_id(s, k);
+					if (id == "")
+						break;
+					vars.push_back(std::string(id));
+				}
 			}
 		}
 		return vars;
@@ -812,8 +824,15 @@ struct bindable<std::vector<std::string>> : property_base
 				size_t e = std::min(str.find(':', i), str.find('}', i));
 				if (e == std::string::npos)
 					break;
-				if (str.substr(i, e - i) == oldn)
-					str.replace(i, e - i, newn);
+				auto s = str.substr(i, e - i);
+				size_t k = 0;
+				while (true) {
+					auto id = cpp::find_id(s, k);
+					if (id == "")
+						break;
+					if (id == oldn)
+						str.replace(id.data() - str.data(), id.size(), newn);
+				}
 			}
 		}
 	};

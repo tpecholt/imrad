@@ -88,7 +88,26 @@ inline bool IsItemDisabled()
 	return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;
 }
 
-//this is a poor man Format and should be implemented using c++20 format or fmt library
+inline void Spacing(int n)
+{
+	while (n--)
+		ImGui::Spacing();
+}
+
+inline bool TableNextColumn(int n)
+{
+	bool b;
+	while (n--)
+		b = ImGui::TableNextColumn();
+	return b;
+}
+
+inline void NextColumn(int n)
+{
+	while (n--)
+		ImGui::NextColumn();
+}
+
 inline std::string Format(std::string_view fmt)
 {
 	return std::string(fmt);

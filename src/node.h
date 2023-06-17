@@ -35,7 +35,7 @@ struct UIContext
 	UINode* snapParent = nullptr;
 	size_t snapIndex;
 	bool snapSameLine;
-	bool snapNextColumn;
+	int snapNextColumn;
 	bool snapBeginGroup;
 	bool snapSetNextSameLine;
 	
@@ -50,7 +50,6 @@ struct UIContext
 	std::vector<ImGuiWindow*> popupWins;
 	std::vector<UINode*> parents;
 	bool inPopup = false;
-	bool inTable = false;
 	std::string ind;
 	std::vector<std::string> errors;
 
@@ -101,7 +100,7 @@ struct Widget : UINode
 	direct_val<bool> sameLine = false;
 	direct_val<bool> beginGroup = false;
 	direct_val<bool> endGroup = false;
-	direct_val<bool> nextColumn = false;
+	direct_val<int> nextColumn = 0;
 	bindable<bool> visible = true;
 	bindable<bool> disabled = false;
 	direct_val<int> indent = 0;

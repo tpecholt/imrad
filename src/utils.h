@@ -60,3 +60,13 @@ inline std::ostream& operator<< (std::ostream& os, std::string_view t)
 	os.write(t.data(), t.size());
 	return os;
 }
+
+inline float ScaleFactor(std::string_view from, std::string_view to)
+{
+	float scale = 1;
+	if (from == "fs")
+		scale *= ImGui::GetFontSize();
+	if (to == "fs")
+		scale /= ImGui::GetFontSize();
+	return scale;
+}
