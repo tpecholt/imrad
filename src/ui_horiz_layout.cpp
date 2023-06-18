@@ -247,7 +247,7 @@ void HorizLayout::Work()
 			for (size_t i = 0; i < selected.size(); ++i)
 			{
 				auto* item = dynamic_cast<Widget*>(selected[i]);
-				item->spacing = i ? spacing : table->spacing;
+				item->spacing = i ? spacing : (int)table->spacing;
 				item->indent = !i ? padding : 0; //hack
 
 				//reparent items
@@ -272,7 +272,7 @@ void HorizLayout::Work()
 			for (size_t i = 0; i < selected.size(); ++i)
 			{
 				auto* item = dynamic_cast<Widget*>(selected[i]);
-				item->spacing = i ? spacing : item->spacing;
+				item->spacing = i ? spacing : (int)item->spacing;
 				item->indent = !i ? padding : 0; //hack
 			}
 		}
