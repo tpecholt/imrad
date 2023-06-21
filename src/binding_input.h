@@ -20,6 +20,8 @@ std::string typeid_name()
 		return "std::string";
 	else if (std::is_same_v<T, color32>)
 		return "color4";
+	else if (std::is_same_v<T, dimension>)
+		return "float";
 	else if (std::is_same_v<T, int>)
 		return "int";
 	else if (std::is_same_v<T, float>)

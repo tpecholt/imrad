@@ -141,9 +141,12 @@ struct Widget : UINode
 
 struct Separator : Widget
 {
+	bindable<std::string> label;
+
 	Separator(UIContext&);
 	void DoDraw(UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int, UIContext& ctx);
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
@@ -325,7 +328,9 @@ struct ProgressBar : Widget
 	field_ref<float> fieldName;
 	bindable<dimension> size_x = 200.f;
 	bindable<dimension> size_y = 0.f;
-	
+	bindable<color32> style_color;
+	parent_property style{ &style_color };
+
 	ProgressBar(UIContext& ctx);
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;

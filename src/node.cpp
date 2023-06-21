@@ -206,6 +206,7 @@ void UINode::DrawSnap(UIContext& ctx)
 				!pchildren[j]->nextColumn)
 				topmost = false;
 		}
+		//find range of widgets in the same row and column
 		size_t i1 = i, i2 = i;
 		for (int j = (int)i - 1; j >= 0; --j)
 		{
@@ -239,7 +240,10 @@ void UINode::DrawSnap(UIContext& ctx)
 		if (down)
 		{
 			const auto* nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
-			bool inGroup = nch && nch->cached_pos.x - parent->cached_pos.x > 100; //todo
+			//bool inGroup = nch && nch->cached_pos.x - parent->cached_pos.x > 100; //todo
+			//check m.y not pointing in next row
+			//we assume all columns belong to the same row and there is no more rows so
+			//we don't check
 			if (nch && !nch->nextColumn) // && !inGroup)
 			{
 				if (m.y >= nch->cached_pos.y + MARGIN)
@@ -1533,7 +1537,10 @@ Separator::Separator(UIContext& ctx)
 
 void Separator::DoDraw(UIContext& ctx)
 {
-	ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
+	if (!label.empty())
+		ImGui::SeparatorText(label.c_str());
+	else
+		ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
 }
 
 void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -1553,18 +1560,52 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Separator::DoExport(std::ostream& os, UIContext& ctx)
 {
-	os << ctx.ind << "ImGui::SeparatorEx("
-		<< (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal")
-		<< ");\n";
+	if (label.empty()) {
+		os << ctx.ind << "ImGui::SeparatorEx("
+			<< (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal")
+			<< ");\n";
+	}
+	else {
+		os << ctx.ind << "ImGui::SeparatorText(" << label.to_arg() << ");\n";
+	}
 }
 
 void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SeparatorText")
+	{
+		if (sit->params.size())
+			label.set_from_arg(sit->params[0]);
+	}
+}
+
+std::vector<UINode::Prop>
+Separator::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "label", &label, true }
+		});
+	return props;
 }
 
 bool Separator::PropertyUI(int i, UIContext& ctx)
 {
-	return Widget::PropertyUI(i, ctx);
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("label");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##label", &label, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("label", &label, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 1, ctx);
+	}
+	return changed;
 }
 
 //----------------------------------------------------
@@ -3770,6 +3811,9 @@ ProgressBar::ProgressBar(UIContext& ctx)
 
 void ProgressBar::DoDraw(UIContext& ctx)
 {
+	if (style_color.has_value())
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.value());
+
 	float w = 0, h = 0;
 	if (size_x.has_value())
 		w = size_x.value_px(ctx.unit);
@@ -3777,21 +3821,31 @@ void ProgressBar::DoDraw(UIContext& ctx)
 		h = size_y.value_px(ctx.unit);
 
 	ImGui::ProgressBar(0.5f, { w, h }, indicator ? nullptr : "");
+
+	if (style_color.has_value())
+		ImGui::PopStyleColor();
 }
 
 void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
 {
+	if (!style_color.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_PlotHistogram, " 
+			<< style_color.to_arg() << ");\n";
+
 	std::string fmt = indicator ? "nullptr" : "\"\"";
 	
 	os << ctx.ind << "ImGui::ProgressBar(" 
 		<< fieldName.to_arg() << ", { "
 		<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, " 
 		<< fmt << ");\n";
+
+	if (!style_color.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void ProgressBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	if (sit->kind == cpp::CallExpr && !sit->callee.compare(0, 18, "ImGui::ProgressBar"))
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::ProgressBar")
 	{
 		if (sit->params.size() >= 1)
 			fieldName.set_from_arg(sit->params[0]);
@@ -3805,6 +3859,11 @@ void ProgressBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() >= 3)
 			indicator = sit->params[2] == "nullptr";
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_PlotHistogram")
+			style_color.set_from_arg(sit->params[1]);
+	}
 }
 
 std::vector<UINode::Prop>
@@ -3812,6 +3871,7 @@ ProgressBar::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "style", &style },
 		{ "progress.field_name", &fieldName },
 		{ "progress.indicator", &indicator },
 		{ "size_x", &size_x },
@@ -3826,13 +3886,24 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		TreeNodeProp("style", false, [&] {
+			ImGui::Text("color");
+			
+			ImGui::TableNextColumn();
+			ImGui::Text("");
+
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##color", &style_color, ctx) || changed;
+			});
+		break;
+	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, "float", false, ctx);
 		break;
-	case 1:
+	case 2:
 	{
 		ImGui::Text("indicator");
 		ImGui::TableNextColumn();
@@ -3842,7 +3913,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 			indicator = ind;
 		break;
 	}
-	case 2:
+	case 3:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3850,7 +3921,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3859,7 +3930,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 4, ctx);
+		return Widget::PropertyUI(i - 5, ctx);
 	}
 	return changed;
 }
