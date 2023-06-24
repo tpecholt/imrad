@@ -78,6 +78,12 @@ inline bool Combo(const char* label, int* curr, const std::vector<std::string>& 
 	return ImGui::Combo(label, curr, citems.data(), (int)citems.size(), maxh);
 }
 
+inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
+{
+	//ImGui Selectable doesn't support negative dimensions like other controls
+	ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
+	return ImGui::Selectable(label, selected, flags, sz);
+}
 inline bool IsItemDoubleClicked()
 {
 	return ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered();

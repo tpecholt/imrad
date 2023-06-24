@@ -1839,7 +1839,7 @@ void Selectable::DoDraw(UIContext& ctx)
 	ImVec2 size;
 	size.x = size_x.eval_px(ctx);
 	size.y = size_y.eval_px(ctx);
-	ImGui::Selectable(label.c_str(), false, flags, size);
+	ImRad::Selectable(label.c_str(), false, flags, size);
 
 	ImGui::PopStyleVar();
 
@@ -1877,7 +1877,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	if (!onChange.empty())
 		os << "if (";
 	
-	os << "ImGui::Selectable(" << label.to_arg() << ", ";
+	os << "ImRad::Selectable(" << label.to_arg() << ", ";
 	if (fieldName.empty())
 		os << "false";
 	else
@@ -1904,8 +1904,10 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
 void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::Selectable") ||
-		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Selectable"))
+	if ((sit->kind == cpp::CallExpr && sit->callee == "ImRad::Selectable") ||
+		(sit->kind == cpp::CallExpr && sit->callee == "ImGui::Selectable") || //compatibility
+		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::Selectable") ||
+		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Selectable")) //compatibility
 	{
 		if (sit->params.size() >= 1)
 			label.set_from_arg(sit->params[0]);

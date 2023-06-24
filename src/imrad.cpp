@@ -1153,7 +1153,7 @@ void Draw()
 	ImGui::PushFont(ctx.defaultFont);
 
 	ctx.fname = tab.fname;
-	ctx.unit = tab.unit;
+	ctx.unit = tab.unit=="px" ? "" : tab.unit;
 	tab.rootNode->Draw(ctx);
 
 	ImGui::PopFont();
