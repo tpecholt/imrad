@@ -5051,6 +5051,209 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 
 //---------------------------------------------------------
 
+Splitter::Splitter(UIContext& ctx)
+{
+	if (!ctx.importState) 
+		position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
+	
+	InitDimensions(ctx);
+}
+
+void Splitter::DoDraw(UIContext& ctx)
+{
+	ImVec2 size;
+	size.x = size_x.eval_px(ctx);
+	size.y = size_y.eval_px(ctx);
+	
+	if (style_bg.has_value())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
+	ImGui::BeginChild("splitter", size);
+	
+	ImGuiAxis axis = ImGuiAxis_X;
+	float th = 0, pos = 0;
+	if (children.size() == 2) {
+		axis = children[1]->sameLine ? ImGuiAxis_X : ImGuiAxis_Y;
+		pos = children[0]->cached_pos[axis] + children[0]->cached_size[axis];
+		th = children[1]->cached_pos[axis] - children[0]->cached_pos[axis] - children[0]->cached_size[axis];
+	}
+	
+	ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);
+	ImRad::Splitter(axis == ImGuiAxis_X, th, &pos, min_size1, min_size2);
+	ImGui::PopStyleColor();
+
+	for (size_t i = 0; i < children.size(); ++i)
+		children[i]->Draw(ctx);
+	
+	ImGui::EndChild();
+	if (style_bg.has_value())
+		ImGui::PopStyleColor();
+}
+
+void Splitter::DoExport(std::ostream& os, UIContext& ctx)
+{
+	if (children.size() != 2)
+		ctx.errors.push_back("Splitter: need exactly 2 children");
+	if (position.empty())
+		ctx.errors.push_back("Splitter: position is unassigned");
+
+	if (!style_bg.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
+	
+	os << ctx.ind << "ImGui::BeginChild(\"child" << (uint64_t)this << "\""
+		<< ", { " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) 
+		<< " });\n" << ctx.ind << "{\n";
+	ctx.ind_up();
+	
+	os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);\n";
+	os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_SeparatorHovered, 0x00000000);\n";
+	if (!style_active.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_SeparatorActive, " << style_active.to_arg() << ");\n";
+
+	bool axisX = true;
+	float th = 10;
+	if (children.size() == 2) {
+		axisX = children[1]->sameLine;
+		th = children[1]->cached_pos[!axisX] - children[0]->cached_pos[!axisX] - children[0]->cached_size[!axisX];
+	}
+	os << ctx.ind << "ImRad::Splitter(" 
+		<< std::boolalpha << axisX 
+		<< ", " << th
+		<< ", &" << position.to_arg()
+		<< ", " << min_size1.to_arg(ctx.unit)
+		<< ", " << min_size2.to_arg(ctx.unit) 
+		<< ");\n";
+
+	os << ctx.ind << "ImGui::PopStyleColor();\n";
+	os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_active.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+
+	os << ctx.ind << "/// @separator\n\n";
+
+	for (const auto& child : children)
+		child->Export(os, ctx);
+
+	os << ctx.ind << "/// @separator\n";
+	os << ctx.ind << "ImGui::EndChild();\n";
+	ctx.ind_down();
+	os << ctx.ind << "}\n";
+
+	if (!style_bg.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+}
+
+void Splitter::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
+{
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginChild")
+	{
+		if (sit->params.size() >= 2) {
+			auto sz = cpp::parse_size(sit->params[1]);
+			size_x.set_from_arg(sz.first);
+			size_y.set_from_arg(sz.second);
+		}
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::Splitter")
+	{
+		if (sit->params.size() >= 3 && !sit->params[2].compare(0, 1, "&"))
+			position.set_from_arg(sit->params[2].substr(1));
+		if (sit->params.size() >= 4)
+			min_size1.set_from_arg(sit->params[3]);
+		if (sit->params.size() >= 5)
+			min_size2.set_from_arg(sit->params[4]);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ChildBg")
+			style_bg.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_SeparatorActive")
+			style_active.set_from_arg(sit->params[1]);
+	}
+}
+
+
+std::vector<UINode::Prop>
+Splitter::Properties()
+{
+	auto props = Widget::Properties();
+	props.insert(props.begin(), {
+		{ "splitter.style", &style },
+		{ "splitter.position", &position },
+		{ "splitter.min1", &min_size1 },
+		{ "splitter.min2", &min_size2 },
+		{ "size_x", &size_x },
+		{ "size_y", &size_y },
+		});
+	return props;
+}
+
+bool Splitter::PropertyUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		TreeNodeProp("style", false, [&] {
+			ImGui::Text("bg");
+			ImGui::Spacing();
+			ImGui::Text("active");
+
+			ImGui::TableNextColumn();
+			ImGui::Text("");
+
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##bg", &style_bg, ctx) || changed;
+			ImGui::SameLine(0, 0);
+			BindingButton("bg", &style_bg, ctx);
+			
+			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+			changed = InputBindable("##active", &style_active, ctx) || changed;
+			ImGui::SameLine(0, 0);
+			BindingButton("active", &style_active, ctx);
+			});
+		break;
+	case 1:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("position");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##position", &position, false, ctx);
+		break;
+	case 2:
+		ImGui::Text("minSize1");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputFloat("##min_size1", min_size1.access());
+		break;
+	case 3:
+		ImGui::Text("minSize2");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputFloat("##min_size2", min_size2.access());
+		break;
+	case 4:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, {}, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_x", &size_x, ctx);
+		break;
+	case 5:
+		ImGui::Text("size_y");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_y", &size_y, {}, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("size_y", &size_y, ctx);
+		break;
+	default:
+		return Widget::PropertyUI(i - 6, ctx);
+	}
+	return changed;
+}
+
+//---------------------------------------------------------
+
 CollapsingHeader::CollapsingHeader(UIContext& ctx)
 {
 	InitDimensions(ctx);

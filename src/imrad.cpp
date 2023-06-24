@@ -102,6 +102,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_ARROW_DOWN_WIDE_SHORT, "CollapsingHeader" },
 		{ ICON_FA_FOLDER_PLUS, "TabBar" },
 		{ ICON_FA_SITEMAP, "TreeNode" },
+		{ ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE, "Splitter" },
 	}}
 };
 

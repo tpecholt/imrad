@@ -84,6 +84,29 @@ inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
 	ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
 	return ImGui::Selectable(label, selected, flags, sz);
 }
+
+inline bool Splitter(bool split_horiz, float thickness, float* position, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
+{
+	using namespace ImGui;
+	ImGuiContext& g = *GImGui;
+	ImGuiWindow* window = g.CurrentWindow;
+	ImGuiID id = window->GetID("##Splitter");
+	ImRect bb;
+	bb.Min = window->DC.CursorPos;
+	bb.Min[!split_horiz] += *position;
+	
+	bb.Max = bb.Min;
+	ImVec2 sz(thickness, splitter_long_axis_size);
+	if (!split_horiz)
+		std::swap(sz[0], sz[1]);
+	sz = CalcItemSize(sz, 0.0f, 0.0f);
+	bb.Max[0] += sz[0];
+	bb.Max[1] += sz[1];
+	
+	float tmp = ImGui::GetContentRegionAvail().x - *position - thickness;
+	return SplitterBehavior(bb, id, split_horiz ? ImGuiAxis_X : ImGuiAxis_Y, position, &tmp, min_size1, min_size2, 0.0f);
+}
+
 inline bool IsItemDoubleClicked()
 {
 	return ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered();

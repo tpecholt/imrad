@@ -551,6 +551,28 @@ struct MenuIt : Widget
 	const char* GetIcon() const { return ICON_FA_LIST; }
 };
 
+struct Splitter : Widget
+{
+	direct_val<dimension> min_size1 = 10;
+	direct_val<dimension> min_size2 = 10;
+	field_ref<dimension> position;
+	bindable<dimension> size_x = -1;
+	bindable<dimension> size_y = -1;
+	bindable<color32> style_active;
+	bindable<color32> style_bg;
+	parent_property style{ &style_bg, &style_active };
+
+	Splitter(UIContext& ctx);
+	int SnapBehavior() { return SnapInterior | SnapSides; }
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int i, UIContext& ctx);
+	void DoExport(std::ostream& os, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	//void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE; }
+};
+
 struct TopWindow : UINode
 {
 	enum Kind { Window, Popup, ModalPopup };
