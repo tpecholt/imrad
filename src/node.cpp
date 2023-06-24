@@ -338,6 +338,7 @@ TopWindow::TopWindow(UIContext& ctx)
 
 void TopWindow::Draw(UIContext& ctx)
 {
+	ctx.unitFactor = ScaleFactor(ctx.unit, "");
 	ctx.groupLevel = 0;
 	ctx.root = this;
 	ctx.popupWins.clear();
@@ -357,18 +358,19 @@ void TopWindow::Draw(UIContext& ctx)
 	if (style_font != "")
 		ImGui::PushFont(ImRad::GetFontByName(style_font));
 	if (style_padding)
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { style_padding->first.value_px(ctx.unit), style_padding->second.value_px(ctx.unit) });
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { style_padding->first.eval_px(ctx), style_padding->second.eval_px(ctx) });
 	if (style_spacing)
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { style_spacing->first.value_px(ctx.unit), style_spacing->second.value_px(ctx.unit) });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { style_spacing->first.eval_px(ctx), style_spacing->second.eval_px(ctx) });
 	
 	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
 	if (!(fl & ImGuiWindowFlags_AlwaysAutoResize)) {
-		float w = 640, h = 480;
-		if (size_x.has_value())
-			w = size_x.value_px(ctx.unit);
-		if (size_y.has_value())
-			h = size_y.value_px(ctx.unit);
+		float w = size_x.eval_px(ctx);
+		if (!w)
+			w = 640;
+		float h = size_y.eval_px(ctx);
+		if (!h)
+			h = 480;
 		ImGui::SetNextWindowSize({ w, h });
 	}
 
@@ -442,7 +444,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	
 	if (ctx.unit == "fs")
 	{
-		os << ctx.ind << "float fs = ImGui::GetFontSize();\n";
+		os << ctx.ind << "const float fs = ImGui::GetFontSize();\n";
 	}
 
 	if (ctx.inPopup)
@@ -868,6 +870,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<MenuBar>(ctx);
 	else if (name == "MenuIt")
 		return std::make_unique<MenuIt>(ctx);
+	else if (name == "Splitter")
+		return std::make_unique<Splitter>(ctx);
 	else
 		return {};
 }
@@ -876,7 +880,7 @@ void Widget::InitDimensions(UIContext& ctx)
 {
 	//adjust initial values like size_x in case fontSize unit is used
 	//should be called from all widget constructors
-	ScaleDimensions(ScaleFactor("", ctx.unit));
+	ScaleDimensions(1.f / ctx.unitFactor);
 }
 
 void Widget::Draw(UIContext& ctx)
@@ -1832,11 +1836,9 @@ void Selectable::DoDraw(UIContext& ctx)
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
 
-	ImVec2 size(0, 0);
-	if (size_x.has_value())
-		size.x = size_x.value_px(ctx.unit);
-	if (size_y.has_value())
-		size.y = size_y.value_px(ctx.unit);
+	ImVec2 size;
+	size.x = size_x.eval_px(ctx);
+	size.y = size_y.eval_px(ctx);
 	ImGui::Selectable(label.c_str(), false, flags, size);
 
 	ImGui::PopStyleVar();
@@ -2030,7 +2032,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 4:
-		ImGui::BeginDisabled(size_y.has_value() && !size_y.value_px(ctx.unit));
+		ImGui::BeginDisabled(size_y.has_value() && !size_y.eval_px(ctx));
 		ImGui::Text("vertAlignment");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2148,11 +2150,9 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::SmallButton(label.c_str());
 	else
 	{
-		ImVec2 size{ 0, 0 };
-		if (size_x.has_value())
-			size.x = size_x.value_px(ctx.unit);
-		if (size_y.has_value())
-			size.y = size_y.value_px(ctx.unit);
+		ImVec2 size;
+		size.x = size_x.eval_px(ctx);
+		size.y = size_y.eval_px(ctx);
 		ImGui::Button(label.c_str(), size);
 
 		//if (ctx.modalPopup && text.value() == "OK")
@@ -2918,17 +2918,16 @@ void Input::DoDraw(UIContext& ctx)
 		id = "##" + fieldName.value();
 	if (flags & ImGuiInputTextFlags_Multiline)
 	{
-		ImVec2 size{ 0, 0 };
-		if (size_x.has_value())
-			size.x = size_x.value_px(ctx.unit);
-		if (size_y.has_value())
-			size.y = size_y.value_px(ctx.unit);
+		ImVec2 size;
+		size.x = size_x.eval_px(ctx);
+		size.y = size_y.eval_px(ctx);
 		ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
 	}
 	else if (type == "std::string")
 	{
-		if (size_x.has_value())
-			ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
+		float w = size_x.eval_px(ctx);
+		if (w)
+			ImGui::SetNextItemWidth(w);
 		if (hint != "")
 			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
 		else
@@ -2936,8 +2935,9 @@ void Input::DoDraw(UIContext& ctx)
 	}
 	else if (type == "ImGuiTextFilter")
 	{
-		if (size_x.has_value())
-			ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
+		float w = size_x.eval_px(ctx);
+		if (w)
+			ImGui::SetNextItemWidth(w);
 		if (hint != "")
 			//filter.DrawWithHint(id.c_str(), hint.c_str());
 			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp);
@@ -2946,8 +2946,9 @@ void Input::DoDraw(UIContext& ctx)
 	}
 	else
 	{
-		if (size_x.has_value())
-			ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
+		float w = size_x.eval_px(ctx);
+		if (w)
+			ImGui::SetNextItemWidth(w);
 		if (type == "int")
 			ImGui::InputInt(id.c_str(), itmp, (int)step);
 		else if (type == "int2")
@@ -3367,8 +3368,9 @@ Combo::Combo(UIContext& ctx)
 void Combo::DoDraw(UIContext& ctx)
 {
 	int zero = 0;
-	if (size_x.has_value())
-		ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
+	float w = size_x.eval_px(ctx);
+	if (w)
+		ImGui::SetNextItemWidth(w);
 	std::string id = label;
 	if (id.empty())
 		id = std::string("##") + fieldName.c_str();
@@ -3560,8 +3562,9 @@ void Slider::DoDraw(UIContext& ctx)
 	float ftmp[4] = {};
 	int itmp[4] = {};
 
-	if (size_x.has_value())
-		ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
+	float w = size_x.eval_px(ctx);
+	if (w)
+		ImGui::SetNextItemWidth(w);
 
 	const char* fmt = nullptr;
 	if (!format.empty())
@@ -3814,11 +3817,8 @@ void ProgressBar::DoDraw(UIContext& ctx)
 	if (style_color.has_value())
 		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.value());
 
-	float w = 0, h = 0;
-	if (size_x.has_value())
-		w = size_x.value_px(ctx.unit);
-	if (size_y.has_value())
-		h = size_y.value_px(ctx.unit);
+	float w = size_x.eval_px(ctx);
+	float h = size_y.eval_px(ctx);
 
 	ImGui::ProgressBar(0.5f, { w, h }, indicator ? nullptr : "");
 
@@ -3964,9 +3964,10 @@ void ColorEdit::DoDraw(UIContext& ctx)
 	std::string id = label;
 	if (id.empty())
 		id = "##" + fieldName.value();
-	if (size_x.has_value())
-		ImGui::SetNextItemWidth(size_x.value_px(ctx.unit));
-	
+	float w = size_x.eval_px(ctx);
+	if (w)
+		ImGui::SetNextItemWidth(w);
+
 	if (type == "color3")
 		ImGui::ColorEdit3(id.c_str(), (float*)&ftmp, flags);
 	else if (type == "color4")
@@ -4164,11 +4165,11 @@ void Image::DoDraw(UIContext& ctx)
 	}
 
 	float w = (float)tex.w;
-	if (size_x.has_value() && size_x.value_px(ctx.unit))
-		w = size_x.value_px(ctx.unit);
+	if (!size_x.zero())
+		w = size_x.eval_px(ctx);
 	float h = (float)tex.h;
-	if (size_y.has_value() && size_y.value_px(ctx.unit))
-		h = size_y.value_px(ctx.unit);
+	if (!size_y.zero())
+		h = size_y.eval_px(ctx);
 	
 	ImGui::Image(tex.id, { w, h });
 }
@@ -4187,14 +4188,14 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "ImGui::Image(" << fieldName.to_arg() << ".id, { ";
 	
-	if (size_x.has_value() && !size_x.value_px(ctx.unit))
+	if (size_x.zero())
 		os << "(float)" << fieldName.to_arg() << ".w";
 	else
 		os << size_x.to_arg(ctx.unit);
 	
 	os << ", ";
 	
-	if (size_y.has_value() && !size_y.value_px(ctx.unit))
+	if (size_y.zero())
 		os << "(float)" << fieldName.to_arg() << ".h";
 	else
 		os << size_y.to_arg(ctx.unit);
@@ -4335,11 +4336,13 @@ CustomWidget::CustomWidget(UIContext& ctx)
 
 void CustomWidget::DoDraw(UIContext& ctx)
 {
-	ImVec2 size{ 20, 20 };
-	if (size_x.has_value())
-		size.x = size_x.value_px(ctx.unit);
-	if (size_y.has_value())
-		size.y = size_y.value_px(ctx.unit);
+	ImVec2 size;
+	size.x = size_x.eval_px(ctx);
+	if (!size.x)
+		size.x = 20;
+	size.y = size_y.eval_px(ctx);
+	if (!size.y)
+		size.y = 20;
 
 	std::string id = std::to_string((uintptr_t)this);
 	ImGui::BeginChild(id.c_str(), size, true);
@@ -4492,7 +4495,7 @@ Table::Table(UIContext& ctx)
 void Table::DoDraw(UIContext& ctx)
 {
 	if (style_padding_x >= 0 || style_padding_y >= 0)
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { style_padding_x, style_padding_y });
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { style_padding_x.eval_px(ctx), style_padding_y.eval_px(ctx) });
 	if (style_headerBg.has_value())
 		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.value());
 	if (style_rowBg.has_value())
@@ -4501,11 +4504,7 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.value());
 
 	int n = std::max(1, (int)columnData.size());
-	ImVec2 size{ 0, 0 };
-	if (size_x.has_value())
-		size.x = size_x.value_px(ctx.unit);
-	if (size_y.has_value())
-		size.y = size_y.value_px(ctx.unit);
+	ImVec2 size{ size_x.eval_px(ctx), size_y.eval_px(ctx) };
 	if (ImGui::BeginTable(("table" + std::to_string((uint64_t)this)).c_str(), n, flags, size))
 	{
 		for (size_t i = 0; i < (int)columnData.size(); ++i)
@@ -4832,11 +4831,9 @@ void Child::DoDraw(UIContext& ctx)
 	if (style_bg.has_value())
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
 
-	ImVec2 sz(0, 0);
-	if (size_x.has_value()) 
-		sz.x = size_x.value_px(ctx.unit);
-	if (size_y.has_value())
-		sz.y = size_y.value_px(ctx.unit);
+	ImVec2 sz;
+	sz.x = size_x.eval_px(ctx);
+	sz.y = size_y.eval_px(ctx);
 	if (!sz.x && children.empty())
 		sz.x = 30;
 	if (!sz.y && children.empty())

@@ -19,9 +19,10 @@ public:
     std::vector<UINode *> selected;
     UINode * root;
     UIContext * ctx;
+	const ImGuiStyle * style;
     /// @end interface
 
-	static void ExpandSelection(UINode* root, std::vector<UINode*>& selected);
+	static void ExpandSelection(std::vector<UINode*>& selected, UINode* root);
 
 private:
     /// @begin impl

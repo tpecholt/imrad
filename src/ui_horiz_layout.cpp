@@ -12,7 +12,7 @@ void HorizLayout::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 	requestClose = false;
 
 	//*** Add your init code here
-	ExpandSelection(root, selected);
+	ExpandSelection(selected, root);
 }
 
 void HorizLayout::ClosePopup()
@@ -179,7 +179,7 @@ void HorizLayout::OnAlignment()
 		alignment = 3;
 }
 
-void HorizLayout::ExpandSelection(UINode* root, std::vector<UINode*>& selected)
+void HorizLayout::ExpandSelection(std::vector<UINode*>& selected, UINode* root)
 {
 	if (selected.empty())
 		return;
@@ -192,7 +192,7 @@ void HorizLayout::ExpandSelection(UINode* root, std::vector<UINode*>& selected)
 			return;
 		}
 		selected[0] = table->children[0].get();
-		return ExpandSelection(root, selected);
+		return ExpandSelection(selected, root);
 	}
 	auto pos = root->FindChild(selected[0]);
 	if (!pos) {
@@ -232,9 +232,8 @@ void HorizLayout::Work()
 	auto* parent = pos->first;
 	auto* table = dynamic_cast<Table*>(parent);
 	bool existingLayout = table && !table->header && !(table->flags & ImGuiTableFlags_Borders);
-	float scale = ScaleFactor("", ctx->unit);
-	float realPadding = padding * ImGui::GetStyle().ItemSpacing.x * scale;
-	float realSpacing = spacing * ImGui::GetStyle().ItemSpacing.x * scale;
+	float realPadding = padding * style->ItemSpacing.x;
+	float realSpacing = spacing * style->ItemSpacing.x;
 	
 	if (alignment == 0) //left alignment
 	{

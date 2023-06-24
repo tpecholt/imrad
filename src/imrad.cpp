@@ -845,14 +845,16 @@ void ToolbarUI()
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	
 	ImGui::SameLine();
-	bool showHelper = ctx.selected.size() == 1 && 
+	bool showHelper = activeTab >= 0 && 
+		ctx.selected.size() == 1 && 
 		(ctx.selected[0]->SnapBehavior() & UINode::SnapSides);
 	ImGui::BeginDisabled(!showHelper);
 	if (ImGui::Button(ICON_FA_LEFT_RIGHT))
 	{
 		horizLayout.root = fileTabs[activeTab].rootNode.get();
-		HorizLayout::ExpandSelection(horizLayout.root, ctx.selected);
+		HorizLayout::ExpandSelection(ctx.selected, horizLayout.root);
 		horizLayout.selected = ctx.selected;
+		horizLayout.style = &style;
 		horizLayout.ctx = &ctx;
 		horizLayout.OpenPopup();
 	}

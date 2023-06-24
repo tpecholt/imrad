@@ -675,6 +675,9 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 			for (++it; it != line.end(); ++it)
 				init += *it + " ";
 			init.pop_back();
+			//fix neg numbers
+			if (init.size() >= 3 && init[0] == '-' && std::isdigit(init[2]))
+				init.erase(1, 1);
 		}
 		else {
 			name_idx = (int)line.size() - 1;
@@ -741,9 +744,6 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
 		UIContext ctx;
 		ctx.codeGen = this;
 		ctx.fname = ctx_fname;
-		auto uit = params.find("unit");
-		if (uit != params.end())
-			ctx.unit = uit->second;
 		auto node = std::make_unique<TopWindow>(ctx);
 		node->Import(sit, ctx);
 		iter = sit.base();

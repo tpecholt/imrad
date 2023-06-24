@@ -55,8 +55,8 @@ void BindingDlg::Draw()
         /// @begin Selectable
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
-        ImGui::Selectable(ImRad::Format("{}", type).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_Disabled, { 0, 0 });
-        ImGui::PopStyleVar();
+		ImGui::Selectable(ImRad::Format("{}", type).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_Disabled, { 0, 0 });
+		ImGui::PopStyleVar();
         /// @end Selectable
 
         /// @begin Input
@@ -121,8 +121,9 @@ void BindingDlg::Draw()
 
                 /// @begin Selectable
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                ImGui::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 });
-                ImGui::PopStyleVar();
+                if (ImGui::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+					OnVarClicked();
+				ImGui::PopStyleVar();
                 /// @end Selectable
 
                 /// @begin Selectable

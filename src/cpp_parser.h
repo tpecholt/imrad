@@ -56,6 +56,7 @@ namespace cpp
 			int in_comment = 0; //1 - //, 2 - /*
 			bool in_string = false;
 			bool in_pre = false;
+			bool in_num = false;
 			bool first_n = true;
 			tok = "";
 			//we putback breaking character so that it can be read in next run if needed
@@ -147,6 +148,22 @@ namespace cpp
 							}
 							in_pre = true;
 						}
+						else if (std::isdigit(c))
+						{
+							if (tok.size() == 1)
+								in_num = true;
+						}
+						else if (c == '.' && in_num)
+						{}
+						else if ((c == '+' || c == '-') &&
+							in_num &&
+							tok.size() >= 2 && std::tolower(tok[tok.size() - 2]) == 'e')
+						{}
+						else if (c == '/')
+						{
+							if (in->peek() != '/' && in->peek() != '*')
+								break;
+						}
 						else if (c == '{' || c == '}' || c == '(' || c == ')' || 
 							c == '[' || c == ']' || c == '<' || c == '>' ||
 							c == ';' || c == ':' || c == '.' || c == ',' ||
@@ -154,7 +171,7 @@ namespace cpp
 							c == '*' || c == '^' || c == '&' || c == '|' || 
 							c == '~' || c == '=' || c == '!')
 						{
-							if (tok.size() >= 2) {
+							if (tok.size() >= 2) { //output token before operator
 								tok.resize(tok.size() - 1);
 								in->putback(c);
 								break;
@@ -173,11 +190,6 @@ namespace cpp
 								tok += in->get();
 							}
 							break;
-						}
-						else if (c == '/')
-						{
-							if (in->peek() != '/' && in->peek() != '*')
-								break;
 						}
 					}
 				}

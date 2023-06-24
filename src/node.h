@@ -29,8 +29,8 @@ struct UIContext
 	std::array<ImU32, Color::COUNT> colors;
 	std::vector<std::string> fontNames;
 	ImFont* defaultFont = nullptr;
-	std::string unit;
-
+	std::string unit; //for dimension export
+	
 	//snap result
 	UINode* snapParent = nullptr;
 	size_t snapIndex;
@@ -50,6 +50,7 @@ struct UIContext
 	std::vector<ImGuiWindow*> popupWins;
 	std::vector<UINode*> parents;
 	bool inPopup = false;
+	float unitFactor = 1; //for dimension value scaling
 	std::string ind;
 	std::vector<std::string> errors;
 
