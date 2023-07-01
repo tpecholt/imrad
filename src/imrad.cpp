@@ -847,7 +847,7 @@ void ToolbarUI()
 	
 	ImGui::SameLine();
 	bool showHelper = activeTab >= 0 && 
-		ctx.selected.size() == 1 && 
+		ctx.selected.size() >= 1 && 
 		(ctx.selected[0]->SnapBehavior() & UINode::SnapSides);
 	ImGui::BeginDisabled(!showHelper);
 	if (ImGui::Button(ICON_FA_LEFT_RIGHT))

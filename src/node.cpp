@@ -4890,10 +4890,10 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 			//os << ctx.ind << "ImGui::SetColumnWidth(" << i << ", " << columnsWidths[i].c_str() << ");\n";
 	}
 
-	if (!data_size.empty())
+	if (!itemCount.empty())
 	{
 		os << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR
-			<< " < " << data_size.to_arg() << "; ++" << FOR_VAR
+			<< " < " << itemCount.to_arg() << "; ++" << FOR_VAR
 			<< ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
@@ -4905,7 +4905,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "/// @separator\n";
 
-	if (!data_size.empty()) {
+	if (!itemCount.empty()) {
 		if (hasColumns)
 			os << ctx.ind << "ImGui::NextColumn();\n";
 		ctx.ind_down();
@@ -4959,7 +4959,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	else if (sit->kind == cpp::ForBlock)
 	{
 		if (!sit->cond.compare(0, FOR_VAR.size() + 1, FOR_VAR + "<"))
-			data_size.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
+			itemCount.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
 	}
 }
 
@@ -4973,7 +4973,7 @@ Child::Properties()
 		{ "border", &border },
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
-		{ "child.data_size", &data_size },
+		{ "child.item_count", &itemCount },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -5022,10 +5022,10 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 4:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::Text("data_size");
+		ImGui::Text("itemCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##data_size", &data_size, true, ctx);
+		changed = InputFieldRef("##itemCount", &itemCount, true, ctx);
 		break;
 	case 5:
 		ImGui::Text("size_x");
@@ -5110,14 +5110,16 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_SeparatorActive, " << style_active.to_arg() << ");\n";
 
 	bool axisX = true;
-	float th = 10;
+	direct_val<dimension> th = 10;
 	if (children.size() == 2) {
 		axisX = children[1]->sameLine;
 		th = children[1]->cached_pos[!axisX] - children[0]->cached_pos[!axisX] - children[0]->cached_size[!axisX];
 	}
+	th.scale_dimension(1 / ctx.unitFactor);
+
 	os << ctx.ind << "ImRad::Splitter(" 
 		<< std::boolalpha << axisX 
-		<< ", " << th
+		<< ", " << th.to_arg(ctx.unit)
 		<< ", &" << position.to_arg()
 		<< ", " << min_size1.to_arg(ctx.unit)
 		<< ", " << min_size2.to_arg(ctx.unit) 

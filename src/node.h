@@ -437,7 +437,7 @@ struct Child : Widget
 	direct_val<bool> border = false;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
-	field_ref<size_t> data_size;
+	field_ref<size_t> itemCount;
 	direct_val<bool> style_padding = true;
 	bindable<color32> style_bg;
 	parent_property style{ &style_bg, &style_padding };
