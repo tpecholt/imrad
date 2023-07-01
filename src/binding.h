@@ -111,43 +111,6 @@ struct property_base
 	virtual void scale_dimension(float scale) = 0;
 };
 
-struct parent_property : property_base
-{
-	std::vector<property_base*> props;
-	
-	parent_property() 
-	{}
-	parent_property(std::initializer_list<property_base*> li)
-		: props(li)
-	{}
-
-	std::string to_arg(std::string_view) const { return ""; }
-	void set_from_arg(std::string_view) {}
-	const char* c_str() const { return nullptr; }
-
-	std::vector<std::string> used_variables() const 
-	{
-		std::vector<std::string> used;
-		for (auto* prop : props) {
-			auto vars = prop->used_variables();
-			used.insert(used.end(), vars.begin(), vars.end());
-		}
-		stx::sort(used);
-		used.erase(stx::unique(used), used.end());
-		return used;
-	}
-	void rename_variable(const std::string& oldn, const std::string& newn)
-	{
-		for (auto* prop : props)
-			prop->rename_variable(oldn, newn);
-	}
-	void scale_dimension(float scale)
-	{
-		for (auto* prop : props)
-			prop->scale_dimension(scale);
-	}
-};
-
 //member variable expression like id, id.member, id[0], id.size()
 template <class T = void>
 struct field_ref : property_base

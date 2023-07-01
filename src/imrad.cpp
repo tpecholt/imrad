@@ -1007,6 +1007,38 @@ void HierarchyUI()
 	ImGui::End();
 }
 
+void BeginStyleProp(bool& open)
+{
+	ImVec2 pad = ImGui::GetStyle().FramePadding;
+	ImGui::TableNextRow();
+	ImGui::TableSetColumnIndex(0);
+	ImGui::AlignTextToFramePadding();
+	ImGui::Unindent();
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
+	open = ImGui::TreeNode("style");
+	if (open) 
+	{
+		ImGui::PopStyleVar();
+		ImGui::Indent();
+	}
+	else 
+	{
+		ImGui::PopStyleVar();
+		ImGui::TableNextColumn();
+		ImGui::TextDisabled("...");
+		ImGui::Indent();
+	}
+}
+
+void EndStyleProp(bool open)
+{
+	if (open) 
+	{
+		ImGui::TreePop();
+		//ImGui::Unindent();
+	}
+}
+
 void PropertyRowsUI(bool pr)
 {
 	int keyPressed = 0;
@@ -1059,10 +1091,24 @@ void PropertyRowsUI(bool pr)
 		auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
 		std::string_view pname;
 		std::string pval;
+		bool inStyle = false;
+		bool styleOpen = false;
 		ImGui::Indent(); //to align TreeNodes in the table
 		for (int i = 0; i < (int)props.size(); ++i)
 		{
-			if (!stx::count(pnames, props[i].name))
+			const auto& prop = props[i];
+			if (!stx::count(pnames, prop.name))
+				continue;
+			bool style = prop.name.find("style.") != std::string::npos; //hack
+			if (style != inStyle)
+			{
+				inStyle = style;
+				if (inStyle)
+					BeginStyleProp(styleOpen);
+				else 
+					EndStyleProp(styleOpen);
+			}
+			if (inStyle && !styleOpen)
 				continue;
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
@@ -1080,6 +1126,8 @@ void PropertyRowsUI(bool pr)
 				}
 			}
 		}
+		if (inStyle)
+			EndStyleProp(styleOpen);
 		ImGui::Unindent();
 		ImGui::EndTable();
 

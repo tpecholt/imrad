@@ -60,7 +60,6 @@ struct UIContext
 };
 
 struct Widget;
-using children_t = std::vector<std::unique_ptr<Widget>>;
 
 struct UINode
 {
@@ -75,6 +74,8 @@ struct UINode
 		SnapGrandparentClip = 0x4,
 	};
 
+	UINode() {}
+	UINode(const UINode&);
 	virtual ~UINode() {}
 	virtual void Draw(UIContext& ctx) = 0;
 	virtual void TreeUI(UIContext& ctx) = 0;
@@ -93,7 +94,7 @@ struct UINode
 
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
-	children_t children;
+	std::vector<std::unique_ptr<Widget>> children;
 };
 
 struct Widget : UINode
@@ -109,7 +110,6 @@ struct Widget : UINode
 	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
 	direct_val<std::string> style_font = "";
-	parent_property style;
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
 	event<> onItemHovered;
@@ -131,7 +131,7 @@ struct Widget : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
-	//virtual void DrawSnap(UIContext& ctx);
+	virtual std::unique_ptr<Widget> Clone() = 0;
 	virtual void DoDraw(UIContext& ctx) = 0;
 	virtual void DrawExtra(UIContext& ctx) {}
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
@@ -145,6 +145,7 @@ struct Separator : Widget
 	bindable<std::string> label;
 
 	Separator(UIContext&);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Separator(*this)); }
 	void DoDraw(UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -163,6 +164,7 @@ struct Text : Widget
 	direct_val<bool> wrap = false;
 	
 	Text(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Text(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -186,6 +188,7 @@ struct Selectable : Widget
 	event<> onChange;
 
 	Selectable(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Selectable(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -213,6 +216,7 @@ struct Button : Widget
 	event<> onChange;
 
 	Button(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Button(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -231,6 +235,7 @@ struct CheckBox : Widget
 	event<> onChange;
 
 	CheckBox(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new CheckBox(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -249,6 +254,7 @@ struct RadioButton : Widget
 	field_ref<int> fieldName;
 
 	RadioButton(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new RadioButton(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -272,6 +278,7 @@ struct Input : Widget
 	event<> onChange;
 
 	Input(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Input(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -291,6 +298,7 @@ struct Combo : Widget
 	event<> onChange;
 
 	Combo(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Combo(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -313,6 +321,7 @@ struct Slider : Widget
 	event<> onChange;
 
 	Slider(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Slider(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -330,9 +339,9 @@ struct ProgressBar : Widget
 	bindable<dimension> size_x = 200.f;
 	bindable<dimension> size_y = 0.f;
 	bindable<color32> style_color;
-	parent_property style{ &style_color };
 
 	ProgressBar(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new ProgressBar(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -351,6 +360,7 @@ struct ColorEdit : Widget
 	event<> onChange;
 
 	ColorEdit(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new ColorEdit(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -370,6 +380,7 @@ struct Image : Widget
 	ImRad::Texture tex;
 
 	Image(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Image(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -386,6 +397,7 @@ struct CustomWidget : Widget
 	event<ImRad::CustomWidgetArgs> onDraw;
 	
 	CustomWidget(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new CustomWidget(*this)); }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -418,8 +430,9 @@ struct Table : Widget
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;
-
+	
 	Table(UIContext&);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Table(*this)); }
 	int SnapBehavior() { return SnapSides | SnapInterior; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
@@ -440,9 +453,9 @@ struct Child : Widget
 	field_ref<size_t> itemCount;
 	direct_val<bool> style_padding = true;
 	bindable<color32> style_bg;
-	parent_property style{ &style_bg, &style_padding };
-
+	
 	Child(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Child(*this)); }
 	int SnapBehavior() { return SnapSides | SnapInterior; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
@@ -458,6 +471,7 @@ struct CollapsingHeader : Widget
 	bindable<bool> open = true;
 	
 	CollapsingHeader(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new CollapsingHeader(*this)); }
 	int SnapBehavior() { return SnapSides | SnapInterior; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -475,6 +489,7 @@ struct TabBar : Widget
 	field_ref<int> tabIndex;
 
 	TabBar(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new TabBar(*this)); }
 	int SnapBehavior() { return SnapSides; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -489,6 +504,7 @@ struct TabItem : Widget
 	bindable<std::string> label = "TabItem";
 
 	TabItem(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new TabItem(*this)); }
 	int SnapBehavior() { return SnapInterior | SnapGrandparentClip; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
@@ -508,6 +524,7 @@ struct TreeNode : Widget
 	bool lastOpen;
 
 	TreeNode(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new TreeNode(*this)); }
 	int SnapBehavior() { return SnapInterior | SnapSides; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -521,6 +538,7 @@ struct TreeNode : Widget
 struct MenuBar : Widget
 {
 	MenuBar(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new MenuBar(*this)); }
 	int SnapBehavior() { return 0; }
 	void DoDraw(UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -537,6 +555,7 @@ struct MenuIt : Widget
 	event<> onChange;
 
 	MenuIt(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new MenuIt(*this)); }
 	int SnapBehavior() { return 0; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
@@ -560,9 +579,9 @@ struct Splitter : Widget
 	bindable<dimension> size_y = -1;
 	bindable<color32> style_active;
 	bindable<color32> style_bg;
-	parent_property style{ &style_bg, &style_active };
-
+	
 	Splitter(UIContext& ctx);
+	std::unique_ptr<Widget> Clone() { return std::unique_ptr<Widget>(new Splitter(*this)); }
 	int SnapBehavior() { return SnapInterior | SnapSides; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -585,7 +604,6 @@ struct TopWindow : UINode
 	std::string style_font = "";
 	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_padding;
 	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_spacing;
-	parent_property style;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);
