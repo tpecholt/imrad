@@ -772,6 +772,8 @@ std::string DecorateType(const std::string& type)
 		return "ImRad::Color3";
 	if (type == "color4")
 		return "ImRad::Color4";
+	if (type == "angle")
+		return "float";
 	return type;
 }
 

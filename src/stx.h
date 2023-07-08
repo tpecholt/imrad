@@ -41,6 +41,12 @@ namespace stx {
 		return std::count_if(std::begin(c), std::end(c), std::forward<F>(val));
 	}
 
+	template <class C, class D>
+	decltype(auto) equal(const C& c, const D& d)
+	{
+		return std::equal(std::begin(c), std::end(c), std::begin(d), std::end(d));
+	}
+
 	template <class C, class T>
 	decltype(auto) fill(C& c, const T& val)
 	{

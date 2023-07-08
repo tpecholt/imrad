@@ -65,7 +65,6 @@ UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
-ImGuiID dock_id_top, dock_id_right, dock_id_right2;
 bool pgFocused;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 bool reloadStyle = true;
@@ -295,14 +294,12 @@ void CloseFile()
 		if (fname.empty())
 			fname = UNTITLED;
 		messageBox.message = "Save changes to " + fname + "?";
-		messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
+		messageBox.buttons = ImRad::Yes | ImRad::No;
 		messageBox.OpenPopup([=](ImRad::ModalResult mr) {
 			if (mr == ImRad::Yes)
 				SaveFile(true);
 			else if (mr == ImRad::No)
 				DoCloseFile();
-			else
-				glfwSetWindowShouldClose(window, false);
 			});
 	}
 	else {
@@ -559,8 +556,6 @@ void LoadStyle()
 {
 	if (!reloadStyle)
 		return;
-	if (activeTab < 0)
-		return;
 	
 	reloadStyle = false;
 	auto& io = ImGui::GetIO();
@@ -583,87 +578,90 @@ void LoadStyle()
 	ctx.fontNames.clear();
 	stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
 	style = ImGuiStyle();
-	std::string styleName = fileTabs[activeTab].styleName;
-	if (styleName == "Classic")
+	
+	if (activeTab >= 0)
 	{
-		ImGui::StyleColorsClassic(&style);
-		ctx.fontNames = { "" };
-		ctx.colors = {
-			IM_COL32(255, 255, 0, 128),
-			IM_COL32(255, 0, 0, 255),
-			IM_COL32(128, 128, 255, 255),
-			IM_COL32(255, 0, 255, 255),
-			IM_COL32(0, 255, 255, 255),
-			IM_COL32(0, 255, 0, 255),
-		};
-	}
-	else if (styleName == "Light")
-	{	
-		ImGui::StyleColorsLight(&style);
-		ctx.fontNames = { "" };
-		ctx.colors = {
-			IM_COL32(255, 0, 0, 255),
-			IM_COL32(255, 0, 0, 255),
-			IM_COL32(128, 128, 255, 255),
-			IM_COL32(255, 0, 255, 255),
-			IM_COL32(0, 128, 128, 255),
-			IM_COL32(0, 255, 0, 255),
-		};
-	}
-	else if (styleName == "Dark")
-	{
-		ImGui::StyleColorsDark(&style);
-		ctx.fontNames = { "" };
-		ctx.colors = {
-			IM_COL32(255, 255, 0, 128),
-			IM_COL32(255, 0, 0, 255),
-			IM_COL32(128, 128, 255, 255),
-			IM_COL32(255, 0, 255, 255),
-			IM_COL32(0, 255, 255, 255),
-			IM_COL32(0, 255, 0, 255),
-		};
-	}
-	else
-	{
-		std::map<std::string, ImFont*> fontMap;
-		std::map<std::string, std::string> extra;
-		try {
-			auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
-			ImRad::LoadStyle(it->second, 1.f, &style, &fontMap, &extra);
-		}
-		catch (std::exception& e)
+		std::string styleName = fileTabs[activeTab].styleName;
+		if (styleName == "Classic")
 		{
-			messageBox.title = "Error";
-			messageBox.message = e.what();
-			messageBox.buttons = ImRad::Ok;
-			messageBox.OpenPopup();
-			return;
+			ImGui::StyleColorsClassic(&style);
+			ctx.fontNames = { "" };
+			ctx.colors = {
+				IM_COL32(255, 255, 0, 128),
+				IM_COL32(255, 0, 0, 255),
+				IM_COL32(128, 128, 255, 255),
+				IM_COL32(255, 0, 255, 255),
+				IM_COL32(0, 255, 255, 255),
+				IM_COL32(0, 255, 0, 255),
+			};
 		}
-		ctx.defaultFont = fontMap[""];
-		for (const auto& f : fontMap) {
-			ctx.fontNames.push_back(f.first);
+		else if (styleName == "Light")
+		{
+			ImGui::StyleColorsLight(&style);
+			ctx.fontNames = { "" };
+			ctx.colors = {
+				IM_COL32(255, 0, 0, 255),
+				IM_COL32(255, 0, 0, 255),
+				IM_COL32(128, 128, 255, 255),
+				IM_COL32(255, 0, 255, 255),
+				IM_COL32(0, 128, 128, 255),
+				IM_COL32(0, 255, 0, 255),
+			};
 		}
-		for (const auto& ex : extra) {
-			if (ex.first.compare(0, 13, "imrad.colors."))
-				continue;
-			std::istringstream is(ex.second);
-			int r, g, b, a;
-			is >> r >> g >> b >> a;
-			auto clr = IM_COL32(r, g, b, a);
-			std::string key = ex.first.substr(13);
+		else if (styleName == "Dark")
+		{
+			ImGui::StyleColorsDark(&style);
+			ctx.fontNames = { "" };
+			ctx.colors = {
+				IM_COL32(255, 255, 0, 128),
+				IM_COL32(255, 0, 0, 255),
+				IM_COL32(128, 128, 255, 255),
+				IM_COL32(255, 0, 255, 255),
+				IM_COL32(0, 255, 255, 255),
+				IM_COL32(0, 255, 0, 255),
+			};
+		}
+		else
+		{
+			std::map<std::string, ImFont*> fontMap;
+			std::map<std::string, std::string> extra;
+			try {
+				auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
+				ImRad::LoadStyle(it->second, 1.f, &style, &fontMap, &extra);
+			}
+			catch (std::exception& e)
+			{
+				messageBox.title = "Error";
+				messageBox.message = e.what();
+				messageBox.buttons = ImRad::Ok;
+				messageBox.OpenPopup();
+				return;
+			}
+			ctx.defaultFont = fontMap[""];
+			for (const auto& f : fontMap) {
+				ctx.fontNames.push_back(f.first);
+			}
+			for (const auto& ex : extra) {
+				if (ex.first.compare(0, 13, "imrad.colors."))
+					continue;
+				std::istringstream is(ex.second);
+				int r, g, b, a;
+				is >> r >> g >> b >> a;
+				auto clr = IM_COL32(r, g, b, a);
+				std::string key = ex.first.substr(13);
 
 #define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
-			SET_CLR(Selected);
-			SET_CLR(Hovered);
-			SET_CLR(Snap1);
-			SET_CLR(Snap2);
-			SET_CLR(Snap3);
-			SET_CLR(Snap4);
-			SET_CLR(Snap5);
+				SET_CLR(Selected);
+				SET_CLR(Hovered);
+				SET_CLR(Snap1);
+				SET_CLR(Snap2);
+				SET_CLR(Snap3);
+				SET_CLR(Snap4);
+				SET_CLR(Snap5);
 #undef SET_CLR
+			}
 		}
 	}
-
 	ImGui_ImplOpenGL3_DestroyFontsTexture();
 	ImGui_ImplOpenGL3_CreateFontsTexture();
 }
@@ -700,7 +698,7 @@ void DockspaceUI()
 		ImGuiID dock_id_right1, dock_id_right2;
 		ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 230.f / (viewport->Size.y - TB_SIZE), &dock_id_right1, &dock_id_right2);
 		float vh = viewport->Size.y - TB_SIZE;
-		dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, TAB_SIZE / vh, nullptr, &dockspace_id);
+		ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, TAB_SIZE / vh, nullptr, &dockspace_id);
 		
 		ImGui::DockBuilderDockWindow("FileTabs", dock_id_top);
 		ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
@@ -1367,8 +1365,9 @@ int main(int argc, const char* argv[])
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	GetStyles();
+#if _DEBUG
 	NewFile(TopWindow::Window);
-
+#endif
 	firstTime = true;
 	bool lastVisible = true;
 	while (true)

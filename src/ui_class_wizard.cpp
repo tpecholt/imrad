@@ -2,10 +2,15 @@
 // github.com/xyz
 #include "ui_class_wizard.h"
 #include "ui_new_field.h"
+#include "ui_message_box.h"
 #include <misc/cpp/imgui_stdlib.h>
 #include <IconsFontAwesome6.h>
 
 ClassWizard classWizard;
+
+//todo: need to call our own copy otherwise ImGui thinks messageBox is not ClassWizard's child
+//and hides CW when OpenPopup
+//static MessageBox msgBox; 
 
 void ClassWizard::OpenPopup()
 {
@@ -84,6 +89,7 @@ void ClassWizard::Draw()
 		/// @separator
 
 		newFieldPopup.Draw();
+		messageBox.Draw(); //doesn't work from here
 
 		/// @begin Text
 		ImGui::Text("Class Name");
@@ -258,15 +264,30 @@ void ClassWizard::Draw()
 		ImGui::BeginDisabled(selRow < 0 || selRow >= (int)fields.size());
 		if (ImGui::Button("Remove Field", { BWIDTH, 0 }))
 		{
-			codeGen->RemoveVar(fields[selRow].name, stypeIdx ? stypes[stypeIdx] : "");
-			Refresh();
+			std::string name = fields[selRow].name;
+			if (!stypeIdx && stx::count(used, name)) 
+			{
+				messageBox.title = "Remove variable";
+				messageBox.message = "Remove used variable '" + name + "' ?";
+				messageBox.buttons = ImRad::Yes | ImRad::Cancel;
+				messageBox.OpenPopup([this,name](ImRad::ModalResult mr) {
+					codeGen->RemoveVar(name);
+					Refresh();
+					});
+				//hack messageBox.Draw();
+			}
+			else 
+			{
+				codeGen->RemoveVar(name, stypeIdx ? stypes[stypeIdx] : "");
+				Refresh();
+			}
 		}
 		ImGui::EndDisabled();
 		/// @end Button
 
 		/// @begin Button
 		ImGui::Spacing();
-		ImGui::BeginDisabled(true); //stypeIdx);
+		ImGui::BeginDisabled(stypeIdx);
 		if (ImGui::Button("Remove Unused", { BWIDTH, 0 }))
 		{
 			for (const auto& fi : fields)

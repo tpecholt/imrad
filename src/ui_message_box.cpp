@@ -86,7 +86,7 @@ void MessageBox::Draw()
 			ImGui::SetCursorPos({ x, y });
 			if (ImGui::Button("Cancel", { 80, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
 				ImGui::CloseCurrentPopup();
-				callback(ImRad::Cancel);
+				//callback(ImRad::Cancel);
 			}
 			x += 80 + ImGui::GetStyle().ItemSpacing.x;
 		}
