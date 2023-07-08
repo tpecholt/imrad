@@ -72,6 +72,7 @@ ImGuiStyle style;
 GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
 std::string activeButton = "";
+std::vector<std::unique_ptr<Widget>> clipboard;
 
 struct TB_Button 
 {
@@ -789,12 +790,6 @@ void ToolbarUI()
 	if (io.KeyMods == (ImGuiMod_Ctrl | ImGuiMod_Shift) && ImGui::IsKeyPressed(ImGuiKey_S))
 		SaveAll();
 
-	/*ImGui::SameLine();
-	if (ImGui::Button(ICON_FA_WINDOW_RESTORE))
-		SaveAll();
-	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-		ImGui::SetTooltip("Save All (Ctrl+Shift+S)");*/
-	
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	ImGui::SameLine();
@@ -1207,6 +1202,57 @@ void Draw()
 	ImGui::GetStyle() = tmpStyle;
 }
 
+std::vector<std::unique_ptr<Widget>> 
+RemoveSelected()
+{
+	std::vector<std::unique_ptr<Widget>> remove;
+	if (!ctx.selected.empty() &&
+		ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+	{
+		fileTabs[activeTab].modified = true;
+		auto pi1 = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
+		for (UINode* node : ctx.selected)
+		{
+			if (node == fileTabs[activeTab].rootNode.get())
+				continue;
+			auto pi = fileTabs[activeTab].rootNode->FindChild(node);
+			if (!pi)
+				continue;
+			Widget* wdg = dynamic_cast<Widget*>(node);
+			bool sameLine = wdg->sameLine;
+			bool nextColumn = wdg->nextColumn;
+			bool beginGroup = wdg->beginGroup;
+			remove.push_back(std::move(pi->first->children[pi->second]));
+			pi->first->children.erase(pi->first->children.begin() + pi->second);
+			if (pi->second < pi->first->children.size())
+			{
+				wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
+				if (nextColumn)
+					wdg->nextColumn = true;
+				if (!sameLine)
+					wdg->sameLine = false;
+				if (beginGroup)
+					wdg->beginGroup = true;
+			}
+		}
+		//move selection. Useful for things like menu items
+		if (ctx.selected.size() == 1 && pi1)
+		{
+			if (pi1->second < pi1->first->children.size())
+				ctx.selected[0] = pi1->first->children[pi1->second].get();
+			else if (pi1->second)
+				ctx.selected[0] = pi1->first->children[pi1->second - 1].get();
+			else
+				ctx.selected[0] = pi1->first;
+		}
+		else
+		{
+			ctx.selected.clear();
+		}
+	}
+	return remove;
+}
+
 void Work()
 {
 	if (ImGui::GetTopMostAndVisiblePopupModal())
@@ -1222,12 +1268,24 @@ void Work()
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && 
 			ctx.snapParent)
 		{
-			ctx.selected = { newNode.get() };
-			newNode->sameLine = ctx.snapSameLine;
-			if (newNode->sameLine)
-				newNode->spacing = 1;
-			newNode->nextColumn = ctx.snapNextColumn;
-			newNode->beginGroup = ctx.snapBeginGroup;
+			int n;
+			std::unique_ptr<Widget>* newNodes;
+			if (activeButton != "") {
+				n = 1;
+				newNodes = &newNode;
+			}
+			else {
+				n = (int)clipboard.size();
+				newNodes = clipboard.data();
+			}
+			if (n)
+			{
+				newNodes[0]->sameLine = ctx.snapSameLine;
+				if (newNodes[0]->sameLine)
+					newNodes[0]->spacing = 1;
+				newNodes[0]->nextColumn = ctx.snapNextColumn;
+				newNodes[0]->beginGroup = ctx.snapBeginGroup;
+			}
 			if (ctx.snapIndex < ctx.snapParent->children.size())
 			{
 				auto& next = ctx.snapParent->children[ctx.snapIndex];
@@ -1240,56 +1298,59 @@ void Work()
 				if (next->sameLine)
 					next->indent = 0; //otherwise creates widgets overlaps
 			}
-			ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex, std::move(newNode));
-			
+			ctx.selected.clear();
+			if (newNodes[0].get() == newNode.get())
+			{
+				ctx.selected = { newNode.get() };
+				ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex, std::move(newNodes[0]));
+			}
+			else
+			{
+				for (int i = 0; i < n; ++i) 
+				{
+					auto wdg = newNodes[i]->Clone(ctx);
+					ctx.selected.push_back(wdg.get());
+					ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex + i, std::move(wdg));
+				}
+			}
 			ctx.snapMode = false;
 			activeButton = "";
 			fileTabs[activeTab].modified = true;
 		}
 	}
-	else if (!ctx.selected.empty())
+	else if (!pgFocused)
 	{
-		if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !pgFocused)
+		if (ImGui::IsKeyPressed(ImGuiKey_Delete))
 		{
-			fileTabs[activeTab].modified = true;
-			auto pi1 = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
-			for (UINode* node : ctx.selected)
+			RemoveSelected();
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_C) &&
+			ImGui::GetIO().KeyMods == ImGuiMod_Ctrl &&
+			!ctx.selected.empty() &&
+			ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+		{
+			clipboard.clear();
+			ctx.createVars = false;
+			for (auto* node : ctx.selected)
 			{
-				if (node == fileTabs[activeTab].rootNode.get())
-					continue;
-				auto pi = fileTabs[activeTab].rootNode->FindChild(node);
-				if (!pi)
-					continue;
-				Widget* wdg = dynamic_cast<Widget*>(node);
-				bool sameLine = wdg->sameLine;
-				bool nextColumn = wdg->nextColumn;
-				bool beginGroup = wdg->beginGroup;
-				pi->first->children.erase(pi->first->children.begin() + pi->second);
-				if (pi->second < pi->first->children.size())
-				{
-					wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
-					if (nextColumn)
-						wdg->nextColumn = true;
-					if (!sameLine)
-						wdg->sameLine = false;
-					if (beginGroup)
-						wdg->beginGroup = true;
-				}
+				auto* wdg = dynamic_cast<Widget*>(node);
+				clipboard.push_back(wdg->Clone(ctx));
 			}
-			//move selection. Useful for things like menu items
-			if (ctx.selected.size() == 1 && pi1)
-			{
-				if (pi1->second < pi1->first->children.size())
-					ctx.selected[0] = pi1->first->children[pi1->second].get();
-				else if (pi1->second)
-					ctx.selected[0] = pi1->first->children[pi1->second - 1].get();
-				else
-					ctx.selected[0] = pi1->first;
-			}
-			else
-			{
-				ctx.selected.clear();
-			}
+			ctx.createVars = true;
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_X) &&
+			ImGui::GetIO().KeyMods == ImGuiMod_Ctrl &&
+			!ctx.selected.empty() &&
+			ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+		{
+			clipboard = RemoveSelected();
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_V) &&
+			ImGui::GetIO().KeyMods == ImGuiMod_Ctrl &&
+			clipboard.size())
+		{
+			activeButton = "";
+			ctx.snapMode = true;
 		}
 	}
 }

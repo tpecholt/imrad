@@ -70,11 +70,11 @@ void TreeNodeProp(const char* name, bool pack, F&& f)
 
 //----------------------------------------------------
 
-UINode::UINode(const UINode& node)
+void UINode::CloneChildrenFrom(const UINode& node, UIContext& ctx)
 {
 	children.resize(node.children.size());
 	for (size_t i = 0; i < node.children.size(); ++i)
-		children[i] = node.children[i]->Clone();
+		children[i] = node.children[i]->Clone(ctx);
 }
 
 void UINode::DrawSnap(UIContext& ctx)
@@ -354,7 +354,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.inPopup = kind == Kind::Popup || kind == Kind::ModalPopup;
-	
+
 	std::string cap = title.value();
 	if (cap.empty())
 		cap = "error";
@@ -549,6 +549,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	ctx.errors.clear();
+	bool tmpCreateDeps = ctx.createVars;
+	ctx.createVars = false;
 	ctx.importState = 1;
 	ctx.userCode = "";
 	ctx.root = this;
@@ -644,7 +646,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		++sit;
 	}
 
-	ctx.importState = 0;
+	ctx.createVars = tmpCreateDeps;
 }
 
 void TopWindow::TreeUI(UIContext& ctx)
@@ -1549,6 +1551,11 @@ Separator::Separator(UIContext& ctx)
 	InitDimensions(ctx);
 }
 
+std::unique_ptr<Widget> Separator::Clone(UIContext& ctx) 
+{ 
+	return std::unique_ptr<Widget>(new Separator(*this)); 
+}
+
 void Separator::DoDraw(UIContext& ctx)
 {
 	if (!label.empty())
@@ -1627,6 +1634,11 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 Text::Text(UIContext& ctx)
 {
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Text::Clone(UIContext& ctx)
+{
+	return std::unique_ptr<Widget>(new Text(*this));
 }
 
 void Text::DoDraw(UIContext& ctx)
@@ -1818,6 +1830,15 @@ Selectable::Selectable(UIContext& ctx)
 	vertAlignment.add("AlignBottom", ImRad::AlignBottom);
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Selectable>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void Selectable::DoDraw(UIContext& ctx)
@@ -2134,6 +2155,11 @@ Button::Button(UIContext& ctx)
 	arrowDir.add$(ImGuiDir_Down);
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
+{
+	return std::make_unique<Button>(*this);
 }
 
 void Button::DoDraw(UIContext& ctx)
@@ -2584,10 +2610,19 @@ bool Button::EventUI(int i, UIContext& ctx)
 
 CheckBox::CheckBox(UIContext& ctx)
 {
-	if (!ctx.importState)
+	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<CheckBox>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void CheckBox::DoDraw(UIContext& ctx)
@@ -2760,6 +2795,13 @@ RadioButton::RadioButton(UIContext& ctx)
 	InitDimensions(ctx);
 }
 
+std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<RadioButton>(*this);
+	//fieldName can be shared
+	return sel;
+}
+
 void RadioButton::DoDraw(UIContext& ctx)
 {
 	if (style_color.has_value())
@@ -2897,10 +2939,19 @@ Input::Input(UIContext& ctx)
 	flags.add$(ImGuiInputTextFlags_Password);
 	flags.add$(ImGuiInputTextFlags_Multiline);
 
-	if (!ctx.importState)
+	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Input::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Input>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void Input::DoDraw(UIContext& ctx)
@@ -3357,10 +3408,19 @@ bool Input::EventUI(int i, UIContext& ctx)
 
 Combo::Combo(UIContext& ctx)
 {
-	if (!ctx.importState)
+	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Combo>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void Combo::DoDraw(UIContext& ctx)
@@ -3549,10 +3609,19 @@ bool Combo::EventUI(int i, UIContext& ctx)
 
 Slider::Slider(UIContext& ctx)
 {
-	if (!ctx.importState)
-		fieldName.set_from_arg(ctx.codeGen->CreateVar(type=="angle" ? "float" : type, "", CppGen::Var::Interface));
+	if (ctx.createVars)
+		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Slider::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Slider>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void Slider::DoDraw(UIContext& ctx)
@@ -3804,10 +3873,19 @@ bool Slider::EventUI(int i, UIContext& ctx)
 
 ProgressBar::ProgressBar(UIContext& ctx)
 {
-	if (!ctx.importState)
+	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> ProgressBar::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<ProgressBar>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void ProgressBar::DoDraw(UIContext& ctx)
@@ -3944,10 +4022,19 @@ ColorEdit::ColorEdit(UIContext& ctx)
 	flags.add$(ImGuiColorEditFlags_NoDragDrop);
 	flags.add$(ImGuiColorEditFlags_NoBorder);
 
-	if (!ctx.importState)
+	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> ColorEdit::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<ColorEdit>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+	}
+	return sel;
 }
 
 void ColorEdit::DoDraw(UIContext& ctx)
@@ -4144,10 +4231,19 @@ bool ColorEdit::EventUI(int i, UIContext& ctx)
 
 Image::Image(UIContext& ctx)
 {
-	if (!ctx.importState)
+	if (ctx.createVars)
 		*fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Image::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Image>(*this);
+	if (!fieldName.empty() && ctx.createVars) {
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl));
+	}
+	return sel;
 }
 
 void Image::DoDraw(UIContext& ctx)
@@ -4327,6 +4423,11 @@ CustomWidget::CustomWidget(UIContext& ctx)
 	InitDimensions(ctx);
 }
 
+std::unique_ptr<Widget> CustomWidget::Clone(UIContext& ctx)
+{
+	return std::make_unique<CustomWidget>(*this);
+}
+
 void CustomWidget::DoDraw(UIContext& ctx)
 {
 	ImVec2 size;
@@ -4481,6 +4582,14 @@ Table::Table(UIContext& ctx)
 		columnData[i].label = char('A' + i);
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Table::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Table>(*this);
+	//rowCount can be shared
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void Table::DoDraw(UIContext& ctx)
@@ -4817,6 +4926,14 @@ Child::Child(UIContext& ctx)
 	InitDimensions(ctx);
 }
 
+std::unique_ptr<Widget> Child::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Child>(*this);
+	//itemCount is shared
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
+}
+
 void Child::DoDraw(UIContext& ctx)
 {
 	if (!style_padding)
@@ -5041,10 +5158,20 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 
 Splitter::Splitter(UIContext& ctx)
 {
-	if (!ctx.importState) 
+	if (ctx.createVars) 
 		position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
 	
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> Splitter::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<Splitter>(*this);
+	if (!position.empty() && ctx.createVars) {
+		sel->position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
+	}
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void Splitter::DoDraw(UIContext& ctx)
@@ -5246,6 +5373,13 @@ CollapsingHeader::CollapsingHeader(UIContext& ctx)
 	InitDimensions(ctx);
 }
 
+std::unique_ptr<Widget> CollapsingHeader::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<CollapsingHeader>(*this);
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
+}
+
 void CollapsingHeader::DoDraw(UIContext& ctx)
 {
 	//automatically expand to show selected child and collapse to save space
@@ -5361,6 +5495,13 @@ TreeNode::TreeNode(UIContext& ctx)
 	flags.add$(ImGuiTreeNodeFlags_SpanFullWidth);
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> TreeNode::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<TreeNode>(*this);
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void TreeNode::DoDraw(UIContext& ctx)
@@ -5503,10 +5644,21 @@ TabBar::TabBar(UIContext& ctx)
 	flags.add$(ImGuiTabBarFlags_TabListPopupButton);
 	flags.add$(ImGuiTabBarFlags_NoTabListScrollingButtons);
 
-	if (!ctx.importState)
+	if (ctx.createVars)
 		children.push_back(std::make_unique<TabItem>(ctx));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> TabBar::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<TabBar>(*this);
+	//tabCount can be shared
+	if (!tabIndex.empty() && ctx.createVars) {
+		sel->tabIndex.set_from_arg(ctx.codeGen->CreateVar("int", "", CppGen::Var::Interface));
+	}
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void TabBar::DoDraw(UIContext& ctx)
@@ -5637,6 +5789,13 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 TabItem::TabItem(UIContext& ctx)
 {
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> TabItem::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<TabItem>(*this);
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void TabItem::DoDraw(UIContext& ctx)
@@ -5812,10 +5971,17 @@ bool TabItem::PropertyUI(int i, UIContext& ctx)
 
 MenuBar::MenuBar(UIContext& ctx)
 {
-	if (!ctx.importState)
+	if (ctx.createVars)
 		children.push_back(std::make_unique<MenuIt>(ctx));
 
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> MenuBar::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<MenuBar>(*this);
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void MenuBar::DoDraw(UIContext& ctx)
@@ -5877,6 +6043,16 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 MenuIt::MenuIt(UIContext& ctx)
 {
 	InitDimensions(ctx);
+}
+
+std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
+{
+	auto sel = std::make_unique<MenuIt>(*this);
+	if (!checked.empty() && ctx.createVars) {
+		sel->checked.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+	}
+	sel->CloneChildrenFrom(*this, ctx);
+	return sel;
 }
 
 void MenuIt::DoDraw(UIContext& ctx)
