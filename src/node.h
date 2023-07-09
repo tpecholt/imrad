@@ -92,6 +92,7 @@ struct UINode
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
 	void ScaleDimensions(float scale);
 	auto FindChild(const UINode*) -> std::optional<std::pair<UINode*, int>>;
+	auto GetAllChildren() -> std::vector<UINode*>;
 	void CloneChildrenFrom(const UINode& node, UIContext& ctx);
 
 	ImVec2 cached_pos;

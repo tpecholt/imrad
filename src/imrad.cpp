@@ -1202,53 +1202,74 @@ void Draw()
 	ImGui::GetStyle() = tmpStyle;
 }
 
+std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
+{
+	auto& tab = fileTabs[activeTab];
+	std::vector<UINode*> allNodes = tab.rootNode->GetAllChildren();
+	std::vector<std::pair<int, UINode*>> sortedSel;
+	for (UINode* node : sel)
+	{
+		if (node == tab.rootNode.get())
+			continue;
+		auto it = stx::find(allNodes, node);
+		if (it == allNodes.end())
+			continue;
+		sortedSel.push_back({ int(it - allNodes.begin()), node });
+	}
+	stx::sort(sortedSel);
+	allNodes.clear();
+	for (const auto& sel : sortedSel)
+		allNodes.push_back(sel.second);
+	return allNodes;
+}
+
 std::vector<std::unique_ptr<Widget>> 
 RemoveSelected()
 {
+	auto& tab = fileTabs[activeTab];
+	std::vector<UINode*> sortedSel = SortSelection(ctx.selected);
+	if (sortedSel.empty())
+		return {};
+
 	std::vector<std::unique_ptr<Widget>> remove;
-	if (!ctx.selected.empty() &&
-		ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+	auto pi1 = tab.rootNode->FindChild(sortedSel[0]);
+	for (UINode* node : sortedSel)
 	{
-		fileTabs[activeTab].modified = true;
-		auto pi1 = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
-		for (UINode* node : ctx.selected)
+		auto pi = tab.rootNode->FindChild(node);
+		tab.modified = true;
+		Widget* wdg = dynamic_cast<Widget*>(node);
+		bool sameLine = wdg->sameLine;
+		bool beginGroup = wdg->beginGroup;
+		bool endGroup = wdg->endGroup;
+		int nextColumn = wdg->nextColumn;
+		remove.push_back(std::move(pi->first->children[pi->second]));
+		pi->first->children.erase(pi->first->children.begin() + pi->second);
+		if (pi->second < pi->first->children.size() &&
+			!stx::count(ctx.selected, pi->first->children[pi->second].get()))
 		{
-			if (node == fileTabs[activeTab].rootNode.get())
-				continue;
-			auto pi = fileTabs[activeTab].rootNode->FindChild(node);
-			if (!pi)
-				continue;
-			Widget* wdg = dynamic_cast<Widget*>(node);
-			bool sameLine = wdg->sameLine;
-			bool nextColumn = wdg->nextColumn;
-			bool beginGroup = wdg->beginGroup;
-			remove.push_back(std::move(pi->first->children[pi->second]));
-			pi->first->children.erase(pi->first->children.begin() + pi->second);
-			if (pi->second < pi->first->children.size())
-			{
-				wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
-				if (nextColumn)
-					wdg->nextColumn = true;
-				if (!sameLine)
-					wdg->sameLine = false;
-				if (beginGroup)
-					wdg->beginGroup = true;
-			}
+			wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
+			wdg->nextColumn += nextColumn;
+			if (!sameLine)
+				wdg->sameLine = false;
+			if (beginGroup)
+				wdg->beginGroup = true;
+			if (endGroup)
+				wdg->endGroup = true;
 		}
-		//move selection. Useful for things like menu items
-		if (ctx.selected.size() == 1 && pi1)
-		{
-			if (pi1->second < pi1->first->children.size())
-				ctx.selected[0] = pi1->first->children[pi1->second].get();
-			else if (pi1->second)
-				ctx.selected[0] = pi1->first->children[pi1->second - 1].get();
-			else
-				ctx.selected[0] = pi1->first;
-		}
+	}
+	//move selection. Useful for things like menu items
+	if (sortedSel.size() == 1 && pi1)
+	{
+		if (pi1->second < pi1->first->children.size())
+			ctx.selected = { pi1->first->children[pi1->second].get() };
+		else if (pi1->second)
+			ctx.selected = { pi1->first->children[pi1->second - 1].get() };
 		else
-		{
-			ctx.selected.clear();
-		}
+			ctx.selected = { pi1->first };
+	}
+	else
+	{
+		ctx.selected.clear();
 	}
 	return remove;
 }
@@ -1331,7 +1352,8 @@ void Work()
 		{
 			clipboard.clear();
 			ctx.createVars = false;
-			for (auto* node : ctx.selected)
+			auto sortedSel = SortSelection(ctx.selected);
+			for (UINode* node : sortedSel)
 			{
 				auto* wdg = dynamic_cast<Widget*>(node);
 				clipboard.push_back(wdg->Clone(ctx));

@@ -298,6 +298,20 @@ UINode::FindChild(const UINode* ch)
 	return {};
 }
 
+
+std::vector<UINode*>
+UINode::GetAllChildren()
+{
+	std::vector<UINode*> chs;
+	chs.reserve(children.size() * 2);
+	chs.push_back(this);
+	for (const auto& child : children) {
+		auto vec = child->GetAllChildren();
+		chs.insert(chs.end(), vec.begin(), vec.end());
+	}
+	return chs;
+}
+
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 {
 	for (int i = 0; i < 2; ++i)
