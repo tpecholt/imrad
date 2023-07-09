@@ -298,6 +298,23 @@ UINode::FindChild(const UINode* ch)
 	return {};
 }
 
+std::vector<UINode*>
+UINode::FindInRect(const ImRect& r)
+{
+	std::vector<UINode*> sel;
+	
+	if (cached_pos.x > r.Min.x &&
+		cached_pos.y > r.Min.y &&
+		cached_pos.x + cached_size.x < r.Max.x &&
+		cached_pos.y + cached_size.y < r.Max.y)
+		sel.push_back(this);
+	
+	for (const auto& child : children) {
+		auto chsel = child->FindInRect(r);
+		sel.insert(sel.end(), chsel.begin(), chsel.end());
+	}
+	return sel;
+}
 
 std::vector<UINode*>
 UINode::GetAllChildren()
@@ -362,7 +379,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.unitFactor = ScaleFactor(ctx.unit, "");
 	ctx.groupLevel = 0;
 	ctx.root = this;
-	ctx.popupWins.clear();
+	ctx.activePopups.clear();
 	ctx.parents = { this };
 	ctx.selUpdated = false;
 	ctx.hovered = nullptr;
@@ -415,9 +432,28 @@ void TopWindow::Draw(UIContext& ctx)
 	cached_pos = ImGui::GetWindowPos() + mi;
 	cached_size = ma - mi;
 
-	if (!ctx.snapMode && !ctx.selUpdated &&
+	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && ctx.activePopups.empty();
+	if (allowed)
+	{
+		if (ctx.mode == UIContext::NormalSelection &&
+			ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+			ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+		{
+			ctx.selStart = ctx.selEnd = ImGui::GetMousePos();
+		}
+		if (ctx.mode == UIContext::NormalSelection &&
+			ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+			ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+			Norm(ImGui::GetMousePos() - ctx.selStart) > 5)
+		{
+			ctx.mode = UIContext::RectSelection;
+			ctx.selEnd = ImGui::GetMousePos();
+		}
+	}
+	if (ctx.mode == UIContext::NormalSelection &&
+		!ctx.selUpdated &&
 		ImGui::IsWindowHovered() &&
-		ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+		ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 	{
 		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 			; //don't participate in group selection
@@ -425,16 +461,36 @@ void TopWindow::Draw(UIContext& ctx)
 			ctx.selected = { this };
 		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 	}
-	if (ctx.snapMode && !ctx.snapParent && ImGui::IsWindowHovered())
+	if (ctx.mode == UIContext::RectSelection)
+	{
+		if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+			ctx.selEnd = ImGui::GetMousePos();
+		else {
+			ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
+			ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
+			auto sel = FindInRect(ImRect(a, b));
+			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl)) {
+				for (auto s : sel)
+					if (!stx::count(ctx.selected, s))
+						ctx.selected.push_back(s);
+			}
+			else
+				ctx.selected = sel;
+			ctx.mode = UIContext::NormalSelection; //todo
+		}
+	}
+	
+	if (ctx.mode == UIContext::Snap && !ctx.snapParent && ImGui::IsWindowHovered())
 	{
 		DrawSnap(ctx);
 	}
-	
-	/*if (ctx.selected == this)
+	if (ctx.mode == UIContext::RectSelection)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size, IM_COL32(255, 0, 0, 255));
-	}*/
+		ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
+		ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
+		dl->AddRect(a, b, ctx.colors[UIContext::Hovered]);
+	}
 
 	while (ctx.groupLevel) { //fix missing endGroup
 		ImGui::EndGroup();
@@ -949,26 +1005,29 @@ void Widget::Draw(UIContext& ctx)
 
 	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
-	bool allowed = ImGui::GetTopMostAndVisiblePopupModal() == nullptr;
-	if (allowed)
-		allowed = ctx.popupWins.empty() || stx::count(ctx.popupWins, ImGui::GetCurrentWindow());
+	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && 
+		(ctx.activePopups.empty() || stx::count(ctx.activePopups, ImGui::GetCurrentWindow()));
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
-	if (!ctx.snapMode && allowed && 
-		ctx.hovered == lastHovered && hovered)
+	if (allowed && hovered)
 	{
-		ctx.hovered = this;
+		if (ctx.mode == UIContext::NormalSelection &&
+			ctx.hovered == lastHovered)
+		{
+			ctx.hovered = this;
+		}
+		if (ctx.mode == UIContext::NormalSelection &&
+			!ctx.selUpdated && 
+			ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
+		{
+			ctx.selUpdated = true;
+			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
+				toggle(ctx.selected, this);
+			else
+				ctx.selected = { this };
+			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
+		}
 	}
-	if (!ctx.snapMode && allowed && 
-		!ctx.selUpdated && hovered && 
-		ImGui::IsMouseClicked(0)) //this works even for non-items like TabControl etc.  
-	{
-		ctx.selUpdated = true;
-		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-			toggle(ctx.selected, this);
-		else
-			ctx.selected = { this };
-		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
-	}
+
 	bool selected = stx::count(ctx.selected, this);
 	if (selected || ctx.hovered == this)
 	{
@@ -981,8 +1040,7 @@ void Widget::Draw(UIContext& ctx)
 	{
 		DrawExtra(ctx);
 	}
-
-	if (ctx.snapMode && !ctx.snapParent)
+	if (ctx.mode == UIContext::Snap && !ctx.snapParent)
 	{
 		DrawSnap(ctx);
 	}
@@ -6109,7 +6167,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
 			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
 			{
-				ctx.popupWins.push_back(ImGui::GetCurrentWindow());
+				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
 				//for (const auto& child : children) defend against insertions within the loop
 				for (size_t i = 0; i < children.size(); ++i)
 					children[i]->Draw(ctx);

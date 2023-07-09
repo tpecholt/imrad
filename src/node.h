@@ -19,7 +19,8 @@ inline const std::string_view FOR_VAR = "i";
 struct UIContext
 {
 	//set from outside
-	bool snapMode = false;
+	enum Mode { NormalSelection, RectSelection, Snap };
+	Mode mode = NormalSelection;
 	std::vector<UINode*> selected;
 	CppGen* codeGen = nullptr;
 	ImVec2 wpos;
@@ -48,10 +49,11 @@ struct UIContext
 	std::string userCode;
 	UINode* root = nullptr;
 	ImGuiWindow* rootWin = nullptr;
-	std::vector<ImGuiWindow*> popupWins;
+	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;
 	bool inPopup = false;
 	float unitFactor = 1; //for dimension value scaling
+	ImVec2 selStart, selEnd;
 	std::string ind;
 	std::vector<std::string> errors;
 
@@ -92,6 +94,7 @@ struct UINode
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
 	void ScaleDimensions(float scale);
 	auto FindChild(const UINode*) -> std::optional<std::pair<UINode*, int>>;
+	auto FindInRect(const ImRect& r) -> std::vector<UINode*>;
 	auto GetAllChildren() -> std::vector<UINode*>;
 	void CloneChildrenFrom(const UINode& node, UIContext& ctx);
 

@@ -210,7 +210,7 @@ void OpenFile()
 	if (result != NFD_OKAY)
 		return;
 	
-	ctx.snapMode = false;
+	ctx.mode = UIContext::NormalSelection;
 	ctx.selected.clear();
 	auto it = stx::find_if(fileTabs, [&](const File& f) { return f.fname == outPath; });
 	if (it != fileTabs.end()) 
@@ -270,7 +270,7 @@ void ReloadFiles()
 			}
 			tab.modified = false;
 			if (&tab == &fileTabs[activeTab])
-				ctx.snapMode = false;
+				ctx.mode = UIContext::NormalSelection;
 				ctx.selected.clear();
 			});
 	}
@@ -436,14 +436,13 @@ void ShowCode()
 void NewWidget(const std::string& name)
 {
 	activeButton = name;
+	ctx.selected.clear();
 	if (name == "") {
-		ctx.selected.clear();
-		ctx.snapMode = false;
+		ctx.mode = UIContext::NormalSelection;
 	}
 	else {
 		newNode = Widget::Create(name, ctx);
-		ctx.selected.clear();
-		ctx.snapMode = true;
+		ctx.mode = UIContext::Snap;
 	}
 }
 
@@ -1279,14 +1278,14 @@ void Work()
 	if (ImGui::GetTopMostAndVisiblePopupModal())
 		return;
 
-	if (ctx.snapMode)
+	if (ctx.mode == UIContext::Snap)
 	{
 		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
-			ctx.snapMode = false;
+			ctx.mode = UIContext::NormalSelection;
 			activeButton = "";
 		}
-		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && 
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && //MouseReleased to avoid confusing RectSelection
 			ctx.snapParent)
 		{
 			int n;
@@ -1334,7 +1333,7 @@ void Work()
 					ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex + i, std::move(wdg));
 				}
 			}
-			ctx.snapMode = false;
+			ctx.mode = UIContext::NormalSelection;
 			activeButton = "";
 			fileTabs[activeTab].modified = true;
 		}
@@ -1372,7 +1371,7 @@ void Work()
 			clipboard.size())
 		{
 			activeButton = "";
-			ctx.snapMode = true;
+			ctx.mode = UIContext::Snap;
 		}
 	}
 }
