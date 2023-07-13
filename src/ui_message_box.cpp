@@ -6,19 +6,16 @@ MessageBox messageBox;
 void MessageBox::OpenPopup(std::function<void(ImRad::ModalResult)> f)
 {
 	callback = std::move(f);
-	requestOpen = true;
+	ImGui::OpenPopup(ID);
 }
 
 void MessageBox::Draw()
 {
-	if (requestOpen) {
-		requestOpen = false;
-		ImGui::OpenPopup(title.c_str());
-	}
+	ID = ImGui::GetID("###MessageBox");
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 	bool open = true;
-	if (ImGui::BeginPopupModal(title.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
+	if (ImGui::BeginPopupModal((title + "###MessageBox").c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		if (error != "")
 		{

@@ -44,11 +44,11 @@ void NewFieldPopup::Draw()
 		mode == RenameField ? "Rename Field###NewFieldPopup" :
 		"Rename Window###NewFieldPopup";
 
+	ID = ImGui::GetID("###NewFieldPopup");
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 12, 12 });
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 10 });
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	ID = ImGui::GetID(title.c_str());
 	bool tmp = true;
 	if (ImGui::BeginPopupModal(title.c_str(), &tmp, ImGuiWindowFlags_AlwaysAutoResize))
 	{

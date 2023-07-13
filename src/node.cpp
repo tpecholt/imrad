@@ -387,8 +387,6 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.inPopup = kind == Kind::Popup || kind == Kind::ModalPopup;
 
 	std::string cap = title.value();
-	if (cap.empty())
-		cap = "error";
 	cap += "###TopWindow"; //don't clash 
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	fl |= flags;
@@ -513,10 +511,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	ctx.inPopup = kind == Popup || kind == ModalPopup;
 	ctx.errors.clear();
 	
-	std::string tit = title.to_arg();
-	if (tit.empty())
-		ctx.errors.push_back("TopWindow: title can't be empty");
-
+	//provide stable ID when title changes
+	bindable<std::string> titleId = title;
+	*titleId.access() += "###" + ctx.codeGen->GetName();
+	std::string tit = titleId.to_arg();
+	
 	os << ctx.ind << "/// @begin TopWindow\n";
 	
 	if (ctx.unit == "fs")
@@ -526,12 +525,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	if (ctx.inPopup)
 	{
-		os << ctx.ind << "if (requestOpen) {\n";
-		ctx.ind_up();
-		os << ctx.ind << "requestOpen = false;\n";
-		os << ctx.ind << "ImGui::OpenPopup(" << tit << ");\n";
-		ctx.ind_down();
-		os << ctx.ind << "}\n";
+		os << ctx.ind << "ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
 	}
 
 	if (style_font != "")
@@ -584,7 +578,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		ctx.ind_up();
 	}
 	os << ctx.ind << "/// @separator\n\n";
-		
+	os << ctx.ind << "// TODO: Add Draw calls of dependant popup windows here\n\n";
+
 	for (const auto& ch : children)
 		ch->Export(os, ctx);
 
@@ -4320,18 +4315,16 @@ std::unique_ptr<Widget> Image::Clone(UIContext& ctx)
 
 void Image::DoDraw(UIContext& ctx)
 {
-	if (!tex.id) {
-		ImGui::Dummy({ 20, 20 });
-		return;
-	}
-
-	float w = (float)tex.w;
+	float w = 20, h = 20;
 	if (!size_x.zero())
 		w = size_x.eval_px(ctx);
-	float h = (float)tex.h;
+	else if (tex.id)
+		w = (float)tex.w;
 	if (!size_y.zero())
 		h = size_y.eval_px(ctx);
-	
+	else if (tex.id)
+		h = (float)tex.h;
+
 	ImGui::Image(tex.id, { w, h });
 }
 

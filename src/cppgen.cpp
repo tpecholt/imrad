@@ -257,13 +257,13 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 				out << "\n";
 				if (kind == TopWindow::ModalPopup)
 				{
-					out << INDENT << "bool requestOpen = false;\n";
+					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "bool requestClose = false;\n";
 					out << INDENT << "std::function<void(ImRad::ModalResult)> callback;\n\n";
 				}
 				else if (kind == TopWindow::Popup)
 				{
-					out << INDENT << "bool requestOpen = false;\n";
+					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "bool requestClose = false;\n";
 				}
 				else
@@ -443,21 +443,25 @@ void CppGen::ExportCpp(
 	copy_content();
 
 	//add missing members
+	//OpenPopup has to be called from the window which wants to open it so that's why
+	//immediate call
+	//CloseCurrentPopup has to be called from the popup Draw code so that's why
+	//defered call
 	if (kind == TopWindow::ModalPopup && !events.count("OpenPopup"))
 	{
 		fout << "\nvoid " << m_name << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
 		fout << INDENT << "callback = clb;\n";
-		fout << INDENT << "requestOpen = true;\n";
-		fout << INDENT << "requestClose = false;\n\n";
-		fout << INDENT << "//*** Add your init code here\n";
+		fout << INDENT << "requestClose = false;\n";
+		fout << INDENT << "ImGui::OpenPopup(ID);\n\n";
+		fout << INDENT << "// TODO: Add your init code here\n";
 		fout << "}\n";
 	}
 	if (kind == TopWindow::Popup && !events.count("OpenPopup"))
 	{
 		fout << "\nvoid " << m_name << "::OpenPopup()\n{\n";
-		fout << INDENT << "requestOpen = true;\n";
-		fout << INDENT << "requestClose = false;\n\n";
-		fout << INDENT << "//*** Add your init code here\n";
+		fout << INDENT << "requestClose = false;\n";
+		fout << INDENT << "ImGui::OpenPopup(ID);\n\n";
+		fout << INDENT << "// TODO: Add your init code here\n";
 		fout << "}\n";
 	}
 	if ((kind == TopWindow::Popup || kind == TopWindow::ModalPopup) &&
@@ -696,7 +700,7 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		}
 		if (type.back() == ' ')
 			type.pop_back();
-		if (name != "requestOpen" && name != "requestClose" && name != "callback" &&
+		if (name != "ID" && name != "requestClose" && name != "callback" &&
 			name != "isOpen")
 			CreateNamedVar(name, type, init, flags, sname);
 	}

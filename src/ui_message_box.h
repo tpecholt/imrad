@@ -17,7 +17,7 @@ public:
 	int buttons = ImRad::Ok;
 
 private:
-	bool requestOpen = false;
+	ImGuiID ID = 0;
 	std::function<void(ImRad::ModalResult)> callback;
 };
 
