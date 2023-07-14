@@ -9,6 +9,7 @@
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
+
 //must come last:
 //#define STB_IMAGE_IMPLEMENTATION
 //#include <stb_image.h>
@@ -25,7 +26,7 @@ void Draw()
 }
 
 // On Windows if you want to avoid console window to be shown 
-// Use /SUBSYSTEM:WINDOWS and implement w/WinMain instead
+// Use /SUBSYSTEM:WINDOWS and implement wWinMain instead
 int main(int argc, const char* argv[])
 {
 	// Setup window

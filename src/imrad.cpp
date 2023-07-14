@@ -150,11 +150,19 @@ void NewTemplate(int type)
 	if (!p.has_extension())
 		p.replace_extension(".cpp");
 
-	switch (type)
-	{
-	case 0:
-		fs::copy_file("template/glfw-main.cpp", p);
-		break;
+	try {
+		switch (type)
+		{
+		case 0:
+			fs::copy_file("template/glfw-main.cpp", p, fs::copy_options::overwrite_existing);
+			break;
+		}
+	}
+	catch (std::exception& e) {
+		messageBox.title = "error";
+		messageBox.message = e.what();
+		messageBox.buttons = ImRad::Ok;
+		messageBox.OpenPopup();
 	}
 }
 
@@ -1193,8 +1201,8 @@ void Draw()
 	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
 	ImGui::PushFont(ctx.defaultFont);
 
-	ctx.fname = tab.fname;
-	ctx.unit = tab.unit=="px" ? "" : tab.unit;
+	ctx.workingDir = fs::path(tab.fname).parent_path().string();
+	ctx.unit = tab.unit;
 	tab.rootNode->Draw(ctx);
 
 	ImGui::PopFont();

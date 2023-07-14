@@ -29,14 +29,13 @@ void AboutDlg::ClosePopup()
 void AboutDlg::Draw()
 {
     /// @begin TopWindow
-    ImGui::SetNextWindowSize({ 290, 180 }, ImGuiCond_Appearing);
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ID = ImGui::GetID("About");
     bool tmpOpen = true;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 7 });
-	if (ImGui::BeginPopupModal("About", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+	if (ImGui::BeginPopupModal("About", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (requestClose) ImGui::CloseCurrentPopup();
         /// @separator
@@ -66,15 +65,26 @@ void AboutDlg::Draw()
         /// @end Text
 
         /// @begin Text
-        ImGui::SameLine();
+        ImGui::SameLine(0, 0.5 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, 0xffff9018);
-		ImGui::TextUnformatted(GITHUB_STR.c_str());
+		ImGui::TextUnformatted(GITHUB_URL.c_str());
         ImGui::PopStyleColor();
         if (ImGui::IsItemHovered())
             ImGui::SetMouseCursor(7);
         if (ImGui::IsItemClicked())
             OpenURL();
         /// @end Text
+
+		/// @begin Child
+		ImGui::SameLine();
+		ImGui::BeginChild("child1725042201601", { ImGui::GetStyle().ItemSpacing.x, 10 }, false);
+		{
+			/// @separator
+
+			/// @separator
+			ImGui::EndChild();
+		}
+		/// @end Child
 
         /// @begin Child
         ImGui::BeginChild("child1725042201600", { -100, 10 }, false);
@@ -96,6 +106,16 @@ void AboutDlg::Draw()
         }
         /// @end Button
 
+		/// @begin Child
+		ImGui::BeginChild("child1725042201609", { 10, ImGui::GetStyle().ItemSpacing.y }, false);
+		{
+			/// @separator
+
+			/// @separator
+			ImGui::EndChild();
+		}
+		/// @end Child
+
         /// @separator
         ImGui::EndPopup();
     }
@@ -107,8 +127,8 @@ void AboutDlg::Draw()
 void AboutDlg::OpenURL()
 {
 #ifdef WIN32
-	ShellExecuteA(nullptr, "open", ("http://" + GITHUB_STR).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	ShellExecuteA(nullptr, "open", GITHUB_URL.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 #else
-	system(("xdg-open http://" + GITHUB_STR).c_str());
+	system(("xdg-open " + GITHUB_URL.c_str());
 #endif
 }

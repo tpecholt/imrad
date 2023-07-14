@@ -110,7 +110,7 @@ bool CppGen::ExportUpdate(
 void CppGen::CreateH(std::ostream& out)
 {
 	out << "// Generated with " << VER_STR << "\n"
-		<< "// visit " << GITHUB_STR << "\n\n";
+		<< "// visit " << GITHUB_URL << "\n\n";
 
 	out << "#pragma once\n";
 	out << "#include \"imrad.h\"\n";
@@ -131,7 +131,7 @@ void CppGen::CreateH(std::ostream& out)
 void CppGen::CreateCpp(std::ostream& out, const std::string& hName)
 {
 	out << "// Generated with " << VER_STR << "\n"
-		<< "// visit " << GITHUB_STR << "\n\n";
+		<< "// visit " << GITHUB_URL << "\n\n";
 
 	out << "#include \"" << hName << "\"\n";
 	out << "\n";
@@ -520,7 +520,7 @@ CppGen::Import(
 	m_fields[""];
 	m_name = m_vname = "";
 	m_error = "";
-	ctx_fname = path;
+	ctx_workingDir = fs::path(path).parent_path().string();
 	std::unique_ptr<TopWindow> node;
 
 	auto fpath = fs::path(path).replace_extension("h");
@@ -747,7 +747,7 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
 		}
 		UIContext ctx;
 		ctx.codeGen = this;
-		ctx.fname = ctx_fname;
+		ctx.workingDir = ctx_workingDir;
 		auto node = std::make_unique<TopWindow>(ctx);
 		node->Import(sit, ctx);
 		iter = sit.base();

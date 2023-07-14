@@ -376,6 +376,7 @@ TopWindow::TopWindow(UIContext& ctx)
 
 void TopWindow::Draw(UIContext& ctx)
 {
+	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	ctx.unitFactor = ScaleFactor(ctx.unit, "");
 	ctx.groupLevel = 0;
 	ctx.root = this;
@@ -510,6 +511,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	ctx.groupLevel = 0;
 	ctx.inPopup = kind == Popup || kind == ModalPopup;
 	ctx.errors.clear();
+	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	
 	//provide stable ID when title changes
 	bindable<std::string> titleId = title;
@@ -687,6 +689,9 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			kind = ModalPopup;
 			title.set_from_arg(sit->params[0]);
+			size_t i = title.access()->rfind("###");
+			if (i != std::string::npos)
+				title.access()->resize(i);
 
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
@@ -696,6 +701,9 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			kind = Popup;
 			title.set_from_arg(sit->params[0]);
+			size_t i = title.access()->rfind("###");
+			if (i != std::string::npos)
+				title.access()->resize(i);
 
 			if (sit->params.size() >= 2)
 				flags.set_from_arg(sit->params[1]);
@@ -704,6 +712,9 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			kind = Window;
 			title.set_from_arg(sit->params[0]);
+			size_t i = title.access()->rfind("###");
+			if (i != std::string::npos)
+				title.access()->resize(i);
 
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
@@ -4456,15 +4467,14 @@ void Image::RefreshTexture(UIContext& ctx)
 	std::string fname = fileName.value();
 	if (fs::path(fname).is_relative()) 
 	{
-		if (ctx.fname.empty() && !ctx.importState) {
+		if (ctx.workingDir.empty() && !ctx.importState) {
 			messageBox.title = "Warning";
 			messageBox.message = "Please save the file first so that relative paths can work";
 			messageBox.buttons = ImRad::Ok;
 			messageBox.OpenPopup();
 			return;
 		}
-		assert(ctx.fname != "");
-		fname = (fs::path(ctx.fname).parent_path() / fileName.value()).string();
+		fname = (fs::path(ctx.workingDir) / fileName.value()).string();
 	}
 
 	tex = ImRad::LoadTextureFromFile(fname);
