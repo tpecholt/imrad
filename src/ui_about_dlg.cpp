@@ -3,12 +3,6 @@
 
 #include "ui_about_dlg.h"
 #include "utils.h"
-#include <misc/cpp/imgui_stdlib.h>
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <shellapi.h>
-#endif
 
 AboutDlg aboutDlg;
 
@@ -65,7 +59,7 @@ void AboutDlg::Draw()
         /// @end Text
 
         /// @begin Text
-        ImGui::SameLine(0, 0.5 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, 0xffff9018);
 		ImGui::TextUnformatted(GITHUB_URL.c_str());
         ImGui::PopStyleColor();
@@ -126,9 +120,5 @@ void AboutDlg::Draw()
 
 void AboutDlg::OpenURL()
 {
-#ifdef WIN32
-	ShellExecuteA(nullptr, "open", GITHUB_URL.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-#else
-	system(("xdg-open " + GITHUB_URL.c_str());
-#endif
+	ShellExec(GITHUB_URL);
 }

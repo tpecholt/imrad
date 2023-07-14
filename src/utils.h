@@ -70,3 +70,5 @@ inline float ScaleFactor(std::string_view from, std::string_view to)
 		scale /= ImGui::GetFontSize();
 	return scale;
 }
+
+void ShellExec(const std::string& path);

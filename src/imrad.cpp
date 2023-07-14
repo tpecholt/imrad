@@ -1,7 +1,6 @@
 #if WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <shellapi.h>
 #undef min
 #undef max
 #undef MessageBox
@@ -434,11 +433,7 @@ void ShowCode()
 			fout << "// " << e <<  "\n";
 	}
 	fout.close();
-#ifdef WIN32
-	ShellExecute(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#else
-	system(("xdg-open " + path).c_str());
-#endif
+	ShellExec(path);
 }
 
 void NewWidget(const std::string& name)
