@@ -23,7 +23,7 @@ struct UIContext
 	Mode mode = NormalSelection;
 	std::vector<UINode*> selected;
 	CppGen* codeGen = nullptr;
-	ImVec2 wpos;
+	ImVec2 wpos, wpos2;
 	std::string workingDir;
 	enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
 	std::array<ImU32, Color::COUNT> colors;
@@ -600,7 +600,7 @@ struct Splitter : Widget
 
 struct TopWindow : UINode
 {
-	enum Kind { Window, Popup, ModalPopup };
+	enum Kind { MainWindow, Window, Popup, ModalPopup };
 
 	flags_helper flags = ImGuiWindowFlags_NoCollapse;
 	Kind kind = Window;
@@ -610,6 +610,7 @@ struct TopWindow : UINode
 	std::string style_font = "";
 	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_padding;
 	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_spacing;
+	bool maximized = false;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);

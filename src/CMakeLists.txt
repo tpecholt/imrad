@@ -9,7 +9,8 @@ add_executable(imrad WIN32
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 
-add_definitions(-DIMRAD_WITH_GLFW_TEXTURE)
+add_definitions(-DIMRAD_WITH_GLFW)
+add_definitions(-DIMRAD_WITH_STB)
 
 target_link_libraries(imrad
 	fa

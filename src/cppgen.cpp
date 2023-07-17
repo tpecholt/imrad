@@ -149,6 +149,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
 	bool ignore_section = false;
+	std::string className;
 	std::string origName, origVName;
 	std::stringstream out;
 
@@ -169,6 +170,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 		{
 			if (tok == "/// @interface" || tok == "/// @begin interface")
 			{
+				origName = className;
 				ignore_section = true;
 				copy_content();
 				out << "\n";
@@ -178,20 +180,25 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 				{
 					out << INDENT << "void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});\n";
 					out << INDENT << "void ClosePopup();\n";
+					out << INDENT << "void Draw();\n\n";
 				}
 				else if (kind == TopWindow::Popup)
 				{
 					out << INDENT << "void OpenPopup();\n";
 					out << INDENT << "void ClosePopup();\n";
+					out << INDENT << "void Draw();\n\n";
 				}
-				else
+				else if (kind == TopWindow::Window)
 				{
 					out << INDENT << "void Open();\n";
 					out << INDENT << "void Close();\n";
+					out << INDENT << "void Draw();\n\n";
 				}
-
-				out << INDENT << "void Draw();\n\n";
-
+				else if (kind == TopWindow::MainWindow)
+				{
+					out << INDENT << "void Draw(GLFWwindow* window);\n\n";
+				}
+				
 				//write stuctures
 				for (const auto& scope : m_fields)
 				{
@@ -230,6 +237,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 			}
 			else if (tok == "/// @impl" || tok == "/// @begin impl")
 			{
+				origName = className;
 				ignore_section = true;
 				copy_content();
 				out << "\n";
@@ -266,9 +274,12 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "bool requestClose = false;\n";
 				}
-				else
+				else if (kind == TopWindow::Window)
 				{
 					out << INDENT << "bool isOpen = true;\n";
+				}
+				else if (kind == TopWindow::MainWindow)
+				{
 				}
 			}
 			else if (tok == "/// @end interface" || tok == "/// @end impl")
@@ -314,7 +325,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 			++level;
 			if (line[0] == "class" && level == 1) {
 				in_class = true;
-				origName = line[1];
+				className = line[1];
 			}
 			line.clear();
 		}
@@ -367,18 +378,23 @@ void CppGen::ExportCpp(
 	int level = 0;
 	int skip_to_level = -1;
 	std::vector<std::string> line;
+	bool nameFound = false;
 	std::streampos fpos = 0;
 	std::set<std::string> events;
 	
-	auto copy_content = [&](size_t ignore_last = 0) {
+	//xpos == 0 => copy until current position
+	//xpos > 0 => copy until xpos
+	//xpos < 0 => copy except last xpos characters
+	auto copy_content = [&](int xpos = 0) {
+		int pos = (int)fprev.tellg();
+		int ignore_last = xpos < 0 ? -xpos : xpos > 0 ? pos - xpos : 0;
 		std::string buf;
-		auto n = fprev.tellg() - fpos;
 		fprev.seekg(fpos);
-		buf.resize(n - ignore_last);
+		buf.resize(pos - fpos - ignore_last);
 		fprev.read(buf.data(), buf.size());
 		fout.write(buf.data(), buf.size());
 		fprev.ignore(ignore_last);
-		fpos += n;
+		fpos = pos;
 	};
 
 	for (cpp::token_iterator iter(fprev); iter != cpp::token_iterator(); ++iter)
@@ -393,13 +409,23 @@ void CppGen::ExportCpp(
 			}
 			else if (tok == "{") {
 				++level;
-				if (auto name = IsMemFun(line, origNames[0]); name != "")
+				auto name = IsMemFun(line);
+				if (name != "")
 				{
 					events.insert(name);
-					if (IsMemFun0(line, origNames[0]) == "Draw")
+					if (IsMemDrawFun(line))
 					{
 						skip_to_level = level - 1;
-						copy_content();
+						if (nameFound) {
+							//possibly rewrite Draw argument according to kind
+							fout << "::Draw(";
+							if (kind == TopWindow::MainWindow)
+								fout << "GLFWwindow* window";
+							fout << ")\n{";
+						}
+						else {
+							copy_content();
+						}
 						//write draw code
 						for (const auto& p : params)
 							fout << "\n" << INDENT << "/// @" << p.first << " " << p.second;
@@ -412,13 +438,18 @@ void CppGen::ExportCpp(
 				--level;
 			}
 			else {
+				if (line.empty())
+					nameFound = false;
 				//replace old names
-				if (tok == origNames[0]) { 
-					copy_content(origNames[0].size());
+				if (tok == origNames[0]) {
+					nameFound = true;
+					tok = m_name;
+					copy_content(-(int)origNames[0].size());
 					fout << m_name;
 				}
 				else if (tok == origNames[1]) {
-					copy_content(origNames[1].size());
+					tok = m_vname;
+					copy_content(-(int)origNames[1].size());
 					fout << m_vname;
 				}
 				line.push_back(tok);
@@ -483,10 +514,13 @@ void CppGen::ExportCpp(
 		fout << INDENT << "isOpen = false;\n";
 		fout << "}\n";
 	}
-
+	
 	if (!events.count("Draw"))
 	{
-		fout << "\nvoid " << m_name << "::Draw()\n{\n";
+		fout << "\nvoid " << m_name << "::Draw(";
+		if (kind == TopWindow::MainWindow)
+			fout << "GLFWwindow* window";
+		fout << ")\n{\n";
 		for (const auto& p : params)
 			fout << INDENT << "/// @" << p.first << " " << p.second << "\n";
 		fout << code << "}\n";
@@ -707,10 +741,10 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 	return true;
 }
 
-std::string CppGen::IsMemFun(const std::vector<std::string>& line, const std::string& cname)
+std::string CppGen::IsMemFun(const std::vector<std::string>& line)
 {
 	if (line.size() >= 6 &&
-		line[0] == "void" && line[1] == cname && line[2] == "::" &&
+		line[0] == "void" && line[1] == m_name && line[2] == "::" &&
 		line[4] == "(" && line.back() == ")")
 	{
 		return line[3];
@@ -718,44 +752,47 @@ std::string CppGen::IsMemFun(const std::vector<std::string>& line, const std::st
 	return "";
 }
 
-std::string CppGen::IsMemFun0(const std::vector<std::string>& line, const std::string& cname)
+bool CppGen::IsMemDrawFun(const std::vector<std::string>& line)
 {
+	if (IsMemFun(line) != "Draw")
+		return false;
 	if (line.size() == 6)
-		return IsMemFun(line, cname);
-	return "";
+		return true;
+	if (line.size() == 9 && line[5] == "GLFWwindow" && line[6] == "*")
+		return true;
+	return false;
 }
 
 std::unique_ptr<TopWindow>
 CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params)
 {
-	if (IsMemFun0(line, m_name) == "Draw")
+	if (!IsMemDrawFun(line))
+		return {};
+	
+	cpp::stmt_iterator sit(iter);
+	while (sit != cpp::stmt_iterator()) 
 	{
-		cpp::stmt_iterator sit(iter);
-		while (sit != cpp::stmt_iterator()) 
-		{
-			if (sit->line == "/// @begin TopWindow")
-				break;
-			if (!sit->line.compare(0, 5, "/// @")) {
-				std::string key = sit->line.substr(5);
-				size_t i1 = key.find_first_of(" \t");
-				size_t i2 = i1 + 1;
-				while (i2 + 1 < key.size() && (key[i2 + 1] == ' ' || key[i2 + 1] == '\t'))
-					++i2;
-				params[key.substr(0, i1)] = key.substr(i2);
-			}
-			++sit;
+		if (sit->line == "/// @begin TopWindow")
+			break;
+		if (!sit->line.compare(0, 5, "/// @")) {
+			std::string key = sit->line.substr(5);
+			size_t i1 = key.find_first_of(" \t");
+			size_t i2 = i1 + 1;
+			while (i2 + 1 < key.size() && (key[i2 + 1] == ' ' || key[i2 + 1] == '\t'))
+				++i2;
+			params[key.substr(0, i1)] = key.substr(i2);
 		}
-		UIContext ctx;
-		ctx.codeGen = this;
-		ctx.workingDir = ctx_workingDir;
-		auto node = std::make_unique<TopWindow>(ctx);
-		node->Import(sit, ctx);
-		iter = sit.base();
-		for (const std::string& e : ctx.errors)
-			m_error += e + "\n";
-		return node;
+		++sit;
 	}
-	return {};
+	UIContext ctx;
+	ctx.codeGen = this;
+	ctx.workingDir = ctx_workingDir;
+	auto node = std::make_unique<TopWindow>(ctx);
+	node->Import(sit, ctx);
+	iter = sit.base();
+	for (const std::string& e : ctx.errors)
+		m_error += e + "\n";
+	return node;
 }
 
 std::string DecorateType(const std::string& type)

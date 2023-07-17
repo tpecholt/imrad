@@ -390,6 +390,8 @@ void TopWindow::Draw(UIContext& ctx)
 	std::string cap = title.value();
 	cap += "###TopWindow"; //don't clash 
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
+	if (kind == MainWindow)
+		fl |= ImGuiWindowFlags_NoCollapse;
 	fl |= flags;
 
 	if (style_font != "")
@@ -401,7 +403,12 @@ void TopWindow::Draw(UIContext& ctx)
 	
 	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
-	if (!(fl & ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (kind == MainWindow && maximized) 
+	{
+		ImGui::SetNextWindowSize(ctx.wpos2 - ctx.wpos);
+	}
+	else if (!(fl & ImGuiWindowFlags_AlwaysAutoResize)) 
+	{
 		float w = size_x.eval_px(ctx);
 		if (!w)
 			w = 640;
@@ -545,27 +552,79 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			<< style_spacing->first.to_arg(ctx.unit) << ", " << style_spacing->second.to_arg(ctx.unit) << " });\n";
 	}
 
-	if ((flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
+	if (kind != MainWindow && (flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
 	{
 		os << ctx.ind << "ImGui::SetNextWindowSize({ " 
 			<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
 			<< "ImGuiCond_FirstUseEver);\n";
 	}
 
-	if (ctx.inPopup)
+	if (kind == MainWindow)
 	{
-		if (kind == ModalPopup)
+		os << ctx.ind << "glfwSetWindowTitle(window, " << title.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
+		if (!(flags & ImGuiWindowFlags_AlwaysAutoResize)) 
 		{
-			os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
-			os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
-			os << ctx.ind << "bool tmpOpen = true;\n";
-			os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
+			os << ctx.ind << "int tmpWidth, tmpHeight;\n";
+			os << ctx.ind << "glfwGetWindowSize(window, &tmpWidth, &tmpHeight);\n";
+			os << ctx.ind << "ImGui::SetNextWindowSize({ (float)tmpWidth, (float)tmpHeight });\n";
+		}
+		
+		flags_helper fl = flags;
+		fl |= ImGuiWindowFlags_NoDecoration; 
+		fl |= ImGuiWindowFlags_NoSavedSettings;
+		os << ctx.ind << "bool tmpOpen;\n";
+		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+		
+		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		{
+			os << ctx.ind << "if (ImGui::IsWindowAppearing())\n" << ctx.ind << "{\n";
+			ctx.ind_up();
+			//to prevent edge at right/bottom border
+			os << ctx.ind << "ImGui::GetStyle().DisplaySafeAreaPadding = { 0, 0 };\n";
+			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_RESIZABLE, false);\n";
+			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_DECORATED, "
+				<< std::boolalpha << !(flags & ImGuiWindowFlags_NoTitleBar) << ");\n";
+			ctx.ind_down();
+			os << ctx.ind << "}\n";
+
+			os << ctx.ind << "ImVec2 csize = ImGui::GetCurrentWindow()->ContentSize;\n";
+			os << ctx.ind << "csize.x += 2 * ImGui::GetStyle().WindowPadding.x;\n";
+			os << ctx.ind << "csize.y += 2 * ImGui::GetStyle().WindowPadding.y;\n";
+			os << ctx.ind << "glfwSetWindowSize(window, (int)csize.x, (int)csize.y);\n";
 		}
 		else
 		{
-			os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << flags.to_arg() << "))\n";
+			os << ctx.ind << "if (ImGui::IsWindowAppearing())\n" << ctx.ind << "{\n";
+			ctx.ind_up();
+			if (maximized)
+				os << ctx.ind << "glfwMaximizeWindow(window);\n";
+			else
+				os << ctx.ind << "glfwSetWindowSize(window, (int)" << size_x.to_arg(ctx.unit)
+				<< ", (int)" << size_y.to_arg(ctx.unit) << ");\n";
+			
+			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_RESIZABLE, "
+				<< std::boolalpha << !(flags & ImGuiWindowFlags_NoResize) << ");\n";
+			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_DECORATED, "
+				<< std::boolalpha << !(flags & ImGuiWindowFlags_NoTitleBar) << ");\n";
+			ctx.ind_down();
+			os << ctx.ind << "}\n";
 		}
-
+	}
+	else if (kind == Window)
+	{
+		os << ctx.ind << "if (isOpen && ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+	}
+	else if (kind == ModalPopup)
+	{
+		os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
+		os << ctx.ind << "bool tmpOpen = true;\n";
+		os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		os << ctx.ind << "if (requestClose)\n";
@@ -573,24 +632,32 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
 		ctx.ind_down();
 	}
-	else
+	else if (kind == Popup)
 	{
-		os << ctx.ind << "if (isOpen && ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
+		os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
+		os << ctx.ind << "if (requestClose)\n";
+		ctx.ind_up();
+		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
+		ctx.ind_down();
 	}
+	
 	os << ctx.ind << "/// @separator\n\n";
-	os << ctx.ind << "// TODO: Add Draw calls of dependant popup windows here\n\n";
+	
+	//at next import comment becomes userCode
+	if (children.empty() || children[0]->userCode.empty())
+		os << ctx.ind << "// TODO: Add Draw calls of dependant popup windows here\n\n";
 
 	for (const auto& ch : children)
 		ch->Export(os, ctx);
-
+		
 	if (ctx.groupLevel)
 		ctx.errors.push_back("missing EndGroup");
 
 	os << ctx.ind << "/// @separator\n";
 	
-	if (ctx.inPopup)
+	if (kind == Popup || kind == ModalPopup)
 	{
 		os << ctx.ind << "ImGui::EndPopup();\n";
 		ctx.ind_down();
@@ -622,7 +689,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.userCode = "";
 	ctx.root = this;
 	ctx.parents = { this };
-
+	
 	while (sit != cpp::stmt_iterator())
 	{
 		if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
@@ -684,6 +751,37 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				size_y.set_from_arg(size.second);
 			}
 		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowTitle")
+		{
+			if (sit->params.size() >= 2)
+				title.set_from_arg(sit->params[1]);
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSize" && 
+			sit->level == ctx.importLevel + 2) //in IsWindowAppearing only
+		{
+			if (sit->params.size() >= 3) {
+				size_x.set_from_arg(sit->params[1]);
+				size_y.set_from_arg(sit->params[2]);
+			}
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwMaximizeWindow")
+		{
+			maximized = true;
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowAttrib"
+			&& sit->params.size() >= 3)
+		{
+			if (sit->params[1] == "GLFW_RESIZABLE") {
+				bool resizable = sit->params[2] != "false";
+				if (!resizable && !(flags & ImGuiWindowFlags_AlwaysAutoResize))
+					flags |= ImGuiWindowFlags_NoResize;
+			}
+			else if (sit->params[1] == "GLFW_DECORATED") {
+				bool decorated = sit->params[2] != "false";
+				if (!decorated)
+					flags |= ImGuiWindowFlags_NoTitleBar;
+			}
+		}
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
 			sit->callee == "ImGui::BeginPopupModal")
 		{
@@ -718,6 +816,19 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
+		}
+		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
+		{
+			kind = MainWindow;
+			ctx.importLevel = sit->level;
+			//reset sizes from earlier SetNextWindowSize
+			TopWindow def(ctx);
+			size_x = def.size_x;
+			size_y = def.size_y;
+			if (sit->params.size() >= 3) {
+				flags.set_from_arg(sit->params[2]);
+				flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
+			}
 		}
 		++sit;
 	}
@@ -765,11 +876,14 @@ TopWindow::Properties()
 		{ "title", &title, true },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
+		{ "maximized", nullptr },
 	};
 }
 
 bool TopWindow::PropertyUI(int i, UIContext& ctx)
 {
+	if (kind != MainWindow && i >= 8)
+		return false;
 	bool changed = false;
 	switch (i)
 	{
@@ -780,7 +894,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		int tmp = (int)kind;
-		if (ImGui::Combo("##kind", &tmp, "Window\0Popup\0Modal Popup\0"))
+		if (ImGui::Combo("##kind", &tmp, "Main Window (GLFW)\0Window\0Popup\0Modal Popup\0"))
 		{
 			changed = true;
 			kind = (Kind)tmp;
@@ -867,7 +981,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 6:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
-		ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && maximized));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::EndDisabled();
@@ -875,10 +989,16 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 7:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
-		ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && maximized));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::EndDisabled();
+		break;
+	case 8:
+		ImGui::Text("maximized");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##maximized", &maximized);
 		break;
 	default:
 		return false;
@@ -5023,16 +5143,9 @@ void Child::DoDraw(UIContext& ctx)
 		sz.x = 30;
 	if (!sz.y && children.empty())
 		sz.y = 30;
-	//very weird - using border controls window padding
-	ImGui::BeginChild("", sz, border); 
-	//draw border for visual distinction
-	//not needed - hovered item gets highlited anyway
-	/*if (!border && !styleBg.has_value()) {
-		ImDrawList* dl = ImGui::GetWindowDrawList();
-		auto clr = ImGui::GetStyle().Colors[ImGuiCol_Border];
-		dl->AddRect(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr), 0, 0, 1);
-	}*/
-
+	
+	ImGui::BeginChild("", sz, border, ImGuiWindowFlags_AlwaysUseWindowPadding); 
+	
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
 		ImGui::Columns(columnCount.value(), "columns", columnBorder);
@@ -5060,7 +5173,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "ImGui::BeginChild(\"child" << (uint64_t)this << "\", "
 		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
-		<< std::boolalpha << border
+		<< std::boolalpha << border << ", ImGuiWindowFlags_AlwaysUseWindowPadding"
 		<< ");\n";
 	os << ctx.ind << "{\n";
 	ctx.ind_up();

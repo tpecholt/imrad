@@ -2,11 +2,11 @@
 #include <string>
 #include <vector>
 #include <functional>
-#include <imgui.h>
 #include <fstream> //Save/LoadStyle
-#include <iomanip>
+#include <iomanip> //std::quoted
 #include <sstream> 
 #include <map>
+#include <imgui.h>
 #include <imgui_internal.h> //for CurrentItemFlags
 #include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
 
@@ -14,11 +14,13 @@
 #include <fmt/format.h>
 #endif
 
-#ifdef IMRAD_WITH_GLFW_TEXTURE
-#include <stb_image.h> //for LoadTextureFromFile
-#include <GLFW/glfw3.h> //for LoadTextureFromFile
+#ifdef IMRAD_WITH_GLFW
+#include <GLFW/glfw3.h> //enables kind=MainWindow
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
+#endif
+#ifdef IMRAD_WITH_STB
+#include <stb_image.h> //for LoadTextureFromFile
 #endif
 #endif
 
@@ -176,7 +178,7 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 }
 
 
-#ifdef IMRAD_WITH_GLFW_TEXTURE
+#if defined (IMRAD_WITH_GLFW) && defined(IMRAD_WITH_STB)
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
 inline Texture LoadTextureFromFile(std::string_view filename)

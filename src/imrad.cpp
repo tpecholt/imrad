@@ -744,14 +744,20 @@ void ToolbarUI()
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
 	if (ImGui::BeginPopup("NewMenu"))
 	{
+		if (ImGui::MenuItem(ICON_FA_TV " Main Window (GLFW)"))
+			NewFile(TopWindow::MainWindow);
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+			ImGui::SetTooltip("ImGui window integrated into OS window (GLFW)");
 		if (ImGui::MenuItem(ICON_FA_WINDOW_MAXIMIZE " Window"))
 			NewFile(TopWindow::Window);
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+			ImGui::SetTooltip("Floating ImGui window");
 		if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE " Popup"))
 			NewFile(TopWindow::Popup);
 		if (ImGui::MenuItem(ICON_FA_TABLET_SCREEN_BUTTON " Modal Popup"))
 			NewFile(TopWindow::ModalPopup);
 		ImGui::Separator();
-		if (ImGui::MenuItem(ICON_FA_FILE_PEN " GLFW template", "\tmain.cpp"))
+		if (ImGui::MenuItem(ICON_FA_FILE_PEN " main.cpp (GLFW)"))
 			NewTemplate(0);
 
 		ImGui::EndPopup();
@@ -937,13 +943,6 @@ void TabsUI()
 		| ImGuiWindowFlags_NoScrollbar
 		//| ImGuiWindowFlags_NoSavedSettings
 		;
-	/*bool tmp;
-	ImGui::Begin("Moje.cpp", &tmp, window_flags);
-	ImGui::End();
-	ImGui::DockBuilderDockWindow("Tvoje.cpp", dock_id_top);
-	ImGui::Begin("Tvoje.cpp", &tmp, window_flags);
-	ImGui::End();
-	*/
 	bool notClosed = true;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 0.0f));
 	ImGuiWindowClass window_class;
@@ -974,8 +973,10 @@ void TabsUI()
 				auto max = ImGui::GetItemRectMax();
 				ctx.wpos.x = min.x + 20;
 				ctx.wpos.y = max.y + 20;
-				//const auto* viewport = ImGui::GetMainViewport();
-				//ctx.wpos = viewport->GetCenter() + ImVec2(min.x, max.y) / 2;
+				const ImGuiWindow* win = ImGui::GetCurrentWindow();
+				const auto* viewport = ImGui::GetMainViewport();
+				ctx.wpos2.x = win->Pos.x + win->Size.x - 20;
+				ctx.wpos2.y = viewport->Pos.y + viewport->Size.y - 20;
 			}
 			if (!notClosed ||
 				(i == activeTab && ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))

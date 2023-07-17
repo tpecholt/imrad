@@ -8,11 +8,20 @@
 #ifdef IMGUI_IMPL_OPENGL_ES2
 #include <GLES2/gl2.h>
 #endif
+#ifndef IMRAD_WITH_GLFW
+#error Please recompile with IMRAD_WITH_GLFW to unlock all features such as GLFW MainWindow
+#endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-//must come last:
-//#define STB_IMAGE_IMPLEMENTATION
-//#include <stb_image.h>
+//TODO: add your includes here
+
+//must come last
+#ifdef IMRAD_WITH_STB
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#endif
+
+GLFWwindow* window;
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -58,12 +67,12 @@ int main(int argc, const char* argv[])
 #endif
 
 	// Create window with graphics context
-	GLFWwindow* window = glfwCreateWindow(1280, 720, "Test", NULL, NULL);
+	window = glfwCreateWindow(1280, 720, "Test", NULL, NULL);
 	if (window == NULL)
 		return 1;
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
-	glfwMaximizeWindow(window);
+	//glfwMaximizeWindow(window);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();

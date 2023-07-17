@@ -56,8 +56,8 @@ private:
 	auto ImportCode(std::istream& in, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	bool ParseFieldDecl(const std::string& stype, const std::vector<std::string>& line, int flags);
-	auto IsMemFun(const std::vector<std::string>& line, const std::string& cname)->std::string;
-	auto IsMemFun0(const std::vector<std::string>& line, const std::string& cname) -> std::string;
+	auto IsMemFun(const std::vector<std::string>& line)->std::string;
+	bool IsMemDrawFun(const std::vector<std::string>& line);
 	auto ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	std::map<std::string, std::vector<Var>> m_fields;
