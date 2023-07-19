@@ -9,7 +9,20 @@
 
 namespace cpp
 {
+	inline const std::string INVALID_TEXT = "???";
 	
+	inline bool is_id(std::string_view s)
+	{
+		if (s.empty())
+			return false;
+		if (!std::isalpha(s[0]) && s[0] != '_')
+			return false;
+		for (size_t i = 1; i < s.size(); ++i)
+			if (!std::isalnum(s[i]) && s[i] != '_')
+				return false;
+		return true;
+	}
+
 	struct token_iterator
 	{
 		token_iterator()
@@ -262,6 +275,7 @@ namespace cpp
 				++iter;
 			tokens.clear();
 			int parenthesis = 0;
+			int eat_level = 0;
 			while (iter != token_iterator()) 
 			{
 				if (iter.get_line_mode()) {
@@ -278,15 +292,31 @@ namespace cpp
 					++iter;
 				}
 				else if (*iter == "{" && !parenthesis) {
-					if (!tokens.empty()) {
+					if (!tokens.empty() && is_id(tokens.back())) {
+						tokens.push_back(*iter);
+						eat_level = ++data.level;
+						++iter;
+					}
+					else if (!tokens.empty()) {
 						parse(true);
 						break;
 					}
-					++data.level;
-					++iter;
+					else {
+						++data.level;
+						++iter;
+					}
 				}
 				else if (*iter == "}" && !parenthesis) {
-					if (!tokens.empty()) {
+					if (eat_level) {
+						--data.level;
+						tokens.push_back(*iter);
+						++iter;
+						if (data.level < eat_level) {
+							parse(false);
+							break;
+						}
+					}
+					else if (!tokens.empty()) {
 						parse(false);
 						break;
 					}
@@ -329,7 +359,13 @@ namespace cpp
 				data.line = tokens[0];
 			}
 			else if (!parse_stmt(block)) {
-				data.line = stx::join(tokens, "");
+				data.line = tokens[0];
+				for (size_t i = 1; i < tokens.size(); ++i) {
+					if ((data.line.back() == '_' || !std::ispunct(data.line.back())) &&
+						(tokens[i][0] == '_' || !std::ispunct(tokens[i][0])))
+						data.line += " ";
+					data.line += tokens[i];
+				}
 			}
 		}
 		bool parse_stmt(bool block)
@@ -451,18 +487,6 @@ namespace cpp
 	inline bool is_cstr(std::string_view s)
 	{
 		return s.size() >= 2 && s[0] == '"' && s.back() == '"';
-	}
-
-	inline bool is_id(std::string_view s)
-	{
-		if (s.empty())
-			return false;
-		if (!std::isalpha(s[0]) && s[0] != '_')
-			return false;
-		for (size_t i = 1; i < s.size(); ++i)
-			if (!std::isalnum(s[i]) && s[i] != '_')
-				return false;
-		return true;
 	}
 
 	inline bool is_builtin(std::string_view s)
@@ -683,7 +707,7 @@ namespace cpp
 			return str;
 		}
 		else
-			return "???";
+			return INVALID_TEXT;
 	}
 
 	inline std::string to_str_arg(std::string_view str)

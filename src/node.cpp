@@ -364,6 +364,8 @@ TopWindow::TopWindow(UIContext& ctx)
 	flags.add$(ImGuiWindowFlags_NoTitleBar);
 	flags.add$(ImGuiWindowFlags_NoResize);
 	flags.add$(ImGuiWindowFlags_NoMove);
+	flags.add$(ImGuiWindowFlags_NoScrollbar);
+	flags.add$(ImGuiWindowFlags_NoScrollWithMouse);
 	flags.add$(ImGuiWindowFlags_NoCollapse);
 	flags.add$(ImGuiWindowFlags_AlwaysAutoResize);
 	flags.add$(ImGuiWindowFlags_NoBackground);
@@ -516,6 +518,8 @@ void TopWindow::Draw(UIContext& ctx)
 void TopWindow::Export(std::ostream& os, UIContext& ctx)
 {
 	ctx.groupLevel = 0;
+	ctx.varCounter = 1;
+	ctx.parents = { this };
 	ctx.inPopup = kind == Popup || kind == ModalPopup;
 	ctx.errors.clear();
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
@@ -582,7 +586,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		{
 			os << ctx.ind << "if (ImGui::IsWindowAppearing())\n" << ctx.ind << "{\n";
 			ctx.ind_up();
-			//to prevent edge at right/bottom border
+			//to prevent edge at right/bottom border. Not sure why ImGui needs it
 			os << ctx.ind << "ImGui::GetStyle().DisplaySafeAreaPadding = { 0, 0 };\n";
 			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_RESIZABLE, false);\n";
 			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_DECORATED, "
@@ -602,8 +606,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			if (maximized)
 				os << ctx.ind << "glfwMaximizeWindow(window);\n";
 			else
-				os << ctx.ind << "glfwSetWindowSize(window, (int)" << size_x.to_arg(ctx.unit)
-				<< ", (int)" << size_y.to_arg(ctx.unit) << ");\n";
+				os << ctx.ind << "glfwSetWindowSize(window, " << size_x.to_arg(ctx.unit)
+				<< ", " << size_y.to_arg(ctx.unit) << ");\n";
 			
 			os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_RESIZABLE, "
 				<< std::boolalpha << !(flags & ImGuiWindowFlags_NoResize) << ");\n";
@@ -621,8 +625,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == ModalPopup)
 	{
-		os << ctx.ind << "ImVec2 center = ImGui::GetMainViewport()->GetCenter();\n";
-		os << ctx.ind << "ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
 		os << ctx.ind << "bool tmpOpen = true;\n";
 		os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
@@ -1922,8 +1925,11 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TextUnformatted")
 	{
-		if (sit->params.size() >= 1)
-			text = cpp::parse_str_arg(sit->params[0]);
+		if (sit->params.size() >= 1) {
+			text.set_from_arg(sit->params[0]);
+			if (text.value() == cpp::INVALID_TEXT)
+				ctx.errors.push_back("Text: unable to parse text");
+		}
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 	{
@@ -2134,8 +2140,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::Selectable") ||
 		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Selectable")) //compatibility
 	{
-		if (sit->params.size() >= 1)
+		if (sit->params.size() >= 1) {
 			label.set_from_arg(sit->params[0]);
+			if (label.value() == cpp::INVALID_TEXT)
+				ctx.errors.push_back("Selectable: unable to parse label");
+		}
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
 			fieldName.set_from_arg(sit->params[1].substr(1));
 		if (sit->params.size() >= 3)
@@ -4969,13 +4978,15 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	}
 
 	os << ctx.ind << "if (ImGui::BeginTable("
-		<< "\"table" << (uint64_t)this << "\", " 
+		<< "\"table" << ctx.varCounter << "\", " 
 		<< columnData.size() << ", " 
 		<< flags.to_arg() << ", "
 		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }"
 		<< "))\n"
 		<< ctx.ind << "{\n";
 	ctx.ind_up();
+
+	++ctx.varCounter;
 
 	for (const auto& cd : columnData)
 	{
@@ -5129,13 +5140,20 @@ std::unique_ptr<Widget> Child::Clone(UIContext& ctx)
 	return sel;
 }
 
+bool Child::IsFirstItem(UIContext& ctx)
+{
+	const auto* parent = ctx.parents[ctx.parents.size() - 2];
+	for (const auto& child : parent->children) {
+		if (child.get() == this)
+			return true;
+		if (child->SnapBehavior() & SnapSides)
+			return false;
+	}
+	return false;
+}
+
 void Child::DoDraw(UIContext& ctx)
 {
-	if (!style_padding)
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	if (style_bg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
-
 	ImVec2 sz;
 	sz.x = size_x.eval_px(ctx);
 	sz.y = size_y.eval_px(ctx);
@@ -5143,9 +5161,37 @@ void Child::DoDraw(UIContext& ctx)
 		sz.x = 30;
 	if (!sz.y && children.empty())
 		sz.y = 30;
-	
+
+	if (!style_outer_padding) 
+	{
+		ImRect r = ImGui::GetCurrentWindow()->InnerRect;
+		ImGui::PushClipRect(r.Min, r.Max, false);
+		ImVec2 pos = ImGui::GetCursorScreenPos();
+		if (!sameLine && !nextColumn) {
+			/*if (sz.x > 0)
+				sz.x += pos.x - win->InnerRect.Min.x;*/
+			pos.x = r.Min.x;
+		}
+		if (IsFirstItem(ctx)) {
+			/*if (sz.y > 0)
+				sz.y += pos.y - win->InnerRect.Min.y;*/
+			pos.y = r.Min.y;
+		}
+		ImGui::SetNextWindowPos(pos);
+		//+1 here is to exactly map sz=-1 to right/bottom edge
+		if (sz.x < 0)
+			sz.x = r.Max.x + sz.x + 1 - pos.x;
+		if (sz.y < 0)
+			sz.y = r.Max.y + sz.y + 1 - pos.y;
+	}
+	if (!style_padding)
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	if (style_bg.has_value())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
+
 	ImGui::BeginChild("", sz, border, ImGuiWindowFlags_AlwaysUseWindowPadding); 
-	
+	auto* win = ImGui::GetCurrentWindow();
+
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
 		ImGui::Columns(columnCount.value(), "columns", columnBorder);
@@ -5162,6 +5208,14 @@ void Child::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (!style_padding)
 		ImGui::PopStyleVar();
+	if (!style_outer_padding)
+		ImGui::PopClipRect();
+}
+
+void Child::CalcSizeEx(ImVec2 p1, UIContext& ctx)
+{
+	cached_pos = ImGui::GetItemRectMin();
+	cached_size = ImGui::GetItemRectSize();
 }
 
 void Child::DoExport(std::ostream& os, UIContext& ctx)
@@ -5170,13 +5224,54 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
+	
+	if (!style_outer_padding)
+	{
+		std::string rvar = "r" + std::to_string(ctx.varCounter);
+		std::string posvar = "pos" + std::to_string(ctx.varCounter);
+		std::string szvar = "sz" + std::to_string(ctx.varCounter);
+		os << ctx.ind << "ImVec2 " << szvar << "{ "
+			<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " };\n";
+		os << ctx.ind << "ImRect " << rvar << " = ImGui::GetCurrentWindow()->InnerRect;\n";
+		os << ctx.ind << "ImGui::PushClipRect(" << rvar << ".Min, " << rvar << ".Max, false);\n";
+		os << ctx.ind << "ImVec2 " << posvar << "{ ";
+		if (!sameLine && !nextColumn)
+			os << rvar << ".Min.x";
+		else
+			os << "ImGui::GetCursorScreenPos().x";
+		os << ", ";
+		if (IsFirstItem(ctx))
+			os << rvar << ".Min.y";
+		else
+			os << "ImGui::GetCursorScreenPos().y";
+		os << " };\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos(" << posvar << ");\n";
+		os << ctx.ind << "if (" << szvar << ".x < 0)\n";
+		ctx.ind_up();
+		os << ctx.ind << szvar << ".x = " << rvar << ".Max.x + " << szvar << ".x + 1 - " << posvar << ".x;\n";
+		ctx.ind_down();
+		os << ctx.ind << "if (" << szvar << ".y < 0)\n";
+		ctx.ind_up();
+		os << ctx.ind << szvar << ".y = " << rvar << ".Max.y + " << szvar << ".y + 1 - " << posvar << ".y;\n\n";
+		ctx.ind_down();
+		
+		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
+			<< szvar << ", "
+			<< std::boolalpha << border << ", ImGuiWindowFlags_AlwaysUseWindowPadding"
+			<< ");\n";
+	}
+	else
+	{
+		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
+			<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
+			<< std::boolalpha << border << ", ImGuiWindowFlags_AlwaysUseWindowPadding"
+			<< ");\n";
+	}
 
-	os << ctx.ind << "ImGui::BeginChild(\"child" << (uint64_t)this << "\", "
-		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
-		<< std::boolalpha << border << ", ImGuiWindowFlags_AlwaysUseWindowPadding"
-		<< ");\n";
 	os << ctx.ind << "{\n";
 	ctx.ind_up();
+
+	++ctx.varCounter;
 
 	bool hasColumns = !columnCount.has_value() || columnCount.value() >= 2;
 	if (hasColumns) {
@@ -5212,6 +5307,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
+	if (!style_outer_padding)
+		os << ctx.ind << "ImGui::PopClipRect();\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_padding)
@@ -5233,16 +5330,26 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				style_padding = false;
 		}
 	}
+	else if (sit->kind == cpp::Other && !sit->line.compare(0, 9, "ImVec2 sz"))
+	{
+		style_outer_padding = false;
+		size_t i = sit->line.find('{');
+		auto size = cpp::parse_size(sit->line.substr(i));
+		size_x.set_from_arg(size.first);
+		size_y.set_from_arg(size.second);
+	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginChild")
 	{
 		if (sit->params.size() >= 2) {
 			auto size = cpp::parse_size(sit->params[1]);
-			size_x.set_from_arg(size.first);
-			size_y.set_from_arg(size.second);
+			if (size.first != "" && size.second != "") {
+				size_x.set_from_arg(size.first);
+				size_y.set_from_arg(size.second);
+			}
 		}
 
 		if (sit->params.size() >= 3)
-			border = sit->params[2] == "true";
+			border = sit->params[2] != "false";
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
 	{
@@ -5267,6 +5374,7 @@ Child::Properties()
 	props.insert(props.begin(), {
 		{ "style.color", &style_bg },
 		{ "style.padding", &style_padding },
+		{ "style.outer_padding", &style_outer_padding },
 		{ "child.border", &border },
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
@@ -5296,11 +5404,16 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##padding", style_padding.access()) || changed;
 		break;
 	case 2:
+		ImGui::Text("outerPadding");
+		ImGui::TableNextColumn();
+		changed = ImGui::Checkbox("##outerPadding", style_outer_padding.access()) || changed;
+		break;
+	case 3:
 		ImGui::Text("border");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##border", border.access());
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("columnCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5308,19 +5421,19 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("columnCount", &columnCount, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("columnBorder");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##columnBorder", columnBorder.access());
 		break;
-	case 5:
+	case 6:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("itemCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##itemCount", &itemCount, true, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5328,7 +5441,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5337,7 +5450,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 8, ctx);
+		return Widget::PropertyUI(i - 9, ctx);
 	}
 	return changed;
 }
@@ -5402,10 +5515,11 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 	
-	os << ctx.ind << "ImGui::BeginChild(\"child" << (uint64_t)this << "\""
+	os << ctx.ind << "ImGui::BeginChild(\"splitter" << ctx.varCounter << "\""
 		<< ", { " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) 
 		<< " });\n" << ctx.ind << "{\n";
 	ctx.ind_up();
+	++ctx.varCounter;
 	
 	os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);\n";
 	os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_SeparatorHovered, 0x00000000);\n";
@@ -5877,11 +5991,11 @@ void TabBar::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 {
-	std::string name = "tabBar" + std::to_string((uintptr_t)this);
-	os << ctx.ind << "if (ImGui::BeginTabBar(\"" << name << "\", "
+	os << ctx.ind << "if (ImGui::BeginTabBar(\"tabBar" << ctx.varCounter << "\", "
 		<< flags.to_arg() << "))\n";
 	os << ctx.ind << "{\n";
-	
+	++ctx.varCounter;
+
 	ctx.ind_up();
 	if (!tabCount.empty())
 	{

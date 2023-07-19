@@ -55,6 +55,7 @@ struct UIContext
 	float unitFactor = 1; //for dimension value scaling
 	ImVec2 selStart, selEnd;
 	std::string ind;
+	int varCounter;
 	std::vector<std::string> errors;
 
 	//convenience
@@ -458,6 +459,7 @@ struct Child : Widget
 	direct_val<bool> columnBorder = true;
 	field_ref<size_t> itemCount;
 	direct_val<bool> style_padding = true;
+	direct_val<bool> style_outer_padding = true;
 	bindable<color32> style_bg;
 	
 	Child(UIContext& ctx);
@@ -469,6 +471,8 @@ struct Child : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_SQUARE_FULL; }
+	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	bool IsFirstItem(UIContext& ctx);
 };
 
 struct CollapsingHeader : Widget
