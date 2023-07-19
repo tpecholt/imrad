@@ -10,10 +10,16 @@ ImRAD runs on Windows and Linux.
 
 ImRAD is under active development but these are the main features:
 
-* supports wide range of widgets (WIP)
+* supports designing all kinds of ImGui windows
+  * floating windows, popups and modal popups. These are ImGui backend independent
+  * MainWindow with GLFW integration. ImRAD generates GLFW calls which will synchronize ImGui window with its OS window (title bar, resizability flags, autosize etc.)
+  * contains a GLFW template for generating generic `main.cpp`
+  
+* supports wide range of widgets
   
   * basic widgets like `Text`, `Checkbox`, `Combo`, `Button`, `Slider`, `ColorEdit` etc.
-  * container widgets like `Child`, `Table`, `CollapsingHeader`, `TreeNode`, `TabBar`
+  * container widgets like `Child`, `Table`, `CollapsingHeader`, `TreeNode`, `TabBar`,
+  * more exotic widgets such as `Splitter`
   * `MenuBar` editing
   * `CustomWidget` (a placeholder to user code)
 
@@ -33,20 +39,20 @@ ImRAD is under active development but these are the main features:
   * for example modal dialog will generate `OpenPopup` member function with a lambda callback called when dialog is closed
   * event handlers allow event handling user code to be separated from the generated part so the designer still works
 
+* generated code is delimited by comment markers and user is free to add additional code around and continue to use ImRAD at the same time
+  
+  * this can be used to call dependent popup Draw calls or to calculate some variables
+  * it is also possible to use `CustomWidget` which will just call to a user code callback
+
 * target window style is fully configurable
-  * colors, style variables and used fonts can be configured via INI file in the `style` folder
+  * apart from default styles provided by ImGui user can define new style and save it as an INI file under the `style` folder. Colors, style variables and used fonts can all be configured.
   * ImRAD will follow style settings when designing your UI
   * stored style can be loaded in your app by using simple `imrad.h` function  
 
-* generated code is delimited by comment markers and user is free to add additional code around and continue to use ImRAD at the same time
-  
-  * advanced widget positioning can be implemented this way - see the calculator example (todo)
-  * it is also possible to use `CustomWidget` which will just call to a user code callback
-
 * generated code is ready to use in your project and depends only on ImGui library and one accompanying header file (imrad.h)
-  
-  * for Image widget imrad.h takes an optional dependency to stb and GLFW libraries. This can be activated by defining `IMRAD_WITH_GLFW_TEXTURE` project wide
-  * you are free to supply your own texture loading code if you target different backed
+
+  * some features such as MainWindow or Image widget require GLFW dependency. Compile your code with `IMRAD_WITH_GLFW` to activate it
+  * currently Image widget requires stb library as well. Compile your code with `IMRAD_WITH_STB` or supply your own `LoadTextureFromFile()`
   * optional support for the popular `fmt` library can be activated by defining `IMRAD_WITH_FMT`. This will allow you to use formating flags throughout all string properties  
 
 * ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
@@ -70,7 +76,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 ## Windows
 1. Use CMake GUI to configure and generate sln file
 2. Open the generated sln file in Visual Studio 2017 or newer (you can use Express or Community editions which are downloadable for free)
-3. Build the INSTALL project
+3. Build the INSTALL project in Release mode
 4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
 
 ## Linux
