@@ -16,7 +16,20 @@ struct dimension
 	dimension(float v = 0) : value(v) {}
 	dimension& operator= (float v) { value = v; return *this; }
 	operator float& () { return value; }
-	operator const float () const { return value; }
+	operator const float& () const { return value; }
+};
+
+struct dimension2
+{
+	ImVec2 value;
+	dimension2(ImVec2 v = {}) : value(v) {}
+	dimension2& operator= (ImVec2 v) { value = v; return *this; }
+	operator ImVec2& () { return value; }
+	operator const ImVec2& () const { return value; }
+	float& operator[] (int i) { return value[i]; }
+	const float operator[] (int i) const { return value[i]; } //no & as in ImVec2
+	bool operator== (ImVec2 v) const { return value[0] == v[0] && value[1] == v[1]; }
+	bool operator!= (ImVec2 v) const { return !(*this == v); }
 };
 
 struct color32
@@ -316,6 +329,64 @@ private:
 };
 
 template <>
+struct direct_val<dimension2> : property_base
+{
+	direct_val(dimension2 dim = ImVec2{-1, -1}) : val(dim) {}
+	
+	operator ImVec2&() { return val; }
+	operator const ImVec2() const { return val; }
+	float& operator[] (int i) { return val[i]; }
+	float operator[] (int i) const { return val[i]; }
+
+	bool operator== (dimension2 dv) const {
+		return val == dv;
+	}
+	bool operator!= (dimension2 dv) const {
+		return val != dv;
+	}
+	direct_val& operator= (dimension2 v) {
+		val = v;
+		return *this;
+	}
+	bool has_value() const { return val[0] >= 0 || val[1] >= 0; }
+	ImVec2 eval_px(const UIContext& ctx) const;
+
+	void set_from_arg(std::string_view s) {
+		val = cpp::parse_fsize(std::string(s));
+	}
+	std::string to_arg(std::string_view unit) const {
+		std::ostringstream os;
+		os << "{ " << val[0];
+		if (unit != "")
+			os << "*" << unit;
+		os << ", " << val[1];
+		if (unit != "")
+			os << "*" << unit;
+		os << " }";
+		return os.str();
+	}
+	std::vector<std::string> used_variables() const {
+		return {};
+	}
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{}
+	void scale_dimension(float scale)
+	{
+		if (!has_value())
+			return;
+		val = ImVec2{
+			(int)std::round(100 * val[0] * scale) / 100.f,
+			(int)std::round(100 * val[1] * scale) / 100.f
+		};
+	}
+	ImVec2* access() { return &val.value; }
+	const char* c_str() const { return nullptr; }
+
+private:
+	dimension2 val;
+};
+
+template <>
 struct direct_val<std::string> : property_base
 {
 	direct_val(const std::string& v) : val(v) {}
@@ -350,38 +421,6 @@ struct direct_val<std::string> : property_base
 private:
 	std::string val;
 };
-
-/*template <>
-struct direct_val<ImVec2> : property_base
-{
-	direct_val(const ImVec2& v) : val(v) {}
-	
-	operator ImVec2&() { return val; }
-	operator const ImVec2&() const { return val; }
-	void set_from_arg(std::string_view s) {
-		val = cpp::parse_fsize(std::string(s));
-	}
-	std::string to_arg(std::string_view) const {
-		std::ostringstream os;
-		os << "{ " << val[0] << ", " << val[1] << " }";
-		return os.str();
-	}
-	std::vector<std::string> used_variables() const {
-		return {};
-	}
-	void rename_variable(const std::string& oldn, const std::string& newn)
-	{}
-	ImVec2* access() { return &val; }
-	const char* c_str() const { return nullptr; }
-	bool operator== (const ImVec2& dv) const {
-		return val[0] == dv[0] && val[1] == dv[1];
-	}
-	bool operator!= (const ImVec2& dv) const {
-		return !(*this == dv);
-	}
-private:
-	ImVec2 val;
-};*/
 
 #define add$(f) add(#f, f)
 struct flags_helper : property_base

@@ -32,7 +32,7 @@ std::string typeid_name()
 		return "size_t";
 	else if (std::is_same_v<T, bool>)
 		return "bool";
-	else if (std::is_same_v<T, ImVec2>)
+	else if (std::is_same_v<T, ImVec2> || std::is_same_v<T, dimension2>)
 		return "ImVec2";
 	else if (std::is_same_v<T, std::vector<std::string>>)
 		return "std::vector<std::string>";

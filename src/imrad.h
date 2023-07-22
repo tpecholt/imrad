@@ -212,7 +212,7 @@ inline Texture LoadTextureFromFile(std::string_view filename)
 	return tex;
 }
 #else
-Texture LoadTextureFromFile(const std::string& filename);
+Texture LoadTextureFromFile(std::string_view filename);
 #endif
 
 //For debugging pruposes

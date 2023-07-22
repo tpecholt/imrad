@@ -23,6 +23,11 @@ float direct_val<dimension>::eval_px(const UIContext& ctx) const
 	return val * ctx.unitFactor;
 }
 
+ImVec2 direct_val<dimension2>::eval_px(const UIContext& ctx) const
+{
+	return { val[0] * ctx.unitFactor, val[1] * ctx.unitFactor };
+}
+
 float bindable<dimension>::eval_px(const UIContext& ctx) const
 {
 	if (empty())

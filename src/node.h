@@ -432,8 +432,7 @@ struct Table : Widget
 	direct_val<bool> header = true;
 	field_ref<size_t> rowCount;
 	bindable<bool> rowFilter;
-	direct_val<dimension> style_padding_x = -1.f;
-	direct_val<dimension> style_padding_y = -1.f;
+	direct_val<dimension2> style_cellPadding;
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;
@@ -458,7 +457,8 @@ struct Child : Widget
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
 	field_ref<size_t> itemCount;
-	direct_val<bool> style_padding = true;
+	direct_val<dimension2> style_padding;
+	direct_val<dimension2> style_spacing;
 	direct_val<bool> style_outer_padding = true;
 	bindable<color32> style_bg;
 	
@@ -612,8 +612,8 @@ struct TopWindow : UINode
 	bindable<dimension> size_x = 640.f;
 	bindable<dimension> size_y = 480.f;
 	std::string style_font = "";
-	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_padding;
-	std::optional<std::pair<direct_val<dimension>, direct_val<dimension>>> style_spacing;
+	direct_val<dimension2> style_padding;
+	direct_val<dimension2> style_spacing;
 	bool maximized = false;
 
 	TopWindow(UIContext& ctx);

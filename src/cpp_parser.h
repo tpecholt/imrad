@@ -802,7 +802,7 @@ error:
 			std::istringstream is(str.substr(1, str.size() - 2));
 			is >> fsize.x;
 			int c = is.get(); 
-			while (c != EOF && c != ',') //ignore suffixes like 0.5f
+			while (c != EOF && c != ',') //ignore suffixes like 0.5f and *fs
 				c = is.get();
 			is >> fsize.y;
 		}
