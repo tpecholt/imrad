@@ -55,14 +55,18 @@ struct color32
 	}
 	friend std::istream& operator>> (std::istream& is, color32& c)
 	{
-		//std::string tmp;
-		//std::getline(is, tmp);
-		if (is.get() != '0') {
+		if (is.peek() == EOF) {
 			c = color32();
 			return is;
 		}
+		if (is.get() != '0') {
+			//c = color32();
+			is.setstate(std::ios::failbit);
+			return is;
+		}
 		if (is.get() != 'x') {
-			c = color32();
+			//c = color32();
+			is.setstate(std::ios::failbit);
 			return is;
 		}
 		ImU32 cc = 0;
@@ -79,15 +83,6 @@ struct color32
 		}
 		c = cc;
 		return is;
-		/*if (is.get() != '#')
-			return is;
-		auto num = [](int c) { return c >= 'a' ? c - 'a' + 10 : c - '0'; };
-		int r = num(is.get()) * 16 + num(is.get());
-		int g = num(is.get()) * 16 + num(is.get());
-		int b = num(is.get()) * 16 + num(is.get());
-		int a = num(is.get()) * 16 + num(is.get());
-		c = IM_COL32(r, g, b, a);
-		return is;*/
 	}
 
 
@@ -841,6 +836,103 @@ struct bindable<std::vector<std::string>> : property_base
 		}
 	};
 	void scale_dimension(float) {}
+	const char* c_str() const { return str.c_str(); }
+	std::string* access() { return &str; }
+private:
+	std::string str;
+};
+
+template <>
+struct bindable<color32> : property_base
+{
+	bindable() {
+	}
+	bindable(color32 c) {
+		std::ostringstream os;
+		os << c;
+		str = os.str();
+	}
+	bool empty() const { return str.empty(); }
+	bool has_value() const {
+		if (empty())
+			return false;
+		if (has_style_color())
+			return true;
+		std::istringstream is(str);
+		color32 val;
+		if (!(is >> val))
+			return false;
+		if (is.eof())
+			return true;
+		return is.tellg() == str.size();
+	}
+	color32 value() const {
+		if (empty())
+			return {};
+		std::istringstream is(str);
+		color32 val{};
+		if (!(is >> val)) {
+			int idx = style_color();
+			if (idx >= 0) //todo: use ctx.style?
+				val = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[idx]);
+		}
+		return val;
+	}
+	bool has_style_color() const {
+		if (str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_"))
+			return false;
+		if (str.back() != ']')
+			return false;
+		return true;
+	}
+	int style_color() const {
+		if (!has_style_color())
+			return -1;
+		std::string code = str.substr(34, str.size() - 34 - 1);
+		for (int i = 0; i < ImGuiCol_COUNT; ++i)
+			if (code == ImGui::GetStyleColorName(i))
+				return i;
+		return -1;
+	}
+	void set_style_color(int i) {
+		std::ostringstream os;
+		os << "ImGui::GetStyle().Colors[ImGuiCol_" << ImGui::GetStyleColorName(i) << "]";
+		str = os.str();
+	}
+	void set_from_arg(std::string_view s) {
+		str = s;
+	}
+	std::string to_arg(std::string_view = "") const {
+		return str;
+	}
+	std::vector<std::string> used_variables() const {
+		if (empty() || has_value())
+			return {};
+		std::vector<std::string> vars;
+		size_t i = 0;
+		while (true) {
+			auto id = cpp::find_id(str, i);
+			if (id == "")
+				break;
+			vars.push_back(std::string(id));
+		}
+		return vars;
+	};
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{
+		if (empty() || has_value())
+			return;
+		std::vector<std::string> vars;
+		size_t i = 0;
+		while (true) {
+			auto id = cpp::find_id(str, i);
+			if (id == "")
+				break;
+			if (id == oldn)
+				str.replace(id.data() - str.data(), id.size(), newn);
+		}
+	}
+	void scale_dimension(float scale) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:

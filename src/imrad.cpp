@@ -67,7 +67,6 @@ int activeTab = -1;
 bool pgFocused;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 bool reloadStyle = true;
-ImGuiStyle style; 
 GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
 std::string activeButton = "";
@@ -580,14 +579,14 @@ void LoadStyle()
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
 	stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
-	style = ImGuiStyle();
+	ctx.style = ImGuiStyle();
 	
 	if (activeTab >= 0)
 	{
 		std::string styleName = fileTabs[activeTab].styleName;
 		if (styleName == "Classic")
 		{
-			ImGui::StyleColorsClassic(&style);
+			ImGui::StyleColorsClassic(&ctx.style);
 			ctx.fontNames = { "" };
 			ctx.colors = {
 				IM_COL32(255, 255, 0, 128),
@@ -600,7 +599,7 @@ void LoadStyle()
 		}
 		else if (styleName == "Light")
 		{
-			ImGui::StyleColorsLight(&style);
+			ImGui::StyleColorsLight(&ctx.style);
 			ctx.fontNames = { "" };
 			ctx.colors = {
 				IM_COL32(255, 0, 0, 255),
@@ -613,7 +612,7 @@ void LoadStyle()
 		}
 		else if (styleName == "Dark")
 		{
-			ImGui::StyleColorsDark(&style);
+			ImGui::StyleColorsDark(&ctx.style);
 			ctx.fontNames = { "" };
 			ctx.colors = {
 				IM_COL32(255, 255, 0, 128),
@@ -630,7 +629,7 @@ void LoadStyle()
 			std::map<std::string, std::string> extra;
 			try {
 				auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
-				ImRad::LoadStyle(it->second, 1.f, &style, &fontMap, &extra);
+				ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
 			}
 			catch (std::exception& e)
 			{
@@ -856,7 +855,6 @@ void ToolbarUI()
 		horizLayout.root = fileTabs[activeTab].rootNode.get();
 		HorizLayout::ExpandSelection(ctx.selected, horizLayout.root);
 		horizLayout.selected = ctx.selected;
-		horizLayout.style = &style;
 		horizLayout.ctx = &ctx;
 		horizLayout.OpenPopup();
 	}
@@ -1193,7 +1191,7 @@ void Draw()
 	
 	auto& tab = fileTabs[activeTab];
 	auto tmpStyle = ImGui::GetStyle();
-	ImGui::GetStyle() = style;
+	ImGui::GetStyle() = ctx.style;
 	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
 	ImGui::PushFont(ctx.defaultFont);
 

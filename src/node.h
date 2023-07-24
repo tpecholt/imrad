@@ -31,6 +31,7 @@ struct UIContext
 	ImFont* defaultFont = nullptr;
 	std::string unit; //for dimension export
 	bool createVars = true; //create variables etc. during contructor/Clone calls
+	ImGuiStyle style;
 
 	//snap result
 	UINode* snapParent = nullptr;

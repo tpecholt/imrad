@@ -107,89 +107,32 @@ inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, U
 
 inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& ctx)
 {
-	/*static const std::array<std::pair<const char*, color32>, 10> COLORS{ {
-		{ "red", IM_COL32(255, 77, 77, 255) },
-		{ "green", IM_COL32(40, 167, 69, 255) },
-		{ "blue", IM_COL32(24, 144, 255, 255) },
-		{ "aquamarine", IM_COL32(24, 162, 184, 255) },
-		{ "magenta", IM_COL32(204, 121, 219, 255) },
-		{ "yellow", IM_COL32(247, 189, 11, 255) },
-		{ "orange", IM_COL32(250, 128, 68, 255) },
-		{ "dark", IM_COL32(52, 58, 64, 255) },
-		{ "light", IM_COL32(108, 117, 125, 255) },
-		{ "white", IM_COL32(255, 255, 255, 255) },
-	} };
-
-	bool changed = false;
-	std::optional<color32> clr;
-	const char* str = val->c_str();
-	if (val->has_value())
-	{
-		clr = val->value();
-		auto it = stx::find_if(COLORS, [&](const auto& c) { return c.second == *clr; });
-		if (it != COLORS.end())
-			str = it->first;
-	}
-	/*if (ImGui::BeginCombo(label, str))
-	{
-		if (ImGui::Selectable(" ", val->empty()))
-		{
-			*val->access() = "";
-			changed = true;
-		}
-		for (const auto& c : COLORS)
-		{
-			auto cc = ImGui::ColorConvertU32ToFloat4(c.second);
-			ImGui::ColorButton("##color", cc, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoBorder);
-			ImGui::SameLine();
-			if (ImGui::Selectable(c.first, clr && clr == c.second))
-			{
-				*val = c.second;
-				changed = true;
-			}
-		}
-		ImGui::EndCombo();
-	}*/
-
 	auto nextData = ImGui::GetCurrentContext()->NextItemData; //copy
-	color32 color = val->has_value() ? val->value() : color32();
+	int styleClr = val->style_color();
+	ImVec4 buttonClr = styleClr >= 0 ? ctx.style.Colors[styleClr] :
+		val->has_value() ? ImGui::ColorConvertU32ToFloat4(val->value()) :
+		ImGui::GetStyle().Colors[ImGuiCol_WindowBg]; //clear background
 	static std::string lastColor; //could be bound
 	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-	ImVec4 clr = color ? ImGui::ColorConvertU32ToFloat4(color) : ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
-	if (ImGui::ColorButton(label, clr, ImGuiColorEditFlags_NoTooltip))
+	if (ImGui::ColorButton(label, buttonClr, ImGuiColorEditFlags_NoTooltip))
 	{
 		lastColor = val->c_str();
 		ImGui::OpenPopup(label);
 	}
 	ImGui::PopStyleColor();
+	
+	ImGui::SameLine();
+	ImVec2 sz{ 0, 0 };
 	if (nextData.Flags & ImGuiNextItemDataFlags_HasWidth)
 	{
-		ImGui::SameLine(0, 0);
-		float w = nextData.Width;
-		if (w < 0)
-			w += ImGui::GetContentRegionAvail().x;
-		ImGui::Dummy({ w, 1 });
+		sz.x = nextData.Width;
+		if (sz.x < 0)
+			sz.x += ImGui::GetContentRegionAvail().x;
 	}
+	std::string clrName = styleClr >= 0 ? ImGui::GetStyleColorName(styleClr) : val->c_str();
+	ImGui::Selectable(clrName.c_str(), false, ImGuiSelectableFlags_Disabled, sz);
 
 	static color32 COLORS[]{
-		/*IM_COL32(0, 0, 0, 255),
-		IM_COL32(80, 80, 80, 255),
-		IM_COL32(192, 192, 192, 255),
-		IM_COL32(255, 255, 255, 255),
-		IM_COL32(0, 0, 128, 255),
-		IM_COL32(0, 0, 255, 255),
-		IM_COL32(0, 128, 128, 255),
-		IM_COL32(0, 255, 255, 255),
-		IM_COL32(0, 128, 0, 255),
-		IM_COL32(0, 255, 0, 255),
-		IM_COL32(128, 128, 0, 255),
-		IM_COL32(255, 255, 0, 255),
-		IM_COL32(128, 0, 0, 255),
-		IM_COL32(255, 0, 0, 255),
-		IM_COL32(128, 0, 128, 255),
-		IM_COL32(255, 0, 255, 255),
-		IM_COL32(255, 128, 64, 255),
-		IM_COL32(0, 0, 0, 0),*/
 		IM_COL32(255, 255, 255, 255),
 		IM_COL32(246, 246, 194, 255),
 		IM_COL32(202, 23, 55, 255),
@@ -218,22 +161,50 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 	};
 	bool changed = false;
 	static std::string lastOpen;
-	ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos(), ImGuiCond_Always, { 0, 0 });
-	if (ImGui::BeginPopup(label))
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
+	ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos() + ImVec2{ ImGui::GetContentRegionAvail().x, 0 }, ImGuiCond_Always, { 1, 0 });
+	if (ImGui::BeginPopup(label, ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		lastOpen = label;
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 1, 1 });
+		*val->access() = lastColor;
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5, 5 });
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
-		if (ImGui::Button("Default", { 30 * 5, 30 }))
+		if (ImGui::Button("Automatic", { -30, ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			lastColor = "";
 			*val = color32();
-			ImGui::CloseCurrentPopup();
 		}
 		if (ImGui::IsItemHovered())
 		{
 			*val = color32();
+		}
+		ImGui::SameLine(0, 0);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		int clri = val->style_color();
+		if (ImGui::BeginCombo("##cmb", "", ImGuiComboFlags_NoPreview))
+		{
+			for (int i = 0; i < ImGuiCol_COUNT; ++i)
+			{
+				auto cc = ctx.style.Colors[i];
+				auto ccc = ImGui::ColorConvertFloat4ToU32(cc);
+				ImGui::ColorButton("##color", cc, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoBorder);
+				ImGui::SameLine();
+				if (ImGui::Selectable(ImGui::GetStyleColorName(i), clri == i))
+				{
+					changed = true;
+					val->set_style_color(i);
+					lastColor = *val->access();
+					break;
+				}
+				ImRect r{ ImGui::GetItemRectMin(), ImGui::GetItemRectMax() };
+				r.Min.y -= ImGui::GetStyle().ItemSpacing.y;
+				if (r.Contains(ImGui::GetMousePos())) //more stable than IsItemHovered
+				{
+					val->set_style_color(i);
+				}
+			}
+			ImGui::EndCombo();
 		}
 		for (int i = 0; i < stx::ssize(COLORS); ++i)
 		{
@@ -244,10 +215,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 			{
 				changed = true;
 				*val = COLORS[i];
-				std::ostringstream os;
-				os << COLORS[i];
-				lastColor = os.str();
-				ImGui::CloseCurrentPopup();
+				lastColor = *val->access();
 			}
 			if (ImGui::IsItemHovered())
 			{
@@ -258,6 +226,8 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 			if ((i + 1) % 5)
 				ImGui::SameLine();
 		}
+		if (changed)
+			ImGui::CloseCurrentPopup();
 		ImGui::PopStyleVar(2);
 		ImGui::EndPopup();
 	}
@@ -267,6 +237,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, UIContext& 
 		//return last value if the current color was hovered only
 		*val->access() = lastColor;
 	}
+	ImGui::PopStyleVar();
 
 	return changed;
 }

@@ -232,8 +232,8 @@ void HorizLayout::Work()
 	auto* parent = pos->first;
 	auto* table = dynamic_cast<Table*>(parent);
 	bool existingLayout = table && !table->header && !(table->flags & ImGuiTableFlags_Borders);
-	float realPadding = padding * style->ItemSpacing.x;
-	float realSpacing = spacing * style->ItemSpacing.x;
+	float realPadding = padding * ctx->style.ItemSpacing.x;
+	float realSpacing = spacing * ctx->style.ItemSpacing.x;
 	
 	if (alignment == 0) //left alignment
 	{

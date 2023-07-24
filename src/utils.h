@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-inline const std::string VER_STR = "ImRAD 0.5";
+inline const std::string VER_STR = "ImRAD 0.6";
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 
 
