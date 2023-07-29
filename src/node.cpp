@@ -1805,13 +1805,13 @@ std::unique_ptr<Widget> Text::Clone(UIContext& ctx)
 
 void Text::DoDraw(UIContext& ctx)
 {
-	std::optional<color32> clr;
+	color32 clr;
 	if (grayed)
 		clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-	else if (style_color.has_value())
-		clr = style_color.value();
+	else 
+		clr = style_color.eval(ctx);
 	if (clr)
-		ImGui::PushStyleColor(ImGuiCol_Text, *clr);
+		ImGui::PushStyleColor(ImGuiCol_Text, clr);
 	
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
@@ -1928,7 +1928,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ctx);
+		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &style_color, ctx);
 		break;
@@ -2008,11 +2008,9 @@ std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
 
 void Selectable::DoDraw(UIContext& ctx)
 {
-	std::optional<color32> clr;
-	if (style_color.has_value())
-		clr = style_color.value();
+	color32 clr = style_color.eval(ctx);
 	if (clr)
-		ImGui::PushStyleColor(ImGuiCol_Text, *clr);
+		ImGui::PushStyleColor(ImGuiCol_Text, clr);
 
 	ImVec2 alignment(0, 0);
 	if (horizAlignment == ImRad::AlignHCenter)
@@ -2176,7 +2174,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ctx);
+		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &style_color, ctx);
 		break;
@@ -2334,12 +2332,12 @@ void Button::DoDraw(UIContext& ctx)
 {
 	if (style_rounding)
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding);
-	if (style_button.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Button, style_button.value());
-	if (style_hovered.has_value())
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, style_hovered.value());
-	if (style_text.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_text.value());
+	if (!style_button.empty())
+		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ctx));
+	if (!style_hovered.empty())
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, style_hovered.eval(ctx));
+	if (!style_text.empty())
+		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ctx));
 	
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
@@ -2356,11 +2354,11 @@ void Button::DoDraw(UIContext& ctx)
 			//ImGui::SetItemDefaultFocus();
 	}
 	
-	if (style_text.has_value())
+	if (!style_text.empty())
 		ImGui::PopStyleColor();
-	if (style_hovered.has_value())
+	if (!style_hovered.empty())
 		ImGui::PopStyleColor();
-	if (style_button.has_value())
+	if (!style_button.empty())
 		ImGui::PopStyleColor();
 	if (style_rounding)
 		ImGui::PopStyleVar();
@@ -2617,7 +2615,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("text");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_text, ctx) || changed;
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx) || changed;
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &style_text, ctx);
 		break;
@@ -2625,7 +2623,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("button");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##bg", &style_button, ctx) || changed;
+		changed = InputBindable("##bg", &style_button, ImGuiCol_Button, ctx) || changed;
 		ImGui::SameLine(0, 0);
 		BindingButton("bg", &style_button, ctx);
 		break;
@@ -2633,7 +2631,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("hovered");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##hovered", &style_hovered, ctx) || changed;
+		changed = InputBindable("##hovered", &style_hovered, ImGuiCol_ButtonHovered, ctx) || changed;
 		ImGui::SameLine(0, 0);
 		BindingButton("hovered", &style_hovered, ctx);
 		break;
@@ -2795,8 +2793,8 @@ std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
 
 void CheckBox::DoDraw(UIContext& ctx)
 {
-	if (style_color.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_color.value());
+	if (!style_color.empty())
+		ImGui::PushStyleColor(ImGuiCol_Text, style_color.eval(ctx));
 	
 	bool dummy;
 	const auto* var = ctx.codeGen->GetVar(fieldName.c_str());
@@ -2804,7 +2802,7 @@ void CheckBox::DoDraw(UIContext& ctx)
 		dummy = var->init == "true";
 	ImGui::Checkbox(label.c_str(), &dummy);
 
-	if (style_color.has_value())
+	if (!style_color.empty())
 		ImGui::PopStyleColor();
 }
 
@@ -2885,7 +2883,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ctx);
+		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &style_color, ctx);
 		break;
@@ -2972,12 +2970,12 @@ std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 
 void RadioButton::DoDraw(UIContext& ctx)
 {
-	if (style_color.has_value())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_color.value());
+	if (!style_color.empty())
+		ImGui::PushStyleColor(ImGuiCol_Text, style_color.eval(ctx));
 
 	ImGui::RadioButton(label.c_str(), valueID==0);
 
-	if (style_color.has_value())
+	if (!style_color.empty())
 		ImGui::PopStyleColor();
 }
 
@@ -3040,7 +3038,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ctx) || changed;
+		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx) || changed;
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &style_color, ctx);
 		break;
@@ -4058,15 +4056,15 @@ std::unique_ptr<Widget> ProgressBar::Clone(UIContext& ctx)
 
 void ProgressBar::DoDraw(UIContext& ctx)
 {
-	if (style_color.has_value())
-		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.value());
+	if (!style_color.empty())
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.eval(ctx));
 
 	float w = size_x.eval_px(ctx);
 	float h = size_y.eval_px(ctx);
 
 	ImGui::ProgressBar(0.5f, { w, h }, indicator ? nullptr : "");
 
-	if (style_color.has_value())
+	if (!style_color.empty())
 		ImGui::PopStyleColor();
 }
 
@@ -4133,7 +4131,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ctx) || changed;
+		changed = InputBindable("##color", &style_color, ImGuiCol_PlotHistogram, ctx) || changed;
 		break;
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -4761,12 +4759,12 @@ void Table::DoDraw(UIContext& ctx)
 {
 	if (style_cellPadding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, style_cellPadding.eval_px(ctx));
-	if (style_headerBg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.value());
-	if (style_rowBg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_TableRowBg, style_rowBg.value());
-	if (style_rowBgAlt.has_value())
-		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.value());
+	if (!style_headerBg.empty())
+		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.eval(ctx));
+	if (!style_rowBg.empty())
+		ImGui::PushStyleColor(ImGuiCol_TableRowBg, style_rowBg.eval(ctx));
+	if (!style_rowBgAlt.empty())
+		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.eval(ctx));
 
 	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ size_x.eval_px(ctx), size_y.eval_px(ctx) };
@@ -4790,11 +4788,11 @@ void Table::DoDraw(UIContext& ctx)
 
 	if (style_cellPadding.has_value())
 		ImGui::PopStyleVar();
-	if (style_headerBg.has_value())
+	if (!style_headerBg.empty())
 		ImGui::PopStyleColor();
-	if (style_rowBg.has_value())
+	if (!style_rowBg.empty())
 		ImGui::PopStyleColor();
-	if (style_rowBgAlt.has_value())
+	if (!style_rowBgAlt.empty())
 		ImGui::PopStyleColor();
 }
 
@@ -4833,19 +4831,19 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("headerBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##headerbg", &style_headerBg, ctx) || changed;
+		changed = InputBindable("##headerbg", &style_headerBg, ImGuiCol_TableHeaderBg, ctx) || changed;
 		break;
 	case 2:
 		ImGui::Text("rowBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##rowbg", &style_rowBg, ctx) || changed;
+		changed = InputBindable("##rowbg", &style_rowBg, ImGuiCol_TableRowBg, ctx) || changed;
 		break;
 	case 3:
 		ImGui::Text("rowBgAlt");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ctx) || changed;
+		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx) || changed;
 		break;
 	case 4:
 		TreeNodeProp("flags", true, [&] {
@@ -5139,8 +5137,8 @@ void Child::DoDraw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding);
 	if (style_spacing.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
-	if (style_bg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
+	if (!style_bg.empty())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
 
 	ImGui::BeginChild("", sz, border, ImGuiWindowFlags_AlwaysUseWindowPadding); 
 	auto* win = ImGui::GetCurrentWindow();
@@ -5157,7 +5155,7 @@ void Child::DoDraw(UIContext& ctx)
 		
 	ImGui::EndChild();
 
-	if (style_bg.has_value())
+	if (!style_bg.empty())
 		ImGui::PopStyleColor();
 	if (style_padding.has_value())
 		ImGui::PopStyleVar();
@@ -5353,7 +5351,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_bg, ctx);
+		changed = InputBindable("##color", &style_bg, ImGuiCol_ChildBg, ctx);
 		ImGui::SameLine(0, 0);
 		BindingButton("color", &style_bg, ctx);
 		break;
@@ -5447,8 +5445,8 @@ void Splitter::DoDraw(UIContext& ctx)
 	size.x = size_x.eval_px(ctx);
 	size.y = size_y.eval_px(ctx);
 	
-	if (style_bg.has_value())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.value());
+	if (!style_bg.empty())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
 	ImGui::BeginChild("splitter", size);
 	
 	ImGuiAxis axis = ImGuiAxis_X;
@@ -5467,7 +5465,7 @@ void Splitter::DoDraw(UIContext& ctx)
 		children[i]->Draw(ctx);
 	
 	ImGui::EndChild();
-	if (style_bg.has_value())
+	if (!style_bg.empty())
 		ImGui::PopStyleColor();
 }
 
@@ -5581,7 +5579,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("bg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##bg", &style_bg, ctx) || changed;
+		changed = InputBindable("##bg", &style_bg, ImGuiCol_ChildBg, ctx) || changed;
 		ImGui::SameLine(0, 0);
 		BindingButton("bg", &style_bg, ctx);
 		break;
@@ -5589,7 +5587,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("active");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##active", &style_active, ctx) || changed;
+		changed = InputBindable("##active", &style_active, ImGuiCol_SeparatorActive, ctx) || changed;
 		ImGui::SameLine(0, 0);
 		BindingButton("active", &style_active, ctx);
 		break;
@@ -6069,7 +6067,8 @@ std::unique_ptr<Widget> TabItem::Clone(UIContext& ctx)
 void TabItem::DoDraw(UIContext& ctx)
 {
 	bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
-	if (ImGui::BeginTabItem(label.c_str(), nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
+	bool tmp = true;
+	if (ImGui::BeginTabItem(label.c_str(), closeButton ? &tmp : nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
 	{
 		for (const auto& child : children)
 			child->Draw(ctx);
@@ -6126,17 +6125,30 @@ void TabItem::DrawExtra(UIContext& ctx)
 void TabItem::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	const ImGuiTabBar* tabBar = ImGui::GetCurrentTabBar();
-	int idx = tabBar->LastTabItemIdx;
-	const ImGuiTabItem& tab = tabBar->Tabs[idx];
 	cached_pos = tabBar->BarRect.GetTL();
-	cached_pos.x += tab.Offset;
-	cached_size.x = tab.Width;
+	cached_size.x = tabBar->BarRect.GetWidth();
 	cached_size.y = tabBar->BarRect.GetHeight();
+	int idx = tabBar->LastTabItemIdx;
+	if (idx >= 0) {
+		const ImGuiTabItem& tab = tabBar->Tabs[idx];
+		cached_pos.x += tab.Offset;
+		cached_size.x = tab.Width;
+	}
 }
 
 void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 {
-	os << ctx.ind << "if (ImGui::BeginTabItem(" << label.to_arg() << ", nullptr, ";
+	std::string var = "tmpOpen" + std::to_string(ctx.varCounter);
+	if (closeButton) {
+		os << ctx.ind << "bool " << var << " = true;\n";
+		++ctx.varCounter;
+	}
+
+	os << ctx.ind << "if (ImGui::BeginTabItem(" << label.to_arg() << ", ";
+	if (closeButton)
+		os << "&" << var << ", ";
+	else
+		os << "nullptr, ";
 	std::string idx;
 	assert(ctx.parents.back() == this);
 	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
@@ -6175,7 +6187,17 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
-	if (tb && !tb->tabIndex.empty())
+	if (closeButton && !onClose.empty())
+	{
+		os << ctx.ind << "if (!" << var << ")\n" << ctx.ind << "{\n";
+		ctx.ind_up();
+		if (idx != "")
+			os << ctx.ind << tb->tabIndex.to_arg() << " = " << idx << ";\n";
+		os << ctx.ind << onClose.to_arg() << "();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
+	}
+	if (idx != "")
 	{
 		os << ctx.ind << "if (ImGui::IsItemActivated())\n";
 		ctx.ind_up();
@@ -6191,6 +6213,9 @@ void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() >= 1)
 			label.set_from_arg(sit->params[0]);
 
+		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
+			closeButton = true;
+
 		assert(ctx.parents.back() == this);
 		auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
 		if (tb && sit->params.size() >= 3 && sit->params[2].size() > 32)
@@ -6204,6 +6229,14 @@ void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			}
 		}
 	}
+	else if (sit->kind == cpp::IfBlock && !sit->cond.compare(0, 5, "!tmpOpen"))
+	{
+		ctx.importLevel = sit->level;
+	}
+	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel)
+	{
+		onClose.set_from_arg(sit->callee);
+	}
 }
 
 std::vector<UINode::Prop>
@@ -6212,6 +6245,7 @@ TabItem::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "label", &label, true },
+		{ "closeButton", &closeButton }
 		});
 	return props;
 }
@@ -6229,8 +6263,43 @@ bool TabItem::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("label", &label, ctx);
 		break;
+	case 1:
+		ImGui::Text("closeButton");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##cb", closeButton.access());
+		break;
 	default:
-		return Widget::PropertyUI(i - 1, ctx);
+		return Widget::PropertyUI(i - 2, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+TabItem::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onClose", &onClose },
+		});
+	return props;
+}
+
+bool TabItem::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::BeginDisabled(!closeButton);
+		ImGui::Text("onClose");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onClose", &onClose, ctx);
+		ImGui::EndDisabled();
+		break;
+	default:
+		return Widget::EventUI(i - 1, ctx);
 	}
 	return changed;
 }

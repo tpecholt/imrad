@@ -45,3 +45,17 @@ float bindable<dimension>::eval_px(const UIContext& ctx) const
 	}
 	return {};
 }
+
+color32 bindable<color32>::eval(const UIContext& ctx) const 
+{
+	if (empty())
+		return {};
+	std::istringstream is(str);
+	color32 val{};
+	if (!(is >> val)) {
+		int idx = style_color();
+		if (idx >= 0)
+			val = ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[idx]);
+	}
+	return val;
+}

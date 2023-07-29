@@ -513,6 +513,8 @@ struct TabBar : Widget
 struct TabItem : Widget
 {
 	bindable<std::string> label = "TabItem";
+	direct_val<bool> closeButton = false;
+	event<> onClose;
 
 	TabItem(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -521,6 +523,8 @@ struct TabItem : Widget
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
+	auto Events()->std::vector<Prop>;
+	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);

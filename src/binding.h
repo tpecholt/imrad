@@ -853,11 +853,9 @@ struct bindable<color32> : property_base
 		str = os.str();
 	}
 	bool empty() const { return str.empty(); }
-	bool has_value() const {
+	/*bool has_value() const {
 		if (empty())
 			return false;
-		if (has_style_color())
-			return true;
 		std::istringstream is(str);
 		color32 val;
 		if (!(is >> val))
@@ -865,19 +863,9 @@ struct bindable<color32> : property_base
 		if (is.eof())
 			return true;
 		return is.tellg() == str.size();
-	}
-	color32 value() const {
-		if (empty())
-			return {};
-		std::istringstream is(str);
-		color32 val{};
-		if (!(is >> val)) {
-			int idx = style_color();
-			if (idx >= 0) //todo: use ctx.style?
-				val = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[idx]);
-		}
-		return val;
-	}
+	}*/
+	color32 eval(const UIContext& ctx) const;
+
 	bool has_style_color() const {
 		if (str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_"))
 			return false;
@@ -906,7 +894,7 @@ struct bindable<color32> : property_base
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
-		if (empty() || has_value())
+		if (empty())// || has_value())
 			return {};
 		std::vector<std::string> vars;
 		size_t i = 0;
@@ -920,7 +908,7 @@ struct bindable<color32> : property_base
 	};
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{
-		if (empty() || has_value())
+		if (empty()) // || has_value())
 			return;
 		std::vector<std::string> vars;
 		size_t i = 0;
