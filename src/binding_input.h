@@ -242,7 +242,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 			*val = color32();
 		}
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 4, 4 });
 		for (int i = 0; i < stx::ssize(COLORS); ++i)
 		{
 			ImGui::PushID(i);
