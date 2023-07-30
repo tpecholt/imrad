@@ -233,6 +233,7 @@ void ClassWizard::Draw()
 		{
 			newFieldPopup.codeGen = codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewField;
+			newFieldPopup.scope = stypeIdx ? stypes[stypeIdx] : "";
 			newFieldPopup.varType = "";
 			newFieldPopup.OpenPopup([this] {
 				Refresh();
@@ -249,6 +250,7 @@ void ClassWizard::Draw()
 		{
 			newFieldPopup.codeGen = codeGen;
 			newFieldPopup.mode = NewFieldPopup::RenameField;
+			newFieldPopup.scope = stypeIdx ? stypes[stypeIdx] : "";
 			newFieldPopup.varOldName = fields[selRow].name;
 			newFieldPopup.OpenPopup([this] {
 				root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);

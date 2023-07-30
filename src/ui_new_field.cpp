@@ -72,6 +72,8 @@ void NewFieldPopup::Draw()
 		{
 			ImGui::Text("Field type:");
 			ImGui::BeginDisabled(varTypeDisabled);
+			if (ImGui::IsWindowAppearing() && varType == "")
+				ImGui::SetKeyboardFocusHere();
 			if (ImGui::InputText("##varType", &varType, ImGuiInputTextFlags_CharsNoBlank))
 				change = true;
 			ImGui::EndDisabled();
@@ -79,7 +81,7 @@ void NewFieldPopup::Draw()
 		
 		ImGui::Spacing();
 		ImGui::Text(mode == RenameWindow ? "New name:" : "Field name:");
-		if (ImGui::IsWindowAppearing())
+		if (ImGui::IsWindowAppearing() && varType != "")
 			ImGui::SetKeyboardFocusHere();
 		if (ImGui::InputText("##varName", &varName, ImGuiInputTextFlags_CharsNoBlank))
 			change = true;
@@ -191,7 +193,7 @@ void NewFieldPopup::CheckVarName()
 			clr = IM_COL32(255, 0, 0, 255);
 		}
 	}
-	else if (mode == RenameField || mode == NewStruct || mode == NewEvent)
+	else if (mode == NewStruct || mode == NewEvent)
 	{
 		std::string type = mode == NewStruct ? "struct" : varType;
 		if (!cpp::is_id(varName)) {

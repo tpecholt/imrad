@@ -213,7 +213,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 						out << INDENT << INDENT << var.type << " " << var.name;
 						if (var.init != "")
 							out << " = " << var.init;
-						out << ";\n\n";
+						out << ";\n";
 					}
 					out << INDENT << "};\n";
 				}
