@@ -563,6 +563,7 @@ struct MenuBar : Widget
 
 struct MenuIt : Widget
 {
+	direct_val<bool> ownerDraw = false;
 	direct_val<std::string> label = "Item";
 	direct_val<std::string> shortcut = "";
 	direct_val<bool> separator = false;

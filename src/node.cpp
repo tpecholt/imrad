@@ -6397,7 +6397,16 @@ void MenuIt::DoDraw(UIContext& ctx)
 	if (separator)
 		ImGui::Separator();
 	
-	if (children.empty()) //menuItem
+	if (ownerDraw)
+	{
+		std::string s = onChange.to_arg();
+		if (s.empty())
+			s = "???";
+		else
+			s += "()";
+		ImGui::MenuItem(s.c_str(), nullptr, nullptr, false);
+	}
+	else if (children.empty()) //menuItem
 	{
 		bool check = !checked.empty();
 		ImGui::MenuItem(label.c_str(), shortcut.c_str(), check);
@@ -6534,7 +6543,13 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 	if (separator)
 		os << ctx.ind << "ImGui::Separator();\n";
 
-	if (children.empty())
+	if (ownerDraw)
+	{
+		if (onChange.empty())
+			ctx.errors.push_back("MenuIt: ownerDraw=true but empty onChange!");
+		os << ctx.ind << onChange.to_arg() << "();\n";
+	}
+	else if (children.empty())
 	{
 		bool ifstmt = !onChange.empty();
 		os << ctx.ind;
@@ -6577,7 +6592,7 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 
 void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
 {
-	if (shortcut.empty())
+	if (shortcut.empty() || ownerDraw)
 		return;
 
 	os << ctx.ind << "if " << CodeShortcut(shortcut, disabled.to_arg()) << "\n";
@@ -6613,6 +6628,11 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		separator = true;
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee.compare(0, 7, "ImGui::"))
+	{
+		ownerDraw = true;
+		onChange.set_from_arg(sit->callee);
+	}
 }
 
 std::vector<UINode::Prop>
@@ -6620,6 +6640,7 @@ MenuIt::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "ownerDraw", &ownerDraw },
 		{ "label", &label, true },
 		{ "shortcut", &shortcut },
 		{ "checked", &checked },
@@ -6634,36 +6655,44 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("ownerDraw");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##ownerDraw", ownerDraw.access());
+		break;
+	case 1:
+		ImGui::BeginDisabled(ownerDraw);
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##label", label.access());
+		ImGui::EndDisabled();
 		break;
-	case 1:
-		ImGui::BeginDisabled(children.size());
+	case 2:
+		ImGui::BeginDisabled(ownerDraw || children.size());
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##shortcut", shortcut.access());
 		ImGui::EndDisabled();
 		break;
-	case 2:
+	case 3:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::BeginDisabled(children.size());
+		ImGui::BeginDisabled(ownerDraw || children.size());
 		ImGui::Text("checked");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##checked", &checked, true, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("separator");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##separator", separator.access());
 		break;
 	default:
-		return Widget::PropertyUI(i - 4, ctx);
+		return Widget::PropertyUI(i - 5, ctx);
 	}
 	return changed;
 }
