@@ -101,6 +101,8 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_FOLDER_PLUS, "TabBar" },
 		{ ICON_FA_SITEMAP, "TreeNode" },
 		{ ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE, "Splitter" },
+		//{ ICON_FA_CLAPPERBOARD /*ELLIPSIS*/, "MenuBar" },
+		{ ICON_FA_MESSAGE /*RECEIPT*/, "ContextMenu" },
 	}}
 };
 
@@ -437,14 +439,47 @@ void ShowCode()
 
 void NewWidget(const std::string& name)
 {
-	activeButton = name;
-	ctx.selected.clear();
 	if (name == "") {
+		activeButton = "";
+		ctx.selected.clear();
 		ctx.mode = UIContext::NormalSelection;
 	}
-	else {
-		newNode = Widget::Create(name, ctx);
+	else if (name == "MenuBar") 
+	{
+		if (ctx.root->children.empty() || 
+			!dynamic_cast<MenuBar*>(ctx.root->children[0].get())) 
+		{
+			dynamic_cast<TopWindow*>(ctx.root)->flags |= ImGuiWindowFlags_MenuBar;
+			ctx.root->children.insert(ctx.root->children.begin(), std::make_unique<MenuBar>(ctx));
+			ctx.selected = { ctx.root->children[0]->children[0].get() };
+		}
+		ctx.mode = UIContext::NormalSelection;
+	}
+	else if (name == "ContextMenu") 
+	{
+		activeButton = "";
+		auto popup = std::make_unique<MenuIt>(ctx);
+		popup->contextMenu = true;
+		auto item = std::make_unique<MenuIt>(ctx);
+		item->label = "Item";
+		popup->children.push_back(std::move(item));
+		size_t i = 0;
+		for (; i < ctx.root->children.size(); ++i)
+		{
+			if (ctx.root->children[i]->SnapBehavior() & Widget::SnapSides)
+				break;
+		}
+		popup->label = "ContextMenu" + std::to_string(i + 1);
+		ctx.root->children.insert(ctx.root->children.begin() + i, std::move(popup));
+		ctx.mode = UIContext::NormalSelection;
+		ctx.selected = { ctx.root->children[i]->children[0].get() };
+	}
+	else 
+	{
+		activeButton = name;
+		ctx.selected.clear();
 		ctx.mode = UIContext::Snap;
+		newNode = Widget::Create(name, ctx);
 	}
 }
 
@@ -1081,6 +1116,10 @@ void PropertyRowsUI(bool pr)
 				pnames = std::move(pres);
 			}
 		}
+		//when selecting other widget of same kind from Tree, value from previous widget
+		//wants to be sent to the new widget because input IDs are the same
+		//PushID widget ptr to prevent it
+		ImGui::PushID(ctx.selected[0]); 
 		//edit first widget
 		auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
 		std::string_view pname;
@@ -1123,6 +1162,7 @@ void PropertyRowsUI(bool pr)
 		if (inStyle)
 			EndStyleProp(styleOpen);
 		ImGui::Unindent();
+		ImGui::PopID();
 		ImGui::EndTable();
 
 		//copy changes to other widgets

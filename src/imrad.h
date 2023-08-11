@@ -7,7 +7,7 @@
 #include <sstream> 
 #include <map>
 #include <imgui.h>
-#include <imgui_internal.h> //for CurrentItemFlags
+#include <imgui_internal.h> //CurrentItemFlags, GetCurrentWindow, PushOverrideID
 #include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
 
 #ifdef IMRAD_WITH_FMT
@@ -117,6 +117,15 @@ inline bool IsItemDoubleClicked()
 inline bool IsItemDisabled()
 {
 	return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;
+}
+
+//allows to define popups in the window and open it from widgets calling internally
+//Push/PopID like TabControl
+inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
+{
+	ImGui::PushOverrideID(ImGui::GetCurrentWindow()->ID);
+	ImGui::OpenPopup(str_id, flags);
+	ImGui::PopID();
 }
 
 inline void Spacing(int n)

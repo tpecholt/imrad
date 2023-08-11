@@ -52,6 +52,7 @@ struct UIContext
 	ImGuiWindow* rootWin = nullptr;
 	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;
+	std::vector<std::string> contextMenus;
 	bool inPopup = false;
 	float unitFactor = 1; //for dimension value scaling
 	ImVec2 selStart, selEnd;
@@ -77,6 +78,7 @@ struct UINode
 		SnapSides = 0x1,
 		SnapInterior = 0x2,
 		SnapGrandparentClip = 0x4,
+		NoContextMenu = 0x8,
 	};
 
 	UINode() {}
@@ -118,6 +120,7 @@ struct Widget : UINode
 	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
 	direct_val<std::string> style_font = "";
+	direct_val<std::string> contextMenu = "";
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
 	event<> onItemHovered;
@@ -563,6 +566,7 @@ struct MenuBar : Widget
 
 struct MenuIt : Widget
 {
+	bool contextMenu = false;
 	direct_val<bool> ownerDraw = false;
 	direct_val<std::string> label = "Item";
 	direct_val<std::string> shortcut = "";
@@ -572,7 +576,7 @@ struct MenuIt : Widget
 
 	MenuIt(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return 0; }
+	int SnapBehavior() { return NoContextMenu; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;

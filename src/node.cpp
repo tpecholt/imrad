@@ -388,6 +388,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.inPopup = kind == Kind::Popup || kind == Kind::ModalPopup;
+	ctx.contextMenus.clear();
 
 	std::string cap = title.value();
 	cap += "###TopWindow"; //don't clash 
@@ -528,6 +529,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	bindable<std::string> titleId = title;
 	*titleId.access() += "###" + ctx.codeGen->GetName();
 	std::string tit = titleId.to_arg();
+	bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
 	
 	os << ctx.ind << "/// @begin TopWindow\n";
 	
@@ -1223,6 +1225,14 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::SetTooltip(" << tooltip.to_arg() << ");\n";
 		ctx.ind_down();
 	}
+	if (!contextMenu.empty())
+	{
+		os << ctx.ind << "if (ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) && "
+			<< "ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))\n";
+		ctx.ind_up();
+		os << ctx.ind << "ImRad::OpenWindowPopup(" << contextMenu.to_arg() << ");\n";
+		ctx.ind_down();
+	}
 	if (style_font != "")
 	{
 		os << ctx.ind << "ImGui::PopFont();\n";
@@ -1404,6 +1414,10 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else
 				onItemHovered.set_from_arg(sit->callee);
 		}
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::OpenWindowPopup")
+		{
+			contextMenu.set_from_arg(sit->params2[0]);
+		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemClicked")
 		{
 			onItemClicked.set_from_arg(sit->callee);
@@ -1443,6 +1457,7 @@ Widget::Properties()
 	std::vector<UINode::Prop> props{
 		{ "visible", &visible },
 		{ "tooltip", &tooltip },
+		{ "contextMenu", &contextMenu },
 		{ "cursor", &cursor },
 		{ "disabled", &disabled },
 	};
@@ -1463,7 +1478,7 @@ Widget::Properties()
 bool Widget::PropertyUI(int i, UIContext& ctx)
 {
 	int sat = (i & 1) ? 202 : 164;
-	if (i <= 3)
+	if (i <= 4)
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(sat, 255, sat, 255));
 	else
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
@@ -1488,12 +1503,38 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		BindingButton("tooltip", &tooltip, ctx);
 		break;
 	case 2:
+	{
+		ImGui::BeginDisabled(SnapBehavior() & NoContextMenu);
+		ImGui::Text("contextMenu");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##ctxm", contextMenu.c_str()))
+		{
+			if (ImGui::Selectable(" ", contextMenu.empty()))
+			{
+				changed = true;
+				contextMenu = "";
+			}
+			for (const std::string& cm : ctx.contextMenus)
+			{
+				if (ImGui::Selectable(cm.c_str(), cm == contextMenu.c_str()))
+				{
+					changed = true;
+					contextMenu = cm;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::EndDisabled();
+		break;
+	}
+	case 3:
 		ImGui::Text("cursor");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Combo("##cursor", cursor.access(), "Arrow\0TextInput\0ResizeAll\0ResizeNS\0ResizeEW\0ResizeNESW\0ResizeNWSE\0Hand\0NotAllowed\0\0");
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("disabled");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1501,7 +1542,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("disabled", &disabled, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::BeginDisabled(sameLine);
 		ImGui::Text("indent");
 		ImGui::TableNextColumn();
@@ -1515,7 +1556,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}*/
 		ImGui::EndDisabled();
 		break;
-	case 5:
+	case 6:
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1526,7 +1567,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 			spacing = 0;
 		}
 		break;
-	case 6:
+	case 7:
 		ImGui::BeginDisabled(nextColumn);
 		ImGui::Text("sameLine");
 		ImGui::TableNextColumn();
@@ -1537,17 +1578,17 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("beginGroup");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##beginGroup", beginGroup.access());
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("endGroup");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##endGroup", endGroup.access());
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("nextColumn");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1673,7 +1714,8 @@ void Widget::TreeUI(UIContext& ctx)
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_Text]);
 
 	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-	int flags = ImGuiTreeNodeFlags_SpanAvailWidth;
+	//we keep all items open, OpenOnDoubleClick is to block flickering
+	int flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 	if (children.empty())
 		flags |= ImGuiTreeNodeFlags_Leaf;
 	if (ImGui::TreeNodeEx((icon != "" ? icon.c_str() : label.c_str()), flags))
@@ -6397,28 +6439,33 @@ void MenuIt::DoDraw(UIContext& ctx)
 	if (separator)
 		ImGui::Separator();
 	
-	if (ownerDraw)
+	if (contextMenu)
 	{
-		std::string s = onChange.to_arg();
-		if (s.empty())
-			s = "???";
-		else
-			s += "()";
-		ImGui::MenuItem(s.c_str(), nullptr, nullptr, false);
+		ctx.contextMenus.push_back(label);
+		bool open = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
+		if (open)
+		{
+			ImGui::SetNextWindowPos(cached_pos);
+			std::string id = label + "##" + std::to_string((uintptr_t)this);
+			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+			{
+				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
+				//for (const auto& child : children) defend against insertions within the loop
+				for (size_t i = 0; i < children.size(); ++i)
+					children[i]->Draw(ctx);
+				ImGui::End();
+			}
+		}
 	}
-	else if (children.empty()) //menuItem
-	{
-		bool check = !checked.empty();
-		ImGui::MenuItem(label.c_str(), shortcut.c_str(), check);
-	}
-	else //menu
+	else if (children.size()) //normal menu
 	{
 		assert(ctx.parents.back() == this);
 		const UINode* par = ctx.parents[ctx.parents.size() - 2];
-		bool top = dynamic_cast<const MenuBar*>(par);
+		bool mbm = dynamic_cast<const MenuBar*>(par); //menu bar item
 
 		ImGui::MenuItem(label.c_str());
-		if (!top)
+
+		if (!mbm)
 		{
 			float w = ImGui::CalcTextSize(ICON_FA_ANGLE_RIGHT).x;
 			ImGui::SameLine(0, 0);
@@ -6426,10 +6473,10 @@ void MenuIt::DoDraw(UIContext& ctx)
 			ImGui::Text(ICON_FA_ANGLE_RIGHT);
 		}
 		bool open = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
-		if (open) 
+		if (open)
 		{
 			ImVec2 pos = cached_pos;
-			if (top)
+			if (mbm)
 				pos.y += ctx.rootWin->MenuBarHeight();
 			else {
 				ImVec2 sp = ImGui::GetStyle().ItemSpacing;
@@ -6449,6 +6496,20 @@ void MenuIt::DoDraw(UIContext& ctx)
 			}
 		}
 	}
+	else if (ownerDraw)
+	{
+		std::string s = onChange.to_arg();
+		if (s.empty())
+			s = "???";
+		else
+			s += "()";
+		ImGui::MenuItem(s.c_str(), nullptr, nullptr, false);
+	}
+	else //menuItem
+	{
+		bool check = !checked.empty();
+		ImGui::MenuItem(label.c_str(), shortcut.c_str(), check);
+	}
 }
 
 void MenuIt::DrawExtra(UIContext& ctx)
@@ -6457,6 +6518,8 @@ void MenuIt::DrawExtra(UIContext& ctx)
 		return;
 	assert(ctx.parents.back() == this);
 	auto* parent = ctx.parents[ctx.parents.size() - 2];
+	if (dynamic_cast<TopWindow*>(parent)) //no helper for context menu
+		return;
 	bool vertical = !dynamic_cast<MenuBar*>(parent);
 	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
 		- parent->children.begin();
@@ -6518,15 +6581,20 @@ void MenuIt::DrawExtra(UIContext& ctx)
 
 void MenuIt::CalcSizeEx(ImVec2 x1, UIContext& ctx)
 {
+	assert(ctx.parents.back() == this);
+	const UINode* par = ctx.parents[ctx.parents.size() - 2];
+	bool mbm = dynamic_cast<const MenuBar*>(par);
+	
 	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 	const ImGuiMenuColumns* mc = &ImGui::GetCurrentWindow()->DC.MenuColumns;
 	cached_pos.x += mc->OffsetLabel;
 	cached_size = ImGui::CalcTextSize(label.c_str(), nullptr, true);
 	cached_size.x += sp.x;
-	assert(ctx.parents.back() == this);
-	const UINode* par = ctx.parents[ctx.parents.size() - 2];
-	bool top = dynamic_cast<const MenuBar*>(par);
-	if (top)
+	if (contextMenu)
+	{
+		cached_pos = ctx.rootWin->Pos;
+	}
+	else if (mbm)
 	{
 		++cached_pos.y;
 		cached_size.y = ctx.rootWin->MenuBarHeight() - 2;
@@ -6540,16 +6608,51 @@ void MenuIt::CalcSizeEx(ImVec2 x1, UIContext& ctx)
 
 void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 {
+	assert(ctx.parents.back() == this);
+	const UINode* par = ctx.parents[ctx.parents.size() - 2];
+	
 	if (separator)
 		os << ctx.ind << "ImGui::Separator();\n";
 
-	if (ownerDraw)
+	if (contextMenu)
+	{
+		os << ctx.ind << "if (ImGui::BeginPopup(" << label.to_arg() << ", "
+			<< "ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings"
+			<< "))\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << "/// @separator\n\n";
+
+		for (const auto& child : children)
+			child->Export(os, ctx);
+
+		os << ctx.ind << "/// @separator\n";
+		os << ctx.ind << "ImGui::EndPopup();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
+	}
+	else if (children.size())
+	{
+		os << ctx.ind << "if (ImGui::BeginMenu(" << label.to_arg() << "))\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << "/// @separator\n\n";
+
+		for (const auto& child : children)
+			child->Export(os, ctx);
+
+		os << ctx.ind << "/// @separator\n";
+		os << ctx.ind << "ImGui::EndMenu();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
+	}
+	else if (ownerDraw)
 	{
 		if (onChange.empty())
-			ctx.errors.push_back("MenuIt: ownerDraw=true but empty onChange!");
+			ctx.errors.push_back("MenuIt: ownerDraw is set but onChange is empty!");
 		os << ctx.ind << onChange.to_arg() << "();\n";
 	}
-	else if (children.empty())
+	else
 	{
 		bool ifstmt = !onChange.empty();
 		os << ctx.ind;
@@ -6572,21 +6675,6 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 		}
 		else
 			os << ";\n";
-	}
-	else
-	{
-		os << ctx.ind << "if (ImGui::BeginMenu(" << label.to_arg() << "))\n";
-		os << ctx.ind << "{\n";
-		ctx.ind_up();
-		os << ctx.ind << "/// @separator\n\n";
-		
-		for (const auto& child : children)
-			child->Export(os, ctx);
-	
-		os << ctx.ind << "/// @separator\n";
-		os << ctx.ind << "ImGui::EndMenu();\n";
-		ctx.ind_down();
-		os << ctx.ind << "}\n";
 	}
 }
 
@@ -6618,6 +6706,12 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee);
+	}
+	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginPopup")
+	{
+		contextMenu = true;
+		if (sit->params.size())
+			label.set_from_arg(sit->params[0]);
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginMenu")
 	{
@@ -6655,10 +6749,12 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::BeginDisabled(contextMenu);
 		ImGui::Text("ownerDraw");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##ownerDraw", ownerDraw.access());
+		ImGui::EndDisabled();
 		break;
 	case 1:
 		ImGui::BeginDisabled(ownerDraw);
@@ -6669,7 +6765,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 2:
-		ImGui::BeginDisabled(ownerDraw || children.size());
+		ImGui::BeginDisabled(ownerDraw || contextMenu || children.size());
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6678,7 +6774,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 3:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::BeginDisabled(ownerDraw || children.size());
+		ImGui::BeginDisabled(ownerDraw || contextMenu || children.size());
 		ImGui::Text("checked");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6686,10 +6782,12 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 4:
+		ImGui::BeginDisabled(contextMenu);
 		ImGui::Text("separator");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##separator", separator.access());
+		ImGui::EndDisabled();
 		break;
 	default:
 		return Widget::PropertyUI(i - 5, ctx);
