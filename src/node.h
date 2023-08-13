@@ -436,17 +436,22 @@ struct Table : Widget
 	direct_val<bool> header = true;
 	field_ref<size_t> rowCount;
 	bindable<bool> rowFilter;
+	bindable<dimension> rowHeight = 0;
 	direct_val<dimension2> style_cellPadding;
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;
-	
+	event<> onBeginRow;
+	event<> onEndRow;
+
 	Table(UIContext&);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int SnapBehavior() { return SnapSides | SnapInterior; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
+	auto Events()->std::vector<Prop>;
+	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_TABLE_CELLS_LARGE; }

@@ -4816,7 +4816,7 @@ void Table::DoDraw(UIContext& ctx)
 			ImGui::TableSetupColumn(columnData[i].label.c_str(), columnData[i].flags, columnData[i].width);
 		if (header)
 			ImGui::TableHeadersRow();
-		ImGui::TableNextRow();
+		ImGui::TableNextRow(0, rowHeight.eval_px(ctx));
 		ImGui::TableSetColumnIndex(0);
 		
 		for (int i = 0; i < (int)children.size(); ++i)
@@ -4851,6 +4851,7 @@ Table::Properties()
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
 		{ "table.row_count", &rowCount },
+		{ "table.row_height", &rowHeight },
 		{ "table.row_filter", &rowFilter },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
@@ -4931,6 +4932,14 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##rowCount", &rowCount, true, ctx);
 		break;
 	case 8:
+		ImGui::Text("rowHeight");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##rowh", &rowHeight, {}, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("rowHeight", &rowHeight, ctx);
+		break;
+	case 9:
 		ImGui::BeginDisabled(rowCount.empty());
 		ImGui::Text("rowFilter");
 		ImGui::TableNextColumn();
@@ -4940,7 +4949,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		BindingButton("rowFilter", &rowFilter, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4948,7 +4957,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4957,7 +4966,41 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 11, ctx);
+		return Widget::PropertyUI(i - 12, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+Table::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onBeginRow", &onBeginRow },
+		{ "onEndRow", &onEndRow }, 
+		});
+	return props;
+}
+
+bool Table::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("OnBeginRow");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##OnBeginRow", &onBeginRow, ctx);
+		break;
+	case 1:
+		ImGui::Text("OnEndRow");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##OnEndRow", &onEndRow, ctx);
+		break;
+	default:
+		return Widget::EventUI(i - 2, ctx);
 	}
 	return changed;
 }
@@ -4996,9 +5039,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	if (header)
 		os << ctx.ind << "ImGui::TableHeadersRow();\n";
 
-	if (!rowCount.empty()) 
+	if (!rowCount.empty())
 	{
-		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR 
+		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR
 			<< " < " << rowCount.to_arg() << "; ++" << FOR_VAR
 			<< ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
@@ -5010,22 +5053,30 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 			os << ctx.ind << "continue;\n";
 			ctx.ind_down();
 		}
-		os << ctx.ind << "ImGui::TableNextRow();\n";
-		os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
+		
 		os << ctx.ind << "ImGui::PushID((int)" << FOR_VAR << ");\n";
 	}
-	else 
-	{
-		os << ctx.ind << "ImGui::TableNextRow();\n";
-		os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
-	}
 	
+	os << ctx.ind << "ImGui::TableNextRow(0, ";
+	if (!rowHeight.empty())
+		os << rowHeight.to_arg(ctx.unit);
+	else
+		os << "0";
+	os << ");\n";
+	os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
+	
+	if (!onBeginRow.empty())
+		os << ctx.ind << onBeginRow.to_arg() << "();\n";
+
 	os << ctx.ind << "/// @separator\n\n";
 
 	for (auto& child : children)
 		child->Export(os, ctx);
 
 	os << "\n" << ctx.ind << "/// @separator\n";
+	
+	if (!onEndRow.empty())
+		os << ctx.ind << onEndRow.to_arg() << "();\n";
 
 	if (!rowCount.empty()) {
 		os << ctx.ind << "ImGui::PopID();\n";
@@ -5090,12 +5141,24 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		header = true;
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableNextRow")
+	{
+		if (sit->params.size() >= 2)
+			rowHeight.set_from_arg(sit->params[1]);
+	}
 	else if (sit->kind == cpp::ForBlock)
 	{
 		if (!sit->cond.compare(0, FOR_VAR.size()+1, std::string(FOR_VAR) + "<")) //VS bug without std::string()
 			rowCount.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
 	}
-	else if (sit->kind == cpp::IfStmt && 
+	else if (sit->kind == cpp::CallExpr && sit->callee.compare(0, 7, "ImGui::"))
+	{
+		if (!onBeginRow.empty() || children.size()) //todo
+			onEndRow.set_from_arg(sit->callee);
+		else
+			onBeginRow.set_from_arg(sit->callee);
+	}
+	else if (sit->kind == cpp::IfStmt &&
 		!sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
 	{
 		rowFilter.set_from_arg(sit->cond.substr(2, sit->cond.size() - 3));
