@@ -128,6 +128,7 @@ struct Widget : UINode
 	event<> onItemActivated;
 	event<> onItemDeactivated;
 	event<> onItemDeactivatedAfterEdit;
+	event<> onItemContextMenuClicked;
 
 	std::string userCode;
 
@@ -427,7 +428,9 @@ struct Table : Widget
 		flags_helper flags = 0;
 		float width = 0;
 		ColumnData();
-		ColumnData(std::string_view l, int f, float w = 0) : label(l), flags(f), width(w) {}
+		ColumnData(std::string_view l, int f, float w = 0) : ColumnData() {
+			label = l; flags = f; width = w; 
+		}
 	};
 	flags_helper flags = ImGuiTableFlags_Borders;
 	bindable<dimension> size_x = 0.f;

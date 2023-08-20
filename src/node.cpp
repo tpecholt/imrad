@@ -652,7 +652,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	
 	//at next import comment becomes userCode
 	if (children.empty() || children[0]->userCode.empty())
-		os << ctx.ind << "// TODO: Add Draw calls of dependant popup windows here\n\n";
+		os << ctx.ind << "// TODO: Add Draw calls of dependent popup windows here\n\n";
 
 	for (const auto& ch : children)
 		ch->Export(os, ctx);
@@ -1211,6 +1211,15 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	DoExport(os, ctx);
 	ctx.parents.pop_back();
 
+	if (style_font != "")
+	{
+		os << ctx.ind << "ImGui::PopFont();\n";
+	}
+	if (!disabled.has_value() || disabled.value())
+	{
+		os << ctx.ind << "ImGui::EndDisabled();\n";
+	}
+	
 	if (cursor != ImGuiMouseCursor_Arrow)
 	{
 		os << ctx.ind << "if (ImGui::IsItemHovered())\n";
@@ -1227,21 +1236,19 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (!contextMenu.empty())
 	{
-		os << ctx.ind << "if (ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) && "
-			<< "ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))\n";
+		os << ctx.ind << "if (ImRad::IsItemContextMenuClicked())\n";
 		ctx.ind_up();
 		os << ctx.ind << "ImRad::OpenWindowPopup(" << contextMenu.to_arg() << ");\n";
 		ctx.ind_down();
 	}
-	if (style_font != "")
-	{
-		os << ctx.ind << "ImGui::PopFont();\n";
-	}
-	if (!disabled.has_value() || disabled.value())
-	{
-		os << ctx.ind << "ImGui::EndDisabled();\n";
-	}
 	
+	if (!onItemContextMenuClicked.empty())
+	{
+		os << ctx.ind << "if (ImRad::IsItemContextMenuClicked())\n";
+		ctx.ind_up();
+		os << ctx.ind << onItemContextMenuClicked.c_str() << "();\n";
+		ctx.ind_down();
+	}
 	if (!onItemHovered.empty())
 	{
 		os << ctx.ind << "if (ImGui::IsItemHovered())\n";
@@ -1414,9 +1421,12 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else
 				onItemHovered.set_from_arg(sit->callee);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::OpenWindowPopup")
+		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::IsItemContextMenuClicked")
 		{
-			contextMenu.set_from_arg(sit->params2[0]);
+			if (sit->callee == "ImRad::OpenWindowPopup")
+				contextMenu.set_from_arg(sit->params2[0]);
+			else
+				onItemContextMenuClicked.set_from_arg(sit->callee);
 		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemClicked")
 		{
@@ -1608,6 +1618,7 @@ std::vector<UINode::Prop>
 Widget::Events()
 {
 	return {
+		{ "OnContextMenu", &onItemContextMenuClicked },
 		{ "IsItemHovered", &onItemHovered },
 		{ "IsItemClicked", &onItemClicked },
 		{ "IsItemDoubleClicked", &onItemDoubleClicked },
@@ -1626,42 +1637,50 @@ bool Widget::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::BeginDisabled(SnapBehavior() & NoContextMenu);
+		ImGui::Text("IsItemContextMenuClicked");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##IsContextMenu", &onItemContextMenuClicked, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 1:
 		ImGui::Text("IsItemHovered");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##IsItemHovered", &onItemHovered, ctx);
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("IsItemClicked");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##itemclicked", &onItemClicked, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::Text("IsItemDoubleClicked");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##itemdblclicked", &onItemDoubleClicked, ctx);
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("IsItemFocused");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##IsItemFocused", &onItemFocused, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("IsItemActivated");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##IsItemActivated", &onItemActivated, ctx);
 		break;
-	case 5:
+	case 6:
 		ImGui::Text("IsItemDeactivated");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##IsItemDeactivated", &onItemDeactivated, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("IsItemDeactivatedAfterEdit");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
@@ -2331,7 +2350,7 @@ bool Selectable::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -2803,7 +2822,7 @@ bool Button::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -2984,7 +3003,7 @@ bool CheckBox::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -3601,7 +3620,7 @@ bool Input::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -3802,7 +3821,7 @@ bool Combo::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -4066,7 +4085,7 @@ bool Slider::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -4424,7 +4443,7 @@ bool ColorEdit::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
@@ -6196,7 +6215,7 @@ void TabItem::DrawExtra(UIContext& ctx)
 		- parent->children.begin();
 
 	ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
-	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
+	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
 
 	ImGui::BeginDisabled(!idx);
 	if (ImGui::Button(ICON_FA_ANGLE_LEFT)) {
@@ -6510,7 +6529,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 		{
 			ImGui::SetNextWindowPos(cached_pos);
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
-			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings);
 			{
 				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
 				//for (const auto& child : children) defend against insertions within the loop
@@ -6549,7 +6568,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 			}
 			ImGui::SetNextWindowPos(pos);
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
-			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings);
 			{
 				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
 				//for (const auto& child : children) defend against insertions within the loop
@@ -6602,7 +6621,7 @@ void MenuIt::DrawExtra(UIContext& ctx)
 		//pos.x -= sp.x;
 	}
 	ImGui::SetNextWindowPos(pos, 0, vertical ? ImVec2{ 0, 1.f } : ImVec2{ 0, 1.f });
-	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
 
 	ImGui::BeginDisabled(!idx);
 	if (ImGui::Button(vertical ? ICON_FA_ANGLE_UP : ICON_FA_ANGLE_LEFT, bsize)) {
@@ -6875,7 +6894,7 @@ bool MenuIt::EventUI(int i, UIContext& ctx)
 	{
 	case 0:
 		ImGui::BeginDisabled(children.size());
-		ImGui::Text("onChange");
+		ImGui::Text("OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
