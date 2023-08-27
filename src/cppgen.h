@@ -10,6 +10,7 @@ class CppGen
 {
 public:
 	static const std::string INDENT;
+	static const std::string FOR_VAR;
 
 	CppGen();
 	bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
@@ -44,7 +45,7 @@ public:
 	enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
 	VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");
 	bool CreateVarExpr(std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
-	std::vector<std::pair<std::string, std::string>> GetVarExprs(const std::string& type);
+	auto GetVarExprs(const std::string& type, bool recurse = false) ->std::vector<std::pair<std::string, std::string>>;
 
 private:
 	Var* FindVar(const std::string& name, const std::string& scope);

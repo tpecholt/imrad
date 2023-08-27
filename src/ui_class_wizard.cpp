@@ -271,12 +271,13 @@ void ClassWizard::Draw()
 			{
 				messageBox.title = "Remove variable";
 				messageBox.message = "Remove used variable '" + name + "' ?";
-				messageBox.buttons = ImRad::Yes | ImRad::Cancel;
+				messageBox.buttons = ImRad::Yes | ImRad::No;
 				messageBox.OpenPopup([this,name](ImRad::ModalResult mr) {
-					codeGen->RemoveVar(name);
-					Refresh();
+					if (mr == ImRad::Yes) {
+						codeGen->RemoveVar(name);
+						Refresh();
+					}
 					});
-				//hack messageBox.Draw();
 			}
 			else 
 			{

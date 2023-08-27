@@ -13,8 +13,6 @@
 struct UINode;
 class CppGen;
 
-inline const std::string_view FOR_VAR = "i";
-
 
 struct UIContext
 {
@@ -437,7 +435,7 @@ struct Table : Widget
 	bindable<dimension> size_y = 0.f;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
-	field_ref<size_t> rowCount;
+	data_loop rowCount;
 	bindable<bool> rowFilter;
 	bindable<dimension> rowHeight = 0;
 	direct_val<dimension2> style_cellPadding;
@@ -468,7 +466,7 @@ struct Child : Widget
 	direct_val<bool> border = false;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
-	field_ref<size_t> itemCount;
+	data_loop itemCount;
 	direct_val<dimension2> style_padding;
 	direct_val<dimension2> style_spacing;
 	direct_val<bool> style_outer_padding = true;
@@ -507,8 +505,8 @@ struct CollapsingHeader : Widget
 struct TabBar : Widget
 {
 	flags_helper flags = 0;
-	field_ref<size_t> tabCount;
-	field_ref<int> tabIndex;
+	data_loop tabCount;
+	field_ref<int> activeTab;
 
 	TabBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

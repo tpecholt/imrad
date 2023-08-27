@@ -12,46 +12,6 @@
 #include "ui_binding.h"
 
 template <class T>
-std::string typeid_name()
-{
-	if constexpr (std::is_same_v<T, void>)
-		return "";
-	else if (std::is_same_v<T, std::string>)
-		return "std::string";
-	else if (std::is_same_v<T, color32>)
-		return "color4";
-	else if (std::is_same_v<T, dimension>)
-		return "float";
-	else if (std::is_same_v<T, int>)
-		return "int";
-	else if (std::is_same_v<T, float>)
-		return "float";
-	else if (std::is_same_v<T, double>)
-		return "double";
-	else if (std::is_same_v<T, size_t>)
-		return "size_t";
-	else if (std::is_same_v<T, bool>)
-		return "bool";
-	else if (std::is_same_v<T, ImVec2> || std::is_same_v<T, dimension2>)
-		return "ImVec2";
-	else if (std::is_same_v<T, std::vector<std::string>>)
-		return "std::vector<std::string>";
-	else
-	{
-		std::string str = typeid(T).name();	
-		if (str.size() >= 14 && !str.compare(str.size() - 14, 14, " __cdecl(void)"))
-			str = str.substr(0, str.size() - 14) + "()";
-		auto i = str.find(' ');
-		if (i != std::string::npos)
-			str.erase(0, i + 1);
-		auto it = stx::find_if(str, [](char c) { return isalpha(c);});
-		if (it != str.end())
-			str.erase(0, it - str.begin());
-		return str;
-	}
-}
-
-template <class T>
 inline bool BindingButton(const char* label, bindable<T>* val, const std::string& type, UIContext& ctx)
 {
 	bool has_var = !val->used_variables().empty();
@@ -364,12 +324,12 @@ inline bool InputFieldRef(const char* label, field_ref<T>* val, const std::strin
 		}
 		
 		ImGui::Separator();
-		const auto& vars = ctx.codeGen->GetVarExprs(type);
+		const auto& vars = ctx.codeGen->GetVars();
 		for (const auto& v : vars)
 		{
-			if (ImGui::Selectable(v.first.c_str(), v.first == val->c_str()))
+			if (v.type == type && ImGui::Selectable(v.name.c_str(), v.name == val->c_str()))
 			{
-				*val->access() = v.first;
+				*val->access() = v.name;
 				changed = true;
 			}
 		}
@@ -389,6 +349,46 @@ inline bool InputFieldRef(const char* label, field_ref<T>* val, bool allowEmpty,
 template <>
 inline bool InputFieldRef(const char* label, field_ref<void>* val, bool allowEmpty, UIContext& ctx) = delete;
 
+
+inline bool InputDataSize(const char* label, bindable<int>* val, bool allowEmpty, UIContext& ctx)
+{
+	bool changed = false;
+	if (ImGui::BeginCombo(label, val->c_str()))
+	{
+		if (allowEmpty && ImGui::Selectable("None"))
+		{
+			*val->access() = "";
+			changed = true;
+		}
+
+		if (ImGui::Selectable("New Variable..."))
+		{
+			newFieldPopup.varType = ""; //allow to create std::vector etc.
+			newFieldPopup.codeGen = ctx.codeGen;
+			newFieldPopup.mode = NewFieldPopup::NewField;
+			newFieldPopup.OpenPopup([val] {
+				if (cpp::is_container(newFieldPopup.varType))
+					*val->access() = newFieldPopup.varName + ".size()";
+				else
+					*val->access() = newFieldPopup.varName;
+				});
+		}
+
+		ImGui::Separator();
+		const auto& vars = ctx.codeGen->GetVarExprs("int");
+		for (const auto& v : vars)
+		{
+			if (ImGui::Selectable(v.first.c_str(), v.first == val->c_str()))
+			{
+				*val->access() = v.first;
+				changed = true;
+			}
+		}
+
+		ImGui::EndCombo();
+	}
+	return changed;
+}
 
 template <class Arg>
 inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)

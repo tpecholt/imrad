@@ -18,6 +18,7 @@ public:
 
 private:
 	ImGuiID ID = 0;
+	ImGuiID wasOpen;
 	std::function<void(ImRad::ModalResult)> callback;
 };
 

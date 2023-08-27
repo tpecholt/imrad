@@ -123,6 +123,8 @@ struct property_base
 template <class T = void>
 struct field_ref : property_base
 {
+	using type = T;
+
 	bool empty() const {
 		return str.empty();
 	}
@@ -530,6 +532,24 @@ struct bindable : property_base
 		is >> std::boolalpha >> val;
 		return val;
 	}
+	T eval(const UIContext& ctx) const
+	{
+		if (empty())
+			return {};
+		else if (has_value())
+			return value();
+		else {
+			const auto* var = ctx.codeGen->GetVar(str);
+			if (var) {
+				T val;
+				std::istringstream is(var->init);
+				if (is >> val)
+					return val;
+			}
+		}
+		return {};
+	}
+
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
@@ -927,5 +947,66 @@ private:
 	std::string str;
 };
 
-//--------------------------------------------------------------
+struct data_loop : property_base
+{
+	bindable<int> limit;
+	field_ref<int> index; //int indexes are easier than size_t
+
+	bool empty() const {
+		return limit.empty();
+	}
+	std::string index_name_or(const std::string& s) const {
+		return index.empty() ? s : index.to_arg();
+	}
+
+	void set_from_arg(std::string_view code) {
+		if (code.compare(0, 4, "for("))
+			return;
+		bool local = !code.compare(4, 3, "int") || !code.compare(4, 6, "size_t");
+		auto i = code.find(";");
+		if (i == std::string::npos)
+			return;
+		code.remove_prefix(i + 1);
+
+		i = code.find(";");
+		if (i == std::string::npos)
+			return;
+		code.remove_suffix(code.size() - i);
+
+		i = code.find("<");
+		if (local)
+			*index.access() = "";
+		else
+			*index.access() = code.substr(0, i);
+
+		limit.set_from_arg(code.substr(i + 1));
+	}
+	std::string to_arg(std::string_view vn) const {
+		if (empty())
+			return "";
+		std::ostringstream os;
+		std::string name = index_name_or(std::string(vn));
+		os << "for (";
+		if (index.empty())
+			os << typeid_name<decltype(index)::type>() << " ";
+		os << name << " = 0; " << name << " < " << limit.to_arg()
+			<< "; ++" << name << ")";
+		return os.str();
+	}
+	std::vector<std::string> used_variables() const {
+		auto vars = index.used_variables();
+		auto vars2 = limit.used_variables();
+		vars.insert(vars.end(), vars2.begin(), vars2.end());
+		return vars;
+	};
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{
+		limit.rename_variable(oldn, newn);
+		index.rename_variable(oldn, newn);
+	}
+	void scale_dimension(float)
+	{}
+	const char* c_str() const { return limit.c_str(); }
+	std::string* access() { return limit.access(); }
+};
 

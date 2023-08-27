@@ -1045,18 +1045,13 @@ void BeginStyleProp(bool& open)
 	ImGui::Unindent();
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
 	open = ImGui::TreeNode("style");
-	if (open) 
+	ImGui::PopStyleVar();
+	if (!open)
 	{
-		ImGui::PopStyleVar();
-		ImGui::Indent();
-	}
-	else 
-	{
-		ImGui::PopStyleVar();
 		ImGui::TableNextColumn();
 		ImGui::TextDisabled("...");
-		ImGui::Indent();
 	}
+	ImGui::Indent();
 }
 
 void EndStyleProp(bool open)

@@ -17,6 +17,7 @@ void MessageBox::Draw()
 	bool open = true;
 	if (ImGui::BeginPopupModal((title + "###MessageBox").c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
 	{
+		wasOpen = ID;
 		if (error != "")
 		{
 			ImGui::Spacing();
@@ -90,9 +91,10 @@ void MessageBox::Draw()
 
 		ImGui::EndPopup();
 	}
-	else
+	else if (wasOpen == ID)
 	{
-		//clear fields for next invocation
+		//hack - clear fields for next invocation
+		wasOpen = 0;
 		error = "";
 		title = "title";
 		message = "";

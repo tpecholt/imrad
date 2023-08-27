@@ -6,6 +6,7 @@
 #include <set>
 
 const std::string CppGen::INDENT = "    ";
+const std::string CppGen::FOR_VAR = "i";
 
 
 CppGen::CppGen()
@@ -960,7 +961,7 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
 		j = var->type.find_last_of('>');
 		if (i == std::string::npos || j == std::string::npos || i > j)
 			return ConflictError;
-		if (var->type.compare(0, i, "std::vector"))
+		if (!cpp::is_container(var->type))
 			return ConflictError;
 		std::string stype = var->type.substr(i + 1, j - i - 1);
 		if (id2 == "")
@@ -1088,11 +1089,10 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 
 //type=="" accepts all scalar variables
 //type=="[]" accepts all arrays
-//type==size_t accepts all size_t, int, vec.size()
 //type==void() accepts all functions
 //vector, array are searched recursively
 std::vector<std::pair<std::string, std::string>> //(name, type) 
-CppGen::GetVarExprs(const std::string& type_)
+CppGen::GetVarExprs(const std::string& type_, bool recurse)
 {
 	std::string type = DecorateType(type_);
 	std::vector<std::pair<std::string, std::string>> ret;
@@ -1106,8 +1106,7 @@ CppGen::GetVarExprs(const std::string& type_)
 				ret.push_back({ f.name, f.type });
 		}
 		//arrays
-		else if (!f.type.compare(0, 12, "std::vector<") ||
-				!f.type.compare(0, 11, "std::array<"))
+		else if (cpp::is_container(f.type))
 		{
 			if (isFun)
 				continue;
@@ -1117,12 +1116,12 @@ CppGen::GetVarExprs(const std::string& type_)
 				continue;
 			if (type == "" || type == "[]" || type == f.type)
 				ret.push_back({ f.name, f.type });
-			if (type == "" || type == "size_t")
-				ret.push_back({ f.name + ".size()", "size_t" });
-			else {
+			if (type == "" || type == "int")
+				ret.push_back({ f.name + ".size()", "int" }); //we use int indexes for simplicity
+			else if (recurse) {
 				std::string stype = f.type.substr(i + 1, j - i - 1);
 				if (type == "" || stype == type)
-					ret.push_back({ f.name + "[" + FOR_VAR + "]", stype });
+					ret.push_back({ f.name + "[]", stype });
 				/*todo: else if (!stype.compare(0, 10, "std::pair<"))
 				{
 				}*/
@@ -1134,14 +1133,13 @@ CppGen::GetVarExprs(const std::string& type_)
 					for (const auto& ff : scope->second)
 					{
 						if (type == "" || ff.type == type)
-							ret.push_back({ f.name + "[" + FOR_VAR + "]." + ff.name, ff.type });
+							ret.push_back({ f.name + "[]." + ff.name, ff.type });
 					}
 				}
 			}
 		}
 		//scalars
-		else if (type == "" || f.type == type ||
-			(type == "size_t" && f.type == "int"))
+		else if (type == "" || f.type == type)
 		{
 			ret.push_back({ f.name, f.type });
 		}

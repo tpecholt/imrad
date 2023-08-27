@@ -199,7 +199,7 @@ void BindingDlg::Refresh()
 void BindingDlg::OnNewField()
 {
 	newFieldPopup.mode = NewFieldPopup::NewField;
-	newFieldPopup.varType = type == "std::string" ? "" : type;
+	newFieldPopup.varType = ""; //allow all types f.e. vector<string> for taking its .size()
 	newFieldPopup.scope = "";
 	newFieldPopup.codeGen = codeGen;
 	newFieldPopup.OpenPopup([this] {

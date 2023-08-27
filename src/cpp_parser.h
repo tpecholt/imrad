@@ -499,6 +499,13 @@ namespace cpp
 			s == "unsigned char" || s == "char*" || s == "bool";
 	}
 
+	inline bool is_container(std::string_view s)
+	{
+		return !s.compare(0, 12, "std::vector<") ||
+			!s.compare(0, 11, "std::array<") ||
+			!s.compare(0, 10, "std::span<");
+	}
+
 	//replaces identifier but ignores strings, preprocessor
 	inline void replace_id(std::string& code, std::string_view old, std::string news)
 	{

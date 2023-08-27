@@ -42,6 +42,7 @@ void UIContext::ind_down()
 		ind.resize(ind.size() - codeGen->INDENT.size());
 }
 
+
 template <class F>
 void TreeNodeProp(const char* name, bool pack, F&& f)
 {
@@ -66,6 +67,43 @@ void TreeNodeProp(const char* name, bool pack, F&& f)
 		ImGui::TextDisabled("...");
 	}
 	ImGui::Indent();
+}
+
+bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
+{
+	bool changed = false;
+	ImVec2 pad = ImGui::GetStyle().FramePadding;
+	ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+	ImGui::Unindent();
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
+	bool open = ImGui::TreeNode(name);
+	ImGui::PopStyleVar();
+	ImGui::TableNextColumn();
+	ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+	changed = InputDataSize("##size", &val->limit, true, ctx);
+	//changed = ImGui::InputText("##size", val->limit.access()); //allow empty
+	ImGui::SameLine(0, 0);
+	BindingButton(name, &val->limit, ctx);
+	if (open)
+	{
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Indent();
+		ImGui::AlignTextToFramePadding();
+		ImGui::BeginDisabled(val->empty());
+		ImGui::Text("index");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##index", &val->index, true, ctx) || changed;
+		ImGui::EndDisabled();
+		ImGui::TreePop();
+	}
+	else
+	{
+		ImGui::Indent();
+	}
+	return changed;
 }
 
 //----------------------------------------------------
@@ -4835,15 +4873,16 @@ void Table::DoDraw(UIContext& ctx)
 			ImGui::TableSetupColumn(columnData[i].label.c_str(), columnData[i].flags, columnData[i].width);
 		if (header)
 			ImGui::TableHeadersRow();
+
 		ImGui::TableNextRow(0, rowHeight.eval_px(ctx));
 		ImGui::TableSetColumnIndex(0);
 		
 		for (int i = 0; i < (int)children.size(); ++i)
-		{
 			children[i]->Draw(ctx);
-			//ImGui::Text("cell");
-		}
 		
+		for (int r = ImGui::TableGetRowIndex() + 1; r < header + rowCount.limit.eval(ctx); ++r)
+			ImGui::TableNextRow(0, rowHeight.eval_px(ctx));
+
 		ImGui::EndTable();
 	}
 
@@ -4869,7 +4908,7 @@ Table::Properties()
 		{ "table.flags", &flags },
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
-		{ "table.row_count", &rowCount },
+		{ "table.rowCount", &rowCount },
 		{ "table.row_height", &rowHeight },
 		{ "table.row_filter", &rowFilter },
 		{ "size_x", &size_x },
@@ -4944,11 +4983,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##header", header.access());
 		break;
 	case 7:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::Text("rowCount");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##rowCount", &rowCount, true, ctx);
+		changed = DataLoopProp("rowCount", &rowCount, ctx);
 		break;
 	case 8:
 		ImGui::Text("rowHeight");
@@ -5060,9 +5095,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!rowCount.empty())
 	{
-		os << "\n" << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR
-			<< " < " << rowCount.to_arg() << "; ++" << FOR_VAR
-			<< ")\n" << ctx.ind << "{\n";
+		os << "\n" << ctx.ind << rowCount.to_arg(CppGen::CppGen::FOR_VAR) << "\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 
 		if (!rowFilter.empty())
@@ -5073,7 +5106,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 			ctx.ind_down();
 		}
 		
-		os << ctx.ind << "ImGui::PushID((int)" << FOR_VAR << ");\n";
+		os << ctx.ind << "ImGui::PushID(" << rowCount.index_name_or(CppGen::FOR_VAR) << ");\n";
 	}
 	
 	os << ctx.ind << "ImGui::TableNextRow(0, ";
@@ -5167,8 +5200,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::ForBlock)
 	{
-		if (!sit->cond.compare(0, FOR_VAR.size()+1, std::string(FOR_VAR) + "<")) //VS bug without std::string()
-			rowCount.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
+		rowCount.set_from_arg(sit->line);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee.compare(0, 7, "ImGui::"))
 	{
@@ -5362,9 +5394,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!itemCount.empty())
 	{
-		os << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR
-			<< " < " << itemCount.to_arg() << "; ++" << FOR_VAR
-			<< ")\n" << ctx.ind << "{\n";
+		os << ctx.ind << itemCount.to_arg(CppGen::FOR_VAR) << "\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
 	
@@ -5441,8 +5471,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::ForBlock)
 	{
-		if (!sit->cond.compare(0, FOR_VAR.size() + 1, FOR_VAR + "<"))
-			itemCount.set_from_arg(sit->cond.substr(FOR_VAR.size() + 1));
+		itemCount.set_from_arg(sit->line);
 	}
 }
 
@@ -5515,11 +5544,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##columnBorder", columnBorder.access());
 		break;
 	case 7:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::Text("itemCount");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##itemCount", &itemCount, true, ctx);
+		changed = DataLoopProp("itemCount", &itemCount, ctx);
 		break;
 	case 8:
 		ImGui::Text("size_x");
@@ -6044,8 +6069,8 @@ std::unique_ptr<Widget> TabBar::Clone(UIContext& ctx)
 {
 	auto sel = std::make_unique<TabBar>(*this);
 	//tabCount can be shared
-	if (!tabIndex.empty() && ctx.createVars) {
-		sel->tabIndex.set_from_arg(ctx.codeGen->CreateVar("int", "", CppGen::Var::Interface));
+	if (!activeTab.empty() && ctx.createVars) {
+		sel->activeTab.set_from_arg(ctx.codeGen->CreateVar("int", "", CppGen::Var::Interface));
 	}
 	sel->CloneChildrenFrom(*this, ctx);
 	return sel;
@@ -6087,11 +6112,11 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_up();
 	if (!tabCount.empty())
 	{
-		os << ctx.ind << "for (size_t " << FOR_VAR << " = 0; " << FOR_VAR << " < "
-			<< tabCount.to_arg() << "; ++" << FOR_VAR << ")\n";
+		os << ctx.ind << tabCount.to_arg(CppGen::FOR_VAR) << "\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
-		os << ctx.ind << "ImGui::PushID((int)" << FOR_VAR << ");\n";
+		//BeginTabBar does this
+		//os << ctx.ind << "ImGui::PushID(" << tabCount.index_name_or(CppGen::FOR_VAR) << ");\n";
 	}
 	os << ctx.ind << "/// @separator\n\n";
 	
@@ -6101,7 +6126,7 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "/// @separator\n";
 	if (!tabCount.empty())
 	{
-		os << ctx.ind << "ImGui::PopID();\n";
+		//os << ctx.ind << "ImGui::PopID();\n"; EndTabBar does this
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
@@ -6122,11 +6147,7 @@ void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::ForBlock && sit->level == ctx.importLevel + 1)
 	{
-		std::string cmp;
-		cmp += FOR_VAR;
-		cmp += "<"; //to prevent VS bug
-		if (!sit->cond.compare(0, cmp.size(), cmp))
-			tabCount.set_from_arg(sit->cond.substr(cmp.size()));
+		tabCount.set_from_arg(sit->line);
 	}
 }
 
@@ -6137,7 +6158,7 @@ TabBar::Properties()
 	props.insert(props.begin(), {
 		{ "flags", &flags },
 		{ "tabCount", &tabCount },
-		{ "tabIndex", &tabIndex },
+		{ "activeTab", &activeTab },
 		});
 	return props;
 }
@@ -6155,18 +6176,14 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 			});
 		break;
 	case 1:
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::Text("tabCount");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##tabCount", &tabCount, true, ctx);
+		changed = DataLoopProp("tabCount", &tabCount, ctx);
 		break;
 	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
-		ImGui::Text("tabIndex");
+		ImGui::Text("activeTab");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##tabIndex", &tabIndex, true, ctx);
+		changed = InputFieldRef("##activeTab", &activeTab, true, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 3, ctx);
@@ -6276,20 +6293,19 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 	std::string idx;
 	assert(ctx.parents.back() == this);
 	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
-	if (tb && !tb->tabIndex.empty())
+	if (tb && !tb->activeTab.empty())
 	{
 		if (!tb->tabCount.empty())
 		{
-			idx = "(int)";
-			idx += FOR_VAR;
+			idx = tb->tabCount.index_name_or(CppGen::FOR_VAR);
 		}
 		else
 		{
 			size_t n = stx::find_if(tb->children, [this](const auto& ch) {
 				return ch.get() == this; }) - tb->children.begin();
-				idx = std::to_string(n);
+			idx = std::to_string(n);
 		}
-		os << idx << " == " << tb->tabIndex.to_arg() << " ? ImGuiTabItemFlags_SetSelected : 0";
+		os << tb->activeTab.to_arg() << " == " << idx << " ? ImGuiTabItemFlags_SetSelected : 0";
 	}
 	else
 	{
@@ -6313,21 +6329,20 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (closeButton && !onClose.empty())
 	{
-		os << ctx.ind << "if (!" << var << ")\n" << ctx.ind << "{\n";
+		os << ctx.ind << "if (!" << var << ")\n";
 		ctx.ind_up();
-		if (idx != "")
-			os << ctx.ind << tb->tabIndex.to_arg() << " = " << idx << ";\n";
+		/*if (idx != "") no need to activate, user can check tabCount.index 
+			os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";*/
 		os << ctx.ind << onClose.to_arg() << "();\n";
 		ctx.ind_down();
-		os << ctx.ind << "}\n";
 	}
-	if (idx != "")
+	/*if (idx != "") user can add IsItemActivated event on his own and there is tabCount.index
 	{
 		os << ctx.ind << "if (ImGui::IsItemActivated())\n";
 		ctx.ind_up();
-		os << ctx.ind << tb->tabIndex.to_arg() << " = " << idx << ";\n";
+		os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";
 		ctx.ind_down();
-	}
+	}*/
 }
 
 void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -6348,8 +6363,8 @@ void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			size_t i = p.find("==");
 			if (i != std::string::npos && p.substr(p.size() - 32, 32) == "?ImGuiTabItemFlags_SetSelected:0")
 			{
-				std::string var = p.substr(i + 2, p.size() - 32 - i - 2);
-				tb->tabIndex.set_from_arg(var);
+				std::string var = p.substr(0, i); // i + 2, p.size() - 32 - i - 2);
+				tb->activeTab.set_from_arg(var);
 			}
 		}
 	}
@@ -6416,7 +6431,7 @@ bool TabItem::EventUI(int i, UIContext& ctx)
 	{
 	case 0:
 		ImGui::BeginDisabled(!closeButton);
-		ImGui::Text("onClose");
+		ImGui::Text("OnClose");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onClose", &onClose, ctx);
