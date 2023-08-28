@@ -436,7 +436,7 @@ void TopWindow::Draw(UIContext& ctx)
 	fl |= flags;
 
 	if (style_font != "")
-		ImGui::PushFont(ImRad::GetFontByName(style_font));
+		ImGui::PushFont(ImRad::GetFontByName(style_font.c_str()));
 	if (style_padding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
 	if (style_spacing.has_value())
@@ -583,7 +583,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	if (style_font != "")
 	{
-		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(\"" << style_font << "\"));\n";
+		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(" << style_font.to_arg() << "));\n";
 	}
 	if (style_padding.has_value())
 	{
@@ -768,8 +768,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
-			if (sit->params.size() && !sit->params[0].compare(0, 22, "ImRad::GetFontByName(\""))
-				style_font = sit->params[0].substr(22, sit->params[0].size() - 22 - 2);
+			if (sit->params.size() && !sit->params[0].compare(0, 21, "ImRad::GetFontByName("))
+				style_font.set_from_arg(sit->params[0].substr(21, sit->params[0].size() - 21 - 1));
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 		{
@@ -911,13 +911,14 @@ TopWindow::Properties()
 		{ "title", &title, true },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
+		{ "centered", nullptr },
 		{ "maximized", nullptr },
 	};
 }
 
 bool TopWindow::PropertyUI(int i, UIContext& ctx)
 {
-	if (kind != MainWindow && i >= 8)
+	if (kind != MainWindow && i >= 9)
 		return false;
 	bool changed = false;
 	switch (i)
@@ -1006,10 +1007,21 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 8:
+	{
+		ImGui::BeginDisabled(true);
+		ImGui::Text("centered");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		bool tmp = kind == ModalPopup ? true : false;
+		changed = ImGui::Checkbox("##centered", &tmp);
+		ImGui::EndDisabled();
+		break;
+	}
+	case 9:
 		ImGui::Text("maximized");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##maximized", &maximized);
+		changed = ImGui::Checkbox("##maximized", maximized.access());
 		break;
 	default:
 		return false;
@@ -4867,6 +4879,7 @@ void Table::DoDraw(UIContext& ctx)
 
 	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ size_x.eval_px(ctx), size_y.eval_px(ctx) };
+	float rh = rowHeight.eval_px(ctx);
 	if (ImGui::BeginTable(("table" + std::to_string((uint64_t)this)).c_str(), n, flags, size))
 	{
 		for (size_t i = 0; i < (int)columnData.size(); ++i)
@@ -4874,14 +4887,15 @@ void Table::DoDraw(UIContext& ctx)
 		if (header)
 			ImGui::TableHeadersRow();
 
-		ImGui::TableNextRow(0, rowHeight.eval_px(ctx));
+		ImGui::TableNextRow(0, rh);
 		ImGui::TableSetColumnIndex(0);
 		
 		for (int i = 0; i < (int)children.size(); ++i)
 			children[i]->Draw(ctx);
 		
-		for (int r = ImGui::TableGetRowIndex() + 1; r < header + rowCount.limit.eval(ctx); ++r)
-			ImGui::TableNextRow(0, rowHeight.eval_px(ctx));
+		int n = rowCount.limit.value();
+		for (int r = ImGui::TableGetRowIndex() + 1; r < header + n; ++r)
+			ImGui::TableNextRow(0, rh);
 
 		ImGui::EndTable();
 	}

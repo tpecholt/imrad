@@ -532,23 +532,7 @@ struct bindable : property_base
 		is >> std::boolalpha >> val;
 		return val;
 	}
-	T eval(const UIContext& ctx) const
-	{
-		if (empty())
-			return {};
-		else if (has_value())
-			return value();
-		else {
-			const auto* var = ctx.codeGen->GetVar(str);
-			if (var) {
-				T val;
-				std::istringstream is(var->init);
-				if (is >> val)
-					return val;
-			}
-		}
-		return {};
-	}
+	//T eval(const UIContext& ctx) const;
 
 	void set_from_arg(std::string_view s) {
 		str = s;
@@ -988,7 +972,7 @@ struct data_loop : property_base
 		std::string name = index_name_or(std::string(vn));
 		os << "for (";
 		if (index.empty())
-			os << typeid_name<decltype(index)::type>() << " ";
+			os << "int ";
 		os << name << " = 0; " << name << " < " << limit.to_arg()
 			<< "; ++" << name << ")";
 		return os.str();

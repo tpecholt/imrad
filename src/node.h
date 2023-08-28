@@ -627,10 +627,10 @@ struct TopWindow : UINode
 	bindable<std::string> title = "title";
 	bindable<dimension> size_x = 640.f;
 	bindable<dimension> size_y = 480.f;
-	std::string style_font = "";
+	direct_val<std::string> style_font = "";
 	direct_val<dimension2> style_padding;
 	direct_val<dimension2> style_spacing;
-	bool maximized = false;
+	direct_val<bool> maximized = false;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);
