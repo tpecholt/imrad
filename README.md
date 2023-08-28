@@ -20,7 +20,7 @@ ImRAD is under active development but these are the main features:
   * basic widgets like `Text`, `Checkbox`, `Combo`, `Button`, `Slider`, `ColorEdit` etc.
   * container widgets like `Child`, `Table`, `CollapsingHeader`, `TreeNode`, `TabBar`,
   * more exotic widgets such as `Splitter`
-  * `MenuBar` editing
+  * `MenuBar` and context menu editing
   * `CustomWidget` (a placeholder to user code)
 
 * generates layout using `SameLine`/`Spacing`/`NextColumn`/`BeginGroup` instead of absolute positioning 
@@ -76,7 +76,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 ## Windows
 1. Use CMake GUI to configure and generate sln file
 2. Open the generated sln file in Visual Studio 2017 or newer (you can use Express or Community editions which are downloadable for free)
-3. Build the INSTALL project in Release mode
+3. Build the INSTALL project in Release mode. It may require running VS with admin rights
 4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
 
 ## Linux
@@ -85,6 +85,14 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
    ```sudo ./release-linux 0.5```
 
 2. ImRAD will be installed into *./install/imrad-0.5*
+
+# How to debug
+   
+## Windows
+
+1. Build the INSTALL target in VS as described above
+2. Set imrad as startup project, set its working directory to the installed folder
+3. Debug & Run
 
 # Screenshots
 
