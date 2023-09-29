@@ -1801,11 +1801,11 @@ void Widget::TreeUI(UIContext& ctx)
 			ImGui::PopStyleColor();
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_Text]);
 			ImGui::SameLine();
-			ImGui::Text(label.c_str());
+			ImGui::Text("%s", label.c_str());
 		}
 		ImGui::PopStyleColor();
 		ImGui::SameLine();
-		ImGui::TextDisabled(suff.c_str());
+		ImGui::TextDisabled("%s", suff.c_str());
 		ctx.parents.push_back(this);
 		for (const auto& ch : children)
 			ch->TreeUI(ctx);

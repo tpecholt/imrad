@@ -20,13 +20,10 @@ target_link_libraries(imrad
 	stb
 	${OPENGL_LIBRARIES}
 	${CMAKE_DL_LIBS}
+	${MISC_FRAMEWORKS}
 )
 
-if (WIN32)
-else()
-target_link_libraries(imrad stdc++fs)
-endif()
-
 install(FILES "imrad.h" DESTINATION "include/")
+add_dependencies(imrad nativefiledialog)
 
 install(TARGETS imrad DESTINATION ".")
