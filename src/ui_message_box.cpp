@@ -25,7 +25,7 @@ void MessageBox::Draw()
 			ImGui::Text(ICON_FA_TRIANGLE_EXCLAMATION " ");
 			ImGui::PopStyleColor();
 			ImGui::SameLine();
-			ImGui::TextWrapped(message.c_str());
+			ImGui::TextWrapped("%s", message.c_str());
 			ImGui::Spacing();
 			ImGui::Spacing();
 			ImGui::Spacing();
@@ -36,7 +36,7 @@ void MessageBox::Draw()
 		else
 		{
 			ImGui::BeginChild("ch", { 300, 50 });
-			ImGui::TextWrapped(message.c_str());
+			ImGui::TextWrapped("%s", message.c_str());
 			ImGui::EndChild();
 		}
 		ImGui::Spacing();

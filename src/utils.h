@@ -3,13 +3,9 @@
 #include <cmath>
 #include <imgui.h>
 #include <iostream>
-#ifdef WIN32
+// c17 standard now
 #include <filesystem>
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 inline const std::string VER_STR = "ImRAD 0.6";
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";

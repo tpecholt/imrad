@@ -142,11 +142,13 @@ void NewFile(TopWindow::Kind k)
 
 void NewTemplate(int type)
 {
-	nfdchar_t *outPath = NULL;
-	nfdresult_t result = NFD_SaveDialog("cpp", NULL, &outPath);
+    nfdnchar_t *outPath = NULL;
+    nfdnfilteritem_t filterItem[1] = { { "Source code", "cpp" } };
+	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "glfw-main.cpp");
 	if (result != NFD_OKAY)
 		return;
 	fs::path p = outPath;
+    NFD_FreePath(outPath);
 	if (!p.has_extension())
 		p.replace_extension(".cpp");
 
@@ -214,7 +216,8 @@ void DoOpenFile(const std::string& path)
 void OpenFile()
 {
 	nfdchar_t *outPath = NULL;
-	nfdresult_t result = NFD_OpenDialog("h", NULL, &outPath);
+    nfdfilteritem_t filterItem[1] = { { "Headers", "h,hpp" } };
+    nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, nullptr);
 	if (result != NFD_OKAY)
 		return;
 	
@@ -240,6 +243,7 @@ void OpenFile()
 	else {
 		DoOpenFile(outPath);
 	}
+    NFD_FreePath(outPath);
 }
 
 void ReloadFiles()
@@ -358,7 +362,8 @@ void DoSaveFile(bool thenClose)
 bool SaveFileAs(bool thenClose = false)
 {
 	nfdchar_t *outPath = NULL;
-	nfdresult_t result = NFD_SaveDialog("h", NULL, &outPath);
+    nfdnfilteritem_t filterItem[1] = { { "Header File", "h,hpp" } };
+    nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, nullptr);
 	if (result != NFD_OKAY) {
 		if (thenClose)
 			DoCloseFile();
@@ -367,6 +372,7 @@ bool SaveFileAs(bool thenClose = false)
 	auto& tab = fileTabs[activeTab];
 	std::string oldName = tab.fname;
 	std::string newName = fs::path(outPath).replace_extension(".h").string();
+    NFD_FreePath(outPath);
 	try {
 		if (oldName != "") {
 			//copy files first so CppGen can parse it and preserve user content as with Save
@@ -949,7 +955,7 @@ void ToolbarUI()
 				if (ImGui::Selectable(tb.label.c_str(), activeButton == tb.name, 0, ImVec2(BTN_SIZE, BTN_SIZE)))
 					NewWidget(tb.name);
 				if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tb.name != "")
-					ImGui::SetTooltip(tb.name.c_str());
+					ImGui::SetTooltip("%s", tb.name.c_str());
 
 				ImGui::NextColumn();
 			}
@@ -998,7 +1004,7 @@ void TabsUI()
 				ImGui::EndTabItem();
 			}
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tab.fname != "")
-				ImGui::SetTooltip(tab.fname.c_str());
+				ImGui::SetTooltip("%s", tab.fname.c_str());
 
 			if (!i)
 			{

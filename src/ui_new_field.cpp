@@ -107,7 +107,7 @@ void NewFieldPopup::Draw()
 		}
 
 		ImGui::PushStyleColor(ImGuiCol_Text, clr);
-		ImGui::TextWrapped(hint.c_str());
+		ImGui::TextWrapped("%s", hint.c_str());
 		ImGui::PopStyleColor();
 
 		ImGui::Spacing();
@@ -229,6 +229,8 @@ void NewFieldPopup::CheckVarName()
 			hint = "same field already exists";
 			clr = IM_COL32(255, 128, 0, 255);
 			break;
+        default:
+            break;
 		}
 	}
 }
