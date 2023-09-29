@@ -19,17 +19,11 @@ if(MSVC)
 else()
   if (${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     find_library(MISC_FRAMEWORKS UniformTypeIdentifiers)
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
   elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Linux")
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-      message("cmake thinks you are using using Clang")
-      set(MISC_FRAMEWORKS "-lglibc")
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-      message("cmake thinks you are using GNUS/gcc")
-    endif()
       find_package(PkgConfig REQUIRED)
       pkg_check_modules(MISC REQUIRED gtk+-3.0 glib-2.0)
       set(MISC_FRAMEWORKS "${MISC_STATIC_LIBRARIES}")
-      message("MISC_FRAMEWORKS: ${MISC_FRAMEWORKS}")
   endif()
 
     # boost errors
@@ -50,6 +44,8 @@ ExternalProject_Add(nativefiledialog
   PREFIX ${NFD_PREFIX}
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${NFD_PREFIX}
   INSTALL_COMMAND ""
+  CMAKE_CACHE_ARGS
+  -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64\;arm64
 )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/${NFD_PREFIX}/src/include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/${NFD_PREFIX}/src/nativefiledialog-build/src/)
