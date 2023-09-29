@@ -10,7 +10,7 @@
 	path = 3rdparty/stb
 	url = https://github.com/nothings/stb.git
 	branch = master
-[submodule "3rdParty/nativefiledialog"]
-	path = 3rdParty/nativefiledialog
+[submodule "3rdparty/nativefiledialog"]
+	path = 3rdparty/nativefiledialog
 	url = https://github.com/btzy/nativefiledialog-extended.git
         branch = master
