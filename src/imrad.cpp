@@ -142,13 +142,13 @@ void NewFile(TopWindow::Kind k)
 
 void NewTemplate(int type)
 {
-    nfdnchar_t *outPath = NULL;
-    nfdnfilteritem_t filterItem[1] = { { "Source code", "cpp" } };
+    nfdchar_t *outPath = NULL;
+    nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Source code", (const nfdchar_t *)"cpp" } };
 	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "glfw-main.cpp");
 	if (result != NFD_OKAY)
 		return;
 	fs::path p = outPath;
-    NFD_FreePath(outPath);
+        NFD_FreePath(outPath);
 	if (!p.has_extension())
 		p.replace_extension(".cpp");
 
@@ -362,8 +362,8 @@ void DoSaveFile(bool thenClose)
 bool SaveFileAs(bool thenClose = false)
 {
 	nfdchar_t *outPath = NULL;
-    nfdnfilteritem_t filterItem[1] = { { "Header File", "h,hpp" } };
-    nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, nullptr);
+	nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Header File", (const nfdchar_t *)"h,hpp" } };
+	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, nullptr);
 	if (result != NFD_OKAY) {
 		if (thenClose)
 			DoCloseFile();
@@ -1458,6 +1458,9 @@ int main(int argc, const char* argv[])
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
+	// Initialized the native file dialog
+	NFD_Init();
+
 	// Create window with graphics context
 	window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
 	if (window == NULL)
@@ -1485,7 +1488,6 @@ int main(int argc, const char* argv[])
 	// - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
 	// - Read 'docs/FONTS.md' for more instructions and details.
 	// - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-	
 	// Our state
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -1537,7 +1539,7 @@ int main(int argc, const char* argv[])
 		PopupUI();
 		Draw();
 		Work();
-		
+
 		//ImGui::ShowDemoWindow();
 
 		firstTime = false;
@@ -1554,6 +1556,8 @@ int main(int argc, const char* argv[])
 	}
 
 	// Cleanup
+	NFD_Quit();
+
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
