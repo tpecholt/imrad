@@ -132,8 +132,9 @@ void UINode::DrawSnap(UIContext& ctx)
 	float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
 	int snapCount = UIContext::Color::COUNT - UIContext::Color::Snap1;
 
-	//snap interior
-	if ((snapOp & SnapInterior) && mind >= 0 &&
+	//snap interior (first child)
+	if ((snapOp & SnapInterior) && 
+		mind >= 2 && //allow snapping sides with zero border
 		!stx::count_if(children, [](const auto& ch) { return ch->SnapBehavior() & SnapSides; }))
 	{
 		ctx.snapParent = this;
