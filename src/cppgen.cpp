@@ -83,14 +83,15 @@ bool CppGen::ExportUpdate(
 	fin.close();
 	fprev.seekg(0);
 	std::ofstream fout(hpath, std::ios::trunc);
-	auto origNames = ExportH(fout, fprev, node->kind);
+	auto origNames = ExportH(fout, fprev, m_hname, node->kind);
+	m_hname = hpath.filename().string();
 	fout.close();
 
 	auto fpath = fs::path(fname).replace_extension(".cpp");
 	if (!fs::exists(fpath) || fs::is_empty(fpath))
 	{
 		std::ofstream fout(fpath);
-		CreateCpp(fout, hpath.filename().string());
+		CreateCpp(fout);
 	}
 	fin.open(fpath);
 	fprev.str("");
@@ -129,20 +130,20 @@ void CppGen::CreateH(std::ostream& out)
 	out << "extern " << m_name << " " << m_vname << ";\n";
 }
 
-void CppGen::CreateCpp(std::ostream& out, const std::string& hName)
+void CppGen::CreateCpp(std::ostream& out)
 {
 	out << "// Generated with " << VER_STR << "\n"
 		<< "// visit " << GITHUB_URL << "\n\n";
 
-	out << "#include \"" << hName << "\"\n";
+	out << "#include \"" << m_hname << "\"\n";
 	out << "\n";
 
 	out << m_name << " " << m_vname << ";\n\n";
 }
 
 //follows fprev and overwrites generated members/functions only
-std::array<std::string, 2> 
-CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
+std::array<std::string, 3> 
+CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& origHName, TopWindow::Kind kind)
 {
 	int level = 0;
 	bool in_class = false;
@@ -363,14 +364,14 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, TopWindow::Kind kind)
 
 	//flush
 	fout << code;
-	return { origName, origVName };
+	return { origName, origVName, origHName };
 }
 
 //follows fprev and overwrites generated members/functions only only
 void CppGen::ExportCpp(
 	std::ostream& fout, 
 	std::istream& fprev, 
-	const std::array<std::string, 2>& origNames, 
+	const std::array<std::string, 3>& origNames, //name, vname, old header name
 	const std::map<std::string, std::string>& params, 
 	TopWindow::Kind kind, 
 	const std::string& code
@@ -403,7 +404,14 @@ void CppGen::ExportCpp(
 		std::string tok = *iter;
 		if (!level) //global scope
 		{
-			if (!tok.compare(0, 1, "#") || !tok.compare(0, 2, "//"))
+			if (origNames[2] != "" &&
+				!tok.compare(0, 10, "#include \"") &&
+				!tok.compare(10, origNames[2].size(), origNames[2]))
+			{
+				copy_content(-(int)tok.size());
+				fout << "#include \"" << m_hname << "\"";
+			}
+			else if (!tok.compare(0, 2, "//") || !tok.compare(0, 1, "#"))
 				;
 			else if (tok == ";") {
 				line.clear();
@@ -559,6 +567,7 @@ CppGen::Import(
 	std::unique_ptr<TopWindow> node;
 
 	auto fpath = fs::path(path).replace_extension("h");
+	m_hname = fpath.filename().string();
 	std::ifstream fin(fpath.string());
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";

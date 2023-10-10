@@ -395,8 +395,9 @@ bool SaveFileAs(bool thenClose = false)
 		return false;
 	}
 
+	if (oldName == "")
+		tab.codeGen.SetNamesFromId(fs::path(newName).stem().string());
 	tab.fname = newName;
-	tab.codeGen.SetNamesFromId(fs::path(tab.fname).stem().string());
 	DoSaveFile(thenClose);
 	return true;
 }
@@ -545,7 +546,7 @@ void StyleColors()
 	float alpha_ = 0.95f;
 	if (false) //dark
 	{
-		for (int i = 0; i <= ImGuiCol_COUNT; i++)
+		for (int i = 0; i < ImGuiCol_COUNT; i++)
 		{
 			ImVec4& col = style.Colors[i];
 			float H, S, V;
@@ -564,7 +565,7 @@ void StyleColors()
 	}
 	else
 	{
-		for (int i = 0; i <= ImGuiCol_COUNT; i++)
+		for (int i = 0; i < ImGuiCol_COUNT; i++)
 		{
 			ImVec4& col = style.Colors[i];
 			if (col.w < 1.00f)
@@ -919,6 +920,7 @@ void ToolbarUI()
 	{
 		classWizard.codeGen = ctx.codeGen;
 		classWizard.root = fileTabs[activeTab].rootNode.get();
+		classWizard.modified = &fileTabs[activeTab].modified;
 		classWizard.OpenPopup();
 	}
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
@@ -999,6 +1001,7 @@ void TabsUI()
 				fname = UNTITLED + std::to_string(++untitled);
 			if (tab.modified)
 				fname += " *";
+			bool notClosed = true;
 			if (ImGui::BeginTabItem(fname.c_str(), &notClosed, i == activeTab ? ImGuiTabItemFlags_SetSelected : 0))
 			{
 				ImGui::EndTabItem();
