@@ -60,6 +60,7 @@ struct File
 };
 
 bool firstTime;
+std::string initErrors;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -166,8 +167,20 @@ void NewTemplate(int type)
 	}
 }
 
-void DoOpenFile(const std::string& path)
+void DoOpenFile(const std::string& path, std::string* errs = nullptr)
 {
+	if (!fs::is_regular_file(path)) {
+		if (errs)
+			*errs += "Can't read '" + path + "'\n";
+		else {
+			messageBox.title = "ImRAD";
+			messageBox.message = "Can't read '" + path + "'";
+			messageBox.buttons = ImRad::Ok;
+			messageBox.OpenPopup();
+		}
+		return;
+	}
+
 	File file;
 	file.fname = path;
 	file.time[0] = fs::last_write_time(file.fname);
@@ -180,17 +193,25 @@ void DoOpenFile(const std::string& path)
 	pit = params.find("unit");
 	file.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
 	if (!file.rootNode) {
-		messageBox.title = "CodeGen";
-		messageBox.message = "Unsuccessful import because of errors";
-		messageBox.buttons = ImRad::Ok;
-		messageBox.OpenPopup();
+		if (errs)
+			*errs += "Unsuccessful import of '" + path + "'\n";
+		else {
+			messageBox.title = "CodeGen";
+			messageBox.message = "Unsuccessful import because of errors";
+			messageBox.buttons = ImRad::Ok;
+			messageBox.OpenPopup();
+		}
 		return;
 	}
+	
 	bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
 		return st.first == file.styleName;
 		});
 	if (!styleFound) {
-		messageBox.error = "Unknown style \"" + file.styleName + "\" used\n" + messageBox.error; 
+		if (errs)
+			*errs += "Uknown style \"" + file.styleName + "\" used in '" + path + "'\n";
+		else
+			messageBox.error = "Unknown style \"" + file.styleName + "\" used\n" + messageBox.error; 
 		file.styleName = DEFAULT_STYLE;
 	}
 
@@ -978,7 +999,6 @@ void TabsUI()
 		| ImGuiWindowFlags_NoScrollbar
 		//| ImGuiWindowFlags_NoSavedSettings
 		;
-	bool notClosed = true;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 0.0f));
 	ImGuiWindowClass window_class;
 	window_class.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_NoResize;
@@ -1318,6 +1338,16 @@ void Work()
 	if (ImGui::GetTopMostAndVisiblePopupModal())
 		return;
 
+	if (initErrors != "")
+	{
+		messageBox.title = "ImRAD";
+		messageBox.message = "Errors occured";
+		messageBox.buttons = ImRad::Ok;
+		messageBox.error = initErrors;
+		messageBox.OpenPopup();
+		initErrors = "";
+	}
+
 	if (ctx.mode == UIContext::Snap)
 	{
 		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
@@ -1416,6 +1446,48 @@ void Work()
 	}
 }
 
+//This writes and reads records from [Recent] section
+void AddINIHandler()
+{
+	ImGuiSettingsHandler ini_handler;
+	ini_handler.TypeName = "ImRAD";
+	ini_handler.TypeHash = ImHashStr("ImRAD");
+	ini_handler.ReadOpenFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, const char* name) -> void*
+		{
+			return (void*)name;
+		};
+	ini_handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler*, void* entry, const char* line)
+		{
+			if (!firstTime)
+				return;
+			if (!strcmp((const char*)entry, "Recent")) {
+				char buf[1000];
+				int i;
+				if (sscanf(line, "File%d=%s", &i, buf) == 2) {
+					if (i == 1) {
+						fileTabs.clear();
+						ActivateTab(-1);
+					}
+					DoOpenFile(buf, &initErrors);
+				}
+				else if (sscanf(line, "ActiveTab=%d", &i) == 1) {
+					ActivateTab(i);
+				}
+			}
+		};
+	ini_handler.ApplyAllFn = nullptr; 
+	ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) 
+		{
+			buf->appendf("[ImRAD][%s]\n", "Recent");
+			for (int i = 0; i < fileTabs.size(); ++i) {
+				buf->appendf("File%d=%s\n", i+1, fileTabs[i].fname.c_str());
+			}
+			buf->appendf("ActiveTab=%d\n", activeTab);
+			buf->append("\n");
+		};
+	ImGui::GetCurrentContext()->SettingsHandlers.push_back(ini_handler);
+}
+
 #ifdef WIN32
 int WINAPI wWinMain(
 	HINSTANCE   hInstance,
@@ -1466,11 +1538,12 @@ int main(int argc, const char* argv[])
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	AddINIHandler();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
+	
 	// Setup Platform/Renderer backends
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
@@ -1487,9 +1560,6 @@ int main(int argc, const char* argv[])
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	GetStyles();
-#if _DEBUG
-	NewFile(TopWindow::Window);
-#endif
 	firstTime = true;
 	bool lastVisible = true;
 	while (true)
