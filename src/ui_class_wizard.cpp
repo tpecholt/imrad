@@ -117,6 +117,7 @@ void ClassWizard::Draw()
 				newFieldPopup.codeGen = codeGen;
 				newFieldPopup.mode = NewFieldPopup::NewStruct;
 				newFieldPopup.OpenPopup([this] {
+					*modified = true;
 					Refresh();
 					});
 			}
@@ -141,6 +142,7 @@ void ClassWizard::Draw()
 			newFieldPopup.mode = stypeIdx ? NewFieldPopup::RenameField : NewFieldPopup::RenameWindow;
 			newFieldPopup.varOldName = stypes[stypeIdx];
 			newFieldPopup.OpenPopup([this] {
+				*modified = true;
 				Refresh();
 				});
 		}
@@ -236,6 +238,7 @@ void ClassWizard::Draw()
 			newFieldPopup.scope = stypeIdx ? stypes[stypeIdx] : "";
 			newFieldPopup.varType = "";
 			newFieldPopup.OpenPopup([this] {
+				*modified = true;
 				Refresh();
 				});
 		}
@@ -253,6 +256,7 @@ void ClassWizard::Draw()
 			newFieldPopup.scope = stypeIdx ? stypes[stypeIdx] : "";
 			newFieldPopup.varOldName = fields[selRow].name;
 			newFieldPopup.OpenPopup([this] {
+				*modified = true;
 				root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
 				Refresh();
 				});
@@ -274,6 +278,7 @@ void ClassWizard::Draw()
 				messageBox.buttons = ImRad::Yes | ImRad::No;
 				messageBox.OpenPopup([this,name](ImRad::ModalResult mr) {
 					if (mr == ImRad::Yes) {
+						*modified = true;
 						codeGen->RemoveVar(name);
 						Refresh();
 					}
@@ -281,6 +286,7 @@ void ClassWizard::Draw()
 			}
 			else 
 			{
+				*modified = true;
 				codeGen->RemoveVar(name, stypeIdx ? stypes[stypeIdx] : "");
 				Refresh();
 			}
@@ -295,8 +301,10 @@ void ClassWizard::Draw()
 		{
 			for (const auto& fi : fields)
 			{
-				if (!stx::count(used, fi.name))
+				if (!stx::count(used, fi.name)) {
+					*modified = true;
 					codeGen->RemoveVar(fi.name);
+				}
 			}
 			Refresh();
 		}

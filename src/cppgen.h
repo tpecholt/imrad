@@ -51,9 +51,9 @@ private:
 	Var* FindVar(const std::string& name, const std::string& scope);
 
 	void CreateH(std::ostream& out);
-	void CreateCpp(std::ostream& out, const std::string& hName);
-	auto ExportH(std::ostream& out, std::istream& prev, TopWindow::Kind k) -> std::array<std::string, 2>;
-	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 2>& origNames, const std::map<std::string, std::string>& params, TopWindow::Kind k, const std::string& code);
+	void CreateCpp(std::ostream& out);
+	auto ExportH(std::ostream& out, std::istream& prev, const std::string& origHName, TopWindow::Kind k) -> std::array<std::string, 3>;
+	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 3>& origNames, const std::map<std::string, std::string>& params, TopWindow::Kind k, const std::string& code);
 	auto ImportCode(std::istream& in, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	bool ParseFieldDecl(const std::string& stype, const std::vector<std::string>& line, int flags);
@@ -62,7 +62,7 @@ private:
 	auto ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	std::map<std::string, std::vector<Var>> m_fields;
-	std::string m_name, m_vname;
+	std::string m_name, m_vname, m_hname;
 	std::string ctx_workingDir;
 	std::string m_error;
 };

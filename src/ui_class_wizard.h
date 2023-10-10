@@ -18,6 +18,7 @@ public:
 public:
 	CppGen* codeGen;
 	UINode* root;
+	bool* modified;
 	
 private:
 	void Refresh();
