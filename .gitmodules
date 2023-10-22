@@ -6,11 +6,11 @@
 	path = 3rdparty/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
-[submodule "3rdparty/nativefiledialog"]
-	path = 3rdparty/nativefiledialog
-	url = https://github.com/mlabbe/nativefiledialog.git
-	branch = master
 [submodule "3rdparty/stb"]
 	path = 3rdparty/stb
 	url = https://github.com/nothings/stb.git
 	branch = master
+[submodule "3rdparty/nativefiledialog"]
+	path = 3rdparty/nativefiledialog
+	url = https://github.com/btzy/nativefiledialog-extended.git
+        branch = master

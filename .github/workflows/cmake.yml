@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -25,7 +26,7 @@ jobs:
     - name: apt install
       run: |
            sudo apt update
-           sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libgtk-3-dev libsystemd-dev
+           sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libgtk-3-dev libsystemd-dev libwebp-dev libzstd-dev
 
 
     - name: Configure CMake
@@ -35,7 +36,7 @@ jobs:
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --parallel 8
 
     - name: Test
       working-directory: ${{github.workspace}}/build
