@@ -71,6 +71,12 @@ struct CustomWidgetArgs
 	CustomWidgetArgs(float x, float y) : size(x, y) {}
 };
 
+struct IOUserData
+{
+	float dpiScale = 1;
+	float androidNavBarHeight = 0;
+};
+
 //------------------------------------------------------------------------
 
 inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)
@@ -284,6 +290,9 @@ inline void SaveStyle(std::string_view fname)
 	fout << "# Snap1 ...\n";
 }
 
+#ifdef ANDROID
+extern int GetAssetData(const char* filename, void** outData);
+#endif
 //This function can be used in your code to load style and fonts from the INI file
 //It is also used by ImRAD when switching themes
 inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
@@ -394,7 +403,13 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 				cfg.Name[sizeof(cfg.Name) - 1] = '\0';
 				cfg.MergeMode = key == lastFont;
 				cfg.GlyphRanges = hasRange ? rngs.back().get() : nullptr;
+#ifdef ANDROID
+				void* font_data;
+				int font_data_size = GetAssetData(path.c_str(), &font_data);
+				ImFont* fnt = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, size * fontScaling);
+#else
 				ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size * fontScaling, &cfg);
+#endif
 				if (!fnt)
 					throw std::runtime_error("Can't load " + path);
 				if (!cfg.MergeMode && fontMap)

@@ -620,7 +620,7 @@ struct Splitter : Widget
 
 struct TopWindow : UINode
 {
-	enum Kind { MainWindow, Window, Popup, ModalPopup };
+	enum Kind { MainWindow, Window, Popup, ModalPopup, Activity };
 
 	flags_helper flags = ImGuiWindowFlags_NoCollapse;
 	Kind kind = Window;

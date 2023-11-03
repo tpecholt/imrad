@@ -294,7 +294,8 @@ struct direct_val<dimension> : property_base
 		is.str(std::string(s));
 		is >> val;
 		//strip unit calculation
-		if (s.size() > 3 && s.substr(s.size() - 3) == "*fs")
+		std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
+		if (factor == "*fs" || factor == "*dp")
 		{
 			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
 			dimension v;
@@ -352,12 +353,13 @@ struct direct_val<dimension2> : property_base
 		val = cpp::parse_fsize(std::string(s));
 	}
 	std::string to_arg(std::string_view unit) const {
+		bool hasv = has_value();
 		std::ostringstream os;
 		os << "{ " << val[0];
-		if (unit != "")
+		if (unit != "" && hasv && val[0])
 			os << "*" << unit;
 		os << ", " << val[1];
-		if (unit != "")
+		if (unit != "" && hasv && val[1])
 			os << "*" << unit;
 		os << " }";
 		return os.str();
@@ -611,7 +613,8 @@ struct bindable<dimension> : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 		//strip unit calculation
-		if (s.size() > 3 && s.substr(s.size() - 3) == "*fs") 
+		std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
+		if (factor == "*fs" || factor == "*dp") 
 		{
 			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
 			dimension val;
@@ -620,8 +623,11 @@ struct bindable<dimension> : property_base
 		}
 	}
 	std::string to_arg(std::string_view unit) const {
-		if (unit != "" && has_value())
+		if (unit != "" && has_value() && 
+			str != "0" && str != "-1") //don't suffix special values
+		{
 			return str + "*" + unit;
+		}
 		return str;
 	}
 	std::vector<std::string> used_variables() const {

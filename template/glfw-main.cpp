@@ -22,6 +22,7 @@
 #endif
 
 GLFWwindow* window;
+ImRad::IOUserData IOUserData;
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -77,7 +78,8 @@ int main(int argc, const char* argv[])
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGuiIO& io = ImGui::GetIO();
+	io.UserData = &IOUserData;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
@@ -92,14 +94,16 @@ int main(int argc, const char* argv[])
 	// Alternatively set ImGui style and fonts manually
 	// Read 'docs/FONTS.md' for more instructions and details.
 	ImGui::StyleColorsDark();
-	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f);
+	ImGui::GetStyle().ScaleAllSizes(IOUserData.dpiScale);
+	
+	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f * IOUserData.dpiScale);
 	/*
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig icons_config;
 	icons_config.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f, &icons_config, icons_ranges);
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f * IOUserData.dpiScale, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f * IOUserData.dpiScale, &icons_config, icons_ranges);
 	*/
 	
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);

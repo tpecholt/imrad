@@ -434,6 +434,8 @@ void TopWindow::Draw(UIContext& ctx)
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	if (kind == MainWindow)
 		fl |= ImGuiWindowFlags_NoCollapse;
+	else if (kind == Activity)
+		fl |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
 	fl |= flags;
 
 	if (style_font != "")
@@ -576,7 +578,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "const float fs = ImGui::GetFontSize();\n";
 	}
-
+	else if (ctx.unit == "dp")
+	{
+		os << ctx.ind << "const float dp = ((ImRad::IOUserData*)ImGui::GetIO().UserData)->dpiScale;\n";
+	}
+	
 	if (ctx.inPopup)
 	{
 		os << ctx.ind << "ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
@@ -597,7 +603,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			<< style_spacing.to_arg(ctx.unit) << ");\n";
 	}
 
-	if (kind != MainWindow && (flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
+	if (kind != MainWindow && kind != Activity &&
+		(flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
 	{
 		os << ctx.ind << "ImGui::SetNextWindowSize({ " 
 			<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
@@ -657,6 +664,19 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			ctx.ind_down();
 			os << ctx.ind << "}\n";
 		}
+	}
+	else if (kind == Activity)
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
+		os << ctx.ind << "const float bottomGap = ((ImRad::IOUserData*)ImGui::GetIO().UserData)->androidNavBarHeight;\n";
+		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - bottomGap });"
+			<< " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+		std::string fl = "ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings";
+		os << ctx.ind << "bool tmpOpen;\n";
+		os << ctx.ind << "if (isOpen && ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl << "))\n";
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
 	}
 	else if (kind == Window)
 	{
@@ -718,6 +738,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_padding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	if (kind == Activity)
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_font != "")
 		os << ctx.ind << "ImGui::PopFont();\n";
 
@@ -733,6 +755,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.userCode = "";
 	ctx.root = this;
 	ctx.parents = { this };
+	kind = Window;
+	bool parseCommentedSize = false;
 	
 	while (sit != cpp::stmt_iterator())
 	{
@@ -782,10 +806,23 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
 		{
 			if (sit->params.size()) {
-				auto size = cpp::parse_size(sit->params[0]);
-				size_x.set_from_arg(size.first);
-				size_y.set_from_arg(size.second);
+				if (sit->params[0].find("ImGui::GetIO().DisplaySize")  != std::string::npos) {
+					kind = Activity;
+					parseCommentedSize = true;
+				}
+				else {
+					auto size = cpp::parse_size(sit->params[0]);
+					size_x.set_from_arg(size.first);
+					size_y.set_from_arg(size.second);
+				}
 			}
+		}
+		else if (sit->kind == cpp::Comment && parseCommentedSize)
+		{
+			parseCommentedSize = false;
+			auto size = cpp::parse_size(sit->line.substr(2));
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowTitle")
 		{
@@ -844,7 +881,6 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
 		{
-			kind = Window;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
 			if (i != std::string::npos)
@@ -852,19 +888,26 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
+		
+			if (kind == Activity) {
+				flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
+				maximized = true;
+			}
+			else {
+				kind = Window;
+			}
 		}
 		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
 		{
 			kind = MainWindow;
 			ctx.importLevel = sit->level;
+			if (sit->params.size() >= 3)
+				flags.set_from_arg(sit->params[2]);
 			//reset sizes from earlier SetNextWindowSize
 			TopWindow def(ctx);
 			size_x = def.size_x;
 			size_y = def.size_y;
-			if (sit->params.size() >= 3) {
-				flags.set_from_arg(sit->params[2]);
-				flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
-			}
+			flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
 		}
 		++sit;
 	}
@@ -919,8 +962,6 @@ TopWindow::Properties()
 
 bool TopWindow::PropertyUI(int i, UIContext& ctx)
 {
-	if (kind != MainWindow && i >= 9)
-		return false;
 	bool changed = false;
 	switch (i)
 	{
@@ -931,7 +972,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		int tmp = (int)kind;
-		if (ImGui::Combo("##kind", &tmp, "Main Window (GLFW)\0Window\0Popup\0Modal Popup\0"))
+		if (ImGui::Combo("##kind", &tmp, "Main Window (GLFW)\0Window\0Popup\0Modal Popup\0Activity (Android)\0"))
 		{
 			changed = true;
 			kind = (Kind)tmp;
@@ -1019,10 +1060,18 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	case 9:
+		ImGui::BeginDisabled(kind != MainWindow);
 		ImGui::Text("maximized");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##maximized", maximized.access());
+		if (kind == MainWindow) {
+			changed = ImGui::Checkbox("##maximized", maximized.access());
+		}
+		else {
+			bool tmp = kind == Activity;
+			changed = ImGui::Checkbox("##maximized", &tmp);
+		}
+		ImGui::EndDisabled();
 		break;
 	default:
 		return false;

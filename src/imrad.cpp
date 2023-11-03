@@ -135,7 +135,7 @@ void NewFile(TopWindow::Kind k)
 	File file;
 	file.rootNode = std::move(top);
 	file.styleName = DEFAULT_STYLE;
-	file.unit = DEFAULT_UNIT;
+	file.unit = k == TopWindow::Activity ? "dp" : DEFAULT_UNIT;
 	file.modified = true;
 	fileTabs.push_back(std::move(file));
 	ActivateTab((int)fileTabs.size() - 1);
@@ -806,20 +806,23 @@ void ToolbarUI()
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
 	if (ImGui::BeginPopup("NewMenu"))
 	{
-		if (ImGui::MenuItem(ICON_FA_TV " Main Window (GLFW)"))
+		if (ImGui::MenuItem(ICON_FA_TV " Main Window", "\tGLFW"))
 			NewFile(TopWindow::MainWindow);
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 			ImGui::SetTooltip("ImGui window integrated into OS window (GLFW)");
-		if (ImGui::MenuItem(ICON_FA_WINDOW_MAXIMIZE " Window"))
+		if (ImGui::MenuItem(ICON_FA_WINDOW_MAXIMIZE "  Window", ""))
 			NewFile(TopWindow::Window);
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 			ImGui::SetTooltip("Floating ImGui window");
-		if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE " Popup"))
+		if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE "  Popup", ""))
 			NewFile(TopWindow::Popup);
-		if (ImGui::MenuItem(ICON_FA_TABLET_SCREEN_BUTTON " Modal Popup"))
+		if (ImGui::MenuItem(ICON_FA_TABLET_SCREEN_BUTTON "  Modal Popup", ""))
 			NewFile(TopWindow::ModalPopup);
+		if (ImGui::MenuItem(ICON_FA_MOBILE "  Activity", "\tAndroid"))
+			NewFile(TopWindow::Activity);
+		
 		ImGui::Separator();
-		if (ImGui::MenuItem(ICON_FA_FILE_PEN " main.cpp (GLFW)"))
+		if (ImGui::MenuItem(ICON_FA_FILE_PEN "  main.cpp", "\tGLFW"))
 			NewTemplate(0);
 
 		ImGui::EndPopup();
@@ -889,18 +892,22 @@ void ToolbarUI()
 	ImGui::Text("Units");
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(100);
-	int usel = activeTab >= 0 && fileTabs[activeTab].unit == "fs" ? 1 : 0;
-	if (ImGui::Combo("##units", &usel, "px\0fs\0"))
+	const std::string unit = activeTab >= 0 ? fileTabs[activeTab].unit : "";
+	std::array<const char*, 2> UNITS{ "px", /*"fs",*/ "dp" };
+	int usel = 0;
+	if (unit != "")
+		usel = stx::find(UNITS, unit) - UNITS.begin();
+	if (ImGui::Combo("##units", &usel, stx::join(UNITS, std::string_view("\0", 1)).c_str())) // "px\0fs\0dp\0"))
 	{
 		messageBox.title = "Dialog units";
 		messageBox.message = "Scale all dimensions now ?";
 		messageBox.buttons = ImRad::Yes | ImRad::Cancel;
-		messageBox.OpenPopup([usel](ImRad::ModalResult mr) {
+		messageBox.OpenPopup([usel, UNITS](ImRad::ModalResult mr) {
 			if (mr != ImRad::Yes)
 				return;
 			auto& tab = fileTabs[activeTab];
 			auto oldUnit = tab.unit;
-			tab.unit = usel ? "fs" : "px";
+			tab.unit = UNITS[usel];
 			tab.rootNode->ScaleDimensions(ScaleFactor(oldUnit, tab.unit));
 			tab.modified = true;
 			});
