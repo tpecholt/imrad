@@ -190,7 +190,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 					out << INDENT << "void ClosePopup();\n";
 					out << INDENT << "void Draw();\n\n";
 				}
-				else if (kind == TopWindow::Window || kind == TopWindow::Activity)
+				else if (kind == TopWindow::Window)
 				{
 					out << INDENT << "void Open();\n";
 					out << INDENT << "void Close();\n";
@@ -199,6 +199,10 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				else if (kind == TopWindow::MainWindow)
 				{
 					out << INDENT << "void Draw(GLFWwindow* window);\n\n";
+				}
+				else if (kind == TopWindow::Activity)
+				{
+					out << INDENT << "void Draw();\n\n";
 				}
 				else
 				{
@@ -284,11 +288,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				{
 					out << INDENT << "bool isOpen = true;\n";
 				}
-				else if (kind == TopWindow::Activity)
-				{
-					out << INDENT << "bool isOpen = false;\n";
-				}
-				else if (kind == TopWindow::MainWindow)
+				else if (kind == TopWindow::MainWindow || kind == TopWindow::Activity)
 				{
 				}
 				else
@@ -523,14 +523,14 @@ void CppGen::ExportCpp(
 		fout << INDENT << "requestClose = true;\n";
 		fout << "}\n";
 	}
-	if ((kind == TopWindow::Window || kind == TopWindow::Activity) && 
+	if (kind == TopWindow::Window && 
 		!events.count("Open"))
 	{
 		fout << "\nvoid " << m_name << "::Open()\n{\n";
 		fout << INDENT << "isOpen = true;\n";
 		fout << "}\n";
 	}
-	if ((kind == TopWindow::Window || kind == TopWindow::Activity) && 
+	if (kind == TopWindow::Window && 
 		!events.count("Close"))
 	{
 		fout << "\nvoid " << m_name << "::Close()\n{\n";

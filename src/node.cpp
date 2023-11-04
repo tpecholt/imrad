@@ -667,14 +667,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Activity)
 	{
+		os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 		os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
-		os << ctx.ind << "const float bottomGap = ((ImRad::IOUserData*)ImGui::GetIO().UserData)->androidNavBarHeight;\n";
-		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - bottomGap });"
+		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - ioUserData->androidNavBarHeight });"
 			<< " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 		std::string fl = "ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings";
 		os << ctx.ind << "bool tmpOpen;\n";
-		os << ctx.ind << "if (isOpen && ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl << "))\n";
+		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
@@ -881,6 +881,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
 		{
+			kind = Window;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
 			if (i != std::string::npos)
@@ -888,26 +889,25 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
-		
+		}
+		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
+		{
+			ctx.importLevel = sit->level;
+			if (sit->params.size() >= 3)
+				flags.set_from_arg(sit->params[2]);
+			
 			if (kind == Activity) {
 				flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 				maximized = true;
 			}
 			else {
-				kind = Window;
+				kind = MainWindow;
+				//reset sizes from earlier SetNextWindowSize
+				TopWindow def(ctx);
+				size_x = def.size_x;
+				size_y = def.size_y;
+				flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
 			}
-		}
-		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
-		{
-			kind = MainWindow;
-			ctx.importLevel = sit->level;
-			if (sit->params.size() >= 3)
-				flags.set_from_arg(sit->params[2]);
-			//reset sizes from earlier SetNextWindowSize
-			TopWindow def(ctx);
-			size_x = def.size_x;
-			size_y = def.size_y;
-			flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
 		}
 		++sit;
 	}

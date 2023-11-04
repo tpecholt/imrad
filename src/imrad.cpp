@@ -145,11 +145,11 @@ void NewTemplate(int type)
 {
     nfdchar_t *outPath = NULL;
     nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Source code", (const nfdchar_t *)"cpp" } };
-	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "glfw-main.cpp");
+	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "main.cpp");
 	if (result != NFD_OKAY)
 		return;
 	fs::path p = outPath;
-        NFD_FreePath(outPath);
+    NFD_FreePath(outPath);
 	if (!p.has_extension())
 		p.replace_extension(".cpp");
 
@@ -158,6 +158,13 @@ void NewTemplate(int type)
 		{
 		case 0:
 			fs::copy_file("template/glfw-main.cpp", p, fs::copy_options::overwrite_existing);
+			break;
+		case 1:
+			fs::copy_file("template/android-main.cpp", p, fs::copy_options::overwrite_existing);
+			p.replace_filename("MainActivity.java");
+			fs::copy_file("template/MainActivity.java", p, fs::copy_options::overwrite_existing);
+			p.replace_filename("AndroidManifest.xml");
+			fs::copy_file("template/AndroidManifest.xml", p, fs::copy_options::overwrite_existing);
 			break;
 		}
 	}
@@ -824,6 +831,8 @@ void ToolbarUI()
 		ImGui::Separator();
 		if (ImGui::MenuItem(ICON_FA_FILE_PEN "  main.cpp", "\tGLFW"))
 			NewTemplate(0);
+		if (ImGui::MenuItem(ICON_FA_FILE_PEN "  main+java+manifest", "\tAndroid"))
+			NewTemplate(1);
 
 		ImGui::EndPopup();
 	}
@@ -896,7 +905,7 @@ void ToolbarUI()
 	std::array<const char*, 2> UNITS{ "px", /*"fs",*/ "dp" };
 	int usel = 0;
 	if (unit != "")
-		usel = stx::find(UNITS, unit) - UNITS.begin();
+		usel = (int)(stx::find(UNITS, unit) - UNITS.begin());
 	if (ImGui::Combo("##units", &usel, stx::join(UNITS, std::string_view("\0", 1)).c_str())) // "px\0fs\0dp\0"))
 	{
 		messageBox.title = "Dialog units";

@@ -15,7 +15,7 @@
 
 //TODO: add your includes here
 
-//must come last
+// must come last
 #ifdef IMRAD_WITH_STB
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -24,15 +24,15 @@
 GLFWwindow* window;
 ImRad::IOUserData IOUserData;
 
+void Draw()
+{
+	// TODO: Add your drawing code here
+	ImGui::ShowDemoWindow();
+}
+
 static void glfw_error_callback(int error, const char* description)
 {
 	std::cerr << "Glfw Error: " << description;
-}
-
-void Draw()
-{
-	//Add your drawing code here
-	ImGui::ShowDemoWindow();
 }
 
 // On Windows if you want to avoid console window to be shown 

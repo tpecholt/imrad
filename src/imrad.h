@@ -75,6 +75,7 @@ struct IOUserData
 {
 	float dpiScale = 1;
 	float androidNavBarHeight = 0;
+	int imeType = 0;
 };
 
 //------------------------------------------------------------------------
