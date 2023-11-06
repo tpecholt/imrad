@@ -669,9 +669,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
-		os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
-		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - ioUserData->androidNavBarHeight });"
-			<< " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+		os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);\n";
+		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x, \n";
+		os << ctx.ind << "                           ImGui::GetIO().DisplaySize.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
+		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 		std::string fl = "ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings";
 		os << ctx.ind << "bool tmpOpen;\n";
 		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl << "))\n";

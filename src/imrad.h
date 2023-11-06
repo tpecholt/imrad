@@ -74,8 +74,9 @@ struct CustomWidgetArgs
 struct IOUserData
 {
 	float dpiScale = 1;
-	float androidNavBarHeight = 0;
-	int imeType = 0;
+	ImVec2 displayRectMinOffset;
+	ImVec2 displayRectMaxOffset;
+	int requestedIMEType = 0;
 };
 
 //------------------------------------------------------------------------

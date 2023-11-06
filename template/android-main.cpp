@@ -24,6 +24,7 @@ static struct android_app*  g_App = nullptr;
 static bool                 g_Initialized = false;
 static char                 g_LogTag[] = "ImGuiExample";
 static std::string          g_IniFilename = "";
+static int                  g_NavBarHeight = 0;
 static ImRad::IOUserData    g_IOUserData;
 static int                  g_IMEType = 0;
 
@@ -46,6 +47,25 @@ JNIEXPORT void JNICALL
 Java_com_example_myapplication_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jboolean b) {
     if (!b)
         g_IMEType = 0;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_myapplication_MainActivity_OnScreenRotation(JNIEnv *env, jobject thiz, jint angle) {
+    switch (angle) {
+        case 0:
+            g_IOUserData.displayRectMinOffset = { 0, 0 };
+            g_IOUserData.displayRectMaxOffset = { 0, (float)g_NavBarHeight };
+            break;
+        case 90:
+            g_IOUserData.displayRectMinOffset = { 0, 0 };
+            g_IOUserData.displayRectMaxOffset = { (float)g_NavBarHeight, 0 };
+            break;
+        case 270:
+            g_IOUserData.displayRectMinOffset = { (float)g_NavBarHeight, 0 };
+            g_IOUserData.displayRectMaxOffset = { 0, 0 };
+            break;
+    }
 }
 
 // Main code
@@ -166,7 +186,6 @@ void Init(struct android_app* app)
     // Load ImRAD style including fonts:
     // ImRad::LoadStyle(fname, g_IOUserData.dpiScale);
     // Alternatively, setup Dear ImGui style
-    
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
 
@@ -369,8 +388,9 @@ static void GetDisplayInfo()
         return;
 
     jint dpi = java_env->CallIntMethod(g_App->activity->clazz, method_id);
+    g_NavBarHeight = 48 * dpi / 160.0;
     g_IOUserData.dpiScale = dpi / 120.0; //relative to laptop screen DPI;
-    g_IOUserData.androidNavBarHeight = 48 * dpi / 160.0;
+    g_IOUserData.displayRectMaxOffset.y = g_NavBarHeight; //TODO: detect initial screen rotation
     ImGui::GetIO().UserData = &g_IOUserData;
 
     jni_return = java_vm->DetachCurrentThread();

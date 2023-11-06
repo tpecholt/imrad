@@ -28,6 +28,7 @@ public class MainActivity extends NativeActivity {
     private EditText mEditText;
 
     private native void OnKeyboardShown(boolean b);
+    private native void OnScreenRotation(int deg);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,6 +101,13 @@ public class MainActivity extends NativeActivity {
                 unicodeQueue.offer(ev.getCharacters().codePointAt(i));
         }
         return super.dispatchKeyEvent(ev);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration cfg) {
+        super.onConfigurationChanged(cfg);
+        int angle = 90 * getWindowManager().getDefaultDisplay().getRotation();
+        OnScreenRotation(angle);
     }
 
     // JNI calls --------------------------------------------------
