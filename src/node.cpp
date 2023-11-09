@@ -2727,7 +2727,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		ctx.importLevel = sit->level;
 		label.set_from_arg(sit->params[0]);
 	}
-	if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
+	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::ArrowButton")
 	{
 		ctx.importLevel = sit->level;
