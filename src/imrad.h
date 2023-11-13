@@ -56,6 +56,10 @@ enum Alignment {
 	AlignVCenter = 0x20,
 };
 
+enum ImeType {
+    ImeText, ImeNumber, ImeDecimal, ImeDate, ImeTime
+};
+
 struct Texture
 {
 	ImTextureID id = 0;
@@ -76,10 +80,14 @@ struct IOUserData
 	float dpiScale = 1;
 	ImVec2 displayRectMinOffset;
 	ImVec2 displayRectMaxOffset;
-	int requestedIMEType = 0;
+	ImeType imeType = ImeText;
 };
 
 //------------------------------------------------------------------------
+
+#ifdef ANDROID
+extern int GetAssetData(const char* filename, void** outData);
+#endif
 
 inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)
 {
@@ -202,16 +210,22 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 #endif
 }
 
-
-#if defined (IMRAD_WITH_GLFW) && defined(IMRAD_WITH_STB)
+#if (defined (IMRAD_WITH_GLFW) || defined(ANDROID)) && defined(IMRAD_WITH_STB)
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
 inline Texture LoadTextureFromFile(std::string_view filename)
 {
 	// Load from file
 	Texture tex;
+	unsigned char* image_data = nullptr;
+#ifdef ANDROID
+	unsigned char* buffer;
+	int len = GetAssetData(filename.c_str(), &buffer);
+	image_data = stbi_load_from_memory(buffer, len, &tex.w, &tex.h, NULL, 4);
+#else
 	std::string tmp(filename);
-	unsigned char* image_data = stbi_load(tmp.c_str(), &tex.w, &tex.h, NULL, 4);
+    image_data = stbi_load(tmp.c_str(), &tex.w, &tex.h, NULL, 4);
+#endif
 	if (image_data == NULL)
 		return {};
 
@@ -292,9 +306,6 @@ inline void SaveStyle(std::string_view fname)
 	fout << "# Snap1 ...\n";
 }
 
-#ifdef ANDROID
-extern int GetAssetData(const char* filename, void** outData);
-#endif
 //This function can be used in your code to load style and fonts from the INI file
 //It is also used by ImRAD when switching themes
 inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)

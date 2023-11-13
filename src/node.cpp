@@ -426,7 +426,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.selUpdated = false;
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
-	ctx.inPopup = kind == Kind::Popup || kind == Kind::ModalPopup;
+	ctx.kind = kind;
 	ctx.contextMenus.clear();
 
 	std::string cap = title.value();
@@ -434,8 +434,8 @@ void TopWindow::Draw(UIContext& ctx)
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	if (kind == MainWindow)
 		fl |= ImGuiWindowFlags_NoCollapse;
-	else if (kind == Activity)
-		fl |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+	else if (kind == Activity) //only allow resizing here to test layout behavior
+		fl |= ImGuiWindowFlags_NoTitleBar /*| ImGuiWindowFlags_NoResize*/ | ImGuiWindowFlags_NoCollapse;
 	fl |= flags;
 
 	if (style_font != "")
@@ -562,7 +562,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	ctx.groupLevel = 0;
 	ctx.varCounter = 1;
 	ctx.parents = { this };
-	ctx.inPopup = kind == Popup || kind == ModalPopup;
+	ctx.kind = kind;
 	ctx.errors.clear();
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	
@@ -583,7 +583,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "const float dp = ((ImRad::IOUserData*)ImGui::GetIO().UserData)->dpiScale;\n";
 	}
 	
-	if (ctx.inPopup)
+	if (kind == Popup || kind == ModalPopup)
 	{
 		os << ctx.ind << "ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
 	}
@@ -623,8 +623,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		}
 		
 		flags_helper fl = flags;
-		fl |= ImGuiWindowFlags_NoDecoration; 
-		fl |= ImGuiWindowFlags_NoSavedSettings;
+		fl |= ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings;
 		os << ctx.ind << "bool tmpOpen;\n";
 		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
@@ -673,9 +672,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x, \n";
 		os << ctx.ind << "                           ImGui::GetIO().DisplaySize.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
 		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
-		std::string fl = "ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings";
+		flags_helper fl = flags;
+		fl |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
 		os << ctx.ind << "bool tmpOpen;\n";
-		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl << "))\n";
+		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
@@ -2632,7 +2632,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	if (!style_text.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_text.to_arg() << ");\n";
 
-	bool closePopup = ctx.inPopup && modalResult != ImRad::None;
+	bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
 	os << ctx.ind;
 	if (!onChange.empty() || closePopup)
 		os << "if (";
@@ -3369,31 +3369,37 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	std::string id = label.to_arg();
 	if (label.empty())
 		id = "\"##" + fieldName.value() + "\"";
+	std::string imeType = "ImeText";
 	
 	if (type == "int")
 	{
+		imeType = "ImeNumber";
 		os << "ImGui::InputInt(" << id << ", &"
 			<< fieldName.to_arg() << ", " << (int)step << ")";
 	}
 	else if (type == "float")
 	{
+		imeType = "ImeDecimal";
 		os << "ImGui::InputFloat(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.f, "
 			<< format.to_arg() << ")";
 	}
 	else if (type == "double")
 	{
+		imeType = "ImeDecimal";
 		os << "ImGui::InputDouble(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.0, "
 			<< format.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 3, "int"))
 	{
+		imeType = "ImeNumber";
 		os << "ImGui::Input"<< cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 5, "float"))
 	{
+		imeType = "ImeDecimal";
 		os << "ImGui::Input" << cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ", " << format.to_arg() << ")";
 	}
@@ -3429,6 +3435,13 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	else {
 		os << ";\n";
+	}
+
+	if (ctx.kind == TopWindow::Activity) {
+		os << ctx.ind << "if (ImGui::IsItemActive())\n";
+		ctx.ind_up();
+		os << ctx.ind << "ioUserData->imeType = ImRad::" << imeType << ";\n";
+		ctx.ind_down();
 	}
 }
 
@@ -5331,20 +5344,16 @@ void Child::DoDraw(UIContext& ctx)
 		sz.x = 30;
 	if (!sz.y && children.empty())
 		sz.y = 30;
-
+	
 	if (!style_outer_padding) 
 	{
 		ImRect r = ImGui::GetCurrentWindow()->InnerRect;
 		ImGui::PushClipRect(r.Min, r.Max, false);
 		ImVec2 pos = ImGui::GetCursorScreenPos();
 		if (!sameLine && !nextColumn) {
-			/*if (sz.x > 0)
-				sz.x += pos.x - win->InnerRect.Min.x;*/
 			pos.x = r.Min.x;
 		}
 		if (IsFirstItem(ctx)) {
-			/*if (sz.y > 0)
-				sz.y += pos.y - win->InnerRect.Min.y;*/
 			pos.y = r.Min.y;
 		}
 		ImGui::SetNextWindowPos(pos);
@@ -5361,8 +5370,10 @@ void Child::DoDraw(UIContext& ctx)
 	if (!style_bg.empty())
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
 
-	ImGui::BeginChild("", sz, border, ImGuiWindowFlags_AlwaysUseWindowPadding); 
-	auto* win = ImGui::GetCurrentWindow();
+	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
+	//only way how to disable scrollbars when using !style_outer_padding is to use
+	//ImGuiWindowFlags_NoScrollbar
+	ImGui::BeginChild("", sz, border, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{

@@ -26,7 +26,7 @@ static char                 g_LogTag[] = "ImGuiExample";
 static std::string          g_IniFilename = "";
 static int                  g_NavBarHeight = 0;
 static ImRad::IOUserData    g_IOUserData;
-static int                  g_IMEType = 0;
+static int                  g_ImeType = -1;
 
 // Forward declarations of helper functions
 static void Init(struct android_app* app);
@@ -46,7 +46,7 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_myapplication_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jboolean b) {
     if (!b)
-        g_IMEType = 0;
+        g_ImeType = -1;
 }
 
 extern "C"
@@ -226,9 +226,10 @@ void MainLoopStep()
     PollUnicodeChars();
 
     // Open on-screen (soft) input if requested by Dear ImGui
-    if (io.WantTextInput != (g_IMEType != 0)) {
-        g_IMEType = io.WantTextInput;
-        ShowSoftKeyboardInput(g_IMEType);
+    int newImeType = io.WantTextInput ? g_IOUserData.imeType : -1;
+    if (newImeType != g_ImeType) {
+        g_ImeType = newImeType;
+        ShowSoftKeyboardInput(g_ImeType);
     }
 
     // Start the Dear ImGui frame

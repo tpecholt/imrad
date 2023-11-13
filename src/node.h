@@ -51,7 +51,7 @@ struct UIContext
 	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;
 	std::vector<std::string> contextMenus;
-	bool inPopup = false;
+	int kind = 0;
 	float unitFactor = 1; //for dimension value scaling
 	ImVec2 selStart, selEnd;
 	std::string ind;

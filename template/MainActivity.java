@@ -5,7 +5,12 @@ import android.app.NativeActivity;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.method.DateKeyListener;
+import android.text.method.TimeKeyListener;
 import android.view.KeyEvent;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.view.ViewTreeObserver;
@@ -26,6 +31,7 @@ public class MainActivity extends NativeActivity {
 
     protected View mView;
     private EditText mEditText;
+    private TextWatcher mTextWatcher;
 
     private native void OnKeyboardShown(boolean b);
     private native void OnScreenRotation(int deg);
@@ -61,6 +67,7 @@ public class MainActivity extends NativeActivity {
                 });
     }
 
+    //@param type - see ImRad::IMEType
     public void showSoftInput(int _type) {
         final int type = _type;
         runOnUiThread(new Runnable() {
@@ -68,21 +75,54 @@ public class MainActivity extends NativeActivity {
             public void run() {
                 InputMethodManager mgr = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 mEditText.requestFocus();
+                mEditText.setText("");
+                mEditText.removeTextChangedListener(mTextWatcher);
                 switch (type) {
-                    case 0:
+                    case -1:
                         mgr.hideSoftInputFromWindow(mEditText.getWindowToken(), 0);
                         break;
-                    case 1: //all
+                    case 0: //all
                         mEditText.setKeyListener(null);
-                        mgr.showSoftInput(mEditText/*this.getWindow().getDecorView()*/, InputMethodManager.SHOW_IMPLICIT);
+                        mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
-                    case 2: //number
+                    case 1: //number
                         mEditText.setKeyListener(new DigitsKeyListener(false, false));
-                        mgr.showSoftInput(mEditText/*this.getWindow().getDecorView()*/, InputMethodManager.SHOW_IMPLICIT);
+                        mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
-                    case 3: //decimal
-                        mEditText.setKeyListener(new DigitsKeyListener(false, true));
-                        mgr.showSoftInput(mEditText/*this.getWindow().getDecorView()*/, InputMethodManager.SHOW_IMPLICIT);
+                    case 2:
+                        mEditText.setKeyListener(new DigitsKeyListener(true, true));
+                        //dispatchKeyEvent is not called on special keyboard characters so do it from the listener
+                        mTextWatcher = new TextWatcher() {
+                            public void beforeTextChanged(CharSequence var1, int var2, int var3, int var4) {
+                            }
+
+                            public void afterTextChanged(Editable var1) {
+                                //TODO: better
+                                int i = var1.toString().indexOf('.');
+                                if (i >= 0) {
+                                    unicodeQueue.offer((int)'.');
+                                    //delete dot so that pressing it again is not blocked
+                                    //such as when focus changed to another widget etc.
+                                    var1.delete(i, i + 1);
+                                }
+                            }
+
+                            public void onTextChanged(CharSequence text, int start, int var3, int count) {
+                                /*if (count == 1 && text.charAt(start) == '.')
+                                    unicodeQueue.offer((int) '.');*/
+                            }
+                        };
+                        mEditText.addTextChangedListener(mTextWatcher);
+                        //mEditText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                        mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
+                        break;
+                    case 3: //date
+                        mEditText.setKeyListener(new DateKeyListener());
+                        mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
+                        break;
+                    case 4: //time
+                        mEditText.setKeyListener(new TimeKeyListener());
+                        mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
                 }
             }
@@ -94,11 +134,16 @@ public class MainActivity extends NativeActivity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent ev) {
         if (ev.getAction() == KeyEvent.ACTION_DOWN) {
-            unicodeQueue.offer(ev.getUnicodeChar(ev.getMetaState()));
+            int ch = ev.getUnicodeChar(ev.getMetaState());
+            if (ch >= 0x20) //control characters handled elsewhere
+                unicodeQueue.offer(ch);
         }
         else if (ev.getAction() == KeyEvent.ACTION_MULTIPLE) {
-            for (int i = 0; i < ev.getCharacters().length(); ++i)
-                unicodeQueue.offer(ev.getCharacters().codePointAt(i));
+            for (int i = 0; i < ev.getCharacters().length(); ++i) {
+                int ch = ev.getCharacters().codePointAt(i);
+                if (ch >= 0x20) //control characters handled elsewhere
+                    unicodeQueue.offer(ch);
+            }
         }
         return super.dispatchKeyEvent(ev);
     }
