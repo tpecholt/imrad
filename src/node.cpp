@@ -247,7 +247,7 @@ void UINode::DrawSnap(UIContext& ctx)
 		for (int j = (int)i; j >= 0; --j)
 		{
 			if (j && 
-				(pchildren[j - 1]->SnapBehavior() & SnapSides) && //ignore preceeding MenuBar
+				(pchildren[j - 1]->SnapBehavior() & SnapSides) && //ignore preceeding MenuBar etc.
 				!pchildren[j]->sameLine && 
 				!pchildren[j]->nextColumn)
 				topmost = false;
@@ -483,16 +483,14 @@ void TopWindow::Draw(UIContext& ctx)
 	cached_size = ma - mi;
 
 	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && ctx.activePopups.empty();
-	if (allowed)
+	if (allowed && ctx.mode == UIContext::NormalSelection)
 	{
-		if (ctx.mode == UIContext::NormalSelection &&
-			ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+		if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
 			ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 		{
 			ctx.selStart = ctx.selEnd = ImGui::GetMousePos();
 		}
-		if (ctx.mode == UIContext::NormalSelection &&
-			ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+		if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
 			ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
 			Norm(ImGui::GetMousePos() - ctx.selStart) > 5)
 		{
@@ -949,9 +947,9 @@ TopWindow::Properties()
 {
 	return {
 		{ "top.kind", nullptr },
-		{ "top.style.padding", &style_padding },
-		{ "top.style.spacing", nullptr },
-		{ "top.style.font", nullptr },
+		{ "top.@style.padding", &style_padding },
+		{ "top.@style.spacing", nullptr },
+		{ "top.@style.font", nullptr },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
 		{ "size_x", &size_x },
@@ -1158,26 +1156,42 @@ void Widget::InitDimensions(UIContext& ctx)
 	ScaleDimensions(1.f / ctx.unitFactor);
 }
 
+int Widget::SnapBehavior()
+{
+	return hasPos ? 0 : SnapSides;
+}
+
 void Widget::Draw(UIContext& ctx)
 {
-	if (nextColumn) {
-		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
-		if (inTable)
-			ImRad::TableNextColumn(nextColumn);
-		else
-			ImRad::NextColumn(nextColumn);
+	if (hasPos) {
+		ImRect r = ImGui::GetCurrentWindow()->InnerRect;
+		ImVec2 pos{ pos_x.eval_px(ctx), pos_y.eval_px(ctx) };
+		if (pos.x < 0)
+			pos.x += r.GetWidth();
+		if (pos.y < 0)
+			pos.y += r.GetHeight();
+		ImGui::SetCursorScreenPos(r.Min + pos);
 	}
-	if (sameLine) {
-		ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
-	} 
 	else {
-		ImRad::Spacing(spacing);
-	}
-	if (indent)
-		ImGui::Indent(indent * ImGui::GetStyle().IndentSpacing / 2);
-	if (beginGroup) {
-		ImGui::BeginGroup();
-		++ctx.groupLevel;
+		if (nextColumn) {
+			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+			if (inTable)
+				ImRad::TableNextColumn(nextColumn);
+			else
+				ImRad::NextColumn(nextColumn);
+		}
+		if (sameLine) {
+			ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
+		}
+		else {
+			ImRad::Spacing(spacing);
+		}
+		if (indent)
+			ImGui::Indent(indent * ImGui::GetStyle().IndentSpacing / 2);
+		if (beginGroup) {
+			ImGui::BeginGroup();
+			++ctx.groupLevel;
+		}
 	}
 	
 	ImGui::PushID(this);
@@ -1185,6 +1199,7 @@ void Widget::Draw(UIContext& ctx)
 	auto lastHovered = ctx.hovered;
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
+
 	if (style_font != "") 
 		ImGui::PushFont(ImRad::GetFontByName(style_font.c_str()));
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
@@ -1201,15 +1216,14 @@ void Widget::Draw(UIContext& ctx)
 	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && 
 		(ctx.activePopups.empty() || stx::count(ctx.activePopups, ImGui::GetCurrentWindow()));
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
-	if (allowed && hovered)
+	if (allowed && hovered &&
+		ctx.mode == UIContext::NormalSelection)
 	{
-		if (ctx.mode == UIContext::NormalSelection &&
-			ctx.hovered == lastHovered)
+		if (ctx.hovered == lastHovered) //e.g. child widget was not selected
 		{
 			ctx.hovered = this;
 		}
-		if (ctx.mode == UIContext::NormalSelection &&
-			!ctx.selUpdated && 
+		if (!ctx.selUpdated &&
 			ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
 		{
 			ctx.selUpdated = true;
@@ -1219,13 +1233,58 @@ void Widget::Draw(UIContext& ctx)
 				ctx.selected = { this };
 			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 		}
+		if (ctx.hovered == this && hasPos && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+		{
+			ctx.mode = UIContext::ItemDragging;
+			ctx.dragged = this;
+		}
+	}
+	
+	if (ctx.mode == UIContext::ItemDragging && ctx.dragged == this)
+	{
+		ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+		{
+			ImVec2 delta = ImGui::GetMouseDragDelta();
+			if (std::signbit(pos_x + delta.x) == std::signbit(pos_x) &&
+				std::signbit(pos_y + delta.y) == std::signbit(pos_y))
+			{
+				pos_x += delta.x;
+				pos_y += delta.y;
+				ImGui::ResetMouseDragDelta();
+			}
+		}
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+		{
+			ctx.mode = UIContext::NormalSelection;
+			ctx.selUpdated = true;
+			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
+				toggle(ctx.selected, this);
+			else
+				ctx.selected = { this };
+			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
+		}
 	}
 
+	if (hasPos)
+	{
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		ImU32 clr = ctx.colors[UIContext::Hovered];
+		float d = 10;
+		if (pos_x >= 0 && pos_y >= 0)
+			dl->AddTriangleFilled(cached_pos, cached_pos + ImVec2(d, 0), cached_pos + ImVec2(0, d), clr);
+		else if (pos_x < 0 && pos_y >= 0)
+			dl->AddTriangleFilled(cached_pos + ImVec2(cached_size.x, 0), cached_pos + ImVec2(cached_size.x, d), cached_pos + ImVec2(cached_size.x - d, 0), clr);
+		else if (pos_x >= 0 && pos_y < 0)
+			dl->AddTriangleFilled(cached_pos + ImVec2(d, cached_size.y), cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(0, cached_size.y - d), clr);
+		else if (pos_x < 0 && pos_y < 0)
+			dl->AddTriangleFilled(cached_pos + cached_size, cached_pos + ImVec2(cached_size.x - d, cached_size.y), cached_pos + ImVec2(cached_size.x, cached_size.y - d), clr);
+	}
 	bool selected = stx::count(ctx.selected, this);
 	if (selected || ctx.hovered == this)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size, 
+		dl->AddRect(cached_pos, cached_pos + cached_size,
 			selected ? ctx.colors[UIContext::Selected] : ctx.colors[UIContext::Hovered],
 			0, 0, selected ? 2.f : 1.f);
 	}
@@ -1241,9 +1300,11 @@ void Widget::Draw(UIContext& ctx)
 	ctx.parents.pop_back();
 	ImGui::PopID();
 	
-	if (endGroup && ctx.groupLevel) {
-		ImGui::EndGroup();
-		--ctx.groupLevel;
+	if (!hasPos) {
+		if (endGroup && ctx.groupLevel) {
+			ImGui::EndGroup();
+			--ctx.groupLevel;
+		}
 	}
 }
 
@@ -1266,33 +1327,50 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		stype.erase(0, it - stype.begin());
 	os << ctx.ind << "/// @begin " << stype << "\n";
 
-	if (nextColumn)
+	if (hasPos)
 	{
-		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
-		if (inTable)
-			os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SetCursorPos({ ";
+		if (pos_x < 0)
+			os << "ImGui::GetCurrentWindow()->InnerRect.Max.x " << pos_x.to_arg(ctx.unit);
 		else
-			os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
+			os << pos_x.to_arg(ctx.unit);
+		os << ", ";
+		if (pos_y < 0)
+			os << "ImGui::GetCurrentWindow()->InnerRect.Max.y " << pos_y.to_arg(ctx.unit);
+		else
+			os << pos_y.to_arg(ctx.unit);
+		os << " });\n";
 	}
-	if (sameLine)
+	else
 	{
-		os << ctx.ind << "ImGui::SameLine(";
-		if (spacing)
-			os << "0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x";
-		os << ");\n";
-	}
-	else if (spacing)
-	{
-		os << ctx.ind << "ImRad::Spacing(" << spacing << ");\n";
-	}
-	if (indent)
-	{
-		os << ctx.ind << "ImGui::Indent(" << indent << " * ImGui::GetStyle().IndentSpacing / 2);\n";
-	}
-	if (beginGroup)
-	{
-		os << ctx.ind << "ImGui::BeginGroup();\n";
-		++ctx.groupLevel;
+		if (nextColumn)
+		{
+			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+			if (inTable)
+				os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
+			else
+				os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
+		}
+		if (sameLine)
+		{
+			os << ctx.ind << "ImGui::SameLine(";
+			if (spacing)
+				os << "0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x";
+			os << ");\n";
+		}
+		else if (spacing)
+		{
+			os << ctx.ind << "ImRad::Spacing(" << spacing << ");\n";
+		}
+		if (indent)
+		{
+			os << ctx.ind << "ImGui::Indent(" << indent << " * ImGui::GetStyle().IndentSpacing / 2);\n";
+		}
+		if (beginGroup)
+		{
+			os << ctx.ind << "ImGui::BeginGroup();\n";
+			++ctx.groupLevel;
+		}
 	}
 	if (!visible.has_value() || !visible.value())
 	{
@@ -1474,6 +1552,21 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				nextColumn.set_from_arg(sit->params[0]);
 		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetCursorPos")
+		{
+			if (sit->params.size()) {
+				hasPos = true;
+				auto size = cpp::parse_size(sit->params[0]);
+				if (!size.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x")) 
+					pos_x.set_from_arg(size.first.substr(42));
+				else
+					pos_x.set_from_arg(size.first);
+				if (!size.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y"))
+					pos_y.set_from_arg(size.second.substr(42));
+				else
+					pos_y.set_from_arg(size.second);
+			}
+		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SameLine")
 		{
 			sameLine = true;
@@ -1572,6 +1665,14 @@ Widget::Properties()
 		{ "cursor", &cursor },
 		{ "disabled", &disabled },
 	};
+	if (!(SnapBehavior() & NoOverlayPos)) 
+	{
+		props.insert(props.end(), {
+			{ "@overlayPos.pos_enabled", &hasPos },
+			{ "@overlayPos.pos_x", &pos_x },
+			{ "@overlayPos.pos_y", &pos_y },
+			});
+	};
 	if (SnapBehavior() & SnapSides)
 	{
 		props.insert(props.end(), {
@@ -1594,6 +1695,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 	else
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
 
+	bool snapSides = SnapBehavior() & SnapSides;
 	bool changed = false;
 	switch (i)
 	{
@@ -1654,7 +1756,29 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		BindingButton("disabled", &disabled, ctx);
 		break;
 	case 5:
-		ImGui::BeginDisabled(sameLine);
+		ImGui::Text("pos_enabled");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##posEnabled", hasPos.access());
+		break;
+	case 6:
+		ImGui::BeginDisabled(!hasPos);
+		ImGui::Text("pos_x");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputFloat("##pos_x", pos_x.access(), 0, 0, "%.0f");
+		ImGui::EndDisabled();
+		break;
+	case 7:
+		ImGui::BeginDisabled(!hasPos);
+		ImGui::Text("pos_y");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::InputFloat("##pos_y", pos_y.access(), 0, 0, "%.0f");
+		ImGui::EndDisabled();
+		break;
+	case 8: 
+		ImGui::BeginDisabled(!snapSides || sameLine);
 		ImGui::Text("indent");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1667,7 +1791,8 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}*/
 		ImGui::EndDisabled();
 		break;
-	case 6:
+	case 9:
+		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1677,9 +1802,10 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 			changed = true;
 			spacing = 0;
 		}
+		ImGui::EndDisabled();
 		break;
-	case 7:
-		ImGui::BeginDisabled(nextColumn);
+	case 10:
+		ImGui::BeginDisabled(!snapSides || nextColumn);
 		ImGui::Text("sameLine");
 		ImGui::TableNextColumn();
 		if (ImGui::Checkbox("##sameLine", sameLine.access())) {
@@ -1689,17 +1815,22 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 8:
+	case 11:
+		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("beginGroup");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##beginGroup", beginGroup.access());
+		ImGui::EndDisabled();
 		break;
-	case 9:
+	case 12:
+		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("endGroup");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##endGroup", endGroup.access());
+		ImGui::EndDisabled();
 		break;
-	case 10:
+	case 13:
+		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("nextColumn");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1708,6 +1839,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 			if (nextColumn)
 				sameLine = false;
 		}
+		ImGui::EndDisabled();
 		break;
 	default:
 		return false;
@@ -1816,14 +1948,18 @@ void Widget::TreeUI(UIContext& ctx)
 		icon = GetIcon();
 	}
 	std::string suff;
-	if (sameLine)
-		suff += "L";
-	if (beginGroup)
-		suff += "B";
-	if (endGroup)
-		suff += "E";
-	if (nextColumn)
-		suff += "C";
+	if (hasPos)
+		suff += "P";
+	else {
+		if (sameLine)
+			suff += "L";
+		if (beginGroup)
+			suff += "B";
+		if (endGroup)
+			suff += "E";
+		if (nextColumn)
+			suff += "C";
+	}
 
 	bool selected = stx::count(ctx.selected, this);
 	if (icon != "")
@@ -2071,8 +2207,8 @@ Text::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.color", &style_color },
-		{ "style.font", &style_font },
+		{ "@style.color", &style_color },
+		{ "@style.font", &style_font },
 		{ "text", &text, true },
 		{ "text.grayed", &grayed },
 		{ "alignToFramePadding", &alignToFrame },
@@ -2313,8 +2449,8 @@ Selectable::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.color", &style_color },
-		{ "style.font", &style_font },
+		{ "@style.color", &style_color },
+		{ "@style.font", &style_font },
 		{ "selectable.flags", &flags },
 		{ "label", &label, true },
 		{ "horizAlignment", &horizAlignment },
@@ -2752,11 +2888,11 @@ Button::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.text", &style_text },
-		{ "style.button", &style_button },
-		{ "style.hovered", &style_hovered },
-		{ "style.rounding", &style_rounding },
-		{ "style.font", &style_font },
+		{ "@style.text", &style_text },
+		{ "@style.button", &style_button },
+		{ "@style.hovered", &style_hovered },
+		{ "@style.rounding", &style_rounding },
+		{ "@style.font", &style_font },
 		{ "button.arrowDir", &arrowDir },
 		{ "label", &label, true },
 		{ "shortcut", &shortcut },
@@ -2854,7 +2990,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 8:
 	{
-		ImGui::BeginDisabled(!ctx.inPopup);
+		ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
 		ImGui::Text("modalResult");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3028,8 +3164,8 @@ CheckBox::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "check.style.color", &style_color },
-		{ "check.style.font", &style_font },
+		{ "check.@style.color", &style_color },
+		{ "check.@style.font", &style_font },
 		{ "label", &label, true },
 		{ "check.field_name", &fieldName },
 		});
@@ -3182,8 +3318,8 @@ RadioButton::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.color", &style_color },
-		{ "style.font", &style_font },
+		{ "@style.color", &style_color },
+		{ "@style.font", &style_font },
 		{ "label", &label, true },
 		{ "radio.valueID", &valueID },
 		{ "field_name", &fieldName },
@@ -3888,7 +4024,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("items");
 		ImGui::TableNextColumn();
 		//ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::Selectable("...", false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			std::string tmp = *items.access(); //preserve embeded nulls
@@ -4288,7 +4424,7 @@ ProgressBar::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.color", &style_color },
+		{ "@style.color", &style_color },
 		{ "progress.field_name", &fieldName },
 		{ "progress.indicator", &indicator },
 		{ "size_x", &size_x },
@@ -4979,10 +5115,10 @@ Table::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.cellPadding", &style_cellPadding },
-		{ "style.headerBg", &style_headerBg },
-		{ "style.rowBg", &style_rowBg },
-		{ "style.rowBgAlt", &style_rowBgAlt },
+		{ "@style.cellPadding", &style_cellPadding },
+		{ "@style.headerBg", &style_headerBg },
+		{ "@style.rowBg", &style_rowBg },
+		{ "@style.rowBgAlt", &style_rowBgAlt },
 		{ "table.flags", &flags },
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
@@ -5035,7 +5171,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	{
 		ImGui::Text("columns");
 		ImGui::TableNextColumn();
-		if (ImGui::Selectable("...", false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			tableColumns.columnData = columnData;
@@ -5557,10 +5693,10 @@ Child::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.color", &style_bg },
-		{ "style.padding", &style_padding },
-		{ "style.spacing", &style_spacing },
-		{ "style.outer_padding", &style_outer_padding },
+		{ "@style.color", &style_bg },
+		{ "@style.padding", &style_padding },
+		{ "@style.spacing", &style_spacing },
+		{ "@style.outer_padding", &style_outer_padding },
 		{ "child.border", &border },
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
@@ -5784,8 +5920,8 @@ Splitter::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "style.bg", &style_bg },
-		{ "style.active", &style_active },
+		{ "@style.bg", &style_bg },
+		{ "@style.active", &style_active },
 		{ "splitter.position", &position },
 		{ "splitter.min1", &min_size1 },
 		{ "splitter.min2", &min_size2 },

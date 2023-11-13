@@ -72,6 +72,7 @@ GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
+GLFWcursor* curCross = nullptr;
 
 struct TB_Button 
 {
@@ -1081,25 +1082,37 @@ void HierarchyUI()
 	ImGui::End();
 }
 
-void BeginStyleProp(bool& open)
+bool BeginPropGroup(const std::string& label, const UINode::Prop& prop, bool& open)
 {
 	ImVec2 pad = ImGui::GetStyle().FramePadding;
 	ImGui::TableNextRow();
+	if (label == "overlayPos") //hack
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 164, 255));
 	ImGui::TableSetColumnIndex(0);
 	ImGui::AlignTextToFramePadding();
 	ImGui::Unindent();
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-	open = ImGui::TreeNode("style");
+	open = ImGui::TreeNode(label.c_str());
 	ImGui::PopStyleVar();
-	if (!open)
+	bool eatProp = false;
+	if (label == "overlayPos") 
+	{
+		eatProp = true;
+		ImGui::TableNextColumn();
+		bool tmp = prop.property->to_arg("") == "true";
+		if (ImGui::Checkbox(("##" + prop.name).c_str(), &tmp))
+			prop.property->set_from_arg(tmp ? "true" : "false");
+	}
+	else if (!open)
 	{
 		ImGui::TableNextColumn();
 		ImGui::TextDisabled("...");
 	}
 	ImGui::Indent();
+	return eatProp;
 }
 
-void EndStyleProp(bool open)
+void EndPropGroup(bool open)
 {
 	if (open) 
 	{
@@ -1164,24 +1177,33 @@ void PropertyRowsUI(bool pr)
 		auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
 		std::string_view pname;
 		std::string pval;
-		bool inStyle = false;
-		bool styleOpen = false;
+		std::string inCat;
+		bool catOpen = false;
 		ImGui::Indent(); //to align TreeNodes in the table
 		for (int i = 0; i < (int)props.size(); ++i)
 		{
 			const auto& prop = props[i];
 			if (!stx::count(pnames, prop.name))
 				continue;
-			bool style = prop.name.find("style.") != std::string::npos; //hack
-			if (style != inStyle)
-			{
-				inStyle = style;
-				if (inStyle)
-					BeginStyleProp(styleOpen);
-				else 
-					EndStyleProp(styleOpen);
+			std::string cat;
+			auto i1 = prop.name.find('@');
+			if (i1 != std::string::npos) {
+				auto i2 = prop.name.find('.', i1);
+				if (i2 != std::string::npos)
+					cat = prop.name.substr(i1 + 1, i2 - i1 - 1);
 			}
-			if (inStyle && !styleOpen)
+			bool skip = false;
+			if (cat != inCat)
+			{
+				inCat = cat;
+				if (inCat != "")
+					skip = BeginPropGroup(cat, prop, catOpen);
+				else 
+					EndPropGroup(catOpen);
+			}
+			if (inCat != "" && !catOpen)
+				continue;
+			if (skip)
 				continue;
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
@@ -1199,8 +1221,8 @@ void PropertyRowsUI(bool pr)
 				}
 			}
 		}
-		if (inStyle)
-			EndStyleProp(styleOpen);
+		if (inCat != "")
+			EndPropGroup(catOpen);
 		ImGui::Unindent();
 		ImGui::PopID();
 		ImGui::EndTable();
@@ -1370,14 +1392,54 @@ void Work()
 		initErrors = "";
 	}
 
-	if (ctx.mode == UIContext::Snap)
+	if (ctx.mode == UIContext::PickPoint)
+	{
+		ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+		glfwSetCursor(window, curCross);
+		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+		{
+			ctx.mode = UIContext::NormalSelection;
+			activeButton = "";
+		}
+		else if (!ImGui::GetIO().KeyCtrl)
+		{
+			ctx.mode = UIContext::Snap;
+		}
+		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) 
+		{
+			assert(activeButton != "");
+			auto* top = fileTabs[activeTab].rootNode.get();
+			newNode->hasPos = true;
+			ImVec2 pos = ImGui::GetMousePos() - ctx.rootWin->InnerRect.Min;
+			if (pos.x < top->cached_size.x / 2)
+				newNode->pos_x = pos.x;
+			else
+				newNode->pos_x = pos.x - top->cached_size.x;
+			if (pos.y < top->cached_size.y / 2)
+				newNode->pos_y = pos.y;
+			else
+				newNode->pos_y = pos.y - top->cached_size.y;
+
+			ctx.selected = { newNode.get() };
+			top->children.push_back(std::move(newNode));
+			ctx.mode = UIContext::NormalSelection;
+			activeButton = "";
+			fileTabs[activeTab].modified = true;
+		}
+	}
+	else if (ctx.mode == UIContext::Snap)
 	{
 		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
 			ctx.mode = UIContext::NormalSelection;
 			activeButton = "";
 		}
-		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && //MouseReleased to avoid confusing RectSelection
+		else if (ImGui::GetIO().KeyCtrl && activeButton != "" && 
+			!(newNode->SnapBehavior() & UINode::NoOverlayPos))
+		{
+			ctx.mode = UIContext::PickPoint;
+		}
+		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && //MouseReleased to avoid confusing RectSelection
 			ctx.snapParent)
 		{
 			int n;
@@ -1559,6 +1621,7 @@ int main(int argc, const char* argv[])
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 	glfwMaximizeWindow(window);
+	curCross = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -1651,6 +1714,7 @@ int main(int argc, const char* argv[])
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 
+	glfwDestroyCursor(curCross);
 	glfwDestroyWindow(window);
 	glfwTerminate();
 

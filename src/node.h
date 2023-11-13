@@ -17,7 +17,7 @@ class CppGen;
 struct UIContext
 {
 	//set from outside
-	enum Mode { NormalSelection, RectSelection, Snap };
+	enum Mode { NormalSelection, RectSelection, Snap, PickPoint, ItemDragging };
 	Mode mode = NormalSelection;
 	std::vector<UINode*> selected;
 	CppGen* codeGen = nullptr;
@@ -43,6 +43,7 @@ struct UIContext
 	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
 	bool selUpdated;
 	UINode* hovered = nullptr;
+	UINode* dragged = nullptr;
 	int groupLevel = 0;
 	int importLevel;
 	std::string userCode;
@@ -77,6 +78,7 @@ struct UINode
 		SnapInterior = 0x2,
 		SnapGrandparentClip = 0x4,
 		NoContextMenu = 0x8,
+		NoOverlayPos = 0x10,
 	};
 
 	UINode() {}
@@ -90,7 +92,7 @@ struct UINode
 	virtual bool EventUI(int, UIContext& ctx) = 0;
 	virtual void Export(std::ostream&, UIContext& ctx) = 0;
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
-	virtual int SnapBehavior() { return SnapSides; }
+	virtual int SnapBehavior() = 0;
 
 	void DrawSnap(UIContext& ctx);
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
@@ -111,6 +113,9 @@ struct Widget : UINode
 	direct_val<bool> beginGroup = false;
 	direct_val<bool> endGroup = false;
 	direct_val<int> nextColumn = 0;
+	direct_val<bool> hasPos = false;
+	direct_val<dimension> pos_x = -1;
+	direct_val<dimension> pos_y = -1;
 	bindable<bool> visible = true;
 	bindable<bool> disabled = false;
 	direct_val<int> indent = 0;
@@ -141,6 +146,7 @@ struct Widget : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
+	int SnapBehavior();
 	virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
 	virtual void DoDraw(UIContext& ctx) = 0;
 	virtual void DrawExtra(UIContext& ctx) {}
@@ -563,7 +569,7 @@ struct MenuBar : Widget
 {
 	MenuBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return 0; }
+	int SnapBehavior() { return NoOverlayPos; }
 	void DoDraw(UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
@@ -582,7 +588,7 @@ struct MenuIt : Widget
 
 	MenuIt(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return NoContextMenu; }
+	int SnapBehavior() { return NoContextMenu | NoOverlayPos; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -641,7 +647,7 @@ struct TopWindow : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
-	int SnapBehavior() { return SnapInterior; }
+	int SnapBehavior() { return SnapInterior | NoOverlayPos; }
 	void ScaleDimensions(float);
 };
 
