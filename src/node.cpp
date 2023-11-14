@@ -1269,7 +1269,7 @@ void Widget::Draw(UIContext& ctx)
 	if (hasPos)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
-		ImU32 clr = ctx.colors[UIContext::Hovered];
+		ImU32 clr = ctx.colors[UIContext::Selected];
 		float d = 10;
 		if (pos_x >= 0 && pos_y >= 0)
 			dl->AddTriangleFilled(cached_pos, cached_pos + ImVec2(d, 0), cached_pos + ImVec2(0, d), clr);
@@ -1370,6 +1370,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			os << ctx.ind << "ImGui::BeginGroup();\n";
 			++ctx.groupLevel;
+		}
+		if (allowOverlap)
+		{
+			os << ctx.ind << "ImGui::SetNextItemAllowOverlap();\n";
 		}
 	}
 	if (!visible.has_value() || !visible.value())
@@ -1596,6 +1600,10 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			endGroup = true;
 		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemAllowOverlap")
+		{
+			allowOverlap = true;
+		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginDisabled")
 		{
 			if (sit->params.size())
@@ -1668,7 +1676,7 @@ Widget::Properties()
 	if (!(SnapBehavior() & NoOverlayPos)) 
 	{
 		props.insert(props.end(), {
-			{ "@overlayPos.pos_enabled", &hasPos },
+			{ "@overlayPos.hasPos", &hasPos },
 			{ "@overlayPos.pos_x", &pos_x },
 			{ "@overlayPos.pos_y", &pos_y },
 			});
@@ -1682,6 +1690,7 @@ Widget::Properties()
 			{ "beginGroup", &beginGroup },
 			{ "endGroup", &endGroup },
 			{ "nextColumn", &nextColumn },
+			{ "allowOverlap", &allowOverlap },
 			});
 	}
 	return props;
@@ -1756,10 +1765,10 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		BindingButton("disabled", &disabled, ctx);
 		break;
 	case 5:
-		ImGui::Text("pos_enabled");
+		ImGui::Text("hasPos");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##posEnabled", hasPos.access());
+		changed = ImGui::Checkbox("##hasPos", hasPos.access());
 		break;
 	case 6:
 		ImGui::BeginDisabled(!hasPos);
@@ -1839,6 +1848,14 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 			if (nextColumn)
 				sameLine = false;
 		}
+		ImGui::EndDisabled();
+		break;
+	case 14:
+		ImGui::BeginDisabled(!snapSides);
+		ImGui::Text("allowOverlap");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##allowOverlap", allowOverlap.access());
 		ImGui::EndDisabled();
 		break;
 	default:
@@ -3394,10 +3411,11 @@ Input::Input(UIContext& ctx)
 	flags.add$(ImGuiInputTextFlags_CharsUppercase);
 	flags.add$(ImGuiInputTextFlags_CharsNoBlank);
 	flags.add$(ImGuiInputTextFlags_AutoSelectAll);
+	/* TODO: make events
 	flags.add$(ImGuiInputTextFlags_CallbackCompletion);
 	flags.add$(ImGuiInputTextFlags_CallbackHistory);
 	flags.add$(ImGuiInputTextFlags_CallbackAlways);
-	flags.add$(ImGuiInputTextFlags_CallbackCharFilter);
+	flags.add$(ImGuiInputTextFlags_CallbackCharFilter);*/
 	flags.add$(ImGuiInputTextFlags_CtrlEnterForNewLine);
 	flags.add$(ImGuiInputTextFlags_ReadOnly);
 	flags.add$(ImGuiInputTextFlags_Password);
@@ -4925,7 +4943,7 @@ void CustomWidget::DoDraw(UIContext& ctx)
 void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (onDraw.empty()) {
-		ctx.errors.push_back("UserWidget: OnDraw not set!");
+		ctx.errors.push_back("CustomWidget: OnDraw not set!");
 		return;
 	}
 	os << ctx.ind << onDraw.to_arg() << "({ " 

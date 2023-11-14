@@ -114,8 +114,9 @@ struct Widget : UINode
 	direct_val<bool> endGroup = false;
 	direct_val<int> nextColumn = 0;
 	direct_val<bool> hasPos = false;
-	direct_val<dimension> pos_x = -1;
-	direct_val<dimension> pos_y = -1;
+	direct_val<dimension> pos_x = 0;
+	direct_val<dimension> pos_y = 0;
+	direct_val<bool> allowOverlap = false;
 	bindable<bool> visible = true;
 	bindable<bool> disabled = false;
 	direct_val<int> indent = 0;
