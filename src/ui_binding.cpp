@@ -84,7 +84,7 @@ void BindingDlg::Draw()
 
             /// @begin Child
             ImGui::TableNextColumn();
-            ImGui::BeginChild("child2201294508848", { 0, 20 }, false);
+            ImGui::BeginChild("child2201294508848", { 0, 20 });
             {
                 /// @separator
 

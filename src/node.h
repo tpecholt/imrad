@@ -467,9 +467,9 @@ struct Table : Widget
 
 struct Child : Widget
 {
+	flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding;
 	bindable<dimension> size_x = 20.f; //zero size will be rendered wrongly
 	bindable<dimension> size_y = 20.f;
-	direct_val<bool> border = false;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
 	data_loop itemCount;

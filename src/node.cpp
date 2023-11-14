@@ -4913,7 +4913,7 @@ void CustomWidget::DoDraw(UIContext& ctx)
 		size.y = 20;
 
 	std::string id = std::to_string((uintptr_t)this);
-	ImGui::BeginChild(id.c_str(), size, true);
+	ImGui::BeginChild(id.c_str(), size, ImGuiChildFlags_Border);
 	ImGui::EndChild();
 
 	ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -5448,6 +5448,13 @@ void Table::ScaleDimensions(float scale)
 
 Child::Child(UIContext& ctx)
 {
+	flags.prefix("ImGuiChildFlags_");
+	flags.add$(ImGuiChildFlags_Border);
+	flags.add$(ImGuiChildFlags_AlwaysUseWindowPadding);
+	flags.add$(ImGuiChildFlags_AutoResizeX);
+	flags.add$(ImGuiChildFlags_AutoResizeY);
+	flags.add$(ImGuiChildFlags_FrameStyle);
+	
 	InitDimensions(ctx);
 }
 
@@ -5509,7 +5516,7 @@ void Child::DoDraw(UIContext& ctx)
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
 	//ImGuiWindowFlags_NoScrollbar
-	ImGui::BeginChild("", sz, border, ImGuiWindowFlags_AlwaysUseWindowPadding);
+	ImGui::BeginChild("", sz, flags);
 
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
@@ -5579,16 +5586,13 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		
 		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
-			<< szvar << ", "
-			<< std::boolalpha << border << ", ImGuiWindowFlags_AlwaysUseWindowPadding"
-			<< ");\n";
+			<< szvar << ", " << flags.to_arg() << ");\n";
 	}
 	else
 	{
 		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
 			<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
-			<< std::boolalpha << border << ", ImGuiWindowFlags_AlwaysUseWindowPadding"
-			<< ");\n";
+			<< flags.to_arg() << ");\n";
 	}
 
 	os << ctx.ind << "{\n";
@@ -5671,7 +5675,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 
 		if (sit->params.size() >= 3)
-			border = sit->params[2] != "false";
+			flags.set_from_arg(sit->params[2]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
 	{
@@ -5697,7 +5701,7 @@ Child::Properties()
 		{ "@style.padding", &style_padding },
 		{ "@style.spacing", &style_spacing },
 		{ "@style.outer_padding", &style_outer_padding },
-		{ "child.border", &border },
+		{ "child.flags", &flags },
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
 		{ "child.item_count", &itemCount },
@@ -5738,9 +5742,11 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##outerPadding", style_outer_padding.access());
 		break;
 	case 4:
-		ImGui::Text("border");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##border", border.access());
+		TreeNodeProp("flags", true, [&] {
+			ImGui::TableNextColumn();
+			ImGui::Spacing();
+			changed = CheckBoxFlags(&flags) || changed;
+			});
 		break;
 	case 5:
 		ImGui::Text("columnCount");

@@ -760,7 +760,7 @@ void DockspaceUI()
 	ImGui::PopStyleVar(2);
 
 	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingInCentralNode);
+	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode);
 	if (firstTime)
 	{
 		ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
@@ -988,7 +988,7 @@ void ToolbarUI()
 		{
 			int rows = (stx::ssize(cat.second) + n - 1) / n;
 			float h = rows * BTN_SIZE + (rows - 1) * 5;
-			ImGui::BeginChild(("cat" + cat.first).c_str(), { 0, h });
+			ImGui::BeginChild(("cat" + cat.first).c_str(), { 0, h }, 0, 0);
 			ImGui::Columns(n, nullptr, false);
 			for (const auto& tb : cat.second)
 			{
