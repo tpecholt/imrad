@@ -638,6 +638,7 @@ struct TopWindow : UINode
 	direct_val<std::string> style_font = "";
 	direct_val<dimension2> style_padding;
 	direct_val<dimension2> style_spacing;
+	direct_val<bool> style_border = 1;
 	direct_val<Placement> placement = None;
 
 	TopWindow(UIContext& ctx);

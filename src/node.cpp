@@ -453,6 +453,8 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
 	if (style_spacing.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing.eval_px(ctx));
+	if (style_border*1.f != ctx.style.WindowBorderSize)
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_border);
 	
 	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
@@ -556,6 +558,8 @@ void TopWindow::Draw(UIContext& ctx)
 
 	ImGui::End();
 	
+	if (style_border*1.f != ctx.style.WindowBorderSize)
+		ImGui::PopStyleVar();
 	if (style_spacing.has_value())
 		ImGui::PopStyleVar();
 	if (style_padding.has_value())
@@ -609,6 +613,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, "
 			<< style_spacing.to_arg(ctx.unit) << ");\n";
+	}
+	if (style_border*1.f != ctx.style.WindowBorderSize)
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, "
+			<< (style_border*1.0f) << ");\n";
 	}
 
 	if (kind != MainWindow && placement == None &&
@@ -778,6 +787,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "}\n";
 	}
 
+	if (style_border*1.f != ctx.style.WindowBorderSize)
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_padding.has_value())
@@ -800,6 +811,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.root = this;
 	ctx.parents = { this };
 	kind = Window;
+	style_border = ctx.style.WindowBorderSize != 0;
 	bool hasDisplaySize = false;
 	
 	while (sit != cpp::stmt_iterator())
@@ -849,6 +861,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				style_padding.set_from_arg(sit->params[1]);
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing")
 				style_spacing.set_from_arg(sit->params[1]);
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowBorderSize")
+				style_border = std::stod(sit->params[1]) != 0;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
 		{
@@ -1017,9 +1031,10 @@ TopWindow::Properties()
 {
 	return {
 		{ "top.kind", nullptr },
+		{ "top.@style.border", &style_border },
 		{ "top.@style.padding", &style_padding },
-		{ "top.@style.spacing", nullptr },
-		{ "top.@style.font", nullptr },
+		{ "top.@style.spacing", &style_spacing },
+		{ "top.@style.font", &style_font },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
 		{ "size_x", &size_x },
@@ -1049,13 +1064,21 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	}
 	case 1:
 	{
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = ImGui::Checkbox("##style_border", style_border.access());
+		break;
+	}
+	case 2:
+	{
 		ImGui::Text("padding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputFloat2("##style_padding", (float*)style_padding.access());
 		break;
 	}
-	case 2:
+	case 3:
 	{
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
@@ -1063,7 +1086,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputFloat2("##style_spacing", (float*)style_spacing.access());
 		break;
 	}
-	case 3:
+	case 4:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1079,7 +1102,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 4:
+	case 5:
 		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
@@ -1092,7 +1115,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 				children.erase(children.begin());
 			});
 		break;
-	case 5:
+	case 6:
 		ImGui::Text("title");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1100,7 +1123,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("title", &title, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1108,7 +1131,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1116,7 +1139,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("placement");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
