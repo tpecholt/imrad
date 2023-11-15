@@ -235,10 +235,14 @@ void DoOpenFile(const std::string& path, std::string* errs = nullptr)
 	ActivateTab(idx);
 
 	if (messageBox.error != "") {
-		messageBox.title = "CodeGen";
-		messageBox.message = "Import finished with errors";
-		messageBox.buttons = ImRad::Ok;
-		messageBox.OpenPopup();
+		if (errs)
+			*errs += messageBox.error + "\n";
+		else {
+			messageBox.title = "CodeGen";
+			messageBox.message = "Import finished with errors";
+			messageBox.buttons = ImRad::Ok;
+			messageBox.OpenPopup();
+		}
 	}
 }
 
