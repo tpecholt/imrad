@@ -413,6 +413,13 @@ TopWindow::TopWindow(UIContext& ctx)
 	flags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 	flags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
 	flags.add$(ImGuiWindowFlags_NoDocking);
+
+	placement.add(" ", None);
+	placement.add$(Left);
+	placement.add$(Right);
+	placement.add$(Top);
+	placement.add$(Bottom);
+	placement.add$(Center);
 }
 
 void TopWindow::Draw(UIContext& ctx)
@@ -434,6 +441,8 @@ void TopWindow::Draw(UIContext& ctx)
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	if (kind == MainWindow)
 		fl |= ImGuiWindowFlags_NoCollapse;
+	else if (kind == Popup)
+		fl |= ImGuiWindowFlags_NoTitleBar;
 	else if (kind == Activity) //only allow resizing here to test layout behavior
 		fl |= ImGuiWindowFlags_NoTitleBar /*| ImGuiWindowFlags_NoResize*/ | ImGuiWindowFlags_NoCollapse;
 	fl |= flags;
@@ -447,7 +456,7 @@ void TopWindow::Draw(UIContext& ctx)
 	
 	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
-	if (kind == MainWindow && maximized) 
+	if (kind == MainWindow && placement == Maximize) 
 	{
 		ImGui::SetNextWindowSize(ctx.wpos2 - ctx.wpos);
 	}
@@ -571,14 +580,15 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
 	
 	os << ctx.ind << "/// @begin TopWindow\n";
-	
+	os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
+
 	if (ctx.unit == "fs")
 	{
 		os << ctx.ind << "const float fs = ImGui::GetFontSize();\n";
 	}
 	else if (ctx.unit == "dp")
 	{
-		os << ctx.ind << "const float dp = ((ImRad::IOUserData*)ImGui::GetIO().UserData)->dpiScale;\n";
+		os << ctx.ind << "const float dp = ioUserData->dpiScale;\n";
 	}
 	
 	if (kind == Popup || kind == ModalPopup)
@@ -601,7 +611,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			<< style_spacing.to_arg(ctx.unit) << ");\n";
 	}
 
-	if (kind != MainWindow && kind != Activity &&
+	if (kind != MainWindow && placement == None &&
 		(flags & ImGuiWindowFlags_AlwaysAutoResize) == 0)
 	{
 		os << ctx.ind << "ImGui::SetNextWindowSize({ " 
@@ -648,7 +658,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		{
 			os << ctx.ind << "if (ImGui::IsWindowAppearing())\n" << ctx.ind << "{\n";
 			ctx.ind_up();
-			if (maximized)
+			if (placement == Maximize)
 				os << ctx.ind << "glfwMaximizeWindow(window);\n";
 			else
 				os << ctx.ind << "glfwSetWindowSize(window, " << size_x.to_arg(ctx.unit)
@@ -664,11 +674,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Activity)
 	{
-		os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 		os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);\n";
-		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x, \n";
-		os << ctx.ind << "                           ImGui::GetIO().DisplaySize.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
+		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x,\n";
+		os << ctx.ind << "                           ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
+		//signal designed size
 		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 		flags_helper fl = flags;
 		fl |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
@@ -685,7 +695,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == ModalPopup)
 	{
-		os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, { 0.5f, 0.5f });\n";
+		if (placement == Center)
+			os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, { 0.5f, 0.5f }); //Center\n";
+		
 		os << ctx.ind << "bool tmpOpen = true;\n";
 		os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
@@ -697,7 +709,40 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Popup)
 	{
-		os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << flags.to_arg() << "))\n";
+		if (placement == Left || placement == Top) {
+			os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);"
+				<< (placement == Left ? " //Left\n" : " //Top\n");
+		}
+		else if (placement == Right || placement == Bottom) {
+			os << ctx.ind << "ImGui::SetNextWindowPos({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMaxOffset.x,\n";
+			os << ctx.ind << "                          ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMaxOffset.y },\n";
+			os << ctx.ind << "                          0, { 1, 1 });";
+			os << (placement == Right ? " //Right\n" : " //Bottom\n");
+		}
+		else if (placement == Center) {
+			os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, { 0.5f, 0.5f }); //Center\n";
+		}
+
+		bool autoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
+		//ImGui supports autoResize in one direction by supplying size.x/y <= 0
+		if (placement == Left || placement == Right)
+		{
+			os << ctx.ind << "ImGui::SetNextWindowSize({ " << (autoSize ? 0 : size_x.to_arg(ctx.unit)) << ",\n";
+			os << ctx.ind << "                            ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
+			//signal designed size
+			os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+		}
+		else if (placement == Top || placement == Bottom)
+		{
+			os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x,\n";
+			os << ctx.ind << "                           " << (autoSize ? 0 : size_y.to_arg(ctx.unit)) << " });";
+			//signal designed size
+			os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+		}
+		
+		flags_helper fl = flags;
+		fl |= ImGuiWindowFlags_NoTitleBar;
+		os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << fl.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		os << ctx.ind << "if (requestClose)\n";
@@ -755,10 +800,13 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.root = this;
 	ctx.parents = { this };
 	kind = Window;
-	bool parseCommentedSize = false;
+	bool hasDisplaySize = false;
 	
 	while (sit != cpp::stmt_iterator())
 	{
+		bool parseCommentSize = false;
+		bool parseCommentPos = false;
+		
 		if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
 		{
 			ctx.importState = 1;
@@ -802,12 +850,16 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing")
 				style_spacing.set_from_arg(sit->params[1]);
 		}
-		if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
+		{
+			parseCommentPos = true;
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
 		{
 			if (sit->params.size()) {
-				if (sit->params[0].find("ImGui::GetIO().DisplaySize")  != std::string::npos) {
-					kind = Activity;
-					parseCommentedSize = true;
+				if (sit->params[0].find("ImGui::GetMainViewport()->Size")  != std::string::npos) {
+					hasDisplaySize = true;
+					parseCommentSize = true;
 				}
 				else {
 					auto size = cpp::parse_size(sit->params[0]);
@@ -815,13 +867,6 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 					size_y.set_from_arg(size.second);
 				}
 			}
-		}
-		else if (sit->kind == cpp::Comment && parseCommentedSize)
-		{
-			parseCommentedSize = false;
-			auto size = cpp::parse_size(sit->line.substr(2));
-			size_x.set_from_arg(size.first);
-			size_y.set_from_arg(size.second);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowTitle")
 		{
@@ -838,7 +883,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwMaximizeWindow")
 		{
-			maximized = true;
+			placement = Maximize;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowAttrib"
 			&& sit->params.size() >= 3)
@@ -858,6 +903,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			sit->callee == "ImGui::BeginPopupModal")
 		{
 			kind = ModalPopup;
+			placement = Center;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
 			if (i != std::string::npos)
@@ -895,9 +941,10 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
 			
-			if (kind == Activity) {
+			if (hasDisplaySize) {
+				kind = Activity;
+				placement = None;
 				flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
-				maximized = true;
 			}
 			else {
 				kind = MainWindow;
@@ -908,7 +955,30 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
 			}
 		}
+		
 		++sit;
+
+		if (sit->kind == cpp::Comment && parseCommentSize)
+		{
+			auto size = cpp::parse_size(sit->line.substr(2));
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
+		}
+		else if (sit->kind == cpp::Comment && parseCommentPos)
+		{
+			if (sit->line == "//Left")
+				placement = Left;
+			else if (sit->line == "//Right")
+				placement = Right;
+			else if (sit->line == "//Top")
+				placement = Top;
+			else if (sit->line == "//Bottom")
+				placement = Bottom;
+			else if (sit->line == "//Center")
+				placement = Center;
+			else if (sit->line == "//Maximize")
+				placement = Maximize;
+		}
 	}
 
 	ctx.createVars = tmpCreateDeps;
@@ -954,8 +1024,7 @@ TopWindow::Properties()
 		{ "title", &title, true },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
-		{ "centered", nullptr },
-		{ "maximized", nullptr },
+		{ "placement", &placement },
 	};
 }
 
@@ -1034,7 +1103,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 6:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && maximized));
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::EndDisabled();
@@ -1042,35 +1111,34 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	case 7:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && maximized));
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 8:
-	{
-		ImGui::BeginDisabled(true);
-		ImGui::Text("centered");
+		ImGui::Text("placement");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		bool tmp = kind == ModalPopup ? true : false;
-		changed = ImGui::Checkbox("##centered", &tmp);
-		ImGui::EndDisabled();
-		break;
-	}
-	case 9:
-		ImGui::BeginDisabled(kind != MainWindow);
-		ImGui::Text("maximized");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (kind == MainWindow) {
-			changed = ImGui::Checkbox("##maximized", maximized.access());
+		if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
+		{
+			if (ImGui::Selectable("None", placement == None))
+				placement = None;
+			if (kind == Popup && ImGui::Selectable("Left", placement == Left))
+				placement = Left;
+			if (kind == Popup && ImGui::Selectable("Right", placement == Right))
+				placement = Right;
+			if (kind == Popup && ImGui::Selectable("Top", placement == Top))
+				placement = Top;
+			if (kind == Popup && ImGui::Selectable("Bottom", placement == Bottom))
+				placement = Bottom;
+			if ((kind == Popup || kind == ModalPopup) && ImGui::Selectable("Center", placement == Center))
+				placement = Center;
+			if (kind == MainWindow && ImGui::Selectable("Maximize", placement == Maximize))
+				placement = Maximize;
+
+			ImGui::EndCombo();
 		}
-		else {
-			bool tmp = kind == Activity;
-			changed = ImGui::Checkbox("##maximized", &tmp);
-		}
-		ImGui::EndDisabled();
 		break;
 	default:
 		return false;

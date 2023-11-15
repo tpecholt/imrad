@@ -628,7 +628,8 @@ struct Splitter : Widget
 struct TopWindow : UINode
 {
 	enum Kind { MainWindow, Window, Popup, ModalPopup, Activity };
-
+	enum Placement { None, Left, Right, Top, Bottom, Center, Maximize };
+	
 	flags_helper flags = ImGuiWindowFlags_NoCollapse;
 	Kind kind = Window;
 	bindable<std::string> title = "title";
@@ -637,7 +638,7 @@ struct TopWindow : UINode
 	direct_val<std::string> style_font = "";
 	direct_val<dimension2> style_padding;
 	direct_val<dimension2> style_spacing;
-	direct_val<bool> maximized = false;
+	direct_val<Placement> placement = None;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);
