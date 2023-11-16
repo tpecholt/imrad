@@ -11,15 +11,15 @@ void Test::Draw()
     /// @style Dark
     /// @unit dp
     /// @begin TopWindow
-    const float dp = ((ImRad::IOUserData*)ImGui::GetIO().UserData)->dpiScale;
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7*dp, 10*dp });
     auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
+    const float dp = ioUserData->dpiScale;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7*dp, 10*dp });
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);
-    ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x, 
-                               ImGui::GetIO().DisplaySize.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y }); //{ 420*dp, 640*dp }
+    ImGui::SetNextWindowSize({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x,
+                               ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y }); //{ 320*dp, 500*dp }
     bool tmpOpen;
-    if (ImGui::Begin("###Test", &tmpOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
+    if (ImGui::Begin("###Test", &tmpOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings))
     {
         /// @separator
 
@@ -32,6 +32,8 @@ void Test::Draw()
         /// @begin Input
         ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##value1", &value1, ImGuiInputTextFlags_None);
+        if (ImGui::IsItemActive())
+            ioUserData->imeType = ImRad::ImeText;
         /// @end Input
 
         /// @begin Text
@@ -50,7 +52,10 @@ void Test::Draw()
         /// @end Text
 
         /// @begin Input
+        ImGui::SetNextItemAllowOverlap();
         ImGui::InputTextMultiline("##value5", &value5, { -1, -110*dp }, ImGuiInputTextFlags_Multiline);
+        if (ImGui::IsItemActive())
+            ioUserData->imeType = ImRad::ImeText;
         /// @end Input
 
         /// @begin CheckBox
@@ -68,6 +73,7 @@ void Test::Draw()
         /// @separator
         ImGui::End();
     }
+    ImGui::PopStyleVar();
     ImGui::PopStyleVar();
     ImGui::PopStyleVar();
     /// @end TopWindow

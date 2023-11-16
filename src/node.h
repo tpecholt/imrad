@@ -477,6 +477,7 @@ struct Child : Widget
 	direct_val<dimension2> style_padding;
 	direct_val<dimension2> style_spacing;
 	direct_val<bool> style_outer_padding = true;
+	direct_val<dimension> style_rounding = 0;
 	bindable<color32> style_bg;
 	
 	Child(UIContext& ctx);
@@ -639,6 +640,7 @@ struct TopWindow : UINode
 	direct_val<dimension2> style_padding;
 	direct_val<dimension2> style_spacing;
 	direct_val<bool> style_border = 1;
+	direct_val<dimension> style_rounding = 0;
 	direct_val<Placement> placement = None;
 
 	TopWindow(UIContext& ctx);

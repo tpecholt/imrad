@@ -14,6 +14,7 @@ public:
     int value3 = -1;
     std::string value5;
     bool value7 = false;
+    std::string value8;
     /// @end interface
 
 private:
