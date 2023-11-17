@@ -229,7 +229,7 @@ struct Button : Widget
 	bindable<color32> style_text;
 	bindable<color32> style_button;
 	bindable<color32> style_hovered;
-	direct_val<dimension> style_rounding = 0.f;
+	direct_val<pzdimension> style_rounding;
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -445,7 +445,7 @@ struct Table : Widget
 	data_loop rowCount;
 	bindable<bool> rowFilter;
 	bindable<dimension> rowHeight = 0;
-	direct_val<dimension2> style_cellPadding;
+	direct_val<pzdimension2> style_cellPadding;
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;
@@ -474,10 +474,10 @@ struct Child : Widget
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
 	data_loop itemCount;
-	direct_val<dimension2> style_padding;
-	direct_val<dimension2> style_spacing;
+	direct_val<pzdimension2> style_padding;
+	direct_val<pzdimension2> style_spacing;
 	direct_val<bool> style_outer_padding = true;
-	direct_val<dimension> style_rounding = 0;
+	direct_val<pzdimension> style_rounding;
 	bindable<color32> style_bg;
 	
 	Child(UIContext& ctx);
@@ -637,10 +637,10 @@ struct TopWindow : UINode
 	bindable<dimension> size_x = 640.f;
 	bindable<dimension> size_y = 480.f;
 	direct_val<std::string> style_font = "";
-	direct_val<dimension2> style_padding;
-	direct_val<dimension2> style_spacing;
-	direct_val<bool> style_border = 1;
-	direct_val<dimension> style_rounding = 0;
+	direct_val<pzdimension2> style_padding;
+	direct_val<pzdimension2> style_spacing;
+	direct_val<pzdimension> style_border;
+	direct_val<pzdimension> style_rounding;
 	direct_val<Placement> placement = None;
 
 	TopWindow(UIContext& ctx);

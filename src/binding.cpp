@@ -18,12 +18,17 @@ U field_ref<T>::eval(const UIContext& ctx) const
 	return {};
 }
 
-float direct_val<dimension>::eval_px(const UIContext& ctx) const 
+float direct_val<dimension>::eval_px(const UIContext& ctx) const
 {
 	return val * ctx.unitFactor;
 }
 
-ImVec2 direct_val<dimension2>::eval_px(const UIContext& ctx) const
+float direct_val<pzdimension>::eval_px(const UIContext& ctx) const 
+{
+	return val * ctx.unitFactor;
+}
+
+ImVec2 direct_val<pzdimension2>::eval_px(const UIContext& ctx) const
 {
 	return { val[0] * ctx.unitFactor, val[1] * ctx.unitFactor };
 }

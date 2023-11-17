@@ -32,7 +32,7 @@ std::string typeid_name()
 		return "size_t";
 	else if (std::is_same_v<T, bool>)
 		return "bool";
-	else if (std::is_same_v<T, ImVec2> || std::is_same_v<T, dimension2>)
+	else if (std::is_same_v<T, ImVec2> || std::is_same_v<T, pzdimension2>)
 		return "ImVec2";
 	else if (std::is_same_v<T, std::vector<std::string>>)
 		return "std::vector<std::string>";
@@ -84,6 +84,37 @@ inline bool BindingButton(const char* label, bindable<T>* val, UIContext& ctx)
 	return BindingButton(label, val, typeid_name<T>(), ctx);
 }
 
+inline bool InputDirectVal(const char* label, direct_val<dimension>* val, UIContext& ctx)
+{
+	return ImGui::InputFloat(label, val->access(), 0, 0, "%.0f");
+}
+
+inline bool InputDirectVal(const char* label, direct_val<pzdimension>* val, UIContext& ctx)
+{
+	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(val->has_value() ? ImGuiCol_Text : ImGuiCol_TextDisabled));
+	bool ch = ImGui::InputFloat(label, val->access(), 0, 0, "%.0f");
+	ImGui::PopStyleColor();
+	return ch;
+}
+
+inline bool InputDirectVal(const char* label, direct_val<pzdimension2>* val, UIContext& ctx)
+{
+	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(val->has_value() ? ImGuiCol_Text : ImGuiCol_TextDisabled));
+	bool ch = ImGui::InputFloat2(label, (float*)val->access(), "%.0f");
+	ImGui::PopStyleColor();
+	return ch;
+}
+
+inline bool InputDirectVal(const char* label, direct_val<bool>* val, UIContext& ctx)
+{
+	return ImGui::Checkbox(label, val->access());
+}
+
+inline bool InputDirectVal(const char* label, direct_val<std::string>* val, UIContext& ctx)
+{
+	return ImGui::InputText(label, val->access());
+}
+
 inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, UIContext& ctx)
 {
 	bool changed = false;
@@ -132,8 +163,10 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 		if (sz.x < 0)
 			sz.x += ImGui::GetContentRegionAvail().x;
 	}
-	std::string clrName = styleClr >= 0 ? ImGui::GetStyleColorName(styleClr) : val->c_str();
-	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+	std::string clrName = styleClr >= 0 ? ImGui::GetStyleColorName(styleClr) : 
+		val->empty() ? ImGui::GetStyleColorName(def) :
+		val->c_str();
+	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text]);
 	if (ImGui::Selectable(clrName.c_str(), false, 0, sz))
 	{
 		lastColor = val->c_str();

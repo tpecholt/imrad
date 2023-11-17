@@ -10,6 +10,7 @@
 
 struct UIContext;
 
+//negative values allowed
 struct dimension
 {
 	float value;
@@ -19,11 +20,21 @@ struct dimension
 	operator const float& () const { return value; }
 };
 
-struct dimension2
+//positive or zero dimension (so that neg values represent like empty value)
+struct pzdimension
+{
+	float value;
+	pzdimension(float v = 0) : value(v) {}
+	pzdimension& operator= (float v) { value = v; return *this; }
+	operator float& () { return value; }
+	operator const float& () const { return value; }
+};
+
+struct pzdimension2
 {
 	ImVec2 value;
-	dimension2(ImVec2 v = {}) : value(v) {}
-	dimension2& operator= (ImVec2 v) { value = v; return *this; }
+	pzdimension2(ImVec2 v = {}) : value(v) {}
+	pzdimension2& operator= (ImVec2 v) { value = v; return *this; }
 	operator ImVec2& () { return value; }
 	operator const ImVec2& () const { return value; }
 	float& operator[] (int i) { return value[i]; }
@@ -35,11 +46,17 @@ struct dimension2
 struct color32
 {
 	color32(ImU32 c = 0) : c(c) {} //0 means style default color
+	color32(const ImVec4& v) : c(IM_COL32(255*v.x, 255*v.y, 255*v.z, 255*v.w)) {}
 	color32& operator= (ImU32 cc) { c = cc; return *this; }
 	operator ImU32 () const { return c; }
 	operator ImU32& () { return c; }
 	bool operator== (const color32& a) const { return c == a.c; }
 	bool operator!= (const color32& a) const { return c != a.c; }
+	std::string string() const {
+		std::ostringstream os;
+		os << *this;
+		return os.str();
+	}
 	friend std::ostream& operator<< (std::ostream& os, color32 clr)
 	{
 		if (!clr)
@@ -276,10 +293,10 @@ struct direct_val<dimension> : property_base
 	bool operator== (dimension dv) const {
 		return val == dv;
 	}
-	bool operator!= (dimension dv) const {
+	bool operator!= (pzdimension dv) const {
 		return val != dv;
 	}
-	direct_val& operator= (dimension v) {
+	direct_val& operator= (pzdimension v) {
 		val = v;
 		return *this;
 	}
@@ -327,26 +344,90 @@ private:
 };
 
 template <>
-struct direct_val<dimension2> : property_base
+struct direct_val<pzdimension> : property_base
 {
-	direct_val(dimension2 dim = ImVec2{-1, -1}) : val(dim) {}
+	direct_val(pzdimension dim) : direct_val((float)dim) {}
+	direct_val(float v = -1) : val(v) {}
+
+	operator float&() { return val; }
+	operator const float() const { return val; }
+	bool has_value() const { return val != -1; }
+	bool operator== (dimension dv) const {
+		return val == dv;
+	}
+	bool operator!= (pzdimension dv) const {
+		return val != dv;
+	}
+	direct_val& operator= (pzdimension v) {
+		val = v;
+		return *this;
+	}
+	direct_val& operator= (float f) {
+		val = f;
+		return *this;
+	}
+	float eval_px(const UIContext& ctx) const;
+
+	void set_from_arg(std::string_view s) {
+		std::istringstream is;
+		is.str(std::string(s));
+		is >> val;
+		//strip unit calculation
+		std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
+		if (factor == "*fs" || factor == "*dp")
+		{
+			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
+			dimension v;
+			if ((is >> v) && is.eof())
+				val = v;
+		}
+	}
+	std::string to_arg(std::string_view unit) const {
+		std::ostringstream os;
+		os << val;
+		if (unit != "")
+			os << "*" << unit;
+		return os.str();
+	}
+	std::vector<std::string> used_variables() const {
+		return {};
+	}
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{}
+	void scale_dimension(float scale)
+	{
+		if (!has_value())
+			return;
+		val = (int)std::round(100 * val * scale) / 100.f;
+	}
+	float* access() { return &val.value; }
+	const char* c_str() const { return nullptr; }
+
+private:
+	pzdimension val;
+};
+
+template <>
+struct direct_val<pzdimension2> : property_base
+{
+	direct_val(pzdimension2 dim = ImVec2{-1, -1}) : val(dim) {}
 	
 	operator ImVec2&() { return val; }
 	operator const ImVec2() const { return val; }
 	float& operator[] (int i) { return val[i]; }
 	float operator[] (int i) const { return val[i]; }
 
-	bool operator== (dimension2 dv) const {
+	bool operator== (pzdimension2 dv) const {
 		return val == dv;
 	}
-	bool operator!= (dimension2 dv) const {
+	bool operator!= (pzdimension2 dv) const {
 		return val != dv;
 	}
-	direct_val& operator= (dimension2 v) {
+	direct_val& operator= (pzdimension2 v) {
 		val = v;
 		return *this;
 	}
-	bool has_value() const { return val[0] >= 0 || val[1] >= 0; }
+	bool has_value() const { return val[0] != -1 || val[1] != -1; }
 	ImVec2 eval_px(const UIContext& ctx) const;
 
 	void set_from_arg(std::string_view s) {
@@ -382,7 +463,7 @@ struct direct_val<dimension2> : property_base
 	const char* c_str() const { return nullptr; }
 
 private:
-	dimension2 val;
+	pzdimension2 val;
 };
 
 template <>

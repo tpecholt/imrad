@@ -420,9 +420,6 @@ TopWindow::TopWindow(UIContext& ctx)
 	placement.add$(Top);
 	placement.add$(Bottom);
 	placement.add$(Center);
-
-	style_border = ctx.style.WindowBorderSize;
-	style_rounding = ctx.style.WindowRounding;
 }
 
 void TopWindow::Draw(UIContext& ctx)
@@ -456,10 +453,10 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
 	if (style_spacing.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing.eval_px(ctx));
-	if (style_border*1.f != ctx.style.WindowBorderSize)
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_border);
-	if (style_rounding.eval_px(ctx) != ctx.style.WindowRounding)
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, style_rounding);
+	if (style_border.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_border.eval_px(ctx));
+	if (style_rounding.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, style_rounding.eval_px(ctx));
 
 	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
@@ -563,9 +560,9 @@ void TopWindow::Draw(UIContext& ctx)
 
 	ImGui::End();
 	
-	if (style_rounding.eval_px(ctx) != ctx.style.WindowRounding)
+	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
-	if (style_border*1.f != ctx.style.WindowBorderSize)
+	if (style_border.has_value())
 		ImGui::PopStyleVar();
 	if (style_spacing.has_value())
 		ImGui::PopStyleVar();
@@ -621,16 +618,16 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, "
 			<< style_spacing.to_arg(ctx.unit) << ");\n";
 	}
-	if (style_rounding.eval_px(ctx) != ctx.style.WindowRounding)
+	if (style_rounding.has_value())
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, "
 			<< style_rounding.to_arg(ctx.unit) << ");\n";
 	}
-	if (style_border*1.f != ctx.style.WindowBorderSize &&
+	if (style_border.has_value() &&
 		kind != Activity)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, "
-			<< (style_border*1.0f) << ");\n";
+			<< style_border.to_arg(ctx.unit) << ");\n";
 	}
 
 	if (kind != MainWindow && kind != Activity &&
@@ -801,9 +798,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "}\n";
 	}
 
-	if (style_border*1.f != ctx.style.WindowBorderSize)
+	if (style_border.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
-	if (style_rounding.eval_px(ctx) != ctx.style.WindowRounding)
+	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -827,7 +824,6 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.root = this;
 	ctx.parents = { this };
 	kind = Window;
-	style_border = ctx.style.WindowBorderSize != 0;
 	bool hasDisplaySize = false;
 	
 	while (sit != cpp::stmt_iterator())
@@ -880,7 +876,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowRounding")
 				style_rounding.set_from_arg(sit->params[1]);
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowBorderSize")
-				style_border = std::stod(sit->params[1]) != 0;
+				style_border.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
 		{
@@ -1086,7 +1082,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("padding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat2("##style_padding", (float*)style_padding.access());
+		changed = InputDirectVal("##style_padding", &style_padding, ctx);
 		break;
 	}
 	case 2:
@@ -1094,7 +1090,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat("##style_rounding", style_rounding.access());
+		changed = InputDirectVal("##style_rounding", &style_rounding, ctx);
 		break;
 	}
 	case 3:
@@ -1102,7 +1098,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("border");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##style_border", style_border.access());
+		changed = InputDirectVal("##style_border", &style_border, ctx);
 		break;
 	}
 	case 4:
@@ -1110,7 +1106,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat2("##style_spacing", (float*)style_spacing.access());
+		changed = InputDirectVal("##style_spacing", &style_spacing, ctx);
 		break;
 	}
 	case 5:
@@ -1212,6 +1208,8 @@ void TopWindow::ScaleDimensions(float scale)
 	UINode::ScaleDimensions(scale);
 	style_padding.scale_dimension(scale);	
 	style_spacing.scale_dimension(scale);
+	style_rounding.scale_dimension(scale);
+	style_border.scale_dimension(scale);
 }
 
 //-------------------------------------------------
@@ -2754,7 +2752,6 @@ Button::Button(UIContext& ctx)
 	arrowDir.add$(ImGuiDir_Up);
 	arrowDir.add$(ImGuiDir_Down);
 
-	style_rounding = ctx.style.FrameRounding;
 	InitDimensions(ctx);
 }
 
@@ -2765,8 +2762,8 @@ std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
 
 void Button::DoDraw(UIContext& ctx)
 {
-	if (style_rounding)
-		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding);
+	if (style_rounding.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding.eval_px(ctx));
 	if (!style_button.empty())
 		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ctx));
 	if (!style_hovered.empty())
@@ -2795,7 +2792,7 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (!style_button.empty())
 		ImGui::PopStyleColor();
-	if (style_rounding)
+	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
 }
 
@@ -2896,7 +2893,7 @@ std::string ParseShortcut(const std::string& line)
 
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (style_rounding)
+	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_button.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_button.to_arg() << ");\n";
@@ -2960,7 +2957,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_text.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (style_rounding)
+	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
@@ -3074,7 +3071,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat("##rounding", style_rounding.access(), 0, 0, "%.0f") || changed;
+		changed = InputDirectVal("##rounding", &style_rounding, ctx) || changed;
 		break;
 	case 4:
 		ImGui::Text("font");
@@ -3123,7 +3120,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##shortcut", shortcut.access());
+		changed = InputDirectVal("##shortcut", &shortcut, ctx);
 		break;
 	case 8:
 	{
@@ -3151,7 +3148,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##small", small.access());
+		changed = InputDirectVal("##small", &small, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 10:
@@ -5278,7 +5275,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("cellPadding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat2("##style_cellPadding", (float*)style_cellPadding.access()) || changed;
+		changed = InputDirectVal("##style_cellPadding", &style_cellPadding, ctx) || changed;
 		break;
 	case 1:
 		ImGui::Text("headerBg");
@@ -5593,7 +5590,6 @@ Child::Child(UIContext& ctx)
 	flags.add$(ImGuiChildFlags_AutoResizeY);
 	flags.add$(ImGuiChildFlags_FrameStyle);
 	
-	style_rounding = ctx.style.ChildRounding;
 	InitDimensions(ctx);
 }
 
@@ -5649,7 +5645,7 @@ void Child::DoDraw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding);
 	if (style_spacing.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
-	if (style_rounding.eval_px(ctx) != ctx.style.ChildRounding)
+	if (style_rounding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, style_rounding);
 	if (!style_bg.empty())
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
@@ -5673,7 +5669,7 @@ void Child::DoDraw(UIContext& ctx)
 
 	if (!style_bg.empty())
 		ImGui::PopStyleColor();
-	if (style_rounding.eval_px(ctx) != ctx.style.ChildRounding)
+	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
 	if (style_padding.has_value())
 		ImGui::PopStyleVar();
@@ -5695,7 +5691,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, " << style_padding.to_arg(ctx.unit) << ");\n";
 	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
-	if (style_rounding.eval_px(ctx) != ctx.style.ChildRounding)
+	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
@@ -5781,7 +5777,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopClipRect();\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (style_rounding.eval_px(ctx) != ctx.style.ChildRounding)
+	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_padding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -5878,24 +5874,24 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("padding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat2("##padding", (float*)style_padding.access());
+		changed = InputDirectVal("##padding", &style_padding, ctx);
 		break;
 	case 2:
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat2("##spacing", (float*)style_spacing.access());
+		changed = InputDirectVal("##spacing", &style_spacing, ctx);
 		break;
 	case 3:
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputFloat("##rounding", (float*)style_rounding.access());
+		changed = InputDirectVal("##rounding", &style_rounding, ctx);
 		break;
 	case 4:
 		ImGui::Text("outerPadding");
 		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##outerPadding", style_outer_padding.access());
+		changed = InputDirectVal("##outerPadding", &style_outer_padding, ctx);
 		break;
 	case 5:
 		TreeNodeProp("flags", true, [&] {
@@ -5915,7 +5911,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 	case 7:
 		ImGui::Text("columnBorder");
 		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##columnBorder", columnBorder.access());
+		changed = InputDirectVal("##columnBorder", &columnBorder, ctx);
 		break;
 	case 8:
 		changed = DataLoopProp("itemCount", &itemCount, ctx);
