@@ -623,11 +623,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, "
 			<< style_rounding.to_arg(ctx.unit) << ");\n";
 	}
-	if (style_border.has_value() &&
-		kind != Activity)
+	if (style_border.has_value() && kind != Activity)
 	{
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, "
-			<< style_border.to_arg(ctx.unit) << ");\n";
+		os << ctx.ind << "ImGui::PushStyleVar(";
+		if (kind == Popup || kind == ModalPopup)
+			os << "ImGuiStyleVar_PopupBorderSize";
+		else
+			os << "ImGuiStyleVar_WindowBorderSize";
+		os << ", " << style_border.to_arg(ctx.unit) << ");\n";
 	}
 
 	if (kind != MainWindow && kind != Activity &&
@@ -798,15 +801,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "}\n";
 	}
 
-	if (style_border.has_value())
+	if (style_border.has_value() || kind == Activity)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_padding.has_value())
-		os << ctx.ind << "ImGui::PopStyleVar();\n";
-	if (kind == Activity)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_font != "")
 		os << ctx.ind << "ImGui::PopFont();\n";
@@ -876,6 +877,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowRounding")
 				style_rounding.set_from_arg(sit->params[1]);
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowBorderSize")
+				style_border.set_from_arg(sit->params[1]);
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_PopupBorderSize")
 				style_border.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
@@ -1055,6 +1058,7 @@ TopWindow::Properties()
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		{ "placement", &placement },
+		{ "animate", &animate },
 	};
 }
 
@@ -1185,6 +1189,12 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 
 			ImGui::EndCombo();
 		}
+		break;
+	case 11:
+		ImGui::Text("animate");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##animate", &animate, ctx);
 		break;
 	default:
 		return false;
@@ -1318,12 +1328,24 @@ void Widget::Draw(UIContext& ctx)
 
 	if (style_font != "") 
 		ImGui::PushFont(ImRad::GetFontByName(style_font.c_str()));
-	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
+	if (!style_text.empty())
+		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ctx));
+	if (!style_frameBg.empty())
+		ImGui::PushStyleColor(ImGuiCol_FrameBg, style_frameBg.eval(ctx));
+	if (!style_frameRounding.empty())
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_frameRounding);
 
+	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
 	DoDraw(ctx);
-	
 	ImGui::EndDisabled();
 	CalcSizeEx(p1, ctx);
+
+	if (!style_text.empty())
+		ImGui::PopStyleColor();
+	if (!style_frameBg.empty())
+		ImGui::PopStyleColor();
+	if (!style_frameRounding.empty())
+		ImGui::PopStyleVar();
 	if (style_font != "")
 		ImGui::PopFont();
 
@@ -1470,8 +1492,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		if (sameLine)
 		{
 			os << ctx.ind << "ImGui::SameLine(";
-			if (spacing)
-				os << "0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x";
+			os << "0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x";
 			os << ");\n";
 		}
 		else if (spacing)
@@ -1494,7 +1515,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (!visible.has_value() || !visible.value())
 	{
-		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n"; 
+		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{ //visible\n"; 
 		ctx.ind_up();
 	}
 	if (!disabled.has_value() || disabled.value())
@@ -1505,11 +1526,35 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(" << style_font.to_arg() << "));\n";
 	}
+	if (!style_text.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_text.to_arg() << ");\n";
+	}
+	if (!style_frameBg.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_FrameBg, " << style_frameBg.to_arg() << ");\n";
+	}
+	if (!style_frameRounding.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_frameRounding.to_arg(ctx.unit) << ");\n";
+	}
 
 	ctx.parents.push_back(this);
 	DoExport(os, ctx);
 	ctx.parents.pop_back();
 
+	if (!style_frameRounding.empty())
+	{
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	}
+	if (!style_frameBg.empty())
+	{
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	}
+	if (!style_text.empty())
+	{
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	}
 	if (style_font != "")
 	{
 		os << ctx.ind << "ImGui::PopFont();\n";
@@ -1617,9 +1662,11 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.importState = 1;
 	ctx.parents.push_back(this);
 	userCode = ctx.userCode;
-
+	
 	while (sit != cpp::stmt_iterator())
 	{
+		cpp::stmt_iterator ifBlockSit;
+
 		if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
 		{
 			ctx.importState = 1;
@@ -1657,9 +1704,9 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				ctx.userCode += "\n";
 			ctx.userCode += sit->line;
 		}
-		else if (sit->kind == cpp::IfBlock) //todo: weak condition
+		else if (sit->kind == cpp::IfBlock)
 		{
-			visible.set_from_arg(sit->cond);
+			ifBlockSit = sit; //could be visible block
 		}
 		else if (sit->kind == cpp::CallExpr && 
 			(sit->callee == "ImGui::NextColumn" || sit->callee == "ImGui::TableNextColumn")) //compatibility
@@ -1730,6 +1777,22 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size() && !sit->params[0].compare(0, 22, "ImRad::GetFontByName(\""))
 				style_font = sit->params[0].substr(22, sit->params[0].size() - 22 - 2);
 		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+		{
+			if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_Text")
+				style_text.set_from_arg(sit->params[1]);
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_FrameBg")
+				style_frameBg.set_from_arg(sit->params[1]);
+			else
+				DoImport(sit, ctx);
+		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
+		{
+			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
+				style_frameRounding.set_from_arg(sit->params[1]);
+			else
+				DoImport(sit, ctx);
+		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemHovered")
 		{
 			if (sit->callee == "ImGui::SetTooltip")
@@ -1774,7 +1837,20 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			DoImport(sit, ctx);
 		}
+		
 		++sit;
+
+		if (ifBlockSit != cpp::stmt_iterator() && sit != cpp::stmt_iterator())
+		{
+			if (sit->kind == cpp::Comment && sit->line == "//visible")
+			{
+				visible.set_from_arg(ifBlockSit->cond);
+			}
+			else
+			{
+				DoImport(ifBlockSit, ctx);
+			}
+		}
 	}
 }
 
@@ -2236,14 +2312,6 @@ std::unique_ptr<Widget> Text::Clone(UIContext& ctx)
 
 void Text::DoDraw(UIContext& ctx)
 {
-	color32 clr;
-	if (grayed)
-		clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-	else 
-		clr = style_color.eval(ctx);
-	if (clr)
-		ImGui::PushStyleColor(ImGuiCol_Text, clr);
-	
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
 
@@ -2263,9 +2331,6 @@ void Text::DoDraw(UIContext& ctx)
 	{
 		ImGui::TextUnformatted(text.c_str());
 	}
-
-	if (clr)
-		ImGui::PopStyleColor();
 }
 
 void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -2278,15 +2343,6 @@ void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Text::DoExport(std::ostream& os, UIContext& ctx)
 {
-	std::string clr;
-	if (grayed)
-		clr = "ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]";
-	else if (!style_color.empty())
-		clr = style_color.to_arg();
-
-	if (clr != "")
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << clr << ");\n";
-
 	if (alignToFrame)
 		os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
@@ -2300,9 +2356,6 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::TextUnformatted(" << text.to_arg() << ");\n";
 	}
-
-	if (clr != "")
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -2323,16 +2376,6 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				ctx.errors.push_back("Text: unable to parse text");
 		}
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
-	{
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
-		{
-			if (sit->params[1] == "ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]")
-				grayed = true;
-			else
-				style_color.set_from_arg(sit->params[1]);
-		}
-	}
 }
 
 std::vector<UINode::Prop>
@@ -2340,10 +2383,9 @@ Text::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "@style.color", &style_color },
+		{ "@style.color", &style_text },
 		{ "@style.font", &style_font },
 		{ "text", &text, true },
-		{ "text.grayed", &grayed },
 		{ "alignToFramePadding", &alignToFrame },
 		{ "text.wrap", &wrap },
 	});
@@ -2359,9 +2401,9 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx);
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_color, ctx);
+		BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -2388,23 +2430,18 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		BindingButton("text", &text, ctx);
 		break;
 	case 3:
-		ImGui::Text("grayed");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##grayed", grayed.access());
-		break;
-	case 4:
 		ImGui::Text("alignToFramePadding");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
 		break;
-	case 5:
+	case 4:
 		ImGui::Text("wrap");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##wrap", wrap.access());
 		break;
 	default:
-		return Widget::PropertyUI(i - 6, ctx);
+		return Widget::PropertyUI(i - 5, ctx);
 	}
 	return changed;
 }
@@ -2440,10 +2477,6 @@ std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
 
 void Selectable::DoDraw(UIContext& ctx)
 {
-	color32 clr = style_color.eval(ctx);
-	if (clr)
-		ImGui::PushStyleColor(ImGuiCol_Text, clr);
-
 	ImVec2 alignment(0, 0);
 	if (horizAlignment == ImRad::AlignHCenter)
 		alignment.x = 0.5f;
@@ -2464,9 +2497,6 @@ void Selectable::DoDraw(UIContext& ctx)
 	ImRad::Selectable(label.c_str(), false, flags, size);
 
 	ImGui::PopStyleVar();
-
-	if (clr)
-		ImGui::PopStyleColor();
 }
 
 void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -2477,15 +2507,6 @@ void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 {
-	std::string clr;
-	/*if (grayed)
-		clr = "ImGui::GetStyle().Colors[ImGuiCol_TextDisabled])";
-	else*/ if (!style_color.empty())
-		clr = style_color.to_arg();
-
-	if (clr != "")
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << clr << ");\n";
-
 	os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { "
 		<< (horizAlignment == ImRad::AlignLeft ? "0" : horizAlignment == ImRad::AlignHCenter ? "0.5f" : "1.f")
 		<< ", "
@@ -2519,9 +2540,6 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	}
 
 	os << ctx.ind << "ImGui::PopStyleVar();\n";
-
-	if (clr != "")
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -2548,13 +2566,6 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee);
-	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
-	{
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
-		{
-			style_color.set_from_arg(sit->params[1]);
-		}
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
@@ -2583,7 +2594,7 @@ Selectable::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "@style.color", &style_color },
+		{ "@style.color", &style_text },
 		{ "@style.font", &style_font },
 		{ "selectable.flags", &flags },
 		{ "label", &label, true },
@@ -2606,9 +2617,9 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx);
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_color, ctx);
+		BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -2762,14 +2773,10 @@ std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
 
 void Button::DoDraw(UIContext& ctx)
 {
-	if (style_rounding.has_value())
-		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_rounding.eval_px(ctx));
 	if (!style_button.empty())
 		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ctx));
 	if (!style_hovered.empty())
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, style_hovered.eval(ctx));
-	if (!style_text.empty())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ctx));
 	
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
@@ -2786,14 +2793,10 @@ void Button::DoDraw(UIContext& ctx)
 			//ImGui::SetItemDefaultFocus();
 	}
 	
-	if (!style_text.empty())
-		ImGui::PopStyleColor();
 	if (!style_hovered.empty())
 		ImGui::PopStyleColor();
 	if (!style_button.empty())
 		ImGui::PopStyleColor();
-	if (style_rounding.has_value())
-		ImGui::PopStyleVar();
 }
 
 std::string CodeShortcut(const std::string& sh, const std::string& disabled)
@@ -2893,15 +2896,11 @@ std::string ParseShortcut(const std::string& line)
 
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (style_rounding.has_value())
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_button.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_button.to_arg() << ");\n";
 	if (!style_hovered.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonHovered, " << style_hovered.to_arg() << ");\n";
-	if (!style_text.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_text.to_arg() << ");\n";
-
+	
 	bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
 	os << ctx.ind;
 	if (!onChange.empty() || closePopup)
@@ -2955,10 +2954,6 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_hovered.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (!style_text.empty())
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (style_rounding.has_value())
-		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
 void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -2969,13 +2964,6 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			style_button.set_from_arg(sit->params[1]);
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ButtonHovered")
 			style_hovered.set_from_arg(sit->params[1]);
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
-			style_text.set_from_arg(sit->params[1]);
-	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
-	{
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
-			style_rounding.set_from_arg(sit->params[1]);
 	}
 	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::Button")
@@ -3025,7 +3013,7 @@ Button::Properties()
 		{ "@style.text", &style_text },
 		{ "@style.button", &style_button },
 		{ "@style.hovered", &style_hovered },
-		{ "@style.rounding", &style_rounding },
+		{ "@style.rounding", &style_frameRounding },
 		{ "@style.font", &style_font },
 		{ "button.arrowDir", &arrowDir },
 		{ "label", &label, true },
@@ -3071,7 +3059,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##rounding", &style_rounding, ctx) || changed;
+		changed = InputDirectVal("##rounding", &style_frameRounding, ctx) || changed;
 		break;
 	case 4:
 		ImGui::Text("font");
@@ -3225,24 +3213,15 @@ std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
 
 void CheckBox::DoDraw(UIContext& ctx)
 {
-	if (!style_color.empty())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_color.eval(ctx));
-	
 	bool dummy;
 	const auto* var = ctx.codeGen->GetVar(fieldName.c_str());
 	if (var)
 		dummy = var->init == "true";
 	ImGui::Checkbox(label.c_str(), &dummy);
-
-	if (!style_color.empty())
-		ImGui::PopStyleColor();
 }
 
 void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (!style_color.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_color.to_arg() << ");\n";
-	
 	os << ctx.ind;
 	if (!onChange.empty())
 		os << "if (";
@@ -3261,9 +3240,6 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 	else {
 		os << ";\n";
 	}
-
-	if (!style_color.empty())
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3286,11 +3262,6 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee);
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
-	{
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
-			style_color.set_from_arg(sit->params[1]);
-	}
 }
 
 std::vector<UINode::Prop>
@@ -3298,7 +3269,7 @@ CheckBox::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "check.@style.color", &style_color },
+		{ "check.@style.color", &style_text },
 		{ "check.@style.font", &style_font },
 		{ "label", &label, true },
 		{ "check.field_name", &fieldName },
@@ -3315,9 +3286,9 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx);
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_color, ctx);
+		BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -3402,13 +3373,7 @@ std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 
 void RadioButton::DoDraw(UIContext& ctx)
 {
-	if (!style_color.empty())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_color.eval(ctx));
-
 	ImGui::RadioButton(label.c_str(), valueID==0);
-
-	if (!style_color.empty())
-		ImGui::PopStyleColor();
 }
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
@@ -3416,16 +3381,10 @@ void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 	if (!ctx.codeGen->GetVar(fieldName.c_str()))
 		ctx.errors.push_back("RadioButon: field_name variable doesn't exist");
 
-	if (!style_color.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_color.to_arg() << ");\n";
-
 	os << ctx.ind << "ImGui::RadioButton("
 		<< label.to_arg() << ", "
 		<< "&" << fieldName.c_str() << ", "
 		<< valueID << ");\n";
-
-	if (!style_color.empty())
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3440,11 +3399,6 @@ void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			fieldName.set_from_arg(sit->params[1].substr(1));
 		}
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
-	{
-		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Text")
-			style_color.set_from_arg(sit->params[1]);
-	}
 }
 
 std::vector<UINode::Prop>
@@ -3452,7 +3406,7 @@ RadioButton::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "@style.color", &style_color },
+		{ "@style.color", &style_text },
 		{ "@style.font", &style_font },
 		{ "label", &label, true },
 		{ "radio.valueID", &valueID },
@@ -3470,9 +3424,9 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ImGuiCol_Text, ctx) || changed;
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx) || changed;
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_color, ctx);
+		BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -3534,9 +3488,11 @@ Input::Input(UIContext& ctx)
 	flags.add$(ImGuiInputTextFlags_CallbackAlways);
 	flags.add$(ImGuiInputTextFlags_CallbackCharFilter);*/
 	flags.add$(ImGuiInputTextFlags_CtrlEnterForNewLine);
+	flags.add$(ImGuiInputTextFlags_NoHorizontalScroll);
 	flags.add$(ImGuiInputTextFlags_ReadOnly);
 	flags.add$(ImGuiInputTextFlags_Password);
 	flags.add$(ImGuiInputTextFlags_Multiline);
+	flags.add$(ImGuiInputTextFlags_EscapeClearsAll);
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
@@ -3626,6 +3582,15 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_up();
 		os << ctx.ind << "ImGui::SetKeyboardFocusHere();\n";
 		ctx.ind_down();
+	}
+	if (!forceFocus.empty())
+	{
+		os << ctx.ind << "if (" << forceFocus.to_arg() << ") {\n";
+		ctx.ind_up();
+		os << ctx.ind << forceFocus.to_arg() << " = false;\n";
+		os << ctx.ind << "ImGui::SetKeyboardFocusHere();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
 	}
 
 	if (!(flags & ImGuiInputTextFlags_Multiline))
@@ -3851,6 +3816,10 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		keyboardFocus = true;
 	}
+	else if (sit->kind == cpp::IfBlock) //todo: weak condition
+	{
+		forceFocus.set_from_arg(sit->cond);
+	}
 }
 
 std::vector<UINode::Prop>
@@ -3858,6 +3827,8 @@ Input::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.text", &style_text },
+		{ "@style.frameBg", &style_frameBg },
 		{ "input.flags", &flags },
 		{ "label", &label, true },
 		{ "input.type", &type },
@@ -3866,6 +3837,7 @@ Input::Properties()
 		{ "input.step", &step },
 		{ "input.format", &format },
 		{ "keyboard_focus", &keyboardFocus },
+		{ "force_focus", &forceFocus },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }, 
 	});
@@ -3892,19 +3864,35 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("text");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##text", &style_text, ImGuiCol_Text, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("text", &style_text, ctx);
+		break;
+	case 1:
+		ImGui::Text("frameBg");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##frameBg", &style_frameBg, ImGuiCol_FrameBg, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("frameBg", &style_frameBg, ctx);
+		break;
+	case 2:
 		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 1:
+	case 3:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##label", label.access());
 		break;
-	case 2:
+	case 4:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3921,14 +3909,14 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 3:
+	case 5:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 4:
+	case 6:
 		ImGui::BeginDisabled(type != "std::string" && type != "ImGuiTextFilter");
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
@@ -3936,7 +3924,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##hint", hint.access());
 		ImGui::EndDisabled();
 		break;
-	case 5:
+	case 7:
 		ImGui::BeginDisabled(type != "int" && type != "float");
 		ImGui::Text("step");
 		ImGui::TableNextColumn();
@@ -3951,7 +3939,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 6:
+	case 8:
 		ImGui::BeginDisabled(type.access()->compare(0, 5, "float"));
 		ImGui::Text("format");
 		ImGui::TableNextColumn();
@@ -3959,13 +3947,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##format", format.access());
 		ImGui::EndDisabled();
 		break;
-	case 7:
-		ImGui::Text("keyboardFocus");
+	case 9:
+		ImGui::Text("initialFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##kbf", keyboardFocus.access());
 		break;
-	case 8:
+	case 10:
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
+		ImGui::Text("forceFocus");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFieldRef("##forceFocus", &forceFocus, true, ctx);
+		break;
+	case 11:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3973,7 +3968,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 9:
+	case 12:
 		ImGui::BeginDisabled(type != "std::string" || !(flags & ImGuiInputTextFlags_Multiline));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -3984,7 +3979,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 10, ctx);
+		return Widget::PropertyUI(i - 13, ctx);
 	}
 	return changed;
 }
@@ -5586,10 +5581,18 @@ Child::Child(UIContext& ctx)
 	flags.prefix("ImGuiChildFlags_");
 	flags.add$(ImGuiChildFlags_Border);
 	flags.add$(ImGuiChildFlags_AlwaysUseWindowPadding);
+	flags.add$(ImGuiChildFlags_AlwaysAutoResize);
 	flags.add$(ImGuiChildFlags_AutoResizeX);
 	flags.add$(ImGuiChildFlags_AutoResizeY);
 	flags.add$(ImGuiChildFlags_FrameStyle);
 	
+	wflags.prefix("ImGuiWindowFlags_");
+	wflags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+	wflags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
+	wflags.add$(ImGuiWindowFlags_NoBackground);
+	wflags.add$(ImGuiWindowFlags_NoScrollbar);
+	wflags.add$(ImGuiWindowFlags_NoSavedSettings);
+
 	InitDimensions(ctx);
 }
 
@@ -5653,7 +5656,7 @@ void Child::DoDraw(UIContext& ctx)
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
 	//ImGuiWindowFlags_NoScrollbar
-	ImGui::BeginChild("", sz, flags);
+	ImGui::BeginChild("", sz, flags, wflags);
 
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
@@ -5733,7 +5736,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
 			<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
-			<< flags.to_arg() << ");\n";
+			<< flags.to_arg() << ", " << wflags.to_arg() << ");\n";
 	}
 
 	os << ctx.ind << "{\n";
@@ -5821,6 +5824,8 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
+		if (sit->params.size() >= 4)
+			wflags.set_from_arg(sit->params[3]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
 	{
@@ -5848,6 +5853,7 @@ Child::Properties()
 		{ "@style.rounding", &style_rounding },
 		{ "@style.outer_padding", &style_outer_padding },
 		{ "child.flags", &flags },
+		{ "child.wflags", &wflags },
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
 		{ "child.item_count", &itemCount },
@@ -5897,10 +5903,35 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("flags", true, [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
-			changed = CheckBoxFlags(&flags) || changed;
+			int ch = CheckBoxFlags(&flags);
+			if (ch) {
+				changed = true;
+				//these flags are difficult to get right and there are asserts so fix it here
+				if (ch == ImGuiChildFlags_AutoResizeX || ch == ImGuiChildFlags_AutoResizeY) {
+					if (flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY))
+						flags |= ImGuiChildFlags_AlwaysAutoResize;
+					else
+						flags &= ~ImGuiChildFlags_AlwaysAutoResize;
+				}
+				if (ch == ImGuiChildFlags_AlwaysAutoResize) {
+					if (flags & ImGuiChildFlags_AlwaysAutoResize) {
+						if (!(flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY)))
+							flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY;
+					}
+					else
+						flags &= ~(ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
+				}
+			}
 			});
 		break;
 	case 6:
+		TreeNodeProp("windowFlags", true, [&] {
+			ImGui::TableNextColumn();
+			ImGui::Spacing();
+			changed = CheckBoxFlags(&wflags) || changed;
+			});
+		break;
+	case 7:
 		ImGui::Text("columnCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5908,15 +5939,15 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("columnCount", &columnCount, ctx);
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("columnBorder");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##columnBorder", &columnBorder, ctx);
 		break;
-	case 8:
+	case 9:
 		changed = DataLoopProp("itemCount", &itemCount, ctx);
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5924,7 +5955,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5933,7 +5964,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 11, ctx);
+		return Widget::PropertyUI(i - 12, ctx);
 	}
 	return changed;
 }

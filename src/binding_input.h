@@ -500,15 +500,15 @@ inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 	return changed;
 }
 
-inline bool CheckBoxFlags(flags_helper* flags)
+inline int CheckBoxFlags(flags_helper* flags)
 {
-	bool changed = false;
+	int changed = false;
 	for (const auto& id : flags->get_ids())
 	{
 		if (id.first == "")
 			ImGui::Separator();
 		else if (ImGui::CheckboxFlags(id.first.c_str(), flags->access(), id.second))
-			changed = true;
+			changed = id.second;
 	}
 	return changed;
 }

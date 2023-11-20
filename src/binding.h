@@ -351,7 +351,8 @@ struct direct_val<pzdimension> : property_base
 
 	operator float&() { return val; }
 	operator const float() const { return val; }
-	bool has_value() const { return val != -1; }
+	bool empty() const { return val == -1; }
+	bool has_value() const { return !empty(); }
 	bool operator== (dimension dv) const {
 		return val == dv;
 	}
@@ -427,7 +428,8 @@ struct direct_val<pzdimension2> : property_base
 		val = v;
 		return *this;
 	}
-	bool has_value() const { return val[0] != -1 || val[1] != -1; }
+	bool empty() const { return val[0] == -1 && val[1] == -1; }
+	bool has_value() const { return !empty(); }
 	ImVec2 eval_px(const UIContext& ctx) const;
 
 	void set_from_arg(std::string_view s) {

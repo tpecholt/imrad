@@ -124,6 +124,9 @@ struct Widget : UINode
 	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
 	direct_val<std::string> style_font = "";
+	bindable<color32> style_text;
+	bindable<color32> style_frameBg;
+	direct_val<pzdimension> style_frameRounding;
 	direct_val<std::string> contextMenu = "";
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
@@ -175,8 +178,6 @@ struct Separator : Widget
 struct Text : Widget
 {
 	bindable<std::string> text = "text";
-	direct_val<bool> grayed = false; //Widget::disabled is already bindable
-	bindable<color32> style_color;
 	direct_val<bool> alignToFrame = false;
 	direct_val<bool> wrap = false;
 	
@@ -194,7 +195,6 @@ struct Text : Widget
 struct Selectable : Widget
 {
 	bindable<std::string> label = "label";
-	bindable<color32> style_color;
 	flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
 	direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
 	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
@@ -226,10 +226,8 @@ struct Button : Widget
 	bindable<dimension> size_y = 0.f;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
-	bindable<color32> style_text;
 	bindable<color32> style_button;
 	bindable<color32> style_hovered;
-	direct_val<pzdimension> style_rounding;
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -248,7 +246,6 @@ struct CheckBox : Widget
 {
 	bindable<std::string> label = "label";
 	field_ref<bool> fieldName;
-	bindable<color32> style_color;
 	event<> onChange;
 
 	CheckBox(UIContext& ctx);
@@ -267,7 +264,6 @@ struct RadioButton : Widget
 {
 	bindable<std::string> label = "label";
 	direct_val<int> valueID = 0;
-	bindable<color32> style_color;
 	field_ref<int> fieldName;
 
 	RadioButton(UIContext& ctx);
@@ -292,6 +288,7 @@ struct Input : Widget
 	bindable<dimension> size_y = 100.f;
 	flags_helper flags = 0;
 	direct_val<bool> keyboardFocus = false;
+	field_ref<bool> forceFocus;
 	event<> onChange;
 
 	Input(UIContext& ctx);
@@ -469,6 +466,7 @@ struct Table : Widget
 struct Child : Widget
 {
 	flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding;
+	flags_helper wflags = 0;
 	bindable<dimension> size_x = 20.f; //zero size will be rendered wrongly
 	bindable<dimension> size_y = 20.f;
 	bindable<int> columnCount = 1;
@@ -642,6 +640,7 @@ struct TopWindow : UINode
 	direct_val<pzdimension> style_border;
 	direct_val<pzdimension> style_rounding;
 	direct_val<Placement> placement = None;
+	direct_val<bool> animate = false;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);
