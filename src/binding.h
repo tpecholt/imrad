@@ -575,6 +575,12 @@ public:
 		}
 	}
 	const auto& get_ids() const { return ids; }
+	std::string get_name(int fl, bool prefixed = true) const {
+		for (const auto& id : ids)
+			if (id.second == fl && id.first != "") 
+				return prefixed ? pre + id.first : id.first;
+		return "";
+	}
 	std::vector<std::string> used_variables() const { return {}; }
 	void rename_variable(const std::string& oldn, const std::string& newn) {}
 	void scale_dimension(float) {}

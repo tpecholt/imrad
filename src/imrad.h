@@ -57,7 +57,19 @@ enum Alignment {
 };
 
 enum ImeType {
-    ImeText, ImeNumber, ImeDecimal, ImeDate, ImeTime
+    ImeText = 1, 
+	ImeNumber = 2, 
+	ImeDecimal = 3, 
+	ImePhone = 4,
+	ImeEmail = 5,
+
+	ImeActionDone = 0x100,
+	ImeActionGo = 0x200,
+	ImeActionNext = 0x300,
+	ImeActionPrevious = 0x400,
+	ImeActionSearch = 0x500,
+	ImeActionSend = 0x600,
+
 };
 
 struct Texture
@@ -80,7 +92,7 @@ struct IOUserData
 	float dpiScale = 1;
 	ImVec2 displayRectMinOffset;
 	ImVec2 displayRectMaxOffset;
-	ImeType imeType = ImeText;
+	int imeType = ImeText;
 };
 
 //------------------------------------------------------------------------

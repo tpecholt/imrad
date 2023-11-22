@@ -219,7 +219,7 @@ namespace cpp
 		bool line_mode;
 	};
 
-	enum Kind { CallExpr, IfCallBlock, IfCallThenCall, IfStmt, IfBlock, ForBlock, Comment, Other };
+	enum Kind { CallExpr, IfCallBlock, IfCallThenCall, IfCallStmt, IfStmt, IfBlock, ForBlock, Comment, Other };
 
 	struct stmt_iterator
 	{
@@ -403,6 +403,11 @@ namespace cpp
 							data.params = params1;
 							data.callee = callee2;
 							data.params2 = params2;
+						}
+						else {
+							data.kind = IfCallStmt;
+							data.callee = callee1;
+							data.params = params1;
 						}
 					}
 					else {

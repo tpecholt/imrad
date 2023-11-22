@@ -44,7 +44,7 @@ void UIContext::ind_down()
 
 
 template <class F>
-void TreeNodeProp(const char* name, bool pack, F&& f)
+void TreeNodeProp(const char* name, const std::string& label, F&& f)
 {
 	ImVec2 pad = ImGui::GetStyle().FramePadding;
 	ImGui::Unindent();
@@ -52,11 +52,9 @@ void TreeNodeProp(const char* name, bool pack, F&& f)
 	if (ImGui::TreeNode(name)) {
 		ImGui::PopStyleVar();
 		ImGui::Indent();
-		if (pack)
-			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 });
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
 		f();
-		if (pack)
-			ImGui::PopStyleVar();
+		ImGui::PopStyleVar();
 		ImGui::TreePop();
 		ImGui::Unindent();
 	}
@@ -64,7 +62,8 @@ void TreeNodeProp(const char* name, bool pack, F&& f)
 	{
 		ImGui::PopStyleVar();
 		ImGui::TableNextColumn();
-		ImGui::TextDisabled("...");
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		ImRad::Selectable(label.c_str(), false, 0, { -ImGui::GetFrameHeight(), 0 });
 	}
 	ImGui::Indent();
 }
@@ -620,16 +619,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (style_rounding.has_value())
 	{
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, "
-			<< style_rounding.to_arg(ctx.unit) << ");\n";
+		os << ctx.ind << "ImGui::PushStyleVar(";
+		os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
+		os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
 	}
 	if (style_border.has_value() && kind != Activity)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(";
-		if (kind == Popup || kind == ModalPopup)
-			os << "ImGuiStyleVar_PopupBorderSize";
-		else
-			os << "ImGuiStyleVar_WindowBorderSize";
+		os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
 		os << ", " << style_border.to_arg(ctx.unit) << ");\n";
 	}
 
@@ -868,17 +865,15 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size() && !sit->params[0].compare(0, 21, "ImRad::GetFontByName("))
 				style_font.set_from_arg(sit->params[0].substr(21, sit->params[0].size() - 21 - 1));
 		}
-		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar" && sit->params.size() == 2)
 		{
-			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding")
+			if (sit->params[0] == "ImGuiStyleVar_WindowPadding")
 				style_padding.set_from_arg(sit->params[1]);
-			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing")
+			else if (sit->params[0] == "ImGuiStyleVar_ItemSpacing")
 				style_spacing.set_from_arg(sit->params[1]);
-			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowRounding")
+			else if (sit->params[0] == "ImGuiStyleVar_WindowRounding" || sit->params[0] == "ImGuiStyleVar_PopupRounding")
 				style_rounding.set_from_arg(sit->params[1]);
-			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowBorderSize")
-				style_border.set_from_arg(sit->params[1]);
-			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_PopupBorderSize")
+			else if (sit->params[0] == "ImGuiStyleVar_WindowBorderSize" || sit->params[0] == "ImGuiStyleVar_PopupBorderSize")
 				style_border.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
@@ -1130,7 +1125,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 6:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
@@ -2638,7 +2633,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 2:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
@@ -3473,6 +3468,9 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 
 //---------------------------------------------------
 
+flags_helper Input::_imeClass = 0;
+flags_helper Input::_imeAction = 0;
+
 Input::Input(UIContext& ctx)
 {
 	flags.prefix("ImGuiInputTextFlags_");
@@ -3493,6 +3491,24 @@ Input::Input(UIContext& ctx)
 	flags.add$(ImGuiInputTextFlags_Password);
 	flags.add$(ImGuiInputTextFlags_Multiline);
 	flags.add$(ImGuiInputTextFlags_EscapeClearsAll);
+
+	if (_imeClass.get_ids().empty()) 
+	{
+		_imeClass.prefix("ImRad::");
+		_imeClass.add$(ImRad::ImeText);
+		_imeClass.add$(ImRad::ImeNumber);
+		_imeClass.add$(ImRad::ImeDecimal);
+		_imeClass.add$(ImRad::ImeEmail);
+		_imeClass.add$(ImRad::ImePhone);
+		_imeAction.prefix("ImRad::");
+		_imeAction.add("ImeActionNone", 0);
+		_imeAction.add$(ImRad::ImeActionDone);
+		_imeAction.add$(ImRad::ImeActionGo);
+		_imeAction.add$(ImRad::ImeActionNext);
+		_imeAction.add$(ImRad::ImeActionPrevious);
+		_imeAction.add$(ImRad::ImeActionSearch);
+		_imeAction.add$(ImRad::ImeActionSend);
+	}
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
@@ -3576,7 +3592,7 @@ void Input::DoDraw(UIContext& ctx)
 
 void Input::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (keyboardFocus)
+	if (initialFocus)
 	{
 		os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
 		ctx.ind_up();
@@ -3605,37 +3621,31 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	std::string id = label.to_arg();
 	if (label.empty())
 		id = "\"##" + fieldName.value() + "\"";
-	std::string imeType = "ImeText";
 	
 	if (type == "int")
 	{
-		imeType = "ImeNumber";
 		os << "ImGui::InputInt(" << id << ", &"
 			<< fieldName.to_arg() << ", " << (int)step << ")";
 	}
 	else if (type == "float")
 	{
-		imeType = "ImeDecimal";
 		os << "ImGui::InputFloat(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.f, "
 			<< format.to_arg() << ")";
 	}
 	else if (type == "double")
 	{
-		imeType = "ImeDecimal";
 		os << "ImGui::InputDouble(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.0, "
 			<< format.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 3, "int"))
 	{
-		imeType = "ImeNumber";
 		os << "ImGui::Input"<< cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 5, "float"))
 	{
-		imeType = "ImeDecimal";
 		os << "ImGui::Input" << cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ", " << format.to_arg() << ")";
 	}
@@ -3673,12 +3683,15 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 		os << ";\n";
 	}
 
-	if (ctx.kind == TopWindow::Activity) {
-		os << ctx.ind << "if (ImGui::IsItemActive())\n";
-		ctx.ind_up();
-		os << ctx.ind << "ioUserData->imeType = ImRad::" << imeType << ";\n";
-		ctx.ind_down();
-	}
+	os << ctx.ind << "if (ImGui::IsItemActive())\n";
+	ctx.ind_up();
+	int cls = imeType & 0xff;
+	int action = imeType & (~0xff);
+	os << ctx.ind << "ioUserData->imeType = " << _imeClass.get_name(cls);
+	if (action)
+		os << " | " << _imeAction.get_name(action);
+	os << ";\n";
+	ctx.ind_down();
 }
 
 void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3814,7 +3827,17 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::SetKeyboardFocusHere")
 	{
-		keyboardFocus = true;
+		initialFocus = true;
+	}
+	else if (sit->kind == cpp::IfCallStmt && sit->callee == "ImGui::IsItemActive")
+	{
+		auto pos = sit->line.find('=');
+		if (pos != std::string::npos) {
+			std::string fl = sit->line.substr(pos + 1);
+			_imeClass.set_from_arg(fl);
+			_imeAction.set_from_arg(fl);
+			imeType = _imeClass | _imeAction;
+		}
 	}
 	else if (sit->kind == cpp::IfBlock) //todo: weak condition
 	{
@@ -3834,9 +3857,10 @@ Input::Properties()
 		{ "input.type", &type },
 		{ "input.field_name", &fieldName },
 		{ "input.hint", &hint },
+		{ "input.imeType", &imeType },
 		{ "input.step", &step },
 		{ "input.format", &format },
-		{ "keyboard_focus", &keyboardFocus },
+		{ "initial_focus", &initialFocus },
 		{ "force_focus", &forceFocus },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }, 
@@ -3880,7 +3904,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		BindingButton("frameBg", &style_frameBg, ctx);
 		break;
 	case 2:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
@@ -3925,6 +3949,27 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 7:
+	{
+		int type = imeType & 0xff;
+		int button = imeType & (~0xff);
+		std::string val = _imeClass.get_name(type, false);
+		if (button)
+			val += " | " + _imeAction.get_name(button, false);
+		TreeNodeProp("imeType", val, [&] {
+			ImGui::TableNextColumn();
+			ImGui::Spacing();
+			for (const auto& id : _imeClass.get_ids()) {
+				changed = ImGui::RadioButton(id.first.c_str(), &type, id.second) || changed;
+			}
+			ImGui::Separator();
+			for (const auto& id : _imeAction.get_ids()) {
+				changed = ImGui::RadioButton(id.first.c_str(), &button, id.second) || changed;
+			}
+			imeType = type | button;
+			});
+		break;
+	}
+	case 8:
 		ImGui::BeginDisabled(type != "int" && type != "float");
 		ImGui::Text("step");
 		ImGui::TableNextColumn();
@@ -3939,7 +3984,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 8:
+	case 9:
 		ImGui::BeginDisabled(type.access()->compare(0, 5, "float"));
 		ImGui::Text("format");
 		ImGui::TableNextColumn();
@@ -3947,20 +3992,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##format", format.access());
 		ImGui::EndDisabled();
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("initialFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::Checkbox("##kbf", keyboardFocus.access());
+		changed = ImGui::Checkbox("##kbf", initialFocus.access());
 		break;
-	case 10:
+	case 11:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("forceFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##forceFocus", &forceFocus, true, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3968,7 +4013,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 12:
+	case 13:
 		ImGui::BeginDisabled(type != "std::string" || !(flags & ImGuiInputTextFlags_Multiline));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -3979,7 +4024,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 13, ctx);
+		return Widget::PropertyUI(i - 14, ctx);
 	}
 	return changed;
 }
@@ -4757,7 +4802,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
@@ -5291,7 +5336,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx) || changed;
 		break;
 	case 4:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
@@ -5900,7 +5945,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = InputDirectVal("##outerPadding", &style_outer_padding, ctx);
 		break;
 	case 5:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			int ch = CheckBoxFlags(&flags);
@@ -5925,7 +5970,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 			});
 		break;
 	case 6:
-		TreeNodeProp("windowFlags", true, [&] {
+		TreeNodeProp("windowFlags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&wflags) || changed;
@@ -6423,7 +6468,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		TreeNodeProp("flags", true, [&]{
+		TreeNodeProp("flags", "...", [&]{
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags) || changed;
@@ -6570,7 +6615,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		TreeNodeProp("flags", true, [&] {
+		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);

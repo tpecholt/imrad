@@ -282,15 +282,18 @@ struct Input : Widget
 	direct_val<std::string> label = "";
 	direct_val<std::string> type = "std::string";
 	direct_val<std::string> hint = "";
+	direct_val<int> imeType = ImRad::ImeText;
 	direct_val<float> step = 1;
 	direct_val<std::string> format = "%.3f";
 	bindable<dimension> size_x = 200.f;
 	bindable<dimension> size_y = 100.f;
 	flags_helper flags = 0;
-	direct_val<bool> keyboardFocus = false;
+	direct_val<bool> initialFocus = false;
 	field_ref<bool> forceFocus;
 	event<> onChange;
 
+	static flags_helper _imeClass, _imeAction;
+	
 	Input(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	void DoDraw(UIContext& ctx);
