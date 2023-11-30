@@ -1,17 +1,11 @@
-// dear imgui: standalone example application for Android + OpenGL ES 3
-
-// Learn about Dear ImGui:
-// - FAQ                  https://dearimgui.com/faq
-// - Getting Started      https://dearimgui.com/getting-started
-// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
-// - Introduction, links and more at the top of imgui.cpp
-
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_android.h"
 #include "imgui/imgui_impl_opengl3.h"
+#include "IconsMaterialDesign.h"
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <android/asset_manager.h>
+#include <android/input.h>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 #include <string>
@@ -26,27 +20,30 @@ static char                 g_LogTag[] = "ImGuiExample";
 static std::string          g_IniFilename = "";
 static int                  g_NavBarHeight = 0;
 static ImRad::IOUserData    g_IOUserData;
-static int                  g_ImeType = -1;
+static int                  g_ImeType = 0;
 
 // Forward declarations of helper functions
 static void Init(struct android_app* app);
 static void Shutdown();
 static void MainLoopStep();
 static int ShowSoftKeyboardInput(int mode);
-static int PollUnicodeChars();
 static int GetAssetData(const char* filename, void** out_data);
 static void GetDisplayInfo();
+
+//-----------------------------------------------------------------
 
 void Draw()
 {
 	// TODO: Add your drawing code here
 }
 
+//-----------------------------------------------------------------
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_myapplication_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jboolean b) {
     if (!b)
-        g_ImeType = -1;
+        g_ImeType = 0;
 }
 
 extern "C"
@@ -66,6 +63,19 @@ Java_com_example_myapplication_MainActivity_OnScreenRotation(JNIEnv *env, jobjec
             g_IOUserData.displayRectMaxOffset = { 0, 0 };
             break;
     }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_myapplication_MainActivity_OnInputCharacter(JNIEnv *env, jobject thiz, jint ch) {
+    ImGui::GetIO().AddInputCharacter(ch);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_myapplication_MainActivity_OnSpecialKey(JNIEnv *env, jobject thiz, jint code) {
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_AppForward, true);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_AppForward, false);
 }
 
 // Main code
@@ -203,10 +213,30 @@ void Init(struct android_app* app)
     //font_cfg.SizePixels = g_IOUserData.dpiScale * 14.0f;
     //io.Fonts->AddFontDefault(&font_cfg);
     void* font_data;
-    int font_data_size = GetAssetData("Roboto-Medium.ttf", &font_data);
-    ImFont* font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, 16.f * g_IOUserData.dpiScale);
+    int font_data_size;
+    ImFont* font;
+    //font_data_size = GetAssetData("DroidSans.ttf", &font_data);
+    //font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, 16.0f);
+    //IM_ASSERT(font != nullptr);
+    font_data_size = GetAssetData("Roboto-Medium.ttf", &font_data);
+    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f);
     IM_ASSERT(font != nullptr);
-    
+    ImFontConfig cfg;
+    cfg.MergeMode = true;
+    cfg.GlyphOffset.y = 3.5 * g_IOUserData.dpiScale;
+    static ImWchar icons_ranges[] = { ICON_MIN_MD, ICON_MAX_16_MD, 0 };
+    font_data_size = GetAssetData(FONT_ICON_FILE_NAME_MD, &font_data);
+    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f, &cfg, icons_ranges);
+    IM_ASSERT(font != nullptr);
+    /*cfg.GlyphOffset.y = 1.5f * g_IOUserData.dpiScale; //otherwise glyphs are not vertically centered in buttons
+    static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+    font_data_size = GetAssetData(FONT_ICON_FILE_NAME_FAS, &font_data);
+    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f, &cfg, icons_ranges);
+    IM_ASSERT(font != nullptr);
+    font_data_size = GetAssetData(FONT_ICON_FILE_NAME_FAR, &font_data);
+    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f, &cfg, icons_ranges);
+    IM_ASSERT(font != nullptr);*/
+
     ImGui::GetStyle().ScaleAllSizes(g_IOUserData.dpiScale);
 
     g_Initialized = true;
@@ -221,12 +251,8 @@ void MainLoopStep()
     // Our state
     static ImVec4 clear_color = ImVec4(0.f, 0.f, 0.0f, 1.00f);
 
-    // Poll Unicode characters via JNI
-    // FIXME: do not call this every frame because of JNI overhead
-    PollUnicodeChars();
-
     // Open on-screen (soft) input if requested by Dear ImGui
-    int newImeType = io.WantTextInput ? g_IOUserData.imeType : -1;
+    int newImeType = io.WantTextInput ? g_IOUserData.imeType : 0;
     if (newImeType != g_ImeType) {
         g_ImeType = newImeType;
         ShowSoftKeyboardInput(g_ImeType);
@@ -313,43 +339,6 @@ static int ShowSoftKeyboardInput(int mode)
     return 0;
 }
 
-// Unfortunately, the native KeyEvent implementation has no getUnicodeChar() function.
-// Therefore, we implement the processing of KeyEvents in MainActivity and poll
-// the resulting Unicode characters here via JNI and send them to Dear ImGui.
-static int PollUnicodeChars()
-{
-    JavaVM* java_vm = g_App->activity->vm;
-    JNIEnv* java_env = nullptr;
-
-    jint jni_return = java_vm->GetEnv((void**)&java_env, JNI_VERSION_1_6);
-    if (jni_return == JNI_ERR)
-        return -1;
-
-    jni_return = java_vm->AttachCurrentThread(&java_env, nullptr);
-    if (jni_return != JNI_OK)
-        return -2;
-
-    jclass native_activity_clazz = java_env->GetObjectClass(g_App->activity->clazz);
-    if (native_activity_clazz == nullptr)
-        return -3;
-
-    jmethodID method_id = java_env->GetMethodID(native_activity_clazz, "pollUnicodeChar", "()I");
-    if (method_id == nullptr)
-        return -4;
-
-    // Send the actual characters to Dear ImGui
-    ImGuiIO& io = ImGui::GetIO();
-    jint unicode_character;
-    while ((unicode_character = java_env->CallIntMethod(g_App->activity->clazz, method_id)) != 0)
-        io.AddInputCharacter(unicode_character);
-
-    jni_return = java_vm->DetachCurrentThread();
-    if (jni_return != JNI_OK)
-        return -5;
-
-    return 0;
-}
-
 // Helper to retrieve data placed into the assets/ directory (android/app/src/main/assets)
 static int GetAssetData(const char* filename, void** outData)
 {
@@ -389,10 +378,16 @@ static void GetDisplayInfo()
         return;
 
     jint dpi = java_env->CallIntMethod(g_App->activity->clazz, method_id);
-    g_NavBarHeight = 48 * dpi / 160.0;
-    g_IOUserData.dpiScale = dpi / 120.0; //relative to laptop screen DPI;
-    g_IOUserData.displayRectMaxOffset.y = g_NavBarHeight; //TODO: detect initial screen rotation
+    g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
+    g_IOUserData.dpiScale = dpi / 140.0; //relative to laptop screen DPI;
     ImGui::GetIO().UserData = &g_IOUserData;
+
+    method_id = java_env->GetMethodID(native_activity_clazz, "getRotation", "()I");
+    if (method_id == nullptr)
+        return;
+
+    jint rot = java_env->CallIntMethod(g_App->activity->clazz, method_id);
+    Java_com_example_myapplication_MainActivity_OnScreenRotation(java_env, g_App->activity->clazz, rot);
 
     jni_return = java_vm->DetachCurrentThread();
     if (jni_return != JNI_OK)

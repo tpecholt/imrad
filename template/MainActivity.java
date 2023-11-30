@@ -8,22 +8,26 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.method.DateKeyListener;
+import android.text.method.KeyListener;
 import android.text.method.TimeKeyListener;
 import android.view.KeyEvent;
 import android.text.TextWatcher;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.view.ViewTreeObserver;
 import android.widget.Toast;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.text.method.DigitsKeyListener;
 import android.graphics.Rect;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class MainActivity extends NativeActivity {
-
+public class MainActivity extends NativeActivity
+implements TextWatcher, TextView.OnEditorActionListener
+{
     // Used to load the 'C++' library on application startup.
     static {
         System.loadLibrary("myapplication");
@@ -31,10 +35,11 @@ public class MainActivity extends NativeActivity {
 
     protected View mView;
     private EditText mEditText;
-    private TextWatcher mTextWatcher;
 
     private native void OnKeyboardShown(boolean b);
     private native void OnScreenRotation(int deg);
+    private native void OnInputCharacter(int ch);
+    private native void OnSpecialKey(int code);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +50,8 @@ public class MainActivity extends NativeActivity {
         FrameLayout lay = new FrameLayout(this);
         setContentView(lay, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mEditText = new EditText(this);
+        mEditText.setOnEditorActionListener(this);
+        mEditText.addTextChangedListener(this);
         mEditText.setLayoutParams(new FrameLayout.LayoutParams(1, 1));
         lay.addView(mEditText);
         mView = new View(this);
@@ -69,59 +76,51 @@ public class MainActivity extends NativeActivity {
 
     //@param type - see ImRad::IMEType
     public void showSoftInput(int _type) {
+        final int[] actionMap = {
+                EditorInfo.IME_ACTION_NONE,
+                EditorInfo.IME_ACTION_DONE, EditorInfo.IME_ACTION_GO,
+                EditorInfo.IME_ACTION_NEXT, EditorInfo.IME_ACTION_PREVIOUS,
+                EditorInfo.IME_ACTION_SEARCH, EditorInfo.IME_ACTION_SEND
+        };
         final int type = _type;
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 InputMethodManager mgr = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                mEditText.requestFocus();
+                //int sel1 = mEditText.getSelectionStart();
+                //int sel2 = mEditText.getSelectionEnd();
                 mEditText.setText("");
-                mEditText.removeTextChangedListener(mTextWatcher);
-                switch (type) {
-                    case -1:
+                mEditText.setImeOptions(actionMap[type >> 8]);
+                mEditText.requestFocus();
+                switch (type & 0xff) {
+                    case 0:
                         mgr.hideSoftInputFromWindow(mEditText.getWindowToken(), 0);
                         break;
-                    case 0: //all
-                        mEditText.setKeyListener(null);
+                    default: //ImeText
+                        //TYPE_TEXT_VARIATION_VISIBLE_PASSWORD is needed otherwise NO_SUGGESTIONS will be ignored
+                        mEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD); //this resets selection
+                        //mEditText.setSelection(sel1, sel2);
                         mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
-                    case 1: //number
-                        mEditText.setKeyListener(new DigitsKeyListener(false, false));
+                    case 2: //ImeNumber
+                        mEditText.setInputType(InputType.TYPE_CLASS_NUMBER); //this resets selection
+                        //mEditText.setSelection(sel1, sel2);
                         mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
-                    case 2:
-                        mEditText.setKeyListener(new DigitsKeyListener(true, true));
-                        //dispatchKeyEvent is not called on special keyboard characters so do it from the listener
-                        mTextWatcher = new TextWatcher() {
-                            public void beforeTextChanged(CharSequence var1, int var2, int var3, int var4) {
-                            }
-
-                            public void afterTextChanged(Editable var1) {
-                                //TODO: better
-                                int i = var1.toString().indexOf('.');
-                                if (i >= 0) {
-                                    unicodeQueue.offer((int)'.');
-                                    //delete dot so that pressing it again is not blocked
-                                    //such as when focus changed to another widget etc.
-                                    var1.delete(i, i + 1);
-                                }
-                            }
-
-                            public void onTextChanged(CharSequence text, int start, int var3, int count) {
-                                /*if (count == 1 && text.charAt(start) == '.')
-                                    unicodeQueue.offer((int) '.');*/
-                            }
-                        };
-                        mEditText.addTextChangedListener(mTextWatcher);
-                        //mEditText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                    case 3: //ImeDecimal
+                        mEditText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL); //this resets selection
+                        mEditText.setRawInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL); //this resets selection
+                        //mEditText.setSelection(sel1, sel2);
                         mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
-                    case 3: //date
-                        mEditText.setKeyListener(new DateKeyListener());
+                    case 4: //ImePhone
+                        mEditText.setInputType(InputType.TYPE_CLASS_PHONE); //this resets selection
+                        //mEditText.setSelection(sel1, sel2);
                         mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
-                    case 4: //time
-                        mEditText.setKeyListener(new TimeKeyListener());
+                    case 5: //ImeEmail
+                        mEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS); //this resets selection
+                        //mEditText.setSelection(sel1, sel2);
                         mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;
                 }
@@ -129,8 +128,31 @@ public class MainActivity extends NativeActivity {
         });
     }
 
-    private LinkedBlockingQueue<Integer> unicodeQueue = new LinkedBlockingQueue<Integer>();
+    @Override
+    public void beforeTextChanged(CharSequence var1, int var2, int var3, int var4) {
+    }
 
+    @Override
+    public void afterTextChanged(Editable var1) {
+    }
+
+    @Override
+    public void onTextChanged(CharSequence text, int start, int before, int count) {
+        if (count < before)
+            OnInputCharacter(0x8); //send backspace
+        else if (count == before)
+            ; //ignore, f.e. pressing @ in ImeEmail fires this 2x
+        else if (count >= 1)
+            OnInputCharacter((int)text.charAt(start + count - 1));
+    }
+
+    @Override
+    public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+        OnSpecialKey(actionId + 256);
+        return true;
+    }
+
+    /* Not called with IME_TEXT, not called on hw keyboard
     @Override
     public boolean dispatchKeyEvent(KeyEvent ev) {
         if (ev.getAction() == KeyEvent.ACTION_DOWN) {
@@ -146,7 +168,7 @@ public class MainActivity extends NativeActivity {
             }
         }
         return super.dispatchKeyEvent(ev);
-    }
+    }*/
 
     @Override
     public void onConfigurationChanged(Configuration cfg) {
@@ -161,6 +183,10 @@ public class MainActivity extends NativeActivity {
         Configuration cfg = getResources().getConfiguration();
         return cfg.densityDpi;
     }
+    public int getRotation() {
+        int angle = 90 * getWindowManager().getDefaultDisplay().getRotation();
+        return angle;
+    }
     public void showMessage(String _msg) {
         final String msg = _msg;
         final Activity act = this;
@@ -170,13 +196,5 @@ public class MainActivity extends NativeActivity {
                 Toast.makeText(act, msg, Toast.LENGTH_SHORT);
             }
         });
-    }
-
-    public int pollUnicodeChar() {
-        try {
-            return unicodeQueue.poll();
-        } catch (NullPointerException e) {
-            return 0;
-        }
     }
 }

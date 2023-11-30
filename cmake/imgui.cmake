@@ -12,6 +12,7 @@ add_library(imgui STATIC
 )
 
 add_definitions(-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS)
+#add_definitions(-DIMGUI_USE_WCHAR32)
 
 include_directories(
     ${IMGUI_INCLUDE_DIR}
