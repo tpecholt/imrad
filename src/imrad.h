@@ -402,15 +402,16 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 			{
 				std::string path;
 				float size = 20;
+				ImVec2 goffset;
 				bool hasRange = false;
 				static std::vector<std::unique_ptr<ImWchar[]>> rngs;
-				
+
 				is >> std::quoted(path);
 				bool isAbsolute = path.size() >= 2 && (path[0] == '/' || path[1] == ':');
 				if (!isAbsolute)
 					path = parentPath + path;
 				std::string tmp;
-				while (is >> tmp) 
+				while (is >> tmp)
 				{
 					if (tmp == "size")
 						is >> size;
@@ -421,6 +422,9 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 						is >> rngs.back()[0] >> rngs.back()[1];
 						rngs.back()[2] = 0;
 					}
+					else if (tmp == "goffset") {
+						is >> goffset.x >> goffset.y;
+					}
 				}
 
 				ImFontConfig cfg;
@@ -428,6 +432,7 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 				cfg.Name[sizeof(cfg.Name) - 1] = '\0';
 				cfg.MergeMode = key == lastFont;
 				cfg.GlyphRanges = hasRange ? rngs.back().get() : nullptr;
+				cfg.GlyphOffset = { goffset.x * fontScaling, goffset.y * fontScaling };
 #ifdef ANDROID
 				void* font_data;
 				int font_data_size = GetAssetData(path.c_str(), &font_data);

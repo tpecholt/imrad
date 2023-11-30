@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <array>
 
-const color32 FIELD_NAME_CLR = IM_COL32(202, 202, 255, 255);
+const color32 FIELD_NAME_CLR = IM_COL32(222, 222, 255, 255);
 
 void toggle(std::vector<UINode*>& c, UINode* val)
 {
@@ -63,7 +63,7 @@ void TreeNodeProp(const char* name, const std::string& label, F&& f)
 		ImGui::PopStyleVar();
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		ImRad::Selectable(label.c_str(), false, 0, { -ImGui::GetFrameHeight(), 0 });
+		ImRad::Selectable(label.c_str(), false, ImGuiSelectableFlags_Disabled, { -ImGui::GetFrameHeight(), 0 });
 	}
 	ImGui::Indent();
 }
@@ -549,7 +549,7 @@ void TopWindow::Draw(UIContext& ctx)
 		ImDrawList* dl = ImGui::GetWindowDrawList();
 		ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
 		ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
-		dl->AddRect(a, b, ctx.colors[UIContext::Hovered]);
+		dl->AddRectFilled(a, b, ctx.colors[UIContext::Hovered]);
 	}
 
 	while (ctx.groupLevel) { //fix missing endGroup
@@ -2783,7 +2783,7 @@ void Button::DoDraw(UIContext& ctx)
 		size.x = size_x.eval_px(ctx);
 		size.y = size_y.eval_px(ctx);
 		ImGui::Button(label.c_str(), size);
-
+					  
 		//if (ctx.modalPopup && text.value() == "OK")
 			//ImGui::SetItemDefaultFocus();
 	}
@@ -3495,6 +3495,7 @@ Input::Input(UIContext& ctx)
 	if (_imeClass.get_ids().empty()) 
 	{
 		_imeClass.prefix("ImRad::");
+		_imeClass.add("Default", 0);
 		_imeClass.add$(ImRad::ImeText);
 		_imeClass.add$(ImRad::ImeNumber);
 		_imeClass.add$(ImRad::ImeDecimal);
@@ -3619,33 +3620,39 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	std::string cap = type;
 	cap[0] = std::toupper(cap[0]);
 	std::string id = label.to_arg();
+	std::string defIme = "ImRad::ImeText";
 	if (label.empty())
 		id = "\"##" + fieldName.value() + "\"";
 	
 	if (type == "int")
 	{
+		defIme = "ImRad::ImeNumber";
 		os << "ImGui::InputInt(" << id << ", &"
 			<< fieldName.to_arg() << ", " << (int)step << ")";
 	}
 	else if (type == "float")
 	{
+		defIme = "ImRad::ImeDecimal";
 		os << "ImGui::InputFloat(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.f, "
 			<< format.to_arg() << ")";
 	}
 	else if (type == "double")
 	{
+		defIme = "ImRad::ImeDecimal";
 		os << "ImGui::InputDouble(" << id << ", &"
 			<< fieldName.to_arg() << ", " << step.to_arg() << ", 0.0, "
 			<< format.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 3, "int"))
 	{
+		defIme = "ImRad::ImeNumber";
 		os << "ImGui::Input"<< cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ")";
 	}
 	else if (!type.access()->compare(0, 5, "float"))
 	{
+		defIme = "ImRad::ImeDecimal";
 		os << "ImGui::Input" << cap << "(" << id << ", &"
 			<< fieldName.to_arg() << ", " << format.to_arg() << ")";
 	}
@@ -3687,11 +3694,20 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_up();
 	int cls = imeType & 0xff;
 	int action = imeType & (~0xff);
-	os << ctx.ind << "ioUserData->imeType = " << _imeClass.get_name(cls);
+	os << ctx.ind << "ioUserData->imeType = " 
+		<< (cls ? _imeClass.get_name(cls) : defIme);
 	if (action)
 		os << " | " << _imeAction.get_name(action);
 	os << ";\n";
 	ctx.ind_down();
+	
+	if (!onImeAction.empty()) {
+		os << ctx.ind << "if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_AppForward))\n";
+		ctx.ind_up();
+		//os << ctx.ind << "ioUserData->imeActionPressed = false;\n";
+		os << ctx.ind << onImeAction.to_arg() << "();\n";
+		ctx.ind_down();
+	}
 }
 
 void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3825,10 +3841,6 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size()) 
 			size_x.set_from_arg(sit->params[0]);
 	}
-	else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::SetKeyboardFocusHere")
-	{
-		initialFocus = true;
-	}
 	else if (sit->kind == cpp::IfCallStmt && sit->callee == "ImGui::IsItemActive")
 	{
 		auto pos = sit->line.find('=');
@@ -3836,8 +3848,28 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			std::string fl = sit->line.substr(pos + 1);
 			_imeClass.set_from_arg(fl);
 			_imeAction.set_from_arg(fl);
+			
+			if (!type.access()->compare(0, 3, "int") && _imeClass == ImRad::ImeText)
+				_imeClass = 0;
+			else if (!type.access()->compare(0, 5, "float") && _imeClass == ImRad::ImeDecimal)
+				_imeClass = 0;
+			else if (!type.access()->compare(0, 5, "double") && _imeClass == ImRad::ImeDecimal)
+				_imeClass = 0;
+			else if ((type == "std::string" || type == "ImGuiTextFilter") && _imeClass == ImRad::ImeText)
+				_imeClass = 0;
+
 			imeType = _imeClass | _imeAction;
 		}
+	}
+	else if (sit->kind == cpp::IfCallThenCall &&
+		sit->line.find("ImGui::IsItemActive()&&ImGui::IsKeyPressed(ImGuiKey_AppForward)") != std::string::npos)
+	{
+		onImeAction.set_from_arg(sit->callee);
+	}
+	else if (sit->kind == cpp::IfCallThenCall &&
+			sit->cond == "ImGui::IsItemActive" && sit->callee == "ImGui::SetKeyboardFocusHere")
+	{
+		initialFocus = true;
 	}
 	else if (sit->kind == cpp::IfBlock) //todo: weak condition
 	{
@@ -3951,10 +3983,10 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 	case 7:
 	{
 		int type = imeType & 0xff;
-		int button = imeType & (~0xff);
+		int action = imeType & (~0xff);
 		std::string val = _imeClass.get_name(type, false);
-		if (button)
-			val += " | " + _imeAction.get_name(button, false);
+		if (action)
+			val += " | " + _imeAction.get_name(action, false);
 		TreeNodeProp("imeType", val, [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
@@ -3963,9 +3995,9 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			}
 			ImGui::Separator();
 			for (const auto& id : _imeAction.get_ids()) {
-				changed = ImGui::RadioButton(id.first.c_str(), &button, id.second) || changed;
+				changed = ImGui::RadioButton(id.first.c_str(), &action, id.second) || changed;
 			}
-			imeType = type | button;
+			imeType = type | action;
 			});
 		break;
 	}
@@ -4034,7 +4066,8 @@ Input::Events()
 {
 	auto props = Widget::Events();
 	props.insert(props.begin(), {
-		{ "onChange", &onChange }
+		{ "onChange", &onChange },
+		{ "onImeAction", &onImeAction },
 		});
 	return props;
 }
@@ -4050,8 +4083,14 @@ bool Input::EventUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);
 		break;
+	case 1:
+		ImGui::Text("OnImeAction");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onImeAction", &onImeAction, ctx);
+		break;
 	default:
-		return Widget::EventUI(i - 1, ctx);
+		return Widget::EventUI(i - 2, ctx);
 	}
 	return changed;
 }

@@ -291,6 +291,7 @@ struct Input : Widget
 	direct_val<bool> initialFocus = false;
 	field_ref<bool> forceFocus;
 	event<> onChange;
+	event<> onImeAction;
 
 	static flags_helper _imeClass, _imeAction;
 	
@@ -469,7 +470,7 @@ struct Table : Widget
 struct Child : Widget
 {
 	flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding;
-	flags_helper wflags = 0;
+	flags_helper wflags = ImGuiWindowFlags_NoSavedSettings;
 	bindable<dimension> size_x = 20.f; //zero size will be rendered wrongly
 	bindable<dimension> size_y = 20.f;
 	bindable<int> columnCount = 1;
