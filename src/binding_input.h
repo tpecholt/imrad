@@ -261,7 +261,8 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 		bool autoSel = ImGui::ColorButton("tooltip", ctx.style.Colors[def], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview);
 		bool autoHover = ImGui::IsItemHovered();
 		ImGui::SameLine(0, 0);
-		ImGui::Text("  Automatic");
+		ImGui::Selectable("  Automatic", false, ImGuiSelectableFlags_NoPadWithHalfSpacing, 
+			{ ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), 0 });
 		autoHover = autoHover || ImGui::IsItemHovered();
 		autoSel = autoSel || ImGui::IsItemClicked(ImGuiMouseButton_Left);
 		if (autoSel)
@@ -274,8 +275,25 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 		{
 			*val = color32();
 		}
+		ImGui::SameLine(0, 0);
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 4, 4 });
+		const color32 trc({ 1, 1, 1, 0 });
+		ImGui::PushStyleColor(ImGuiCol_Button, trc);
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, trc);
+		if (ImGui::ColorButton("##transparent", { 1, 1, 1, 0 }, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview))
+		//if (ImGui::Button("##transparent", { 30, 30 }))
+		{
+			changed = true;
+			*val = trc;
+			lastColor = *val->access();
+		}
+		if (ImGui::IsItemHovered())
+		{
+			*val = trc;
+		}
+		ImGui::PopStyleColor(2);
+
 		for (int i = 0; i < stx::ssize(COLORS); ++i)
 		{
 			ImGui::PushID(i);

@@ -966,11 +966,11 @@ struct bindable<color32> : property_base
 	color32 eval(const UIContext& ctx) const;
 
 	bool has_style_color() const {
-		if (str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_"))
-			return false;
-		if (str.back() != ']')
-			return false;
-		return true;
+		if (!str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_") && str.back() == ']')
+			return true;
+		if (!str.compare(0, 34, "ImGui::GetStyleColorVec4(ImGuiCol_") && str.back() == ')')
+			return true;
+		return false;
 	}
 	int style_color() const {
 		if (!has_style_color())
@@ -983,7 +983,7 @@ struct bindable<color32> : property_base
 	}
 	void set_style_color(int i) {
 		std::ostringstream os;
-		os << "ImGui::GetStyle().Colors[ImGuiCol_" << ImGui::GetStyleColorName(i) << "]";
+		os << "ImGui::GetStyleColorVec4(ImGuiCol_" << ImGui::GetStyleColorName(i) << ")";
 		str = os.str();
 	}
 	void set_from_arg(std::string_view s) {
