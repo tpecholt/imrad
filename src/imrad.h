@@ -196,7 +196,7 @@ inline bool Splitter(bool split_horiz, float thickness, float* position, float m
 
 inline bool IsItemDoubleClicked()
 {
-	return ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered();
+	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered();
 }
 
 inline bool IsItemContextMenuClicked()

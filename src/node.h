@@ -643,6 +643,8 @@ struct TopWindow : UINode
 	direct_val<pzdimension2> style_spacing;
 	direct_val<pzdimension> style_border;
 	direct_val<pzdimension> style_rounding;
+	bindable<color32> style_bg;
+	bindable<color32> style_menuBg;
 	direct_val<Placement> placement = None;
 	direct_val<bool> animate = false;
 
