@@ -69,7 +69,6 @@ enum ImeType {
 	ImeActionPrevious = 0x400,
 	ImeActionSearch = 0x500,
 	ImeActionSend = 0x600,
-
 };
 
 struct Texture
@@ -93,6 +92,62 @@ struct IOUserData
 	ImVec2 displayRectMinOffset;
 	ImVec2 displayRectMaxOffset;
 	int imeType = ImeText;
+};
+
+struct Animator 
+{
+	enum AnimType {
+		OpenPopup,
+		ClosePopup,
+	};
+
+	void Start(AnimType t) {
+		type = t;
+		time = 0;
+		autoSize = { 1, 1 };
+	}
+	float GetDuration() const {
+		return 0.2f; //s
+	}
+	bool IsDone() const {
+		return time >= GetDuration();
+	}
+	float GetX(float val) const {
+		if (!val)
+			val = autoSize.x;
+		val *= GetValue();
+		return val ? val : 1.f; //size=0 means autosize, don't return it
+	}
+	float GetY(float val) const {
+		if (!val)
+			val = autoSize.y;
+		val *= GetValue();
+		return val ? val : 1.f; //size=0 means autosize, don't return it
+	}
+	float GetValue() const {
+		float x = time / GetDuration();
+		if (x > 1)
+			x = 1;
+		float y = 1;
+		if (type == OpenPopup) {
+			return 1 - (1 - x) * (1 - x); //easeOutQuad
+		}
+		else if (type == ClosePopup) {
+			x = 1.f - x;
+			return 1 - (1 - x) * (1 - x); //easeOutQuad
+		}
+		return 0; 
+	}
+	// should be called from within ImGui::Begin
+	void Tick() {
+		time += ImGui::GetIO().DeltaTime;
+		autoSize = { ImGui::GetCurrentWindow()->ContentSize.x + 2 * ImGui::GetCurrentWindow()->WindowPadding.x,
+				     ImGui::GetCurrentWindow()->ContentSize.y + 2 * ImGui::GetCurrentWindow()->WindowPadding.y };
+	}
+	
+	AnimType type;
+	float time;
+	ImVec2 autoSize;
 };
 
 //------------------------------------------------------------------------

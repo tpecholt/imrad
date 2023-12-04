@@ -585,7 +585,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	*titleId.access() += "###" + ctx.codeGen->GetName();
 	std::string tit = titleId.to_arg();
 	bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
-	
+	bool autoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
+
 	os << ctx.ind << "/// @begin TopWindow\n";
 	os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
 
@@ -630,20 +631,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ", " << style_border.to_arg(ctx.unit) << ");\n";
 	}
 
-	if (kind != MainWindow && kind != Activity &&
-		(flags & ImGuiWindowFlags_AlwaysAutoResize) == 0 &&
-		placement == None)
-	{
-		os << ctx.ind << "ImGui::SetNextWindowSize({ " 
-			<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
-			<< "ImGuiCond_FirstUseEver);\n";
-	}
-	
 	if (kind == MainWindow)
 	{
 		os << ctx.ind << "glfwSetWindowTitle(window, " << title.to_arg() << ");\n";
 		os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
-		if (!(flags & ImGuiWindowFlags_AlwaysAutoResize)) 
+		if (!autoSize) 
 		{
 			os << ctx.ind << "int tmpWidth, tmpHeight;\n";
 			os << ctx.ind << "glfwGetWindowSize(window, &tmpWidth, &tmpHeight);\n";
@@ -657,7 +649,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		
-		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		if (autoSize)
 		{
 			os << ctx.ind << "if (ImGui::IsWindowAppearing())\n" << ctx.ind << "{\n";
 			ctx.ind_up();
@@ -709,25 +701,17 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Window)
 	{
+		if (!autoSize)
+		{
+			os << ctx.ind << "ImGui::SetNextWindowSize({ "
+				<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
+				<< "ImGuiCond_FirstUseEver);\n";
+		}
 		os << ctx.ind << "if (isOpen && ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
-	else if (kind == ModalPopup)
-	{
-		if (placement == Center)
-			os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, { 0.5f, 0.5f }); //Center\n";
-		
-		os << ctx.ind << "bool tmpOpen = true;\n";
-		os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
-		os << ctx.ind << "{\n";
-		ctx.ind_up();
-		os << ctx.ind << "if (requestClose)\n";
-		ctx.ind_up();
-		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
-		ctx.ind_down();
-	}
-	else if (kind == Popup)
+	else if (kind == Popup || kind == ModalPopup)
 	{
 		if (placement == Left || placement == Top) {
 			os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);"
@@ -743,32 +727,56 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, { 0.5f, 0.5f }); //Center\n";
 		}
 
-		bool autoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
-		//ImGui supports autoResize in one direction by supplying size.x/y <= 0
-		if (placement == Left || placement == Right)
+		if (placement != None)
 		{
-			os << ctx.ind << "ImGui::SetNextWindowSize({ " << (autoSize ? 0 : size_x.to_arg(ctx.unit)) << ",\n";
-			os << ctx.ind << "                            ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
+			os << ctx.ind << "ImGui::SetNextWindowSize({ ";
+			if (placement == Top || placement == Bottom)
+				os << "ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x";
+			else if (animate)
+				os << "animator.GetX(" << (autoSize ? "0" : size_x.to_arg(ctx.unit)) << ")";
+			else
+				os << (autoSize ? "0" : size_x.to_arg(ctx.unit));
+			
+			os << ",\n                           ";
+			
+			if (placement == Left || placement == Right)
+				os << "ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y";
+			else if (animate)
+				os << "animator.GetY(" << (autoSize ? "0" : size_y.to_arg(ctx.unit)) << ")";
+			else
+				os << (autoSize ? "0" : size_y.to_arg(ctx.unit));
+			
+			os << " });";
 			//signal designed size
 			os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 		}
-		else if (placement == Top || placement == Bottom)
+
+		if (kind == ModalPopup)
 		{
-			os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x,\n";
-			os << ctx.ind << "                           " << (autoSize ? 0 : size_y.to_arg(ctx.unit)) << " });";
-			//signal designed size
-			os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+			os << ctx.ind << "bool tmpOpen = true;\n";
+			os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
 		}
-		
-		flags_helper fl = flags;
-		fl |= ImGuiWindowFlags_NoTitleBar;
-		os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << fl.to_arg() << "))\n";
+		else
+		{
+			os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << flags.to_arg() << "))\n";
+		}
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
-		os << ctx.ind << "if (requestClose)\n";
-		ctx.ind_up();
-		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
-		ctx.ind_down();
+		if (animate)
+		{
+			os << ctx.ind << "animator.Tick();\n";
+			os << ctx.ind << "if (requestClose && animator.IsDone())\n";
+			ctx.ind_up();
+			os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
+			ctx.ind_down();
+		}
+		else
+		{
+			os << ctx.ind << "if (requestClose)\n";
+			ctx.ind_up();
+			os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
+			ctx.ind_down();
+		}
 	}
 	
 	os << ctx.ind << "/// @separator\n\n";
@@ -821,8 +829,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.userCode = "";
 	ctx.root = this;
 	ctx.parents = { this };
-	kind = Window;
-	bool hasDisplaySize = false;
+	ctx.kind = kind = Window;
+	bool hasGlfw = false;
 	
 	while (sit != cpp::stmt_iterator())
 	{
@@ -882,26 +890,25 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
 		{
-			if (sit->params.size()) {
-				if (sit->params[0].find("ImGui::GetMainViewport()->Size")  != std::string::npos) {
-					hasDisplaySize = true;
-					parseCommentSize = true;
-				}
-				else {
-					auto size = cpp::parse_size(sit->params[0]);
-					size_x.set_from_arg(size.first);
-					size_y.set_from_arg(size.second);
-				}
+			parseCommentSize = true;
+			if (sit->params.size())
+			{
+				animate = sit->params[0].find("animator.") != std::string::npos;
+				auto size = cpp::parse_size(sit->params[0]);
+				size_x.set_from_arg(size.first);
+				size_y.set_from_arg(size.second);
 			}
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowTitle")
 		{
+			hasGlfw = true;
 			if (sit->params.size() >= 2)
 				title.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSize" && 
 			sit->level == ctx.importLevel + 2) //in IsWindowAppearing only
 		{
+			hasGlfw = true;
 			if (sit->params.size() >= 3) {
 				size_x.set_from_arg(sit->params[1]);
 				size_y.set_from_arg(sit->params[2]);
@@ -909,11 +916,13 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwMaximizeWindow")
 		{
+			hasGlfw = true;
 			placement = Maximize;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowAttrib"
 			&& sit->params.size() >= 3)
 		{
+			hasGlfw = true;
 			if (sit->params[1] == "GLFW_RESIZABLE") {
 				bool resizable = sit->params[2] != "false";
 				if (!resizable && !(flags & ImGuiWindowFlags_AlwaysAutoResize))
@@ -928,7 +937,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
 			sit->callee == "ImGui::BeginPopupModal")
 		{
-			kind = ModalPopup;
+			ctx.kind = kind = ModalPopup;
 			placement = Center;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
@@ -941,7 +950,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
 			sit->callee == "ImGui::BeginPopup")
 		{
-			kind = Popup;
+			ctx.kind = kind = Popup;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
 			if (i != std::string::npos)
@@ -952,7 +961,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
 		{
-			kind = Window;
+			ctx.kind = kind = Window;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
 			if (i != std::string::npos)
@@ -967,18 +976,18 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size() >= 3)
 				flags.set_from_arg(sit->params[2]);
 			
-			if (hasDisplaySize) {
-				kind = Activity;
-				placement = None;
-				flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
-			}
-			else {
-				kind = MainWindow;
+			if (hasGlfw) {
+				ctx.kind = kind = MainWindow;
 				//reset sizes from earlier SetNextWindowSize
 				TopWindow def(ctx);
 				size_x = def.size_x;
 				size_y = def.size_y;
 				flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
+			}
+			else {
+				ctx.kind = kind = Activity;
+				placement = None;
+				flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 			}
 		}
 		
@@ -1186,10 +1195,12 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	case 11:
+		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##animate", &animate, ctx);
+		ImGui::EndDisabled();
 		break;
 	default:
 		return false;
@@ -2989,7 +3000,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1) 
 	{
-		if (sit->callee == "ClosePopup") {
+		if (sit->callee == "ClosePopup" && ctx.kind == TopWindow::ModalPopup) {
 			if (modalResult == ImRad::None)
 				modalResult = ImRad::Cancel;
 		}

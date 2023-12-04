@@ -277,12 +277,14 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				{
 					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "bool requestClose = false;\n";
+					out << INDENT << "ImRad::Animator animator;\n";
 					out << INDENT << "std::function<void(ImRad::ModalResult)> callback;\n\n";
 				}
 				else if (kind == TopWindow::Popup)
 				{
 					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "bool requestClose = false;\n";
+					out << INDENT << "ImRad::Animator animator;\n";
 				}
 				else if (kind == TopWindow::Window)
 				{
@@ -501,17 +503,21 @@ void CppGen::ExportCpp(
 	//defered call
 	if (kind == TopWindow::ModalPopup && !events.count("OpenPopup"))
 	{
+		events.insert("OpenPopup");
 		fout << "\nvoid " << m_name << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
 		fout << INDENT << "callback = clb;\n";
 		fout << INDENT << "requestClose = false;\n";
+		fout << INDENT << "animator.Start(ImRad::Animator::OpenPopup);\n";
 		fout << INDENT << "ImGui::OpenPopup(ID);\n\n";
 		fout << INDENT << "// TODO: Add your init code here\n";
 		fout << "}\n";
 	}
 	if (kind == TopWindow::Popup && !events.count("OpenPopup"))
 	{
+		events.insert("OpenPopup");
 		fout << "\nvoid " << m_name << "::OpenPopup()\n{\n";
 		fout << INDENT << "requestClose = false;\n";
+		fout << INDENT << "animator.Start(ImRad::Animator::OpenPopup);\n";
 		fout << INDENT << "ImGui::OpenPopup(ID);\n\n";
 		fout << INDENT << "// TODO: Add your init code here\n";
 		fout << "}\n";
@@ -519,8 +525,10 @@ void CppGen::ExportCpp(
 	if ((kind == TopWindow::Popup || kind == TopWindow::ModalPopup) &&
 		!events.count("ClosePopup"))
 	{
+		events.insert("ClosePopup");
 		fout << "\nvoid " << m_name << "::ClosePopup()\n{\n";
 		fout << INDENT << "requestClose = true;\n";
+		fout << INDENT << "animator.Start(ImRad::Animator::ClosePopup);\n";
 		fout << "}\n";
 	}
 	if (kind == TopWindow::Window && 
@@ -533,6 +541,7 @@ void CppGen::ExportCpp(
 	if (kind == TopWindow::Window && 
 		!events.count("Close"))
 	{
+		events.insert("Close");
 		fout << "\nvoid " << m_name << "::Close()\n{\n";
 		fout << INDENT << "isOpen = false;\n";
 		fout << "}\n";
@@ -759,7 +768,7 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		if (type.back() == ' ')
 			type.pop_back();
 		if (name != "ID" && name != "requestClose" && name != "callback" &&
-			name != "isOpen")
+			name != "isOpen" && name != "animator")
 			CreateNamedVar(name, type, init, flags, sname);
 	}
 	return true;
