@@ -105,6 +105,32 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 	return changed;
 }
 
+bool InputFont(const char* label, direct_val<std::string>* val, UIContext& ctx)
+{
+	const auto* nextData = &ImGui::GetCurrentContext()->NextItemData;
+	if (nextData->Flags & ImGuiNextItemDataFlags_HasWidth)
+		ImGui::SetNextItemWidth(nextData->Width - ImGui::GetFrameHeight());
+
+	bool changed = false;
+	ImGui::InputText((std::string(label) + "txt").c_str(), val->access());
+	if (ImGui::IsItemDeactivatedAfterEdit())
+		changed = true;
+
+	ImGui::SameLine(0, 0);
+	if (ImGui::BeginCombo(label, val->c_str(), ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft))
+	{
+		for (const auto& f : ctx.fontNames)
+		{
+			if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == val->c_str())) {
+				changed = true;
+				*val->access() = f;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
+}
+
 //----------------------------------------------------
 
 void UINode::CloneChildrenFrom(const UINode& node, UIContext& ctx)
@@ -1171,17 +1197,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##font", style_font.c_str()))
-		{
-			for (const auto& f : ctx.fontNames)
-			{
-				if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
-					changed = true;
-					style_font = f;
-				}
-			}
-			ImGui::EndCombo();
-		}
+		changed = InputFont("##font", &style_font, ctx);
 		break;
 	case 8:
 		TreeNodeProp("flags", "...", [&] {
@@ -2465,17 +2481,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##font", style_font.c_str()))
-		{
-			for (const auto& f : ctx.fontNames)
-			{
-				if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
-					changed = true;
-					style_font = f;
-				}
-			}
-			ImGui::EndCombo();
-		}
+		changed = InputFont("##font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("text");
@@ -2681,17 +2687,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##font", style_font.c_str()))
-		{
-			for (const auto& f : ctx.fontNames)
-			{
-				if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
-					changed = true;
-					style_font = f;
-				}
-			}
-			ImGui::EndCombo();
-		}
+		changed = InputFont("##font", &style_font, ctx);
 		break;
 	case 2:
 		TreeNodeProp("flags", "...", [&] {
@@ -3121,17 +3117,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##font", style_font.c_str()))
-		{
-			for (const auto& f : ctx.fontNames)
-			{
-				if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
-					changed = true;
-					style_font = f;
-				}
-			}
-			ImGui::EndCombo();
-		}
+		changed = InputFont("##font", &style_font, ctx) || changed;
 		break;
 	case 5:
 	{
@@ -3350,17 +3336,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##font", style_font.c_str()))
-		{
-			for (const auto& f : ctx.fontNames)
-			{
-				if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
-					changed = true;
-					style_font = f;
-				}
-			}
-			ImGui::EndCombo();
-		}
+		changed = InputFont("##font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("label");
@@ -3488,17 +3464,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::BeginCombo("##font", style_font.c_str()))
-		{
-			for (const auto& f : ctx.fontNames)
-			{
-				if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == style_font.c_str())) {
-					changed = true;
-					style_font = f;
-				}
-			}
-			ImGui::EndCombo();
-		}
+		changed = InputFont("##font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("label");
@@ -3945,6 +3911,7 @@ Input::Properties()
 	props.insert(props.begin(), {
 		{ "@style.text", &style_text },
 		{ "@style.frameBg", &style_frameBg },
+		{ "@style.font", &style_font },
 		{ "input.flags", &flags },
 		{ "label", &label, true },
 		{ "input.type", &type },
@@ -3997,19 +3964,25 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		BindingButton("frameBg", &style_frameBg, ctx);
 		break;
 	case 2:
+		ImGui::Text("font");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputFont("##font", &style_font, ctx);
+		break;
+	case 3:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##label", label.access());
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4026,14 +3999,14 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 5:
+	case 6:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 6:
+	case 7:
 		ImGui::BeginDisabled(type != "std::string" && type != "ImGuiTextFilter");
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
@@ -4041,7 +4014,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##hint", hint.access());
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 	{
 		int type = imeType & 0xff;
 		int action = imeType & (~0xff);
@@ -4062,7 +4035,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			});
 		break;
 	}
-	case 8:
+	case 9:
 		ImGui::BeginDisabled(type != "int" && type != "float");
 		ImGui::Text("step");
 		ImGui::TableNextColumn();
@@ -4077,7 +4050,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 9:
+	case 10:
 		ImGui::BeginDisabled(type.access()->compare(0, 5, "float"));
 		ImGui::Text("format");
 		ImGui::TableNextColumn();
@@ -4085,20 +4058,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##format", format.access());
 		ImGui::EndDisabled();
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("initialFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##kbf", initialFocus.access());
 		break;
-	case 11:
+	case 12:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("forceFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##forceFocus", &forceFocus, true, ctx);
 		break;
-	case 12:
+	case 13:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4106,7 +4079,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 13:
+	case 14:
 		ImGui::BeginDisabled(type != "std::string" || !(flags & ImGuiInputTextFlags_Multiline));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -4117,7 +4090,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 14, ctx);
+		return Widget::PropertyUI(i - 15, ctx);
 	}
 	return changed;
 }
