@@ -771,28 +771,42 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, { 0.5f, 0.5f }); //Center\n";
 		}
 
-		if (placement != None)
+		//size
 		{
+			bool commentSize = false;
 			os << ctx.ind << "ImGui::SetNextWindowSize({ ";
-			if (placement == Top || placement == Bottom)
+			if (placement == Top || placement == Bottom) {
+				commentSize = true;
 				os << "ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x";
-			else if (animate)
+			}
+			else if (animate) {
+				commentSize = true;
 				os << "animator.GetX(" << (autoSize ? "0" : size_x.to_arg(ctx.unit)) << ")";
+			}
 			else
 				os << (autoSize ? "0" : size_x.to_arg(ctx.unit));
-			
-			os << ",\n                           ";
-			
-			if (placement == Left || placement == Right)
+
+			if (commentSize)
+				os << ",\n" << ctx.ind << "                           ";
+			else
+				os << ", ";
+
+			if (placement == Left || placement == Right) {
+				commentSize = true;
 				os << "ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y";
-			else if (animate)
+			}
+			else if (animate) {
+				commentSize = true;
 				os << "animator.GetY(" << (autoSize ? "0" : size_y.to_arg(ctx.unit)) << ")";
+			}
 			else
 				os << (autoSize ? "0" : size_y.to_arg(ctx.unit));
-			
+
 			os << " });";
-			//signal designed size
-			os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+			if (commentSize) //signal designed size
+				os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+			else
+				os << "\n";
 		}
 
 		if (kind == ModalPopup)
@@ -1237,9 +1251,11 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 12:
+	{
 		ImGui::Text("placement");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		auto tmp = placement;
 		if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
 		{
 			if (ImGui::Selectable("None", placement == None))
@@ -1259,7 +1275,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 
 			ImGui::EndCombo();
 		}
+		changed = placement != tmp;
 		break;
+	}
 	case 13:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
@@ -3894,7 +3912,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		onImeAction.set_from_arg(sit->callee);
 	}
 	else if (sit->kind == cpp::IfCallThenCall &&
-			sit->cond == "ImGui::IsItemActive" && sit->callee == "ImGui::SetKeyboardFocusHere")
+			sit->cond == "ImGui::IsWindowAppearing" && sit->callee == "ImGui::SetKeyboardFocusHere")
 	{
 		initialFocus = true;
 	}

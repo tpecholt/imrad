@@ -73,6 +73,7 @@ int addInputCharacter = 0;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
 GLFWcursor* curCross = nullptr;
+ImRad::IOUserData ioUserData;
 
 struct TB_Button 
 {
@@ -1631,7 +1632,8 @@ int main(int argc, const char* argv[])
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	AddINIHandler();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGuiIO& io = ImGui::GetIO(); 
+	io.UserData = &ioUserData;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
