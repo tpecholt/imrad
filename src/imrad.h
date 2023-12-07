@@ -322,22 +322,25 @@ Texture LoadTextureFromFile(std::string_view filename);
 #endif
 
 //For debugging pruposes
-inline void SaveStyle(std::string_view fname)
+inline void SaveStyle(std::string_view fname_, const ImGuiStyle* src = nullptr, const std::map<std::string, std::string>& extra = {})
 {
-	std::ofstream fout(std::string(fname.begin(), fname.end()));
-	const auto& s = ImGui::GetStyle();
-
+	const ImGuiStyle* style = src ? src : &ImGui::GetStyle();
+	std::string fname(fname_.begin(), fname_.end());
+	std::ofstream fout(fname);
+	if (!fout)
+		throw std::runtime_error("can't write '" + fname + "'");
+	
 	fout << "[colors]\n";
 	for (int i = 0; i < ImGuiCol_COUNT; ++i) {
 		fout << ImGui::GetStyleColorName(i) << " = ";
-		const auto& clr = s.Colors[i];
+		const auto& clr = style->Colors[i];
 		fout << int(clr.x * 255) << " " << int(clr.y * 255) << " " 
 			<< int(clr.z * 255) << " " << int(clr.w * 255) << "\n";
 	}
 
 	fout << "\n[variables]\n";
-#define WRITE_FLT(a) fout << #a " = " << s.a << "\n"
-#define WRITE_VEC(a) fout << #a " = " << s.a.x << " " << s.a.y << "\n"
+#define WRITE_FLT(a) fout << #a " = " << style->a << "\n"
+#define WRITE_VEC(a) fout << #a " = " << style->a.x << " " << style->a.y << "\n"
 	
 	WRITE_FLT(Alpha);
 	WRITE_FLT(DisabledAlpha);
@@ -365,12 +368,20 @@ inline void SaveStyle(std::string_view fname)
 #undef WRITE_VEC
 
 	fout << "\n[fonts]\n";
-	fout << "# Default = \"Roboto-Medium.ttf\" size 20\n";
+	fout << "Default = \"Roboto-Medium.ttf\" size 20\n";
 	
-	fout << "\n[imrad.colors]\n";
-	fout << "# Hovered 255 255 0 255\n";
-	fout << "# Selected 255 0 0 255\n";
-	fout << "# Snap1 ...\n";
+	std::string lastSection;
+	for (const auto& kv : extra)
+	{
+		size_t i = kv.first.find_last_of('.');
+		if (i == std::string::npos)
+			continue;
+		if (kv.first.substr(0, i) != lastSection) {
+			lastSection = kv.first.substr(0, i);
+			fout << "\n[" << lastSection << "]\n";
+		}
+		fout << kv.first.substr(i + 1) << " = " << kv.second << "\n";
+	}
 }
 
 //This function can be used in your code to load style and fonts from the INI file

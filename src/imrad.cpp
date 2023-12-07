@@ -32,6 +32,7 @@
 #include "ui_binding.h"
 #include "ui_combo_dlg.h"
 #include "ui_horiz_layout.h"
+#include "ui_clone_style.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -630,6 +631,42 @@ void GetStyles()
 	}
 }
 
+const std::array<ImU32, UIContext::Color::COUNT>& 
+GetCtxColors(const std::string& styleName)
+{
+	static const std::array<ImU32, UIContext::Color::COUNT> classic{
+		IM_COL32(255, 255, 0, 128),
+		IM_COL32(255, 0, 0, 255),
+		IM_COL32(128, 128, 255, 255),
+		IM_COL32(255, 0, 255, 255),
+		IM_COL32(0, 255, 255, 255),
+		IM_COL32(0, 255, 0, 255),
+	};
+	static const std::array<ImU32, UIContext::Color::COUNT> light {
+		IM_COL32(255, 0, 0, 255),
+		IM_COL32(255, 0, 0, 255),
+		IM_COL32(128, 128, 255, 255),
+		IM_COL32(255, 0, 255, 255),
+		IM_COL32(0, 128, 128, 255),
+		IM_COL32(0, 255, 0, 255),
+	};
+	static const std::array<ImU32, UIContext::Color::COUNT> dark{
+		IM_COL32(255, 255, 0, 128),
+		IM_COL32(255, 0, 0, 255),
+		IM_COL32(128, 128, 255, 255),
+		IM_COL32(255, 0, 255, 255),
+		IM_COL32(0, 255, 255, 255),
+		IM_COL32(0, 255, 0, 255),
+	};
+
+	if (styleName == "Light")
+		return light;
+	else if (styleName == "Dark")
+		return dark;
+	else
+		return classic;
+}
+
 void LoadStyle()
 {
 	if (!reloadStyle)
@@ -664,40 +701,19 @@ void LoadStyle()
 		{
 			ImGui::StyleColorsClassic(&ctx.style);
 			ctx.fontNames = { "" };
-			ctx.colors = {
-				IM_COL32(255, 255, 0, 128),
-				IM_COL32(255, 0, 0, 255),
-				IM_COL32(128, 128, 255, 255),
-				IM_COL32(255, 0, 255, 255),
-				IM_COL32(0, 255, 255, 255),
-				IM_COL32(0, 255, 0, 255),
-			};
+			ctx.colors = GetCtxColors(styleName);
 		}
 		else if (styleName == "Light")
 		{
 			ImGui::StyleColorsLight(&ctx.style);
 			ctx.fontNames = { "" };
-			ctx.colors = {
-				IM_COL32(255, 0, 0, 255),
-				IM_COL32(255, 0, 0, 255),
-				IM_COL32(128, 128, 255, 255),
-				IM_COL32(255, 0, 255, 255),
-				IM_COL32(0, 128, 128, 255),
-				IM_COL32(0, 255, 0, 255),
-			};
+			ctx.colors = GetCtxColors(styleName);
 		}
 		else if (styleName == "Dark")
 		{
 			ImGui::StyleColorsDark(&ctx.style);
 			ctx.fontNames = { "" };
-			ctx.colors = {
-				IM_COL32(255, 255, 0, 128),
-				IM_COL32(255, 0, 0, 255),
-				IM_COL32(128, 128, 255, 255),
-				IM_COL32(255, 0, 255, 255),
-				IM_COL32(0, 255, 255, 255),
-				IM_COL32(0, 255, 0, 255),
-			};
+			ctx.colors = GetCtxColors(styleName);
 		}
 		else
 		{
@@ -742,6 +758,80 @@ void LoadStyle()
 	}
 	ImGui_ImplOpenGL3_DestroyFontsTexture();
 	ImGui_ImplOpenGL3_CreateFontsTexture();
+}
+
+void DoCloneStyle(const std::string& name)
+{
+	auto FormatClr = [](ImU32 c) {
+		std::ostringstream os; 
+		os << (c & 0xff) << " " << 
+			((c >> 8) & 0xff) << " " << 
+			((c >> 16) & 0xff) << " " <<
+			((c >> 24) & 0xff); 
+		return os.str();
+	};
+
+	std::string from = fileTabs[activeTab].styleName;
+	std::string path = "style/" + name + ".ini";
+	try 
+	{
+		if (from == "Classic" || from == "Dark" || from == "Light") 
+		{
+			ImGuiStyle style;
+			if (from == "Dark")
+				ImGui::StyleColorsDark(&style);
+			else if (from == "Light")
+				ImGui::StyleColorsLight(&style);
+			else
+				ImGui::StyleColorsClassic(&style);
+
+			std::map<std::string, std::string> extra;
+			const auto& colors = GetCtxColors(from);
+#define SET_CLR(a) extra[std::string("imrad.colors.") + #a] = FormatClr(colors[UIContext::Color::a]);
+			SET_CLR(Selected);
+			SET_CLR(Hovered);
+			SET_CLR(Snap1);
+			SET_CLR(Snap2);
+			SET_CLR(Snap3);
+			SET_CLR(Snap4);
+			SET_CLR(Snap5);
+#undef SET_CLR
+			ImRad::SaveStyle(path, &style, extra);
+		}
+		else 
+		{
+			fs::copy_file("style/" + from + ".ini", path, fs::copy_options::overwrite_existing);
+		}
+
+		fileTabs[activeTab].styleName = name;
+		if (!stx::count_if(styleNames, [&](const auto& s) { return s.first == name; }))
+			styleNames.push_back({ name, path });
+	}
+	catch (std::exception& e) {
+		messageBox.title = "error";
+		messageBox.message = e.what();
+		messageBox.buttons = ImRad::Ok;
+		messageBox.OpenPopup();
+	}
+}
+
+void CloneStyle()
+{
+	cloneStyle.OpenPopup([](ImRad::ModalResult mr)
+		{
+			std::string path = "style/" + cloneStyle.styleName + ".ini";
+			if (fs::exists(path)) {
+				messageBox.title = "Confirmation";
+				messageBox.message = "Overwrite existing style?";
+				messageBox.buttons = ImRad::Yes | ImRad::No;
+				messageBox.OpenPopup([=](ImRad::ModalResult mr) {
+					if (mr == ImRad::Yes)
+						DoCloneStyle(cloneStyle.styleName);
+					});
+			}
+			else
+				DoCloneStyle(cloneStyle.styleName);
+		});
 }
 
 void DockspaceUI()
@@ -903,6 +993,11 @@ void ToolbarUI()
 		}
 		ImGui::EndCombo();
 	}
+	ImGui::SameLine();
+	if (ImGui::Button(ICON_FA_CLONE))
+		CloneStyle();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+		ImGui::SetTooltip("Clone Style");
 	ImGui::SameLine();
 	ImGui::Text("Units");
 	ImGui::SameLine();
@@ -1289,6 +1384,8 @@ void PopupUI()
 	bindingDlg.Draw();
 
 	horizLayout.Draw();
+
+	cloneStyle.Draw();
 }
 
 void Draw()
