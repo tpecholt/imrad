@@ -809,6 +809,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				os << "\n";
 		}
 
+		//begin
 		if (kind == ModalPopup)
 		{
 			os << ctx.ind << "bool tmpOpen = true;\n";
@@ -820,21 +821,25 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		}
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
+		
+		//closePopup
 		if (animate)
 		{
 			os << ctx.ind << "animator.Tick();\n";
-			os << ctx.ind << "if (requestClose && animator.IsDone())\n";
-			ctx.ind_up();
-			os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
-			ctx.ind_down();
+			os << ctx.ind << "if (modalResult != ImRad::None && animator.IsDone())\n";
 		}
 		else
 		{
-			os << ctx.ind << "if (requestClose)\n";
-			ctx.ind_up();
-			os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
-			ctx.ind_down();
+			os << ctx.ind << "if (modalResult != ImRad::None)\n";
 		}
+		os << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
+		//callback is called after CloseCurrentPopup so it is able to open another dialog
+		if (kind == ModalPopup) 
+			os << ctx.ind << "if (modalResult != ImRad::Cancel) callback(modalResult);\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
 	}
 	
 	os << ctx.ind << "/// @separator\n\n";
@@ -3005,12 +3010,8 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 			
 		if (!onChange.empty())
 			os << ctx.ind << onChange.to_arg() << "();\n";
-		if (closePopup) {
-			os << ctx.ind << "ClosePopup();\n";
-			if (modalResult != ImRad::Cancel)
-				//no if => easier parsing
-				os << ctx.ind << "callback(" << modalResult.to_arg() << ");\n";
-		}
+		if (closePopup)
+			os << ctx.ind << "ClosePopup(" << modalResult.to_arg() << ");\n";
 
 		ctx.ind_down();			
 		os << ctx.ind << "}\n";
@@ -3065,10 +3066,10 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1) 
 	{
 		if (sit->callee == "ClosePopup" && ctx.kind == TopWindow::ModalPopup) {
-			if (modalResult == ImRad::None)
-				modalResult = ImRad::Cancel;
+			if (sit->params.size())
+				modalResult.set_from_arg(sit->params[0]);
 		}
-		else if (sit->callee == "callback" && sit->params.size())
+		else if (sit->callee == "callback" && sit->params.size()) //compatibility with older version
 			modalResult.set_from_arg(sit->params[0]);
 		else
 			onChange.set_from_arg(sit->callee);

@@ -54,6 +54,7 @@ private:
 	void CreateCpp(std::ostream& out);
 	auto ExportH(std::ostream& out, std::istream& prev, const std::string& origHName, TopWindow::Kind k) -> std::array<std::string, 3>;
 	void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 3>& origNames, const std::map<std::string, std::string>& params, TopWindow::Kind k, const std::string& code);
+	bool WriteStub(std::ostream& fout,	const std::string& id, TopWindow::Kind kind, const std::map<std::string, std::string>& params = {},	const std::string& code = {});
 	auto ImportCode(std::istream& in, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
 
 	bool ParseFieldDecl(const std::string& stype, const std::vector<std::string>& line, int flags);
