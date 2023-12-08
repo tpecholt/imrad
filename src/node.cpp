@@ -482,6 +482,8 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_border.eval_px(ctx));
 	if (style_rounding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, style_rounding.eval_px(ctx));
+	if (style_scrollbarSize.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, style_scrollbarSize.eval_px(ctx));
 	if (!style_bg.empty())
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, style_bg.eval(ctx));
 	if (!style_menuBg.empty())
@@ -593,6 +595,8 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (!style_menuBg.empty())
 		ImGui::PopStyleColor();
+	if (style_scrollbarSize.has_value())
+		ImGui::PopStyleVar();
 	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
 	if (style_border.has_value())
@@ -673,6 +677,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(";
 		os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
 		os << ", " << style_border.to_arg(ctx.unit) << ");\n";
+	}
+	if (style_scrollbarSize.has_value())
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, "
+			<< style_scrollbarSize.to_arg(ctx.unit) << ");\n";
 	}
 
 	if (kind == MainWindow)
@@ -869,6 +878,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "}\n";
 	}
 
+	if (style_scrollbarSize.has_value())
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_border.has_value() || kind == Activity)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_rounding.has_value())
@@ -957,6 +968,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				style_rounding.set_from_arg(sit->params[1]);
 			else if (sit->params[0] == "ImGuiStyleVar_WindowBorderSize" || sit->params[0] == "ImGuiStyleVar_PopupBorderSize")
 				style_border.set_from_arg(sit->params[1]);
+			else if (sit->params[0] == "ImGuiStyleVar_ScrollbarSize")
+				style_scrollbarSize.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
 		{
@@ -1131,6 +1144,7 @@ TopWindow::Properties()
 		{ "top.@style.padding", &style_padding },
 		{ "top.@style.rounding", &style_rounding },
 		{ "top.@style.border", &style_border },
+		{ "top.@style.scrollbarSize", &style_scrollbarSize },
 		{ "top.@style.spacing", &style_spacing },
 		{ "top.@style.font", &style_font },
 		{ "top.flags", nullptr },
@@ -1206,19 +1220,27 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	}
 	case 6:
 	{
+		ImGui::Text("scrollbarSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##style_scrbs", &style_scrollbarSize, ctx);
+		break;
+	}
+	case 7:
+	{
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##style_spacing", &style_spacing, ctx);
 		break;
 	}
-	case 7:
+	case 8:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFont("##font", &style_font, ctx);
 		break;
-	case 8:
+	case 9:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
@@ -1231,7 +1253,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 				children.erase(children.begin());
 			});
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("title");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1239,7 +1261,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("title", &title, ctx);
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1247,7 +1269,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1255,7 +1277,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 12:
+	case 13:
 	{
 		ImGui::Text("placement");
 		ImGui::TableNextColumn();
@@ -1283,7 +1305,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = placement != tmp;
 		break;
 	}
-	case 13:
+	case 14:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
 		ImGui::TableNextColumn();
@@ -1315,6 +1337,7 @@ void TopWindow::ScaleDimensions(float scale)
 	style_spacing.scale_dimension(scale);
 	style_rounding.scale_dimension(scale);
 	style_border.scale_dimension(scale);
+	style_scrollbarSize.scale_dimension(scale);
 }
 
 //-------------------------------------------------
