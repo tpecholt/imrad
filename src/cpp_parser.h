@@ -15,7 +15,7 @@ namespace cpp
 	{
 		if (s.empty())
 			return false;
-		if (!std::isalpha(s[0]) && s[0] != '_')
+		if (s[0] < 0 || (!std::isalpha(s[0]) && s[0] != '_'))
 			return false;
 		for (size_t i = 1; i < s.size(); ++i)
 			if (!std::isalnum(s[i]) && s[i] != '_')
@@ -722,6 +722,45 @@ namespace cpp
 			return INVALID_TEXT;
 	}
 
+	inline std::string escape(char c)
+	{
+		std::string str;
+		switch (c)
+		{
+		default:
+			if (c & 0x80) { //utf8
+				int l = c & 0xf;
+				int h = (c >> 4) & 0xf;
+				l = l >= 10 ? l - 10 + 'a' : l + '0';
+				h = h >= 10 ? h - 10 + 'a' : h + '0';
+				str += "\\x";
+				str += h;
+				str += l;
+			}
+			else
+				str += c;
+			break;
+		case '\0': //Combo.items use it
+			str += "\\0";
+			break;
+		case '\t':
+			str += "\\t";
+			break;
+		case '\n':
+			str += "\\n";
+			break;
+		}
+		return str;
+	}
+
+	inline std::string escape(std::string_view s)
+	{
+		std::string str;
+		for (char c : s)
+			str += escape(c);
+		return str;
+	}
+
 	inline std::string to_str_arg(std::string_view str)
 	{
 		std::string fmt, args;
@@ -730,26 +769,7 @@ namespace cpp
 			switch (str[i])
 			{
 			default:
-				if (str[i] & 0x80) { //utf8
-					int l = str[i] & 0xf;
-					int h = (str[i] >> 4) & 0xf;
-					l = l >= 10 ? l - 10 + 'a' : l + '0';
-					h = h >= 10 ? h - 10 + 'a' : h + '0';
-					fmt += "\\x";
-					fmt += h;
-					fmt += l;
-				}
-				else
-					fmt += str[i];
-				break;
-			case '\0': //Combo.items use it
-				fmt += "\\0";
-				break;
-			case '\t':
-				fmt += "\\t";
-				break;
-			case '\n':
-				fmt += "\\n";
+				fmt += escape(str[i]);
 				break;
 			case '{':
 				if (i + 1 < str.size() && str[i + 1] == '{') {
@@ -761,13 +781,15 @@ namespace cpp
 					size_t e = str.find('}', i + 1);
 					if (e == std::string::npos)
 						goto error;
-					if (c != std::string::npos && c < e) {
+					if (c != std::string::npos && c < e &&
+						str.substr(c, e - c + 1).find_first_of("\"") == std::string::npos) //probably ?: operator misinterpreted as :fmt
+					{
 						args += ", " + str.substr(i + 1, c - i - 1);
 						fmt += "{";
 						fmt += str.substr(c, e - c + 1);
 					}
 					else {
-						args += ", " + str.substr(i + 1, e - i - 1);
+						args += ", " + escape(str.substr(i + 1, e - i - 1));
 						fmt += "{}";
 					}
 					i = e;

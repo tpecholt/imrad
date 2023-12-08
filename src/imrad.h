@@ -265,6 +265,10 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 					break;
 				if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
 					s += arg;
+				else if constexpr (std::is_same_v<std::decay_t<A1>, const char*>)
+					s += arg;
+				else if constexpr (std::is_same_v<std::decay_t<A1>, char>)
+					s += arg;
 				else
 					s += std::to_string(arg);
 				return s + Format(fmt.substr(j + 1), args...);

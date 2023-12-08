@@ -678,7 +678,7 @@ void LoadStyle()
 	
 	//reload ImRAD UI first
 	StyleColors();
-	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 20.0f);
+	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 20.0f)->FallbackChar = '#';
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig cfg;
 	cfg.MergeMode = true;
@@ -687,7 +687,7 @@ void LoadStyle()
 	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
 	cfg.MergeMode = false;
 	strcpy(cfg.Name, "imrad.H1");
-	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 26, &cfg);
+	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 26, &cfg)->FallbackChar = '#';
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();

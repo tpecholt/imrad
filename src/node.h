@@ -219,7 +219,7 @@ struct Selectable : Widget
 
 struct Button : Widget
 {
-	bindable<std::string> label = "\xef\x80\x82 Search";
+	bindable<std::string> label = "OK";
 	direct_val<ImGuiDir> arrowDir = ImGuiDir_None;
 	direct_val<bool> small = false;
 	bindable<dimension> size_x = 0.f;

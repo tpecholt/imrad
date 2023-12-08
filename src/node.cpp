@@ -1108,17 +1108,22 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 void TopWindow::TreeUI(UIContext& ctx)
 {
+	static const char* NAMES[]{ "MainWindow", "Window", "Popup", "ModalPopup", "Activity" };
+
 	ctx.parents = { this };
-	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	std::string str = ctx.codeGen->GetName();
 	bool selected = stx::count(ctx.selected, this);
 	if (selected)
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
-	if (ImGui::TreeNodeEx(str.c_str(), 0))
+	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+	if (ImGui::TreeNodeEx(str.c_str(), ImGuiTreeNodeFlags_SpanAllColumns))
 	{
 		if (selected)
 			ImGui::PopStyleColor();
-		if (ImGui::IsItemClicked())
+		bool clicked = ImGui::IsItemClicked();
+		ImGui::SameLine();
+		ImGui::TextDisabled(NAMES[kind]);
+		if (clicked)
 		{
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 				; // don't participate in group selection toggle(ctx.selected, this);
@@ -1129,9 +1134,13 @@ void TopWindow::TreeUI(UIContext& ctx)
 			ch->TreeUI(ctx);
 
 		ImGui::TreePop();
-	} 
-	else if (selected)
-		ImGui::PopStyleColor();
+	}
+	else {
+		if (selected)
+			ImGui::PopStyleColor();
+		ImGui::SameLine();
+		ImGui::TextDisabled(NAMES[kind]);
+	}
 }
 
 std::vector<UINode::Prop>
@@ -5370,7 +5379,10 @@ void Table::DoDraw(UIContext& ctx)
 	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ size_x.eval_px(ctx), size_y.eval_px(ctx) };
 	float rh = rowHeight.eval_px(ctx);
-	if (ImGui::BeginTable(("table" + std::to_string((uint64_t)this)).c_str(), n, flags, size))
+	int fl = flags;
+	if (stx::count(ctx.selected, this)) //force columns at design time
+		fl |= ImGuiTableFlags_BordersInner;
+	if (ImGui::BeginTable(("table" + std::to_string((uint64_t)this)).c_str(), n, fl, size))
 	{
 		for (size_t i = 0; i < (int)columnData.size(); ++i)
 			ImGui::TableSetupColumn(columnData[i].label.c_str(), columnData[i].flags, columnData[i].width);
@@ -5816,6 +5828,8 @@ void Child::DoDraw(UIContext& ctx)
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
 	//ImGuiWindowFlags_NoScrollbar
+	
+	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child of child causes scrolling which doesn't go back
 	ImGui::BeginChild("", sz, flags, wflags);
 
 	if (columnCount.has_value() && columnCount.value() >= 2)

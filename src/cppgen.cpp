@@ -669,87 +669,76 @@ CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params
 {
 	std::unique_ptr<TopWindow> node;
 	cpp::token_iterator iter(fin);
-	int level = 0;
-	bool in_class = false;
+	bool in_class = false; 
 	bool in_interface = false;
 	bool in_impl = false;
-	bool found_interface = false;
-	bool found_impl = false;
-	std::string sname;
+	bool in_fun = false;
+	std::vector<std::string> scope; //contains struct/class/empty names for each nested block
 	std::vector<std::string> line;
 	while (iter != cpp::token_iterator())
 	{
 		std::string tok = *iter++;
 		bool is_comment = !tok.compare(0, 2, "//");
-		if (in_class && (tok == "public" || tok == "private" || tok == "protected"))
-		{
-			if (level == 1)
-				in_interface = in_impl = false;
-		}
-		else if (in_class && level == 1 && tok == ":")
-			;
-		else if (!level || in_class) //global or class scope
-		{
-			if (in_class && (tok == "/// @interface" || tok == "/// @begin interface")) {
-				in_interface = true;
-				found_interface = true;
+
+		if (tok == "{") {
+			if (line.size() && (line[0] == "class" || line[0] == "struct")) {
+				scope.push_back(line[1]);
+				if (in_class)
+					m_fields[scope.back()];
 			}
-			else if (in_class && (tok == "/// @impl" || tok == "/// @begin impl")) {
-				in_impl = true;
-				found_impl = true;
+			else {
+				scope.push_back("");
+				auto nod = ParseDrawFun(line, iter, params);
+				if (nod)
+					node = std::move(nod);
 			}
-			else if (in_class && tok == "/// @end interface") {
-				in_interface = false;
-			}
-			else if (in_class && tok == "/// @end impl") {
-				in_impl = false;
-			}
-			else if (!tok.compare(0, 1, "#") || !tok.compare(0, 2, "//"))
-				;
-			else if (tok == ";") {
-				if (in_class) {
-					ParseFieldDecl(sname, line, in_interface ? Var::Interface : in_impl ? Var::Impl : Var::UserCode);
-				}
-				else if (!level && line.size() == 3 && line[0] == "extern" && line[1] == m_name)
-					m_vname = line[2];
-				line.clear();
-			}
-			else if (tok == "{") {
-				++level;
-				if (line[0] == "class" || line[0] == "struct") {
-					if (level == 1 && line[0] == "class") {
-						m_name = line[1];
-						in_class = true;
-						sname = "";
-					}
-					else {
-						sname = line[1];
-						m_fields[sname];
-					}
-				}
-				else {
-					auto nod = ParseDrawFun(line, iter, params);
-					if (nod)
-						node = std::move(nod);
-				}
-				line.clear();
-			}
-			else if (tok == "}") {
-				--level;
-				if (in_class && !level)
-					in_class = false;
-				else
-					sname = "";
-			}
-			else
-				line.push_back(tok); 
-		}
-		else if (tok == "{") {
-			++level;
+			line.clear();
 		}
 		else if (tok == "}") {
-			--level;
+			scope.pop_back();
+			if (scope.empty())
+				in_class = false;
 		}
+		else if (scope.size() >= 1 && scope.back() != "" && tok == ":") { //public/private...
+			line.clear();
+		}
+		else if (scope.size() == 1 && (tok == "/// @interface" || tok == "/// @begin interface")) {
+			if (!in_class) {
+				in_class = true;
+				m_name = scope[0];
+			}
+			in_interface = true;
+		}
+		else if (scope.size() == 1 && (tok == "/// @impl" || tok == "/// @begin impl")) {
+			if (!in_class) {
+				in_class = true;
+				m_name = scope[0];
+			}
+			in_impl = true;
+		}
+		else if (in_class && tok == "/// @end interface") {
+			in_interface = false;
+		}
+		else if (in_class && tok == "/// @end impl") {
+			in_impl = false;
+		}
+		else if (!tok.compare(0, 2, "//") || tok[0] == '#')
+			;
+		else if (tok == ";") {
+			if (in_class) {
+				ParseFieldDecl(
+					scope.size()==1 ? "" : scope.back(), 
+					line, 
+					in_interface ? Var::Interface : in_impl ? Var::Impl : Var::UserCode
+				);
+			}
+			else if (scope.empty() && line.size() == 3 && line[0] == "extern" && line[1] == m_name) {
+				m_vname = line[2];
+			}
+			line.clear();
+		}
+		else
+			line.push_back(tok); 
 	}
 
 	return node;
