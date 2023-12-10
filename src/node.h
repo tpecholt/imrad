@@ -482,7 +482,8 @@ struct Child : Widget
 	direct_val<bool> style_outer_padding = true;
 	direct_val<pzdimension> style_rounding;
 	bindable<color32> style_bg;
-	
+	bindable<color32> style_border;
+
 	Child(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int SnapBehavior() { return SnapSides | SnapInterior; }

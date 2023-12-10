@@ -5863,12 +5863,12 @@ void Child::DoDraw(UIContext& ctx)
 	}
 	if (style_padding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding);
-	if (style_spacing.has_value())
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
 	if (style_rounding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, style_rounding);
 	if (!style_bg.empty())
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
+	if (!style_border.empty())
+		ImGui::PushStyleColor(ImGuiCol_Border, style_border.eval(ctx));
 
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
@@ -5877,6 +5877,9 @@ void Child::DoDraw(UIContext& ctx)
 	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child of child causes scrolling which doesn't go back
 	ImGui::BeginChild("", sz, flags, wflags);
 
+	if (style_spacing.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
+	
 	if (columnCount.has_value() && columnCount.value() >= 2)
 	{
 		ImGui::Columns(columnCount.value(), "columns", columnBorder);
@@ -5887,15 +5890,18 @@ void Child::DoDraw(UIContext& ctx)
 		children[i]->Draw(ctx);
 	}
 		
+	if (style_spacing.has_value())
+		ImGui::PopStyleVar();
+	
 	ImGui::EndChild();
 
+	if (!style_border.empty())
+		ImGui::PopStyleColor();
 	if (!style_bg.empty())
 		ImGui::PopStyleColor();
 	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
 	if (style_padding.has_value())
-		ImGui::PopStyleVar();
-	if (style_spacing.has_value())
 		ImGui::PopStyleVar();
 	if (!style_outer_padding)
 		ImGui::PopClipRect();
@@ -5911,13 +5917,13 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (style_padding.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, " << style_padding.to_arg(ctx.unit) << ");\n";
-	if (style_spacing.has_value())
-		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
 	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
-	
+	if (!style_border.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Border, " << style_border.to_arg() << ");\n";
+
 	if (!style_outer_padding)
 	{
 		std::string rvar = "r" + std::to_string(ctx.varCounter);
@@ -5960,8 +5966,10 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "{\n";
 	ctx.ind_up();
-
 	++ctx.varCounter;
+
+	if (style_spacing.has_value())
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
 
 	bool hasColumns = !columnCount.has_value() || columnCount.value() >= 2;
 	if (hasColumns) {
@@ -5990,6 +5998,9 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
+
+	if (style_spacing.has_value())
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	
 	os << ctx.ind << "ImGui::EndChild();\n";
 	ctx.ind_down();
@@ -5997,13 +6008,13 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!style_outer_padding)
 		os << ctx.ind << "ImGui::PopClipRect();\n";
+	if (!style_border.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_padding.has_value())
-		os << ctx.ind << "ImGui::PopStyleVar();\n";
-	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
@@ -6013,6 +6024,8 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_ChildBg")
 			style_bg.set_from_arg(sit->params[1]);
+		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_Border")
+			style_border.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
@@ -6067,6 +6080,7 @@ Child::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "@style.color", &style_bg },
+		{ "@style.border", &style_border },
 		{ "@style.padding", &style_padding },
 		{ "@style.spacing", &style_spacing },
 		{ "@style.rounding", &style_rounding },
@@ -6096,29 +6110,37 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		BindingButton("color", &style_bg, ctx);
 		break;
 	case 1:
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("border", &style_border, ctx);
+		break;
+	case 2:
 		ImGui::Text("padding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##padding", &style_padding, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##spacing", &style_spacing, ctx);
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##rounding", &style_rounding, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("outerPadding");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##outerPadding", &style_outer_padding, ctx);
 		break;
-	case 5:
+	case 6:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
@@ -6143,14 +6165,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 			}
 			});
 		break;
-	case 6:
+	case 7:
 		TreeNodeProp("windowFlags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&wflags) || changed;
 			});
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("columnCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6158,15 +6180,15 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("columnCount", &columnCount, ctx);
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("columnBorder");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##columnBorder", &columnBorder, ctx);
 		break;
-	case 9:
+	case 10:
 		changed = DataLoopProp("itemCount", &itemCount, ctx);
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6174,7 +6196,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6183,7 +6205,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 12, ctx);
+		return Widget::PropertyUI(i - 13, ctx);
 	}
 	return changed;
 }
