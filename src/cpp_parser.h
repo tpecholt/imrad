@@ -691,9 +691,10 @@ namespace cpp
 			format = format.substr(1, format.size() - 2);
 			std::string expr, str;
 			size_t i = 0;
+			int level = 0;
 			while (true) {
 				std::string tok = *it;
-				if (tok == "," || it == token_iterator()) {
+				if ((!level && tok == ",") || it == token_iterator()) {
 					if (expr != "") {
 						size_t i2 = find_curly(format, i);
 						if (i2 == std::string::npos)
@@ -709,8 +710,20 @@ namespace cpp
 						expr = "";
 					}
 				}
-				else
-					expr += tok;
+				else {
+					if (tok == "(" || tok == "[") {
+						expr += tok;
+						++level;
+					}
+					else if (tok == ")" || tok == "]") {
+						expr += tok;
+						--level;
+					}
+					else if (cpp::is_cstr(tok))
+						expr += unescape(tok);
+					else
+						expr += tok;
+				}
 				if (it == token_iterator())
 					break;
 				++it;
@@ -777,12 +790,13 @@ namespace cpp
 					++i;
 				}
 				else {
+					size_t q = str.find('?', i + 1);
 					size_t c = str.find(':', i + 1);
 					size_t e = str.find('}', i + 1);
 					if (e == std::string::npos)
 						goto error;
 					if (c != std::string::npos && c < e &&
-						str.substr(c, e - c + 1).find_first_of("\"") == std::string::npos) //probably ?: operator misinterpreted as :fmt
+						(q == std::string::npos || q > c)) //probably ?: operator misinterpreted as :fmt
 					{
 						args += ", " + str.substr(i + 1, c - i - 1);
 						fmt += "{";

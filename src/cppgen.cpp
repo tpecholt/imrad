@@ -1207,6 +1207,7 @@ CppGen::GetVarExprs(const std::string& type_, bool recurse)
 			ret.push_back({ f.name, f.type });
 		}
 	}
+	stx::sort(ret);
 	return ret;
 }
 

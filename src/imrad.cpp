@@ -1571,6 +1571,10 @@ void Work()
 					next->sameLine = true;
 					next->spacing = std::max((int)next->spacing, 1);
 				}
+				if (ctx.snapClearNextNextColumn) {
+					next->nextColumn = 0;
+					next->sameLine = false;
+				}
 				if (next->sameLine)
 					next->indent = 0; //otherwise creates widgets overlaps
 			}

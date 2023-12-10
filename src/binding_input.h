@@ -54,8 +54,15 @@ std::string typeid_name()
 template <class T>
 inline bool BindingButton(const char* label, bindable<T>* val, const std::string& type, UIContext& ctx)
 {
-	bool has_var = !val->used_variables().empty();
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, has_var ? 0xff0080ff : 0xffffffff);
+	bool bound;
+	if constexpr (std::is_same_v<T, std::string> || 
+				  std::is_same_v<T, std::vector<std::string>> ||
+				  std::is_same_v<T, color32>)
+		bound = !val->used_variables().empty();
+	else
+		bound = !val->empty() && !val->has_value();
+	
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, bound ? 0xff0080ff : 0xffffffff);
 	float sp = (ImGui::GetFrameHeight() - 11) / 2;
 	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sp);
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + sp);
@@ -504,12 +511,17 @@ inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 		}
 
 		ImGui::Separator();
-		const auto& vars = ctx.codeGen->GetVars();
-		for (const auto& v : vars)
+		std::vector<std::string> events;
+		for (const auto& v : ctx.codeGen->GetVars()) {
+			if (v.type == type)
+				events.push_back(v.name);
+		}
+		stx::sort(events);
+		for (const auto& ev : events)
 		{
-			if (v.type == type && ImGui::Selectable(v.name.c_str(), v.name == val->c_str()))
+			if (ImGui::Selectable(ev.c_str(), ev == val->c_str()))
 			{
-				*val->access() = v.name;
+				*val->access() = ev;
 				changed = true;
 			}
 		}

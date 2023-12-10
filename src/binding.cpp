@@ -56,7 +56,7 @@ color32 bindable<color32>::eval(const UIContext& ctx) const
 	if (empty())
 		return {};
 	std::istringstream is(str);
-	color32 val{};
+	color32 val = ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[ImGuiCol_Text]);
 	if (!(is >> val)) {
 		int idx = style_color();
 		if (idx >= 0)

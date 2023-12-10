@@ -146,6 +146,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	ctx.snapNextColumn = 0;
 	ctx.snapBeginGroup = false;
 	ctx.snapSetNextSameLine = false;
+	ctx.snapClearNextNextColumn = false;
 
 	const float MARGIN = 7;
 	assert(ctx.parents.back() == this);
@@ -239,12 +240,21 @@ void UINode::DrawSnap(UIContext& ctx)
 	{
 		p = cached_pos + ImVec2(cached_size.x, 0);
 		h = cached_size.y;
-		auto *nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
+		auto* nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
+		if (nch && !nch->sameLine)
+		{
+			for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
+				if (pchildren[j]->nextColumn) {
+					nch = pchildren[j].get();
+					break;
+				}
+		}
 		if (nch && (nch->sameLine || nch->nextColumn))
 		{
 			if (m.x >= nch->cached_pos.x) //no margin, left(i+1) can differ
 				return;
 		}
+		nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
 		if (nch && nch->sameLine && !nch->nextColumn)
 		{
 			//same effect for insering right(i) or left(i+1) so avg marker
@@ -271,6 +281,8 @@ void UINode::DrawSnap(UIContext& ctx)
 		bool topmost = true;
 		for (int j = (int)i; j >= 0; --j)
 		{
+			if (pchildren[j]->nextColumn)
+				break;
 			if (j && 
 				(pchildren[j - 1]->SnapBehavior() & SnapSides) && //ignore preceeding MenuBar etc.
 				!pchildren[j]->sameLine && 
@@ -335,6 +347,7 @@ void UINode::DrawSnap(UIContext& ctx)
 			ctx.snapSameLine = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
 			ctx.snapNextColumn = pchildren[i1]->nextColumn;
 			ctx.snapBeginGroup = pchildren[i1]->beginGroup;
+			ctx.snapClearNextNextColumn = true;
 		}
 		break;
 	}
@@ -507,6 +520,7 @@ void TopWindow::Draw(UIContext& ctx)
 	}
 
 	bool tmp;
+	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
 	ImGui::Begin(cap.c_str(), &tmp, fl);
 
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
@@ -1642,8 +1656,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (!visible.has_value() || !visible.value())
 	{
-		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{ //visible\n"; 
+		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
+		os << ctx.ind << "//visible\n"; 
 	}
 	if (!disabled.has_value() || disabled.value())
 	{
@@ -1787,6 +1802,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	ctx.importState = 1;
+	ctx.importLevel = -1;
 	ctx.parents.push_back(this);
 	userCode = ctx.userCode;
 	
@@ -3638,10 +3654,9 @@ void Input::DoDraw(UIContext& ctx)
 		if (w)
 			ImGui::SetNextItemWidth(w);
 		if (hint != "")
-			//filter.DrawWithHint(id.c_str(), hint.c_str());
-			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp);
+			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
 		else
-			filter.Draw(id.c_str());
+			ImGui::InputText(id.c_str(), &stmp, flags);
 	}
 	else
 	{
@@ -3680,7 +3695,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	if (!forceFocus.empty())
 	{
-		os << ctx.ind << "if (" << forceFocus.to_arg() << ") {\n";
+		os << ctx.ind << "if (" << forceFocus.to_arg() << ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 		os << ctx.ind << forceFocus.to_arg() << " = false;\n";
 		os << ctx.ind << "ImGui::SetKeyboardFocusHere();\n";
@@ -3692,7 +3707,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
 	
 	os << ctx.ind;
-	if (!onChange.empty())
+	if (type == "ImGuiTextFilter" || !onChange.empty())
 		os << "if (";
 
 	std::string cap = type;
@@ -3751,14 +3766,27 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	else if (type == "ImGuiTextFilter")
 	{
-		os << fieldName.to_arg(); ;
-		if (hint != "") //relies on https://github.com/ocornut/imgui/issues/6395
-			os << ".DrawWithHint(" << id << ", " << hint.to_arg() << ")";
+		//.Draw function is deprecated see https://github.com/ocornut/imgui/issues/6395
+		if (hint != "")
+			os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
 		else
-			os << ".Draw(" << id << ")";
+			os << "ImGui::InputText(" << id << ", ";
+		os << fieldName.to_arg() << ".InputBuf, " 
+			<< "IM_ARRAYSIZE(" << fieldName.to_arg() << ".InputBuf), " 
+			<< flags.to_arg() << ")";
 	}
 
-	if (!onChange.empty()) {
+	if (type == "ImGuiTextFilter") {
+		os << ")\n" << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << fieldName.to_arg() << ".Build();\n";
+		if (!onChange.empty())
+			os << ctx.ind << onChange.to_arg() << "();\n";
+		ctx.ind_down();
+		os << ctx.ind << "}\n";
+
+	}
+	else if (!onChange.empty()) {
 		os << ")\n";
 		ctx.ind_up();
 		os << ctx.ind << onChange.to_arg() << "();\n";
@@ -3821,34 +3849,51 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			onChange.set_from_arg(sit->callee);
 	}
 	else if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 16, "ImGui::InputText")) ||
-		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 16, "ImGui::InputText")))
+		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 16, "ImGui::InputText")) ||
+		(sit->kind == cpp::IfCallBlock && !sit->callee.compare(0, 16, "ImGui::InputText")))
 	{
-		type = "std::string";
-
 		if (sit->params.size()) {
 			label.set_from_arg(sit->params[0]);
 			if (!label.access()->compare(0, 2, "##"))
 				label = "";
 		}
 		
-		size_t ex = 0;
+		size_t i = 0;
 		if (sit->callee == "ImGui::InputTextWithHint" || sit->cond == "ImGui::InputTextWithHint") {
 			hint = cpp::parse_str_arg(sit->params[1]);
-			++ex;
+			++i;
 		}
 
-		if (sit->params.size() > 1 + ex && !sit->params[1 + ex].compare(0, 1, "&")) {
-			fieldName.set_from_arg(sit->params[1 + ex].substr(1));
-			std::string fn = fieldName.c_str();
-			if (!ctx.codeGen->GetVar(fn))
-				ctx.errors.push_back("Input: field_name variable '" + fn + "' doesn't exist");
+		if (sit->params.size() > 1 + i)
+		{
+			std::string expr = sit->params[1 + i];
+			if (!expr.compare(0, 1, "&")) {
+				type = "std::string";
+				fieldName.set_from_arg(sit->params[1 + i].substr(1));
+			}
+			else if (!expr.compare(expr.size() - 9, 9, ".InputBuf")) {
+				type = "ImGuiTextFilter";
+				fieldName.set_from_arg(expr.substr(0, expr.size() - 9));
+				++i;
+			}
+			if (!ctx.codeGen->GetVar(fieldName.value()))
+				ctx.errors.push_back("Input: field_name variable '" + fieldName.value() + "' doesn't exist");
 		}
 
-		if (sit->params.size() > 2 + ex)
-			flags.set_from_arg(sit->params[2 + ex]);
+		if (sit->params.size() > 2 + i)
+			flags.set_from_arg(sit->params[2 + i]);
 
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee);
+		else if (sit->kind == cpp::IfCallBlock)
+			ctx.importLevel = sit->level;
+	}
+	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1)
+	{
+		if (sit->callee != fieldName.value() + ".Build") {
+			onChange.set_from_arg(sit->callee);
+			ctx.importLevel = -1;
+		}
 	}
 	else if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 12, "ImGui::Input")) ||
 			(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 12, "ImGui::Input")))
@@ -3894,7 +3939,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee);
 	}
-	else if (sit->kind == cpp::CallExpr && 
+	else if (sit->kind == cpp::CallExpr && //for compatibility only
 		(!sit->callee.compare(sit->callee.size() - 5, 5, ".Draw") ||
 		!sit->callee.compare(sit->callee.size() - 13, 13, ".DrawWithHint")))
 	{
