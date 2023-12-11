@@ -2180,8 +2180,10 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		if (ImGui::InputInt("##nextColumn", nextColumn.access())) {
 			changed = true;
-			if (nextColumn)
+			if (nextColumn) {
 				sameLine = false;
+				spacing = 0;
+			}
 		}
 		ImGui::EndDisabled();
 		break;
@@ -2399,7 +2401,7 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 		cached_size.x += 2 * sp;
 	}
 	else {
-		cached_pos.x -= ImGui::GetStyle().ItemSpacing.x;
+		//cached_pos.x -= ImGui::GetStyle().ItemSpacing.x;
 		cached_pos.y -= sp;
 		cached_size.y += 2 * sp;
 	}
