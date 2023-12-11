@@ -164,6 +164,7 @@ struct Widget : UINode
 struct Separator : Widget
 {
 	bindable<std::string> label;
+	direct_val<bool> style_outer_padding = true;
 
 	Separator(UIContext&);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

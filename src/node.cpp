@@ -2370,10 +2370,24 @@ std::unique_ptr<Widget> Separator::Clone(UIContext& ctx)
 
 void Separator::DoDraw(UIContext& ctx)
 {
+	ImVec2 wr2;
+	if (!style_outer_padding && !sameLine) {
+		ImRect r2 = ImGui::GetCurrentWindow()->InnerRect;
+		ImGui::PushClipRect(r2.Min, r2.Max, false);
+		ImGui::SetCursorScreenPos({ r2.Min.x, ImGui::GetCursorScreenPos().y });
+		wr2 = ImGui::GetCurrentWindow()->WorkRect.Max;
+		ImGui::GetCurrentWindow()->WorkRect.Max.x = r2.Max.x;
+	}
+
 	if (!label.empty())
 		ImGui::SeparatorText(label.c_str());
 	else
 		ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
+
+	if (!style_outer_padding && !sameLine) {
+		ImGui::PopClipRect();
+		ImGui::GetCurrentWindow()->WorkRect.Max = wr2;
+	}
 }
 
 void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -2393,13 +2407,33 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Separator::DoExport(std::ostream& os, UIContext& ctx)
 {
-	if (label.empty()) {
+	std::string r, wr;
+	if (!style_outer_padding && !sameLine) 
+	{
+		r = "r" + std::to_string(ctx.varCounter);
+		wr = "w" + r;
+		++ctx.varCounter;
+		os << ctx.ind << "ImRect " << r << " = ImGui::GetCurrentWindow()->InnerRect;\n";
+		os << ctx.ind << "ImGui::PushClipRect(" << r << ".Min, " << r << ".Max, false);\n";
+		os << ctx.ind << "ImGui::SetCursorScreenPos({ " << r << ".Min.x, ImGui::GetCursorScreenPos().y });\n";
+		os << ctx.ind << "ImVec2 " << wr << " = ImGui::GetCurrentWindow()->WorkRect.Max;\n";
+		os << ctx.ind << "ImGui::GetCurrentWindow()->WorkRect.Max.x = " << r << ".Max.x;\n";
+	}
+
+	if (label.empty()) 
+	{
 		os << ctx.ind << "ImGui::SeparatorEx("
 			<< (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal")
 			<< ");\n";
 	}
 	else {
 		os << ctx.ind << "ImGui::SeparatorText(" << label.to_arg() << ");\n";
+	}
+
+	if (!style_outer_padding && !sameLine)
+	{
+		os << ctx.ind << "ImGui::PopClipRect();\n";
+		os << ctx.ind << "ImGui::GetCurrentWindow()->WorkRect.Max = " << wr << ";\n";
 	}
 }
 
@@ -2410,6 +2444,10 @@ void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size())
 			label.set_from_arg(sit->params[0]);
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushClipRect")
+	{
+		style_outer_padding = false;
+	}
 }
 
 std::vector<UINode::Prop>
@@ -2417,6 +2455,7 @@ Separator::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.outer_padding", &style_outer_padding },
 		{ "label", &label, true }
 		});
 	return props;
@@ -2428,6 +2467,12 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("outerPadding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##op", &style_outer_padding, ctx);
+		break;
+	case 1:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2436,7 +2481,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 1, ctx);
+		return Widget::PropertyUI(i - 2, ctx);
 	}
 	return changed;
 }
@@ -2635,7 +2680,11 @@ void Selectable::DoDraw(UIContext& ctx)
 void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	cached_size = ImGui::GetItemRectSize();
-	cached_size.x -= ImGui::GetStyle().ItemSpacing.x;
+	
+	if (!(flags & ImGuiSelectableFlags_NoPadWithHalfSpacing)) {
+		cached_size.x -= ImGui::GetStyle().ItemSpacing.x;
+		cached_size.y -= ImGui::GetStyle().ItemSpacing.y;
+	}
 }
 
 void Selectable::DoExport(std::ostream& os, UIContext& ctx)
