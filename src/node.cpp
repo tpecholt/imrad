@@ -655,6 +655,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
 	}
+	else if (kind == Activity)
+	{
+		os << ctx.ind << "if (ioUserData->activeActivity != \"" << ctx.codeGen->GetName() << "\")\n";
+		ctx.ind_up();
+		os << ctx.ind << "return;\n";
+		ctx.ind_down();
+	}
 
 	if (style_font != "")
 	{

@@ -92,6 +92,7 @@ struct IOUserData
 	ImVec2 displayRectMinOffset;
 	ImVec2 displayRectMaxOffset;
 	int imeType = ImeText;
+	std::string activeActivity;
 };
 
 struct Animator 

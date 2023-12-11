@@ -202,6 +202,7 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				}
 				else if (kind == TopWindow::Activity)
 				{
+					out << INDENT << "void Open();\n\n";
 					out << INDENT << "void Draw();\n\n";
 				}
 				else
@@ -253,7 +254,8 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				out << "\n";
 
 				//write special fields
-				if (kind == TopWindow::Popup || kind == TopWindow::ModalPopup)
+				if (kind == TopWindow::Popup || kind == TopWindow::ModalPopup ||
+					kind == TopWindow::Activity)
 				{
 					out << INDENT << "void Init();\n\n";
 				}
@@ -587,6 +589,18 @@ bool CppGen::WriteStub(
 		fout << "}";
 		return true;
 	}
+	else if (id == "Open" && kind == TopWindow::Activity)
+	{
+		fout << "::Open()\n{\n";
+		fout << INDENT << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
+		fout << INDENT << "if (ioUserData->activeActivity != \"" << m_name << "\")\n";
+		fout << INDENT << "{\n";
+		fout << INDENT << INDENT << "ioUserData->activeActivity = \"" << m_name << "\";\n";
+		fout << INDENT << INDENT << "Init();\n";
+		fout << INDENT << "}\n";
+		fout << "}";
+		return true;
+	}
 	else if (id == "Close" && kind == TopWindow::Window)
 	{
 		fout << "::Close()\n{\n";
@@ -594,7 +608,8 @@ bool CppGen::WriteStub(
 		fout << "}";
 		return true;
 	}
-	else if (id == "Init" && (kind == TopWindow::ModalPopup || kind == TopWindow::Popup))
+	else if (id == "Init" && 
+		(kind == TopWindow::ModalPopup || kind == TopWindow::Popup || kind == TopWindow::Activity))
 	{
 		fout << "::Init()\n{\n";
 		fout << INDENT << "// TODO: Add your code here\n";
