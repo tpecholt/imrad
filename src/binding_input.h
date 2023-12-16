@@ -502,6 +502,7 @@ inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 		}
 		if (ImGui::Selectable("New Method..."))
 		{
+			changed = true;
 			newFieldPopup.varType = type;
 			newFieldPopup.codeGen = ctx.codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewEvent;

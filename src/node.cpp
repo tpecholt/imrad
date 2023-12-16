@@ -140,6 +140,14 @@ void UINode::CloneChildrenFrom(const UINode& node, UIContext& ctx)
 		children[i] = node.children[i]->Clone(ctx);
 }
 
+void UINode::DrawInteriorRect(UIContext& ctx)
+{
+	size_t level = ctx.parents.size() - 1;
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	int snapCount = UIContext::Color::COUNT - UIContext::Color::Snap1;
+	dl->AddRect(cached_pos, cached_pos + cached_size, ctx.colors[UIContext::Snap1 + level % snapCount], 0, 0, 3);
+}
+
 void UINode::DrawSnap(UIContext& ctx)
 {
 	ctx.snapSameLine = false;
@@ -156,7 +164,6 @@ void UINode::DrawSnap(UIContext& ctx)
 	ImVec2 d1 = m - cached_pos;
 	ImVec2 d2 = cached_pos + cached_size - m;
 	float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
-	int snapCount = UIContext::Color::COUNT - UIContext::Color::Snap1;
 
 	//snap interior (first child)
 	if ((snapOp & SnapInterior) && 
@@ -165,8 +172,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	{
 		ctx.snapParent = this;
 		ctx.snapIndex = children.size();
-		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size, ctx.colors[UIContext::Snap1 + level % snapCount], 0, 0, 3);
+		DrawInteriorRect(ctx);
 		return;
 	}
 
@@ -585,10 +591,21 @@ void TopWindow::Draw(UIContext& ctx)
 			ctx.mode = UIContext::NormalSelection; //todo
 		}
 	}
+	if (allowed && ctx.mode == UIContext::PickPoint &&
+		!ctx.snapParent &&
+		ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows))
+	{
+		ctx.snapParent = this;
+		ctx.snapIndex = children.size();
+	}
 	
 	if (ctx.mode == UIContext::Snap && !ctx.snapParent && ImGui::IsWindowHovered())
 	{
 		DrawSnap(ctx);
+	}
+	if (ctx.mode == UIContext::PickPoint && ctx.snapParent == this)
+	{
+		DrawInteriorRect(ctx);
 	}
 	if (ctx.mode == UIContext::RectSelection)
 	{
@@ -1525,6 +1542,17 @@ void Widget::Draw(UIContext& ctx)
 			ctx.dragged = this;
 		}
 	}
+
+	if (allowed && hovered && 
+		(SnapBehavior() & SnapInterior) &&
+		ctx.mode == UIContext::PickPoint)
+	{
+		if (ctx.hovered == lastHovered) //e.g. child widget was not selected
+		{
+			ctx.snapParent = this;
+			ctx.snapIndex = children.size();
+		}
+	}
 	
 	if (ctx.mode == UIContext::ItemDragging && ctx.dragged == this)
 	{
@@ -1582,6 +1610,11 @@ void Widget::Draw(UIContext& ctx)
 	{
 		DrawSnap(ctx);
 	}
+	if (ctx.mode == UIContext::PickPoint && ctx.snapParent == this)
+	{
+		DrawInteriorRect(ctx);
+	}
+
 	
 	ctx.parents.pop_back();
 	ImGui::PopID();
@@ -1615,7 +1648,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (hasPos)
 	{
-		os << ctx.ind << "ImGui::SetCursorPos({ ";
+		os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
 		if (pos_x < 0)
 			os << "ImGui::GetCurrentWindow()->InnerRect.Max.x " << pos_x.to_arg(ctx.unit);
 		else
@@ -1869,7 +1902,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				nextColumn.set_from_arg(sit->params[0]);
 		}
-		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetCursorPos")
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetCursorScreenPos")
 		{
 			if (sit->params.size()) {
 				hasPos = true;
@@ -2377,6 +2410,11 @@ std::unique_ptr<Widget> Separator::Clone(UIContext& ctx)
 	return std::unique_ptr<Widget>(new Separator(*this)); 
 }
 
+void Separator::ScaleDimensions(float scale)
+{
+	style_thickness.scale_dimension(scale);
+}
+
 void Separator::DoDraw(UIContext& ctx)
 {
 	ImVec2 wr2;
@@ -2390,7 +2428,9 @@ void Separator::DoDraw(UIContext& ctx)
 
 	if (!label.empty())
 		ImGui::SeparatorText(label.c_str());
-	else
+	else if (style_thickness.has_value())
+		ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal, style_thickness);
+	else 
 		ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
 
 	if (!style_outer_padding && !sameLine) {
@@ -2432,11 +2472,16 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
 	if (label.empty()) 
 	{
 		os << ctx.ind << "ImGui::SeparatorEx("
-			<< (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal")
-			<< ");\n";
+			<< (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal");
+		if (style_thickness.has_value())
+			os << ", " << style_thickness.to_arg(ctx.unit);
+		os << ");\n";
 	}
 	else {
-		os << ctx.ind << "ImGui::SeparatorText(" << label.to_arg() << ");\n";
+		os << ctx.ind << "ImGui::SeparatorText(" << label.to_arg();
+		if (style_thickness.has_value())
+			os << ", " << style_thickness.to_arg(ctx.unit);
+		os << ");\n";
 	}
 
 	if (!style_outer_padding && !sameLine)
@@ -2453,6 +2498,11 @@ void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size())
 			label.set_from_arg(sit->params[0]);
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SeparatorEx")
+	{
+		if (sit->params.size() >= 2)
+			style_thickness.set_from_arg(sit->params[1]);
+	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushClipRect")
 	{
 		style_outer_padding = false;
@@ -2464,6 +2514,7 @@ Separator::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.thickness", &style_thickness },
 		{ "@style.outer_padding", &style_outer_padding },
 		{ "label", &label, true }
 		});
@@ -2476,12 +2527,18 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("thickness");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##th", &style_thickness, ctx);
+		break;
+	case 1:
 		ImGui::Text("outerPadding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##op", &style_outer_padding, ctx);
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2490,7 +2547,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 2, ctx);
+		return Widget::PropertyUI(i - 3, ctx);
 	}
 	return changed;
 }
@@ -5470,6 +5527,8 @@ std::unique_ptr<Widget> Table::Clone(UIContext& ctx)
 
 void Table::DoDraw(UIContext& ctx)
 {
+	bool childPos = stx::count_if(children, [](const auto& ch) { return ch->hasPos; });
+
 	if (style_cellPadding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, style_cellPadding.eval_px(ctx));
 	if (!style_headerBg.empty())
@@ -5485,7 +5544,8 @@ void Table::DoDraw(UIContext& ctx)
 	int fl = flags;
 	if (stx::count(ctx.selected, this)) //force columns at design time
 		fl |= ImGuiTableFlags_BordersInner;
-	if (ImGui::BeginTable(("table" + std::to_string((uint64_t)this)).c_str(), n, fl, size))
+	std::string name = "table" + std::to_string((uint64_t)this);
+	if (ImGui::BeginTable(name.c_str(), n, fl, size))
 	{
 		for (size_t i = 0; i < (int)columnData.size(); ++i)
 			ImGui::TableSetupColumn(columnData[i].label.c_str(), columnData[i].flags, columnData[i].width);
@@ -5496,11 +5556,22 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::TableSetColumnIndex(0);
 		
 		for (int i = 0; i < (int)children.size(); ++i)
-			children[i]->Draw(ctx);
+			if (!children[i]->hasPos)
+				children[i]->Draw(ctx);
 		
 		int n = rowCount.limit.value();
 		for (int r = ImGui::TableGetRowIndex() + 1; r < header + n; ++r)
 			ImGui::TableNextRow(0, rh);
+
+		if (childPos)
+		{
+			ImGuiWindow* inner = ImGui::GetCurrentWindow(); // ImGui::GetCurrentTable()->InnerWindow;
+			ImGui::PushClipRect(inner->InnerRect.Min, inner->InnerClipRect.Max, false);
+			for (int i = 0; i < (int)children.size(); ++i)
+				if (children[i]->hasPos)
+					children[i]->Draw(ctx);
+			ImGui::PopClipRect();
+		}
 
 		ImGui::EndTable();
 	}
@@ -5680,6 +5751,8 @@ bool Table::EventUI(int i, UIContext& ctx)
 
 void Table::DoExport(std::ostream& os, UIContext& ctx)
 {
+	bool childPos = stx::count_if(children, [](const auto& ch) { return ch->hasPos; });
+
 	if (style_cellPadding.has_value())
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, "
@@ -5694,8 +5767,6 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		<< "))\n"
 		<< ctx.ind << "{\n";
 	ctx.ind_up();
-
-	++ctx.varCounter;
 
 	for (const auto& cd : columnData)
 	{
@@ -5742,7 +5813,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "/// @separator\n\n";
 
 	for (auto& child : children)
-		child->Export(os, ctx);
+		if (!child->hasPos)
+			child->Export(os, ctx);
 
 	os << "\n" << ctx.ind << "/// @separator\n";
 	
@@ -5754,13 +5826,30 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
+
+	if (childPos)
+	{
+		//draw overlay children at the end so they are visible,
+		//inside table's child because ItemOverlap works only between items in same window
+		os << "\n" << ctx.ind << "ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false);\n";
+		os << ctx.ind << "/// @separator\n\n";
+
+		for (auto& child : children)
+			if (child->hasPos)
+				child->Export(os, ctx);
 	
+		os << ctx.ind << "/// @separator\n";
+		os << ctx.ind << "ImGui::PopClipRect();\n";
+	}
+
 	os << ctx.ind << "ImGui::EndTable();\n";
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
 	if (style_cellPadding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
+
+	++ctx.varCounter;
 }
 
 void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)

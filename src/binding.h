@@ -20,7 +20,7 @@ struct dimension
 	operator const float& () const { return value; }
 };
 
-//positive or zero dimension (so that neg values represent like empty value)
+//positive or zero dimension (so that neg values represent empty value)
 struct pzdimension
 {
 	float value;

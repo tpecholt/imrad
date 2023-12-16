@@ -105,7 +105,6 @@ struct Animator
 	void Start(AnimType t) {
 		type = t;
 		time = 0;
-		autoSize = { 1, 1 };
 	}
 	float GetDuration() const {
 		return 0.2f; //s
@@ -147,8 +146,8 @@ struct Animator
 	}
 	
 	AnimType type;
-	float time;
-	ImVec2 autoSize;
+	float time = 999;
+	ImVec2 autoSize{ 0, 0 };
 };
 
 //------------------------------------------------------------------------

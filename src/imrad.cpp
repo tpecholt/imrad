@@ -481,7 +481,8 @@ void ShowCode()
 
 void NewWidget(const std::string& name)
 {
-	if (name == "") {
+	if (name == "") 
+	{
 		activeButton = "";
 		ctx.selected.clear();
 		ctx.mode = UIContext::NormalSelection;
@@ -1507,23 +1508,23 @@ void Work()
 		{
 			ctx.mode = UIContext::Snap;
 		}
-		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) 
+		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && 
+			ctx.snapParent) 
 		{
 			assert(activeButton != "");
-			auto* top = fileTabs[activeTab].rootNode.get();
 			newNode->hasPos = true;
-			ImVec2 pos = ImGui::GetMousePos() - ctx.rootWin->InnerRect.Min;
-			if (pos.x < top->cached_size.x / 2)
+			ImVec2 pos = ImGui::GetMousePos() - ctx.snapParent->cached_pos; //win->InnerRect.Min;
+			if (pos.x < ctx.snapParent->cached_size.x / 2)
 				newNode->pos_x = pos.x;
 			else
-				newNode->pos_x = pos.x - top->cached_size.x;
-			if (pos.y < top->cached_size.y / 2)
+				newNode->pos_x = pos.x - ctx.snapParent->cached_size.x;
+			if (pos.y < ctx.snapParent->cached_size.y / 2)
 				newNode->pos_y = pos.y;
 			else
-				newNode->pos_y = pos.y - top->cached_size.y;
+				newNode->pos_y = pos.y - ctx.snapParent->cached_size.y;
 
 			ctx.selected = { newNode.get() };
-			top->children.push_back(std::move(newNode));
+			ctx.snapParent->children.push_back(std::move(newNode));
 			ctx.mode = UIContext::NormalSelection;
 			activeButton = "";
 			fileTabs[activeTab].modified = true;
@@ -1632,6 +1633,7 @@ void Work()
 		{
 			activeButton = "";
 			ctx.mode = UIContext::Snap;
+			ctx.selected = {};
 		}
 	}
 }

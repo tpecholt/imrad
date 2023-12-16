@@ -95,6 +95,7 @@ struct UINode
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
 	virtual int SnapBehavior() = 0;
 
+	void DrawInteriorRect(UIContext& ctx);
 	void DrawSnap(UIContext& ctx);
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
 	void ScaleDimensions(float scale);
@@ -164,6 +165,7 @@ struct Widget : UINode
 struct Separator : Widget
 {
 	bindable<std::string> label;
+	direct_val<pzdimension> style_thickness;
 	direct_val<bool> style_outer_padding = true;
 
 	Separator(UIContext&);
@@ -175,6 +177,7 @@ struct Separator : Widget
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_WINDOW_MINIMIZE; }// "-- "; }
+	void ScaleDimensions(float scale);
 };
 
 struct Text : Widget
