@@ -1650,12 +1650,12 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
 		if (pos_x < 0)
-			os << "ImGui::GetCurrentWindow()->InnerRect.Max.x " << pos_x.to_arg(ctx.unit);
+			os << "ImGui::GetCurrentWindow()->InnerRect.Max.x" << pos_x.to_arg(ctx.unit);
 		else
 			os << pos_x.to_arg(ctx.unit);
 		os << ", ";
 		if (pos_y < 0)
-			os << "ImGui::GetCurrentWindow()->InnerRect.Max.y " << pos_y.to_arg(ctx.unit);
+			os << "ImGui::GetCurrentWindow()->InnerRect.Max.y" << pos_y.to_arg(ctx.unit);
 		else
 			os << pos_y.to_arg(ctx.unit);
 		os << " });\n";
@@ -5599,8 +5599,9 @@ Table::Properties()
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
 		{ "table.rowCount", &rowCount },
-		{ "table.row_height", &rowHeight },
-		{ "table.row_filter", &rowFilter },
+		{ "table.rowHeight", &rowHeight },
+		{ "table.rowFilter", &rowFilter },
+		{ "table.scrollWhenDragging", &scrollWhenDragging },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -5654,17 +5655,6 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 			tableColumns.target = &columnData;
 			tableColumns.OpenPopup();
 		}
-		/*auto tmp = std::to_string(columnData.size());
-		ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
-		ImGui::InputText("##columns", &tmp, ImGuiInputTextFlags_ReadOnly);
-		ImGui::SameLine(0, 0);
-		if (ImGui::Button("..."))
-		{
-			changed = true;
-			tableColumns.columnData = columnData;
-			tableColumns.target = &columnData;
-			tableColumns.OpenPopup();
-		}*/
 		break;
 	}
 	case 6:
@@ -5694,6 +5684,12 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 10:
+		ImGui::Text("scrollWhenDragging");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##swd", &scrollWhenDragging, ctx);
+		break;
+	case 11:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5701,7 +5697,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5710,7 +5706,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 12, ctx);
+		return Widget::PropertyUI(i - 13, ctx);
 	}
 	return changed;
 }
@@ -5758,6 +5754,10 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, "
 			<< style_cellPadding.to_arg(ctx.unit) << ");\n";
 	}
+	if (scrollWhenDragging)
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, ImGui::IsMouseDragging(ImGuiMouseButton_Left) ? ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab) : ImVec4{});\n";
+	}
 
 	os << ctx.ind << "if (ImGui::BeginTable("
 		<< "\"table" << ctx.varCounter << "\", " 
@@ -5767,6 +5767,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		<< "))\n"
 		<< ctx.ind << "{\n";
 	ctx.ind_up();
+
+	if (scrollWhenDragging)
+		os << ctx.ind << "ImRad::ScrollWhenDragging();\n";
 
 	for (const auto& cd : columnData)
 	{
@@ -5831,7 +5834,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		//draw overlay children at the end so they are visible,
 		//inside table's child because ItemOverlap works only between items in same window
-		os << "\n" << ctx.ind << "ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false);\n";
+		os << ctx.ind << "ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false);\n";
 		os << ctx.ind << "/// @separator\n\n";
 
 		for (auto& child : children)
@@ -5846,6 +5849,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
+	if (scrollWhenDragging)
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (style_cellPadding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 
@@ -5881,6 +5886,10 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			size_x.set_from_arg(size.first);
 			size_y.set_from_arg(size.second);
 		}
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::ScrollWhenDragging")
+	{
+		scrollWhenDragging = true;
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableSetupColumn")
 	{

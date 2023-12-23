@@ -239,6 +239,29 @@ inline void NextColumn(int n)
 		ImGui::NextColumn();
 }
 
+inline void ScrollWhenDragging()
+{
+	static int dragState = 0;
+	if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+	{
+		dragState = 1;
+		ImGui::GetCurrentContext()->NavDisableMouseHover = true;
+		ImGuiWindow* window = ImGui::GetCurrentWindow();
+		ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+		if (delta.x)
+			ImGui::SetScrollX(window, window->Scroll.x - delta.x);
+		if (delta.y)
+			ImGui::SetScrollY(window, window->Scroll.y - delta.y);
+		ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+	}
+	if (dragState == 1 && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+	{
+		dragState = 0;
+		ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+		ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
+	}
+}
+
 inline std::string Format(std::string_view fmt)
 {
 	return std::string(fmt);

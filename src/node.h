@@ -451,6 +451,7 @@ struct Table : Widget
 	data_loop rowCount;
 	bindable<bool> rowFilter;
 	bindable<dimension> rowHeight = 0;
+	direct_val<bool> scrollWhenDragging = false;
 	direct_val<pzdimension2> style_cellPadding;
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
