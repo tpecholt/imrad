@@ -1726,6 +1726,11 @@ int main(int argc, const char* argv[])
 	window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
 	if (window == NULL)
 		return 1;
+	GLFWimage icons[2];
+	icons[0].pixels = stbi_load("icon-40.png", &icons[0].width, &icons[0].height, 0, 4);
+	icons[1].pixels = stbi_load("icon-100.png", &icons[1].width, &icons[1].height, 0, 4);
+	if (icons[0].pixels && icons[1].pixels)
+		glfwSetWindowIcon(window, 2, icons);
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 	glfwMaximizeWindow(window);

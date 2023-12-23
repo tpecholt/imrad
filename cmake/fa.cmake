@@ -9,4 +9,7 @@ INTERFACE
 install(FILES 
 	"${FA_INCLUDE_DIR}/fa-solid-900.ttf"
 	"${FA_INCLUDE_DIR}/fa-regular-400.ttf"
+	"${FA_INCLUDE_DIR}/MaterialIcons-Regular.ttf"
+	"${FA_INCLUDE_DIR}/Roboto-Medium.ttf"
+	"${FA_INCLUDE_DIR}/Roboto-Regular.ttf"
 	DESTINATION "style/")

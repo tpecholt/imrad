@@ -30,6 +30,3 @@ set_target_properties(imgui PROPERTIES LINKER_LANGUAGE CXX)
 #	"${IMGUI_INCLUDE_DIR}/misc/fonts/Roboto-Medium.ttf"
 #	"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/style/"
 #)
-install(FILES 
-	"${IMGUI_INCLUDE_DIR}/misc/fonts/Roboto-Medium.ttf" 
-	DESTINATION "style/")
