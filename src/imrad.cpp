@@ -877,6 +877,18 @@ void DockspaceUI()
 		ImGui::DockBuilderFinish(dockspace_id);
 	}
 
+	if (fileTabs.empty())
+	{
+		const char* label = "Start by clicking the New File button...";
+		ImVec2 size = ImGui::CalcTextSize(label);
+		ImGui::SetCursorPos({ (viewport->WorkSize.x - size.x) / 2, (viewport->WorkSize.y - size.y) / 2 });
+		ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+		clr.w = 0.7f;
+		ImGui::PushStyleColor(ImGuiCol_Text, clr);
+		ImGui::TextUnformatted(label);
+		ImGui::PopStyleColor();
+	}
+
 	ImGui::End();
 }
 
