@@ -9,59 +9,58 @@ AboutDlg aboutDlg;
 void AboutDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
-    requestClose = false;
-    ImGui::OpenPopup(ID); // must be called here from current Begin-stack
-
-    // Add your init code here
+    modalResult = ImRad::None;
+    animator.Start(ImRad::Animator::OpenPopup);
+    ImGui::OpenPopup(ID);
+    Init();
 }
 
-void AboutDlg::ClosePopup()
+void AboutDlg::ClosePopup(ImRad::ModalResult mr)
 {
-    requestClose = true; // CloseCurrentPopup must be called later from our Begin-stack
+    modalResult = mr;
+    animator.Start(ImRad::Animator::ClosePopup);
 }
 
 void AboutDlg::Draw()
 {
+    /// @style Dark
+    /// @unit px
     /// @begin TopWindow
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ID = ImGui::GetID("About");
+    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
+    ID = ImGui::GetID("###AboutDlg");
+    ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 7 });
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, { 0.5f, 0.5f }); //Center
+    ImGui::SetNextWindowSize({ 0, 0 });
     bool tmpOpen = true;
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 7 });
-	if (ImGui::BeginPopupModal("About", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("About###AboutDlg", &tmpOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
     {
-        if (requestClose) ImGui::CloseCurrentPopup();
+        if (modalResult != ImRad::None)
+        {
+            ImGui::CloseCurrentPopup();
+            if (modalResult != ImRad::Cancel) callback(modalResult);
+        }
         /// @separator
 
-		/// @begin Child
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive]);
-		ImGui::BeginChild("child", { -1, 50 });
-		{
-			/// @begin Text
-			ImGui::Indent(1 * ImGui::GetStyle().ItemSpacing.x);
-			ImGui::Spacing();
-			ImGui::PushFont(ImRad::GetFontByName("imrad.H1"));
-			ImGui::TextUnformatted(VER_STR.c_str());
-			ImGui::PopFont();
-			/// @end Text
-
-			/// @separator
-			ImGui::EndChild();
-		}
-		ImGui::PopStyleColor();
-		/// @end Child
+        // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Text
-		ImGui::Indent(1 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Spacing();
-		ImGui::TextUnformatted("visit");
+        ImRad::Spacing(1);
+        ImGui::Indent(1 * ImGui::GetStyle().IndentSpacing / 2);
+        ImGui::PushFont(ImRad::GetFontByName("imrad.H1"));
+        ImGui::TextUnformatted(ImRad::Format("{}", VER_STR).c_str());
+        ImGui::PopFont();
         /// @end Text
 
         /// @begin Text
-        ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushStyleColor(ImGuiCol_Text, 0xffff9018);
-		ImGui::TextUnformatted(GITHUB_URL.c_str());
+        ImGui::TextUnformatted(ImRad::Format("build with ImGui {}", IMGUI_VERSION).c_str());
+        /// @end Text
+
+        /// @begin Text
+        ImRad::Spacing(2);
+        ImGui::PushStyleColor(ImGuiCol_Text, 0xffff6633);
+        ImGui::TextUnformatted(ImRad::Format("{}", GITHUB_URL).c_str());
         ImGui::PopStyleColor();
         if (ImGui::IsItemHovered())
             ImGui::SetMouseCursor(7);
@@ -69,19 +68,9 @@ void AboutDlg::Draw()
             OpenURL();
         /// @end Text
 
-		/// @begin Child
-		ImGui::SameLine();
-		ImGui::BeginChild("child1725042201601", { ImGui::GetStyle().ItemSpacing.x, 10 }, false);
-		{
-			/// @separator
-
-			/// @separator
-			ImGui::EndChild();
-		}
-		/// @end Child
-
         /// @begin Child
-        ImGui::BeginChild("child1725042201600", { -100, 10 }, false);
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::BeginChild("child1", { ImGui::GetStyle().ItemSpacing.x, 10 }, ImGuiChildFlags_None, ImGuiWindowFlags_NoSavedSettings);
         {
             /// @separator
 
@@ -90,30 +79,47 @@ void AboutDlg::Draw()
         }
         /// @end Child
 
-        /// @begin Button
-		ImGui::SetCursorPosX(10 + (ImGui::GetContentRegionAvail().x - 120) / 2);
-        if (ImGui::Button("OK", { 120, 35 }) ||
-			ImGui::IsKeyPressed(ImGuiKey_Escape))
+        /// @begin Child
+        ImGui::BeginChild("child2", { -100, 10 }, ImGuiChildFlags_None, ImGuiWindowFlags_NoSavedSettings);
         {
-            ClosePopup();
-            callback(ImRad::Ok);
+            /// @separator
+
+            /// @separator
+            ImGui::EndChild();
         }
-        /// @end Button
+        /// @end Child
 
-		/// @begin Child
-		ImGui::BeginChild("child1725042201609", { 10, ImGui::GetStyle().ItemSpacing.y }, false);
-		{
-			/// @separator
+        /// @begin Table
+        if (ImGui::BeginTable("table3", 3, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { 0, 0 }))
+        {
+            ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
+            ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);
+            ImGui::TableSetupColumn("right-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
+            ImGui::TableNextRow(0, 0);
+            ImGui::TableSetColumnIndex(0);
+            /// @separator
 
-			/// @separator
-			ImGui::EndChild();
-		}
-		/// @end Child
+            /// @begin Button
+            ImRad::TableNextColumn(1);
+            if (ImGui::Button("OK", { 100, 32 }) ||
+                (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
+            {
+                ClosePopup(ImRad::Ok);
+            }
+            /// @end Button
+
+
+            /// @separator
+            ImGui::EndTable();
+        }
+        /// @end Table
 
         /// @separator
         ImGui::EndPopup();
     }
-	ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
     /// @end TopWindow
 }
 
@@ -121,4 +127,9 @@ void AboutDlg::Draw()
 void AboutDlg::OpenURL()
 {
 	ShellExec(GITHUB_URL);
+}
+
+void AboutDlg::Init()
+{
+    // TODO: Add your code here
 }

@@ -10,20 +10,24 @@
 class AboutDlg
 {
 public:
-    /// @interface
+    /// @begin interface
     void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});
-    void ClosePopup();
+    void ClosePopup(ImRad::ModalResult mr);
     void Draw();
 
+    void OpenURL();
+    /// @end interface
 
 private:
-    /// @impl
-    void OpenURL();
+    /// @begin impl
+    void Init();
 
-    ImGuiID ID;
-    bool requestClose = false;
+    ImGuiID ID = 0;
+    ImRad::ModalResult modalResult;
+    ImRad::Animator animator;
     std::function<void(ImRad::ModalResult)> callback;
 
+    /// @end impl
 };
 
 extern AboutDlg aboutDlg;
