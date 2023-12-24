@@ -239,27 +239,49 @@ inline void NextColumn(int n)
 		ImGui::NextColumn();
 }
 
-inline void ScrollWhenDragging()
+inline bool ScrollWhenDragging(bool drawScrollbars)
 {
 	static int dragState = 0;
+
+	if (!ImGui::IsWindowFocused())
+		return false;
+
 	if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
 		dragState = 1;
+		ImGuiWindow *window = ImGui::GetCurrentWindow();
 		ImGui::GetCurrentContext()->NavDisableMouseHover = true;
-		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
 		if (delta.x)
 			ImGui::SetScrollX(window, window->Scroll.x - delta.x);
 		if (delta.y)
 			ImGui::SetScrollY(window, window->Scroll.y - delta.y);
 		ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+
+		//scrollbars were made invisible, draw them again
+		if (drawScrollbars)
+		{
+			bool tmp = window->SkipItems;
+			window->SkipItems = false;
+			ImGui::PushClipRect(window->Rect().Min, window->Rect().Max, false);
+			if (window->ScrollbarX)
+				ImGui::Scrollbar(ImGuiAxis_X);
+			if (window->ScrollbarY)
+				ImGui::Scrollbar(ImGuiAxis_Y);
+			ImGui::PopClipRect();
+			window->SkipItems = tmp;
+		}
+		return true;
 	}
-	if (dragState == 1 && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+
+	if (dragState == 1)
 	{
 		dragState = 0;
 		ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 		ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
 	}
+
+	return false;
 }
 
 inline std::string Format(std::string_view fmt)

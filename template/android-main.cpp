@@ -14,6 +14,7 @@
 static EGLDisplay           g_EglDisplay = EGL_NO_DISPLAY;
 static EGLSurface           g_EglSurface = EGL_NO_SURFACE;
 static EGLContext           g_EglContext = EGL_NO_CONTEXT;
+static EGLConfig            g_EglConfig;
 static struct android_app*  g_App = nullptr;
 static bool                 g_Initialized = false;
 static char                 g_LogTag[] = "ImGuiExample";
@@ -138,108 +139,150 @@ void android_main(struct android_app* app)
 
 void Init(struct android_app* app)
 {
-    if (g_Initialized)
-        return;
-
     g_App = app;
     ANativeWindow_acquire(g_App->window);
 
     // Initialize EGL
     // This is mostly boilerplate code for EGL...
+    if (g_EglDisplay == EGL_NO_DISPLAY)
     {
         g_EglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
         if (g_EglDisplay == EGL_NO_DISPLAY)
-            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
 
         if (eglInitialize(g_EglDisplay, 0, 0) != EGL_TRUE)
-            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "eglInitialize() returned with an error");
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "eglInitialize() returned with an error");
 
-        const EGLint egl_attributes[] = { EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 24, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE };
+        const EGLint egl_attributes[] = {EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8,
+                                         EGL_DEPTH_SIZE, 24, EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                                         EGL_NONE};
         EGLint num_configs = 0;
         if (eglChooseConfig(g_EglDisplay, egl_attributes, nullptr, 0, &num_configs) != EGL_TRUE)
-            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "eglChooseConfig() returned with an error");
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "eglChooseConfig() returned with an error");
         if (num_configs == 0)
-            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "eglChooseConfig() returned 0 matching config");
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "eglChooseConfig() returned 0 matching config");
 
         // Get the first matching config
-        EGLConfig egl_config;
-        eglChooseConfig(g_EglDisplay, egl_attributes, &egl_config, 1, &num_configs);
+        eglChooseConfig(g_EglDisplay, egl_attributes, &g_EglConfig, 1, &num_configs);
         EGLint egl_format;
-        eglGetConfigAttrib(g_EglDisplay, egl_config, EGL_NATIVE_VISUAL_ID, &egl_format);
+        eglGetConfigAttrib(g_EglDisplay, g_EglConfig, EGL_NATIVE_VISUAL_ID, &egl_format);
         ANativeWindow_setBuffersGeometry(g_App->window, 0, 0, egl_format);
-
-        const EGLint egl_context_attributes[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
-        g_EglContext = eglCreateContext(g_EglDisplay, egl_config, EGL_NO_CONTEXT, egl_context_attributes);
+    }
+    if (g_EglContext == EGL_NO_CONTEXT)
+    {
+        const EGLint egl_context_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+        g_EglContext = eglCreateContext(g_EglDisplay, g_EglConfig, EGL_NO_CONTEXT,
+                                        egl_context_attributes);
 
         if (g_EglContext == EGL_NO_CONTEXT)
-            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "eglCreateContext() returned EGL_NO_CONTEXT");
-
-        g_EglSurface = eglCreateWindowSurface(g_EglDisplay, egl_config, g_App->window, nullptr);
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "eglCreateContext() returned EGL_NO_CONTEXT");
+    }
+    if (g_EglSurface == EGL_NO_SURFACE)
+    {
+        g_EglSurface = eglCreateWindowSurface(g_EglDisplay, g_EglConfig, g_App->window, nullptr);
         eglMakeCurrent(g_EglDisplay, g_EglSurface, g_EglSurface, g_EglContext);
     }
 
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    if (!g_Initialized)
+    {
+        g_Initialized = true;
+        // Setup Dear ImGui context
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO &io = ImGui::GetIO();
 
-    // Redirect loading/saving of .ini file to our location.
-    // Make sure 'g_IniFilename' persists while we use Dear ImGui.
-    g_IniFilename = std::string(app->activity->internalDataPath) + "/imgui.ini";
-    io.IniFilename = g_IniFilename.c_str();
+        // Redirect loading/saving of .ini file to our location.
+        // Make sure 'g_IniFilename' persists while we use Dear ImGui.
+        g_IniFilename = std::string(app->activity->internalDataPath) + "/imgui.ini";
+        io.IniFilename = g_IniFilename.c_str();
 
-    // Setup Platform/Renderer backends
-    ImGui_ImplAndroid_Init(g_App->window);
-    ImGui_ImplOpenGL3_Init("#version 300 es");
-    GetDisplayInfo();
+        // Setup Platform/Renderer backends
+        ImGui_ImplAndroid_Init(g_App->window);
+        ImGui_ImplOpenGL3_Init("#version 300 es");
 
-    // Load ImRAD style including fonts:
-    // ImRad::LoadStyle(fname, g_IOUserData.dpiScale);
-    // Alternatively, setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
+        GetDisplayInfo();
+        // Load ImRAD style including fonts:
+        // ImRad::LoadStyle(fname, g_IOUserData.dpiScale);
+        // Alternatively, setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsLight();
+        ImGui::GetStyle().ScaleAllSizes(g_IOUserData.dpiScale);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'docs/FONTS.md' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them.
+        // Load Fonts
+        // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+        // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+        // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
+        // - Read 'docs/FONTS.md' for more instructions and details.
+        // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+        // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them.
+        void *roboto_data, *material_data;
+        int roboto_size, material_size;
+        ImFont *font;
+        //font_data_size = GetAssetData("DroidSans.ttf", &font_data);
+        //font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, 16.0f);
+        //IM_ASSERT(font != nullptr);
+        roboto_size = GetAssetData("Roboto-Regular.ttf", &roboto_data);
+        material_size = GetAssetData(FONT_ICON_FILE_NAME_MD, &material_data);
+        static ImWchar icons_ranges[] = {ICON_MIN_MD, ICON_MAX_16_MD, 0};
 
-    // We load the default font with increased size to improve readability on many devices with "high" DPI.
-    // Important: when calling AddFontFromMemoryTTF(), ownership of font_data is transfered by Dear ImGui by default (deleted is handled by Dear ImGui), unless we set FontDataOwnedByAtlas=false in ImFontConfig
-    //ImFontConfig font_cfg;
-    //font_cfg.SizePixels = g_IOUserData.dpiScale * 14.0f;
-    //io.Fonts->AddFontDefault(&font_cfg);
-    void* font_data;
-    int font_data_size;
-    ImFont* font;
-    //font_data_size = GetAssetData("DroidSans.ttf", &font_data);
-    //font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, 16.0f);
-    //IM_ASSERT(font != nullptr);
-    font_data_size = GetAssetData("Roboto-Medium.ttf", &font_data);
-    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f);
-    IM_ASSERT(font != nullptr);
-    ImFontConfig cfg;
-    cfg.MergeMode = true;
-    cfg.GlyphOffset.y = 3.5 * g_IOUserData.dpiScale;
-    static ImWchar icons_ranges[] = { ICON_MIN_MD, ICON_MAX_16_MD, 0 };
-    font_data_size = GetAssetData(FONT_ICON_FILE_NAME_MD, &font_data);
-    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f, &cfg, icons_ranges);
-    IM_ASSERT(font != nullptr);
-    /*cfg.GlyphOffset.y = 1.5f * g_IOUserData.dpiScale; //otherwise glyphs are not vertically centered in buttons
-    static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-    font_data_size = GetAssetData(FONT_ICON_FILE_NAME_FAS, &font_data);
-    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f, &cfg, icons_ranges);
-    IM_ASSERT(font != nullptr);
-    font_data_size = GetAssetData(FONT_ICON_FILE_NAME_FAR, &font_data);
-    font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, g_IOUserData.dpiScale * 18.0f, &cfg, icons_ranges);
-    IM_ASSERT(font != nullptr);*/
+        ImFontConfig cfg;
+        font = io.Fonts->AddFontFromMemoryTTF(roboto_data, roboto_size,
+                                              g_IOUserData.dpiScale * 17.0f);
+        IM_ASSERT(font != nullptr);
+        cfg.MergeMode = true;
+        cfg.GlyphOffset.y = 17.f * g_IOUserData.dpiScale / 5;
+        font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size,
+                                              g_IOUserData.dpiScale * 17.0f, &cfg, icons_ranges);
+        IM_ASSERT(font != nullptr);
 
-    ImGui::GetStyle().ScaleAllSizes(g_IOUserData.dpiScale);
+        // TODO 
+        //someActivity.Open();
+    }
+}
 
-    g_Initialized = true;
+// this is called during app switching so no need to destroy everything
+void Shutdown()
+{
+    if (g_EglSurface != EGL_NO_SURFACE)
+    {
+        eglMakeCurrent(g_EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        eglDestroySurface(g_EglDisplay, g_EglSurface);
+        g_EglSurface = EGL_NO_SURFACE;
+    }
+
+
+    /*if (!g_Initialized)
+        return;
+
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplAndroid_Shutdown();
+    ImGui::DestroyContext();
+
+    if (g_EglDisplay != EGL_NO_DISPLAY)
+    {
+        eglMakeCurrent(g_EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+        if (g_EglContext != EGL_NO_CONTEXT)
+            eglDestroyContext(g_EglDisplay, g_EglContext);
+
+        if (g_EglSurface != EGL_NO_SURFACE)
+            eglDestroySurface(g_EglDisplay, g_EglSurface);
+
+        eglTerminate(g_EglDisplay);
+    }
+
+    g_EglDisplay = EGL_NO_DISPLAY;
+    g_EglContext = EGL_NO_CONTEXT;
+    g_EglSurface = EGL_NO_SURFACE;
+    ANativeWindow_release(g_App->window);
+
+    g_Initialized = false;*/
 }
 
 void MainLoopStep()
@@ -272,37 +315,6 @@ void MainLoopStep()
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     eglSwapBuffers(g_EglDisplay, g_EglSurface);
-}
-
-void Shutdown()
-{
-    if (!g_Initialized)
-        return;
-
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplAndroid_Shutdown();
-    ImGui::DestroyContext();
-
-    if (g_EglDisplay != EGL_NO_DISPLAY)
-    {
-        eglMakeCurrent(g_EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-        if (g_EglContext != EGL_NO_CONTEXT)
-            eglDestroyContext(g_EglDisplay, g_EglContext);
-
-        if (g_EglSurface != EGL_NO_SURFACE)
-            eglDestroySurface(g_EglDisplay, g_EglSurface);
-
-        eglTerminate(g_EglDisplay);
-    }
-
-    g_EglDisplay = EGL_NO_DISPLAY;
-    g_EglContext = EGL_NO_CONTEXT;
-    g_EglSurface = EGL_NO_SURFACE;
-    ANativeWindow_release(g_App->window);
-
-    g_Initialized = false;
 }
 
 // Helper functions

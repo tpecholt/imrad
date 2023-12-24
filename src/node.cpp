@@ -5754,9 +5754,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, "
 			<< style_cellPadding.to_arg(ctx.unit) << ");\n";
 	}
-	if (scrollWhenDragging)
+	if (scrollWhenDragging) //must come last
 	{
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, ImGui::IsMouseDragging(ImGuiMouseButton_Left) ? ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab) : ImVec4{});\n";
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, {});\n";
 	}
 
 	os << ctx.ind << "if (ImGui::BeginTable("
@@ -5769,7 +5769,11 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_up();
 
 	if (scrollWhenDragging)
+	{
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 		os << ctx.ind << "ImRad::ScrollWhenDragging();\n";
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, {});\n";
+	}
 
 	for (const auto& cd : columnData)
 	{
