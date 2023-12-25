@@ -2,18 +2,20 @@
 
 # ImRAD
 
-ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code.  
+ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code which can be directly used in your application.  
 
-ImRAD runs on Windows and Linux. 
+ImRAD runs on Windows, Linux and MacOS. 
 
 # Features
 
 ImRAD is under active development but these are the main features:
 
-* supports designing all kinds of ImGui windows
-  * floating windows, popups and modal popups. These are ImGui backend independent
+* supports designing all kinds of windows
+  * Floating windows, popups and modal popups. These are ImGui backend independent
   * MainWindow with GLFW integration. ImRAD generates GLFW calls which will synchronize ImGui window with its OS window (title bar, resizability flags, autosize etc.)
+  * Activity. This is a undecorated window which fills the entire viewport area. Only one activity can be shown at the time. Used mainly for Android apps  
   * contains a GLFW template for generating generic `main.cpp`
+  * contains an android template for generating generic `MainActivity.java`+`manifest`+`main.cpp`
   
 * supports wide range of widgets
   
@@ -27,6 +29,7 @@ ImRAD is under active development but these are the main features:
   
   * This ensures widgets respect item spacing and frame padding in a consistent way
   * There is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
+  * Overlay widgets can be placed on top using relative position to the nearest window corner
 
 * supports property binding 
   
