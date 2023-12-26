@@ -239,6 +239,19 @@ inline void NextColumn(int n)
 		ImGui::NextColumn();
 }
 
+inline void PushInvisibleScrollbar()
+{
+	ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarBg);
+	ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, { clr.x, clr.y, clr.z, 0 });
+	clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab);
+	ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 0 });
+}
+
+inline void PopInvisibleScrollbar()
+{
+	ImGui::PopStyleColor(2);
+}
+
 inline bool ScrollWhenDragging(bool drawScrollbars)
 {
 	static int dragState = 0;
@@ -264,10 +277,13 @@ inline bool ScrollWhenDragging(bool drawScrollbars)
 			bool tmp = window->SkipItems;
 			window->SkipItems = false;
 			ImGui::PushClipRect(window->Rect().Min, window->Rect().Max, false);
+			ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab);
+			ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 1 });
 			if (window->ScrollbarX)
 				ImGui::Scrollbar(ImGuiAxis_X);
 			if (window->ScrollbarY)
 				ImGui::Scrollbar(ImGuiAxis_Y);
+			ImGui::PopStyleColor();
 			ImGui::PopClipRect();
 			window->SkipItems = tmp;
 		}

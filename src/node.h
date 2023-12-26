@@ -482,6 +482,7 @@ struct Child : Widget
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
 	data_loop itemCount;
+	direct_val<bool> scrollWhenDragging = false;
 	direct_val<pzdimension2> style_padding;
 	direct_val<pzdimension2> style_spacing;
 	direct_val<bool> style_outer_padding = true;

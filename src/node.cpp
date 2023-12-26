@@ -546,6 +546,11 @@ void TopWindow::Draw(UIContext& ctx)
 	cached_pos = ImGui::GetWindowPos() + mi;
 	cached_size = ma - mi;
 
+	if (!ImGui::GetTopMostAndVisiblePopupModal() && ctx.activePopups.size() &&
+		ImGui::IsKeyPressed(ImGuiKey_Escape))
+	{
+		ctx.selected = { ctx.parents[0] };
+	}
 	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && ctx.activePopups.empty();
 	if (allowed && ctx.mode == UIContext::NormalSelection)
 	{
@@ -5754,9 +5759,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, "
 			<< style_cellPadding.to_arg(ctx.unit) << ");\n";
 	}
-	if (scrollWhenDragging) //must come last
+	if (scrollWhenDragging)
 	{
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, 0x0);\n";
+		os << ctx.ind << "ImRad::PushInvisibleScrollbar();\n";
 	}
 
 	os << ctx.ind << "if (ImGui::BeginTable("
@@ -5770,9 +5775,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (scrollWhenDragging)
 	{
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
 		os << ctx.ind << "ImRad::ScrollWhenDragging(true);\n";
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, 0x0);\n";
 	}
 
 	for (const auto& cd : columnData)
@@ -5854,7 +5857,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "}\n";
 
 	if (scrollWhenDragging)
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
+		os << ctx.ind << "ImRad::PopInvisibleScrollbar();\n";
 	if (style_cellPadding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 
@@ -5866,21 +5869,18 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
 		if (sit->params.size() && sit->params[0] == "ImGuiStyleVar_CellPadding")
-		{
 			style_cellPadding.set_from_arg(sit->params[1]);
-		}
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTable")
 	{
 		header = false;
-		ctx.importLevel = 0;
+		columnData.clear();
 
-		if (sit->params.size() >= 2) {
+		/*if (sit->params.size() >= 2) {
 			std::istringstream is(sit->params[1]);
 			size_t n = 3;
 			is >> n;
-			columnData.resize(n);
-		}
+		}*/
 
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
@@ -5908,7 +5908,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			is >> cd.width;
 		}
 		
-		columnData[ctx.importLevel++] = std::move(cd);
+		columnData.push_back(std::move(cd));
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableHeadersRow")
 	{
@@ -5923,14 +5923,16 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		rowCount.set_from_arg(sit->line);
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee.compare(0, 7, "ImGui::"))
+	else if (sit->kind == cpp::CallExpr && columnData.size() &&
+		sit->callee.compare(0, 7, "ImGui::") &&
+		sit->callee.compare(0, 7, "ImRad::"))
 	{
 		if (!onBeginRow.empty() || children.size()) //todo
 			onEndRow.set_from_arg(sit->callee);
 		else
 			onBeginRow.set_from_arg(sit->callee);
 	}
-	else if (sit->kind == cpp::IfStmt &&
+	else if (sit->kind == cpp::IfStmt && columnData.size() &&
 		!sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
 	{
 		rowFilter.set_from_arg(sit->cond.substr(2, sit->cond.size() - 3));
@@ -6128,6 +6130,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_up();
 	++ctx.varCounter;
 
+	if (scrollWhenDragging)
+		os << ctx.ind << "ImRad::ScrollWhenDragging(false);\n";
 	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
 
@@ -6227,6 +6231,10 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() >= 3)
 			columnBorder = sit->params[2] == "true";
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::ScrollWhenDragging")
+	{
+		scrollWhenDragging = true;
+	}
 	else if (sit->kind == cpp::ForBlock)
 	{
 		itemCount.set_from_arg(sit->line);
@@ -6250,6 +6258,7 @@ Child::Properties()
 		{ "child.column_count", &columnCount },
 		{ "child.column_border", &columnBorder },
 		{ "child.item_count", &itemCount },
+		{ "scrollWhenDragging", &scrollWhenDragging },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -6349,6 +6358,12 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = DataLoopProp("itemCount", &itemCount, ctx);
 		break;
 	case 11:
+		ImGui::Text("scrollWhenDragging");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##swd", &scrollWhenDragging, ctx);
+		break;
+	case 12:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6356,7 +6371,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 12:
+	case 13:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6365,7 +6380,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 13, ctx);
+		return Widget::PropertyUI(i - 14, ctx);
 	}
 	return changed;
 }
