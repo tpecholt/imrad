@@ -878,6 +878,19 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		if (animate)
 		{
 			os << ctx.ind << "animator.Tick();\n";
+			os << ctx.ind << "if (ImGui::IsMouseClicked(0) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows))\n";
+			os << ctx.ind << "{\n";
+			ctx.ind_up();
+			if (kind == Popup) {
+				//if not eaten popup would get closed instantly
+				os << ctx.ind << "ImGui::GetIO().MouseClicked[0] = false; //eat event\n";
+				os << ctx.ind << "ClosePopup();\n";
+			}
+			else {
+				os << ctx.ind << "ClosePopup(ImRad::Cancel);\n";
+			}
+			ctx.ind_down();
+			os << ctx.ind << "}\n";
 			os << ctx.ind << "if (modalResult != ImRad::None && animator.IsDone())\n";
 		}
 		else
@@ -1068,7 +1081,6 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			sit->callee == "ImGui::BeginPopupModal")
 		{
 			ctx.kind = kind = ModalPopup;
-			placement = Center;
 			title.set_from_arg(sit->params[0]);
 			size_t i = title.access()->rfind("###");
 			if (i != std::string::npos)
@@ -1335,19 +1347,20 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		auto tmp = placement;
+		bool isPopup = kind == Popup || kind == ModalPopup;
 		if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
 		{
 			if (ImGui::Selectable("None", placement == None))
 				placement = None;
-			if (kind == Popup && ImGui::Selectable("Left", placement == Left))
+			if (isPopup && ImGui::Selectable("Left", placement == Left))
 				placement = Left;
-			if (kind == Popup && ImGui::Selectable("Right", placement == Right))
+			if (isPopup && ImGui::Selectable("Right", placement == Right))
 				placement = Right;
-			if (kind == Popup && ImGui::Selectable("Top", placement == Top))
+			if (isPopup && ImGui::Selectable("Top", placement == Top))
 				placement = Top;
-			if (kind == Popup && ImGui::Selectable("Bottom", placement == Bottom))
+			if (isPopup && ImGui::Selectable("Bottom", placement == Bottom))
 				placement = Bottom;
-			if ((kind == Popup || kind == ModalPopup) && ImGui::Selectable("Center", placement == Center))
+			if (isPopup && ImGui::Selectable("Center", placement == Center))
 				placement = Center;
 			if (kind == MainWindow && ImGui::Selectable("Maximize", placement == Maximize))
 				placement = Maximize;
@@ -1663,7 +1676,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 			os << "ImGui::GetCurrentWindow()->InnerRect.Max.y" << pos_y.to_arg(ctx.unit);
 		else
 			os << pos_y.to_arg(ctx.unit);
-		os << " });\n";
+		os << " }); //overlayPos\n";
 	}
 	else
 	{
@@ -1853,7 +1866,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	
 	while (sit != cpp::stmt_iterator())
 	{
-		cpp::stmt_iterator ifBlockSit;
+		cpp::stmt_iterator ifBlockIt;
+		cpp::stmt_iterator screenPosIt;
 
 		if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
 		{
@@ -1894,7 +1908,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::IfBlock)
 		{
-			ifBlockSit = sit; //could be visible block
+			ifBlockIt = sit; //could be visible block
 		}
 		else if (sit->kind == cpp::CallExpr && 
 			(sit->callee == "ImGui::NextColumn" || sit->callee == "ImGui::TableNextColumn")) //compatibility
@@ -1909,18 +1923,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetCursorScreenPos")
 		{
-			if (sit->params.size()) {
-				hasPos = true;
-				auto size = cpp::parse_size(sit->params[0]);
-				if (!size.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x")) 
-					pos_x.set_from_arg(size.first.substr(42));
-				else
-					pos_x.set_from_arg(size.first);
-				if (!size.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y"))
-					pos_y.set_from_arg(size.second.substr(42));
-				else
-					pos_y.set_from_arg(size.second);
-			}
+			screenPosIt = sit;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SameLine")
 		{
@@ -2028,15 +2031,35 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		
 		++sit;
 
-		if (ifBlockSit != cpp::stmt_iterator() && sit != cpp::stmt_iterator())
+		if (ifBlockIt != cpp::stmt_iterator() && sit != cpp::stmt_iterator())
 		{
 			if (sit->kind == cpp::Comment && sit->line == "//visible")
 			{
-				visible.set_from_arg(ifBlockSit->cond);
+				visible.set_from_arg(ifBlockIt->cond);
 			}
 			else
 			{
-				DoImport(ifBlockSit, ctx);
+				DoImport(ifBlockIt, ctx);
+			}
+		}
+		if (screenPosIt != cpp::stmt_iterator() && sit != cpp::stmt_iterator())
+		{
+			if (sit->kind == cpp::Comment && sit->line == "//overlayPos" && sit->params.size())
+			{
+				hasPos = true;
+				auto size = cpp::parse_size(sit->params[0]);
+				if (!size.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x"))
+					pos_x.set_from_arg(size.first.substr(42));
+				else
+					pos_x.set_from_arg(size.first);
+				if (!size.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y"))
+					pos_y.set_from_arg(size.second.substr(42));
+				else
+					pos_y.set_from_arg(size.second);
+			}
+			else
+			{
+				DoImport(screenPosIt, ctx);
 			}
 		}
 	}
