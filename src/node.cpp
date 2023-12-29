@@ -2726,8 +2726,7 @@ Selectable::Selectable(UIContext& ctx)
 	flags.add$(ImGuiSelectableFlags_DontClosePopups);
 	flags.add$(ImGuiSelectableFlags_SpanAllColumns);
 	flags.add$(ImGuiSelectableFlags_NoPadWithHalfSpacing);
-	flags.add$(ImGuiSelectableFlags_Disabled);
-
+	
 	horizAlignment.add("AlignLeft", ImRad::AlignLeft);
 	horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
 	horizAlignment.add("AlignRight", ImRad::AlignRight);
@@ -2760,6 +2759,9 @@ void Selectable::DoDraw(UIContext& ctx)
 		alignment.y = 1.f;
 	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, alignment);
 
+	if (readOnly)
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); //won't affect text color
+
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
 
@@ -2767,6 +2769,9 @@ void Selectable::DoDraw(UIContext& ctx)
 	size.x = size_x.eval_px(ctx);
 	size.y = size_y.eval_px(ctx);
 	ImRad::Selectable(label.c_str(), false, flags, size);
+
+	if (readOnly)
+		ImGui::PopItemFlag();
 
 	ImGui::PopStyleVar();
 }
@@ -2788,6 +2793,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 		<< ", "
 		<< (vertAlignment == ImRad::AlignTop ? "0" : vertAlignment == ImRad::AlignVCenter ? "0.5f" : "1.f")
 		<< " });\n";
+
+	if (readOnly)
+		os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);\n";
 
 	if (alignToFrame)
 		os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
@@ -2814,6 +2822,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	else {
 		os << ";\n";
 	}
+
+	if (readOnly)
+		os << ctx.ind << "ImGui::PopItemFlag();\n";
 
 	os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
@@ -2859,6 +2870,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				vertAlignment = ImRad::AlignBottom;
 		}
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushItemFlag")
+	{
+		if (sit->params.size() && sit->params[0] == "ImGuiItemFlags_Disabled")
+			readOnly = true;
+	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::AlignTextToFramePadding")
 	{
 		alignToFrame = true;
@@ -2874,6 +2890,7 @@ Selectable::Properties()
 		{ "@style.font", &style_font },
 		{ "selectable.flags", &flags },
 		{ "label", &label, true },
+		{ "readOnly", &readOnly },
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
 		{ "alignToFrame", &alignToFrame },
@@ -2919,6 +2936,11 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("label", &label, ctx);
 		break;
 	case 4:
+		ImGui::Text("readOnly");
+		ImGui::TableNextColumn();
+		changed = InputDirectVal("##ronly", &readOnly, ctx);
+		break;
+	case 5:
 		ImGui::Text("horizAlignment");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2932,7 +2954,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 5:
+	case 6:
 		ImGui::BeginDisabled(size_y.has_value() && !size_y.eval_px(ctx));
 		ImGui::Text("vertAlignment");
 		ImGui::TableNextColumn();
@@ -2948,19 +2970,19 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 6:
+	case 7:
 		ImGui::Text("alignToFramePadding");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
 		break;
-	case 7:
+	case 8:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, true, ctx);
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2968,7 +2990,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		BindingButton("size_x", &size_x, ctx);
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2977,7 +2999,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 10, ctx);
+		return Widget::PropertyUI(i - 11, ctx);
 	}
 	return changed;
 }

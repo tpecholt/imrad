@@ -204,6 +204,7 @@ struct Selectable : Widget
 	direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
 	direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
 	direct_val<bool> alignToFrame = false;
+	direct_val<bool> readOnly = false;
 	field_ref<bool> fieldName;
 	bindable<dimension> size_x = 0.f;
 	bindable<dimension> size_y = 0.f;
