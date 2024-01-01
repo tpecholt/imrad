@@ -402,7 +402,7 @@ CppGen::ExportCpp(
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
 	std::set<std::string> events;
-	TopWindow::Placement animPos = node->animate ? node->placement : TopWindow::None;
+	auto animPos = node->animate ? (TopWindow::Placement)node->placement : TopWindow::None;
 
 	UIContext ctx;
 	ctx.codeGen = this;
