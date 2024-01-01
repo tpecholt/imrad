@@ -112,12 +112,16 @@ bool InputFont(const char* label, direct_val<std::string>* val, UIContext& ctx)
 		ImGui::SetNextItemWidth(nextData->Width - ImGui::GetFrameHeight());
 
 	bool changed = false;
+	ImVec2 pos = ImGui::GetCursorScreenPos();
 	ImGui::InputText((std::string(label) + "txt").c_str(), val->access());
 	if (ImGui::IsItemDeactivatedAfterEdit())
 		changed = true;
-
+	
 	ImGui::SameLine(0, 0);
-	if (ImGui::BeginCombo(label, val->c_str(), ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft))
+	//ImGui::SetNextWindowPos(pos); PopupWindow pos is ignored
+	//float w = ImGui::GetItemRectSize().x + ImGui::GetFrameHeight();
+	//ImGui::SetNextWindowSize({ w, 0 });
+	if (ImGui::BeginCombo(label, val->c_str(), ImGuiComboFlags_NoPreview /*| ImGuiComboFlags_PopupAlignLeft*/))
 	{
 		for (const auto& f : ctx.fontNames)
 		{
@@ -783,9 +787,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	else if (kind == Activity)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
-		os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);\n";
-		os << ctx.ind << "ImGui::SetNextWindowSize({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x,\n";
-		os << ctx.ind << "                           ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y });";
+		os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->WorkRect().Min);\n";
+		os << ctx.ind << "ImGui::SetNextWindowSize(ioUserData->WorkRect().GetSize());";
 		//signal designed size
 		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 		flags_helper fl = flags;
@@ -809,57 +812,56 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Popup || kind == ModalPopup)
 	{
-		if (placement == Left || placement == Top) {
-			os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->displayRectMinOffset);"
-				<< (placement == Left ? " //Left\n" : " //Top\n");
+		if (placement == Left || placement == Top) 
+		{
+			os << ctx.ind << "ImGui::SetNextWindowPos(";
+			if (animate)
+				os << "{ ioUserData->WorkRect().Min.x + animPos.x, ioUserData->WorkRect().Min.y + animPos.y }";
+			else
+				os << "ioUserData->WorkRect().Min";
+			os << "); " << (placement == Left ? " //Left\n" : " //Top\n");
 		}
-		else if (placement == Right || placement == Bottom) {
-			os << ctx.ind << "ImGui::SetNextWindowPos({ ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMaxOffset.x,\n";
-			os << ctx.ind << "                          ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMaxOffset.y },\n";
-			os << ctx.ind << "                          0, { 1, 1 });";
-			os << (placement == Right ? " //Right\n" : " //Bottom\n");
+		else if (placement == Right || placement == Bottom) 
+		{
+			os << ctx.ind << "ImGui::SetNextWindowPos(";
+			if (animate)
+				os << "{ ioUserData->WorkRect().Max.x - animPos.x, ioUserData->WorkRect().Max.y - animPos.y }, 0, { 1, 1 }";
+			else
+				os << "ioUserData->WorkRect().Max, 0, { 1, 1 }";
+			os << "); " << (placement == Right ? " //Right\n" : " //Bottom\n");
 		}
-		else if (placement == Center) {
-			os << ctx.ind << "ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, { 0.5f, 0.5f }); //Center\n";
+		else if (placement == Center) 
+		{
+			os << ctx.ind << "ImGui::SetNextWindowPos(";
+			if (animate)
+				os << "{ ioUserData->WorkRect().GetCenter().x, ioUserData->WorkRect().GetCenter().y + animPos.y }, 0, { 0.5f, 0.5f }";
+			else
+				os << "ioUserData->WorkRect().GetCenter(), 0, { 0.5f, 0.5f }";
+			os << "); //Center\n";
 		}
 
 		//size
-		{
-			bool commentSize = false;
-			os << ctx.ind << "ImGui::SetNextWindowSize({ ";
-			if (placement == Top || placement == Bottom) {
-				commentSize = true;
-				os << "ImGui::GetMainViewport()->Size.x - ioUserData->displayRectMinOffset.x - ioUserData->displayRectMaxOffset.x";
-			}
-			else if (animate) {
-				commentSize = true;
-				os << "animator.GetX(" << (autoSize ? "0" : size_x.to_arg(ctx.unit)) << ")";
-			}
-			else
-				os << (autoSize ? "0" : size_x.to_arg(ctx.unit));
+		os << ctx.ind << "ImGui::SetNextWindowSize({ ";
+			
+		if (placement == Top || placement == Bottom)
+			os << "ioUserData->WorkRect().GetWidth()";
+		else if (autoSize)
+			os << "0";
+		else
+			os << size_x.to_arg(ctx.unit);
 
-			if (commentSize)
-				os << ",\n" << ctx.ind << "                           ";
-			else
-				os << ", ";
+		os << ", ";
 
-			if (placement == Left || placement == Right) {
-				commentSize = true;
-				os << "ImGui::GetMainViewport()->Size.y - ioUserData->displayRectMinOffset.y - ioUserData->displayRectMaxOffset.y";
-			}
-			else if (animate) {
-				commentSize = true;
-				os << "animator.GetY(" << (autoSize ? "0" : size_y.to_arg(ctx.unit)) << ")";
-			}
-			else
-				os << (autoSize ? "0" : size_y.to_arg(ctx.unit));
-
-			os << " });";
-			if (commentSize) //signal designed size
-				os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
-			else
-				os << "\n";
-		}
+		if (placement == Left || placement == Right)
+			os << "ioUserData->WorkRect().GetHeight()";
+		else if (autoSize)
+			os << "0";
+		else
+			os << size_y.to_arg(ctx.unit);
+			
+		os << " });";
+		//signal designed size
+		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 
 		//begin
 		if (kind == ModalPopup)
@@ -877,20 +879,23 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		//closePopup
 		if (animate)
 		{
-			os << ctx.ind << "animator.Tick();\n";
-			os << ctx.ind << "if (ImGui::IsMouseClicked(0) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows))\n";
-			os << ctx.ind << "{\n";
-			ctx.ind_up();
-			if (kind == Popup) {
-				//if not eaten popup would get closed instantly
-				os << ctx.ind << "ImGui::GetIO().MouseClicked[0] = false; //eat event\n";
+			os << ctx.ind << "animator.Tick(dp);\n";
+			if (placement == Left || placement == Right || placement == Top || placement == Bottom)
+			{
+				os << ctx.ind << "if (!ImRad::MoveWhenDragging(animPos, ";
+				if (placement == Left)
+					os << "ImGuiDir_Left";
+				else if (placement == Right)
+					os << "ImGuiDir_Right";
+				else if (placement == Top)
+					os << "ImGuiDir_Up";
+				else if (placement == Bottom)
+					os << "ImGuiDir_Down";
+				os << "))\n";
+				ctx.ind_up();
 				os << ctx.ind << "ClosePopup();\n";
+				ctx.ind_down();
 			}
-			else {
-				os << ctx.ind << "ClosePopup(ImRad::Cancel);\n";
-			}
-			ctx.ind_down();
-			os << ctx.ind << "}\n";
 			os << ctx.ind << "if (modalResult != ImRad::None && animator.IsDone())\n";
 		}
 		else
@@ -1030,13 +1035,13 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
 		{
 			parseCommentPos = true;
+			animate = sit->line.find("animPos") != std::string::npos;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
 		{
 			parseCommentSize = true;
 			if (sit->params.size())
 			{
-				animate = sit->params[0].find("animator.") != std::string::npos;
 				auto size = cpp::parse_size(sit->params[0]);
 				size_x.set_from_arg(size.first);
 				size_y.set_from_arg(size.second);

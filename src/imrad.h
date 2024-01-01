@@ -89,65 +89,55 @@ struct CustomWidgetArgs
 struct IOUserData
 {
 	float dpiScale = 1;
-	ImVec2 displayRectMinOffset;
-	ImVec2 displayRectMaxOffset;
+	ImVec2 displayOffsetMin;
+	ImVec2 displayOffsetMax;
 	int imeType = ImeText;
 	std::string activeActivity;
+	
+	ImRect WorkRect() const 
+	{
+		return {
+			displayOffsetMin.x,
+			displayOffsetMin.y,
+			ImGui::GetMainViewport()->Size.x - displayOffsetMax.x,
+			ImGui::GetMainViewport()->Size.y - displayOffsetMax.y };
+	}
 };
 
 struct Animator 
 {
-	enum AnimType {
-		OpenPopup,
-		ClosePopup,
-	};
-
-	void Start(AnimType t) {
-		type = t;
+	void Start(float *v, float s, float e) {
 		time = 0;
+		var = v;
+		varStart = s;
+		varEnd = e;
 	}
-	float GetDuration() const {
-		return 0.2f; //s
+	float GetSpeed() const {
+		return 500; //dp/s
 	}
 	bool IsDone() const {
-		return time >= GetDuration();
+		return std::abs(*var - varEnd) < 1.f;
 	}
-	float GetX(float val) const {
-		if (!val)
-			val = autoSize.x;
-		val *= GetValue();
-		return val ? val : 1.f; //size=0 means autosize, don't return it
-	}
-	float GetY(float val) const {
-		if (!val)
-			val = autoSize.y;
-		val *= GetValue();
-		return val ? val : 1.f; //size=0 means autosize, don't return it
-	}
-	float GetValue() const {
-		float x = time / GetDuration();
-		if (x > 1)
-			x = 1;
-		float y = 1;
-		if (type == OpenPopup) {
-			return 1 - (1 - x) * (1 - x); //easeOutQuad
-		}
-		else if (type == ClosePopup) {
-			x = 1.f - x;
-			return 1 - (1 - x) * (1 - x); //easeOutQuad
-		}
-		return 0; 
-	}
-	// should be called from within ImGui::Begin
-	void Tick() {
+	void Tick(float dpiScale) {
 		time += ImGui::GetIO().DeltaTime;
-		autoSize = { ImGui::GetCurrentWindow()->ContentSize.x + 2 * ImGui::GetCurrentWindow()->WindowPadding.x,
-				     ImGui::GetCurrentWindow()->ContentSize.y + 2 * ImGui::GetCurrentWindow()->WindowPadding.y };
+		size = ImGui::GetCurrentWindow()->Size;
+		if (var) {
+			float distance = varEnd - varStart;
+			float x = time * GetSpeed() * dpiScale / std::abs(distance);
+			if (x > 1) 
+				x = 1.f;
+			float y = 1 - (1 - x) * (1 - x); //easeOutQuad
+			*var = varStart + y * distance;
+		}
 	}
-	
-	AnimType type;
+	ImVec2 GetWindowSize() const {
+		return size;
+	}
+
 	float time = 999;
-	ImVec2 autoSize{ 0, 0 };
+	float* var = nullptr;
+	float varStart, varEnd;
+	ImVec2 size{ 0, 0 };
 };
 
 //------------------------------------------------------------------------
@@ -252,6 +242,7 @@ inline void PopInvisibleScrollbar()
 	ImGui::PopStyleColor(2);
 }
 
+//optionally draws scrollbars so they can be kept hidden when no scrolling occurs
 inline bool ScrollWhenDragging(bool drawScrollbars)
 {
 	static int dragState = 0;
@@ -298,6 +289,73 @@ inline bool ScrollWhenDragging(bool drawScrollbars)
 	}
 
 	return false;
+}
+
+//this currently
+//* allows to move popups on the screen side further out of the screen just to give it responsive feeling
+//* detects modal/popup close event
+//returns
+// 0 - close popup either by sliding or clicking outside
+// 1 - nothing happening
+// 2 - todo: maximize up/down popup
+inline int MoveWhenDragging(ImVec2& pos, ImGuiDir dir)
+{
+	static int dragState = 0;
+	static ImVec2 lastPos[3];
+
+	if (!ImGui::IsWindowFocused())
+		return 1;
+
+	if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) 
+	{
+		if (!dragState)
+			lastPos[1] = lastPos[2] = ImGui::GetMousePos();
+		dragState = 1;
+		lastPos[0] = lastPos[1];
+		lastPos[1] = lastPos[2];
+		lastPos[2] = ImGui::GetMousePos();
+		ImGuiWindow *window = ImGui::GetCurrentWindow();
+		ImGui::GetCurrentContext()->NavDisableMouseHover = true;
+
+		ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+		if (dir == ImGuiDir_Left)
+			pos.x += delta.x;
+		else if (dir == ImGuiDir_Right)
+			pos.x -= delta.x;
+		else if (dir == ImGuiDir_Up)
+			pos.y += delta.y;
+		else if (dir == ImGuiDir_Down)
+			pos.y -= delta.y;
+		if (pos.x > 0)
+			pos.x = 0;
+		if (pos.y > 0)
+			pos.y = 0;
+	}
+	else if (dragState == 1)
+	{
+		dragState = 0;
+		ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+		ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
+
+		float spx = (lastPos[2].x - lastPos[0].x) / 2;
+		float spy = (lastPos[2].y - lastPos[0].y) / 2;
+		if (dir == ImGuiDir_Left && spx < -5)
+			return 0;
+		if (dir == ImGuiDir_Right && spx > 5)
+			return 0;
+		if (dir == ImGuiDir_Up && spy < -5)
+			return 0;
+		if (dir == ImGuiDir_Down && spy > 5)
+			return 0;
+	}
+
+	if (ImGui::IsMouseClicked(0) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows))
+	{
+		ImGui::GetIO().MouseClicked[0] = false; //eat event
+		return 0;
+	}
+
+	return 1;
 }
 
 inline std::string Format(std::string_view fmt)

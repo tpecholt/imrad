@@ -10,7 +10,6 @@ void AboutDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    animator.Start(ImRad::Animator::OpenPopup);
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -18,7 +17,6 @@ void AboutDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void AboutDlg::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    animator.Start(ImRad::Animator::ClosePopup);
 }
 
 void AboutDlg::Draw()

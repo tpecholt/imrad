@@ -60,15 +60,6 @@ bool CppGen::ExportUpdate(
 	m_vname = (char)std::tolower(m_name[0]) + m_name.substr(1);
 	*/
 
-	UIContext ctx;
-	ctx.codeGen = this;
-	ctx.ind = INDENT;
-	auto uit = params.find("unit");
-	if (uit != params.end())
-		ctx.unit = uit->second;
-	std::ostringstream code;
-	node->Export(code, ctx);
-	
 	auto hpath = fs::path(fname).replace_extension(".h");
 	if (!fs::exists(hpath) || fs::is_empty(hpath))
 	{
@@ -83,7 +74,7 @@ bool CppGen::ExportUpdate(
 	fin.close();
 	fprev.seekg(0);
 	std::ofstream fout(hpath, std::ios::trunc);
-	auto origNames = ExportH(fout, fprev, m_hname, node->kind);
+	auto origNames = ExportH(fout, fprev, m_hname, node);
 	m_hname = hpath.filename().string();
 	fout.close();
 
@@ -101,11 +92,7 @@ bool CppGen::ExportUpdate(
 	fin.close();
 	fprev.seekg(0);
 	fout.open(fpath, std::ios::trunc);
-	ExportCpp(fout, fprev, origNames, params, node->kind, code.str());
-
-	err = "";
-	for (const std::string& e : ctx.errors)
-		err += e + "\n";
+	err = ExportCpp(fout, fprev, origNames, params, node);
 	return true;
 }
 
@@ -143,7 +130,12 @@ void CppGen::CreateCpp(std::ostream& out)
 
 //follows fprev and overwrites generated members/functions only
 std::array<std::string, 3> 
-CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& origHName, TopWindow::Kind kind)
+CppGen::ExportH(
+	std::ostream& fout, 
+	std::istream& fprev, 
+	const std::string& origHName, 
+	TopWindow* node
+)
 {
 	int level = 0;
 	bool in_class = false;
@@ -178,29 +170,29 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				out << "\n";
 
 				//write special members
-				if (kind == TopWindow::ModalPopup)
+				if (node->kind == TopWindow::ModalPopup)
 				{
 					out << INDENT << "void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});\n";
-					out << INDENT << "void ClosePopup(ImRad::ModalResult mr);\n";
+					out << INDENT << "void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);\n";
 					out << INDENT << "void Draw();\n\n";
 				}
-				else if (kind == TopWindow::Popup)
+				else if (node->kind == TopWindow::Popup)
 				{
 					out << INDENT << "void OpenPopup();\n";
 					out << INDENT << "void ClosePopup();\n";
 					out << INDENT << "void Draw();\n\n";
 				}
-				else if (kind == TopWindow::Window)
+				else if (node->kind == TopWindow::Window)
 				{
 					out << INDENT << "void Open();\n";
 					out << INDENT << "void Close();\n";
 					out << INDENT << "void Draw();\n\n";
 				}
-				else if (kind == TopWindow::MainWindow)
+				else if (node->kind == TopWindow::MainWindow)
 				{
 					out << INDENT << "void Draw(GLFWwindow* window);\n\n";
 				}
-				else if (kind == TopWindow::Activity)
+				else if (node->kind == TopWindow::Activity)
 				{
 					out << INDENT << "void Open();\n\n";
 					out << INDENT << "void Draw();\n\n";
@@ -254,30 +246,36 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 				out << "\n";
 
 				//write special fields
-				if (kind == TopWindow::Popup || kind == TopWindow::ModalPopup ||
-					kind == TopWindow::Activity)
+				if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
+					node->kind == TopWindow::Activity)
 				{
 					out << INDENT << "void Init();\n\n";
 				}
 
-				if (kind == TopWindow::ModalPopup)
+				if (node->kind == TopWindow::ModalPopup)
 				{
 					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "ImRad::ModalResult modalResult;\n";
-					out << INDENT << "ImRad::Animator animator;\n";
+					if (node->animate) {
+						out << INDENT << "ImRad::Animator animator;\n";
+						out << INDENT << "ImVec2 animPos;\n";
+					}
 					out << INDENT << "std::function<void(ImRad::ModalResult)> callback;\n";
 				}
-				else if (kind == TopWindow::Popup)
+				else if (node->kind == TopWindow::Popup)
 				{
 					out << INDENT << "ImGuiID ID = 0;\n";
 					out << INDENT << "ImRad::ModalResult modalResult;\n";
-					out << INDENT << "ImRad::Animator animator;\n";
+					if (node->animate) {
+						out << INDENT << "ImRad::Animator animator;\n";
+						out << INDENT << "ImVec2 animPos;\n";
+					}
 				}
-				else if (kind == TopWindow::Window)
+				else if (node->kind == TopWindow::Window)
 				{
 					out << INDENT << "bool isOpen = true;\n";
 				}
-				else if (kind == TopWindow::MainWindow || kind == TopWindow::Activity)
+				else if (node->kind == TopWindow::MainWindow || node->kind == TopWindow::Activity)
 				{
 				}
 				else
@@ -390,13 +388,13 @@ CppGen::ExportH(std::ostream& fout, std::istream& fprev, const std::string& orig
 }
 
 //follows fprev and overwrites generated members/functions only only
-void CppGen::ExportCpp(
+std::string 
+CppGen::ExportCpp(
 	std::ostream& fout, 
 	std::istream& fprev, 
 	const std::array<std::string, 3>& origNames, //name, vname, old header name
 	const std::map<std::string, std::string>& params, 
-	TopWindow::Kind kind, 
-	const std::string& code
+	TopWindow* node
 )
 {
 	int level = 0;
@@ -404,6 +402,19 @@ void CppGen::ExportCpp(
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
 	std::set<std::string> events;
+	TopWindow::Placement animPos = node->animate ? node->placement : TopWindow::None;
+
+	UIContext ctx;
+	ctx.codeGen = this;
+	ctx.ind = INDENT;
+	auto uit = params.find("unit");
+	if (uit != params.end())
+		ctx.unit = uit->second;
+	std::ostringstream code;
+	node->Export(code, ctx);
+	std::string err;
+	for (const std::string& e : ctx.errors)
+		err += e + "\n";
 	
 	//xpos == 0 => copy until current position
 	//xpos > 0 => copy until xpos
@@ -447,13 +458,13 @@ void CppGen::ExportCpp(
 					if (name == "Draw")
 					{
 						skip_to_level = level - 1;
-						WriteStub(fout, "Draw", kind, params, code);
+						WriteStub(fout, "Draw", node->kind, animPos, params, code.str());
 					}
 					else if (name == "OpenPopup" || name == "ClosePopup" ||
 						name == "Open" || name == "Close") //ignore Init it contains user code
 					{
 						skip_to_level = level - 1;
-						if (!WriteStub(fout, name, kind)) 
+						if (!WriteStub(fout, name, node->kind, animPos)) 
 						{
 							//this member is no longer needed => rollback hack
 							fout.seekp((int)fout.tellp() - 5 - m_name.size());
@@ -509,7 +520,7 @@ void CppGen::ExportCpp(
 		if (events.count(name))
 			continue;
 		std::ostringstream os;
-		if (WriteStub(os, name, kind, params, code)) {
+		if (WriteStub(os, name, node->kind, animPos, params, code.str())) {
 			events.insert(name);
 			fout << "\nvoid " << m_name << os.str() << "\n";
 		}
@@ -530,6 +541,8 @@ void CppGen::ExportCpp(
 			fout << "const " << arg << "& args";
 		fout << ")\n{\n}\n";
 	}
+
+	return err;
 }
 
 //we always replace code of all generated functions because parameters and code depend
@@ -538,6 +551,7 @@ bool CppGen::WriteStub(
 	std::ostream& fout, 
 	const std::string& id, 
 	TopWindow::Kind kind,
+	TopWindow::Placement animPos,
 	const std::map<std::string, std::string>& params,
 	const std::string& code)
 {
@@ -550,7 +564,12 @@ bool CppGen::WriteStub(
 		fout << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
 		fout << INDENT << "callback = clb;\n";
 		fout << INDENT << "modalResult = ImRad::None;\n";
-		fout << INDENT << "animator.Start(ImRad::Animator::OpenPopup);\n";
+		
+		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+			fout << INDENT << "animator.Start(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2, 0);\n";
+		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+			fout << INDENT << "animator.Start(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2, 0);\n";
+		
 		fout << INDENT << "ImGui::OpenPopup(ID);\n";
 		fout << INDENT << "Init();\n";
 		fout << "}";
@@ -560,7 +579,12 @@ bool CppGen::WriteStub(
 	{
 		fout << "::OpenPopup()\n{\n";
 		fout << INDENT << "modalResult = ImRad::None;\n";
-		fout << INDENT << "animator.Start(ImRad::Animator::OpenPopup);\n";
+		
+		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+			fout << INDENT << "animator.Start(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2, 0);\n";
+		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+			fout << INDENT << "animator.Start(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2, 0);\n";
+
 		fout << INDENT << "ImGui::OpenPopup(ID);\n";
 		fout << INDENT << "Init();\n";
 		fout << "}";
@@ -570,7 +594,12 @@ bool CppGen::WriteStub(
 	{
 		fout << "::ClosePopup(ImRad::ModalResult mr)\n{\n";
 		fout << INDENT << "modalResult = mr;\n";
-		fout << INDENT << "animator.Start(ImRad::Animator::ClosePopup);\n";
+		
+		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+			fout << INDENT << "animator.Start(&animPos.x, animPos.x, -animator.GetWindowSize().x);\n";
+		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+			fout << INDENT << "animator.Start(&animPos.y, animPos.y, -animator.GetWindowSize().y);\n";
+
 		fout << "}";
 		return true;
 	}
@@ -578,7 +607,12 @@ bool CppGen::WriteStub(
 	{
 		fout << "::ClosePopup()\n{\n";
 		fout << INDENT << "modalResult = ImRad::Cancel;\n";
-		fout << INDENT << "animator.Start(ImRad::Animator::ClosePopup);\n";
+		
+		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+			fout << INDENT << "animator.Start(&animPos.x, animPos.x, -animator.GetWindowSize().x);\n";
+		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+			fout << INDENT << "animator.Start(&animPos.y, animPos.y, -animator.GetWindowSize().y);\n";
+
 		fout << "}";
 		return true;
 	}
@@ -814,7 +848,7 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		if (type.back() == ' ')
 			type.pop_back();
 		if (name != "ID" && name != "modalResult" && name != "callback" &&
-			name != "isOpen" && name != "animator")
+			name != "isOpen" && name != "animator" && name != "animPos")
 			CreateNamedVar(name, type, init, flags, sname);
 	}
 	return true;
