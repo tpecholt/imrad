@@ -243,15 +243,20 @@ inline void PopInvisibleScrollbar()
 }
 
 //optionally draws scrollbars so they can be kept hidden when no scrolling occurs
-inline bool ScrollWhenDragging(bool drawScrollbars)
+//returns:
+//0 - nothing happening or scrolling continues
+//1 - scrolling started
+//2 - scrolling ended
+inline int ScrollWhenDragging(bool drawScrollbars)
 {
 	static int dragState = 0;
 
 	if (!ImGui::IsWindowFocused())
-		return false;
+		return 0;
 
 	if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
+		int ret = !dragState ? 1 : 0;
 		dragState = 1;
 		ImGuiWindow *window = ImGui::GetCurrentWindow();
 		ImGui::GetCurrentContext()->NavDisableMouseHover = true;
@@ -278,17 +283,17 @@ inline bool ScrollWhenDragging(bool drawScrollbars)
 			ImGui::PopClipRect();
 			window->SkipItems = tmp;
 		}
-		return true;
+		return ret;
 	}
-
-	if (dragState == 1)
+	else if (dragState == 1)
 	{
 		dragState = 0;
 		ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 		ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
+		return 2;
 	}
 
-	return false;
+	return 0;
 }
 
 //this currently
@@ -649,6 +654,9 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 //This function will be called from the generated code when alternate font is used
 inline ImFont* GetFontByName(std::string_view name)
 {
+	if (name == "")
+		return ImGui::GetDefaultFont();
+
 	const auto& io = ImGui::GetIO();
 	for (const auto& cfg : io.Fonts->ConfigData) {
 		if (cfg.MergeMode)

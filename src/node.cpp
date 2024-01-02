@@ -105,36 +105,6 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 	return changed;
 }
 
-bool InputFont(const char* label, direct_val<std::string>* val, UIContext& ctx)
-{
-	const auto* nextData = &ImGui::GetCurrentContext()->NextItemData;
-	if (nextData->Flags & ImGuiNextItemDataFlags_HasWidth)
-		ImGui::SetNextItemWidth(nextData->Width - ImGui::GetFrameHeight());
-
-	bool changed = false;
-	ImVec2 pos = ImGui::GetCursorScreenPos();
-	ImGui::InputText((std::string(label) + "txt").c_str(), val->access());
-	if (ImGui::IsItemDeactivatedAfterEdit())
-		changed = true;
-	
-	ImGui::SameLine(0, 0);
-	//ImGui::SetNextWindowPos(pos); PopupWindow pos is ignored
-	//float w = ImGui::GetItemRectSize().x + ImGui::GetFrameHeight();
-	//ImGui::SetNextWindowSize({ w, 0 });
-	if (ImGui::BeginCombo(label, val->c_str(), ImGuiComboFlags_NoPreview /*| ImGuiComboFlags_PopupAlignLeft*/))
-	{
-		for (const auto& f : ctx.fontNames)
-		{
-			if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == val->c_str())) {
-				changed = true;
-				*val->access() = f;
-			}
-		}
-		ImGui::EndCombo();
-	}
-	return changed;
-}
-
 //----------------------------------------------------
 
 void UINode::CloneChildrenFrom(const UINode& node, UIContext& ctx)
@@ -495,8 +465,8 @@ void TopWindow::Draw(UIContext& ctx)
 		fl |= ImGuiWindowFlags_NoTitleBar /*| ImGuiWindowFlags_NoResize*/ | ImGuiWindowFlags_NoCollapse;
 	fl |= flags;
 
-	if (style_font != "")
-		ImGui::PushFont(ImRad::GetFontByName(style_font.c_str()));
+	if (style_font.has_value())
+		ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
 	if (style_padding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
 	if (style_spacing.has_value())
@@ -645,7 +615,7 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PopStyleVar();
 	if (style_padding.has_value())
 		ImGui::PopStyleVar();
-	if (style_font != "")
+	if (style_font.has_value())
 		ImGui::PopFont();
 }
 
@@ -689,9 +659,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 	}
 
-	if (style_font != "")
+	if (!style_font.empty())
 	{
-		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(" << style_font.to_arg() << "));\n";
+		os << ctx.ind << "ImGui::PushFont(" << style_font.to_arg() << ");\n";
 	}
 	if (!style_bg.empty())
 	{
@@ -953,7 +923,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_menuBg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
-	if (style_font != "")
+	if (!style_font.empty())
 		os << ctx.ind << "ImGui::PopFont();\n";
 
 	os << ctx.ind << "/// @end TopWindow\n";
@@ -1009,8 +979,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
-			if (sit->params.size() && !sit->params[0].compare(0, 21, "ImRad::GetFontByName("))
-				style_font.set_from_arg(sit->params[0].substr(21, sit->params[0].size() - 21 - 1));
+			if (sit->params.size())
+				style_font.set_from_arg(sit->params[0]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 		{
@@ -1307,7 +1277,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx);
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 9:
 		TreeNodeProp("flags", "...", [&] {
@@ -1514,8 +1486,8 @@ void Widget::Draw(UIContext& ctx)
 	cached_pos = ImGui::GetCursorScreenPos();
 	auto p1 = ImGui::GetCursorPos();
 
-	if (style_font != "") 
-		ImGui::PushFont(ImRad::GetFontByName(style_font.c_str()));
+	if (style_font.has_value()) 
+		ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
 	if (!style_text.empty())
 		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ctx));
 	if (!style_frameBg.empty())
@@ -1534,7 +1506,7 @@ void Widget::Draw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (!style_frameRounding.empty())
 		ImGui::PopStyleVar();
-	if (style_font != "")
+	if (style_font.has_value())
 		ImGui::PopFont();
 
 	//doesn't work for open CollapsingHeader etc:
@@ -1727,9 +1699,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::BeginDisabled(" << disabled.c_str() << ");\n";
 	}
-	if (style_font != "")
+	if (!style_font.empty())
 	{
-		os << ctx.ind << "ImGui::PushFont(ImRad::GetFontByName(" << style_font.to_arg() << "));\n";
+		os << ctx.ind << "ImGui::PushFont(" << style_font.to_arg() << ");\n";
 	}
 	if (!style_text.empty())
 	{
@@ -1760,7 +1732,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	}
-	if (style_font != "")
+	if (!style_font.empty())
 	{
 		os << ctx.ind << "ImGui::PopFont();\n";
 	}
@@ -1970,8 +1942,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
-			if (sit->params.size() && !sit->params[0].compare(0, 22, "ImRad::GetFontByName(\""))
-				style_font = sit->params[0].substr(22, sit->params[0].size() - 22 - 2);
+			if (sit->params.size())
+				style_font.set_from_arg(sit->params[0]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
 		{
@@ -2696,7 +2668,9 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx);
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("text");
@@ -2923,7 +2897,9 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx);
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		TreeNodeProp("flags", "...", [&] {
@@ -3354,7 +3330,9 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx) || changed;
+		changed = InputBindable("##font", &style_font, ctx) || changed;
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 5:
 	{
@@ -3573,7 +3551,9 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx);
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("label");
@@ -3701,7 +3681,9 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx);
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("label");
@@ -4233,7 +4215,9 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFont("##font", &style_font, ctx);
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("font", &style_font, ctx);
 		break;
 	case 3:
 		TreeNodeProp("flags", "...", [&] {

@@ -34,6 +34,8 @@ std::string typeid_name()
 		return "bool";
 	else if (std::is_same_v<T, ImVec2> || std::is_same_v<T, pzdimension2>)
 		return "ImVec2";
+	else if (std::is_same_v<T, font_name>)
+		return "ImFont*";
 	else if (std::is_same_v<T, std::vector<std::string>>)
 		return "std::vector<std::string>";
 	else
@@ -140,6 +142,24 @@ inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, U
 		ImGui::EndCombo();
 	}
 
+	return changed;
+}
+
+inline bool InputBindable(const char* label, bindable<font_name>* val, UIContext& ctx)
+{
+	std::string fn = val->has_value() ? val->eval(ctx) : val->c_str();
+	bool changed = false;
+	if (ImGui::BeginCombo(label, fn.c_str()))
+	{
+		for (const auto& f : ctx.fontNames)
+		{
+			if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == fn)) {
+				changed = true;
+				val->set_font_name(f);
+			}
+		}
+		ImGui::EndCombo();
+	}
 	return changed;
 }
 

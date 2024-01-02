@@ -125,7 +125,7 @@ struct Widget : UINode
 	direct_val<int> spacing = 0;
 	bindable<std::string> tooltip = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
-	direct_val<std::string> style_font = "";
+	bindable<font_name> style_font;
 	bindable<color32> style_text;
 	bindable<color32> style_frameBg;
 	direct_val<pzdimension> style_frameRounding;
@@ -647,7 +647,7 @@ struct TopWindow : UINode
 	bindable<std::string> title = "title";
 	bindable<dimension> size_x = 640.f;
 	bindable<dimension> size_y = 480.f;
-	direct_val<std::string> style_font = "";
+	bindable<font_name> style_font;
 	direct_val<pzdimension2> style_padding;
 	direct_val<pzdimension2> style_spacing;
 	direct_val<pzdimension> style_border;

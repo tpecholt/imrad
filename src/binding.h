@@ -43,6 +43,34 @@ struct pzdimension2
 	bool operator!= (ImVec2 v) const { return !(*this == v); }
 };
 
+struct font_name
+{
+	std::string value;
+	font_name(const std::string& v = {}) : value(v) {}
+	font_name& operator= (const std::string& v) { value = v; return *this; }
+	operator std::string& () { return value; }
+	operator const std::string& () const { return value; }
+	operator std::string_view() const { return value; }
+	/*friend std::ostream& operator<< (std::ostream& os, const font_name& fn)
+	{
+		return os << "\"" << fn.value << "\"";
+	}
+	friend std::istream& operator>> (std::istream& is, font_name& fn)
+	{
+		if (is.get() != '"') {
+			is.setstate(std::ios::failbit);
+			return is;
+		}
+		std::getline(is, fn.value);
+		if (value.empty() || fn.value.back() != '"') {
+			is.setstate(std::ios::failbit);
+			return is;
+		}
+		value.pop_back();
+		return is;
+	}*/
+};
+
 struct color32
 {
 	color32(ImU32 c = 0) : c(c) {} //0 means style default color
@@ -935,6 +963,63 @@ struct bindable<std::vector<std::string>> : property_base
 		}
 	};
 	void scale_dimension(float) {}
+	const char* c_str() const { return str.c_str(); }
+	std::string* access() { return &str; }
+private:
+	std::string str;
+};
+
+template <>
+struct bindable<font_name> : property_base
+{
+	bindable() {
+	}
+	bindable(const font_name& fn) {
+		set_font_name(fn);
+	}
+	bool empty() const { return str.empty(); }
+	bool has_value() const {
+		return !str.compare(0, 22, "ImRad::GetFontByName(\"");
+	}
+	std::string eval(const UIContext& ctx) const;
+
+	void set_font_name(std::string_view fn) {
+		str = "ImRad::GetFontByName(\"" + std::string(fn) + "\")";
+	}
+	void set_from_arg(std::string_view s) {
+		str = s;
+	}
+	std::string to_arg(std::string_view = "") const {
+		return str;
+	}
+	std::vector<std::string> used_variables() const {
+		if (empty())
+			return {};
+		std::vector<std::string> vars;
+		size_t i = 0;
+		while (true) {
+			auto id = cpp::find_id(str, i);
+			if (id == "")
+				break;
+			vars.push_back(std::string(id));
+		}
+		return vars;
+	};
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{
+		if (empty())
+			return;
+		std::vector<std::string> vars;
+		size_t i = 0;
+		while (true) {
+			auto id = cpp::find_id(str, i);
+			if (id == "")
+				break;
+			if (id == oldn)
+				str.replace(id.data() - str.data(), id.size(), newn);
+		}
+	}
+	void scale_dimension(float scale) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:

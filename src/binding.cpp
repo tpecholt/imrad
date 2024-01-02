@@ -64,3 +64,10 @@ color32 bindable<color32>::eval(const UIContext& ctx) const
 	}
 	return val;
 }
+
+std::string bindable<font_name>::eval(const UIContext&) const
+{
+	if (!has_value())
+		return "";
+	return str.substr(22, str.size() - 22 - 2);
+}
