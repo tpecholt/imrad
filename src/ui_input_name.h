@@ -4,15 +4,17 @@
 #pragma once
 #include "imrad.h"
 
-class CloneStyle
+class InputName
 {
 public:
     /// @begin interface
     void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});
-    void ClosePopup(ImRad::ModalResult mr);
+    void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);
     void Draw();
 
-    std::string styleName;
+    std::string name;
+    std::string hint;
+    std::string title;
     /// @end interface
 
 private:
@@ -21,10 +23,9 @@ private:
 
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
-    ImRad::Animator animator;
     std::function<void(ImRad::ModalResult)> callback;
 
     /// @end impl
 };
 
-extern CloneStyle cloneStyle;
+extern InputName inputName;

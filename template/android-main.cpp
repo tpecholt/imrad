@@ -11,6 +11,8 @@
 #include <GLES3/gl3.h>
 #include <string>
 
+// TODO: include activity headers here
+
 // Data
 static EGLDisplay           g_EglDisplay = EGL_NO_DISPLAY;
 static EGLSurface           g_EglSurface = EGL_NO_SURFACE;
@@ -43,14 +45,14 @@ void Draw()
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_myapplication_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jboolean b) {
+Java_${JNI_PACKAGE}_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jboolean b) {
     if (!b)
         g_ImeType = 0;
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_myapplication_MainActivity_OnScreenRotation(JNIEnv *env, jobject thiz, jint angle) {
+Java_${JNI_PACKAGE}_MainActivity_OnScreenRotation(JNIEnv *env, jobject thiz, jint angle) {
     switch (angle) {
         case 0:
             g_IOUserData.displayOffsetMin = { 0, 0 };
@@ -69,13 +71,13 @@ Java_com_example_myapplication_MainActivity_OnScreenRotation(JNIEnv *env, jobjec
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_myapplication_MainActivity_OnInputCharacter(JNIEnv *env, jobject thiz, jint ch) {
+Java_${JNI_PACKAGE}_MainActivity_OnInputCharacter(JNIEnv *env, jobject thiz, jint ch) {
     ImGui::GetIO().AddInputCharacter(ch);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_myapplication_MainActivity_OnSpecialKey(JNIEnv *env, jobject thiz, jint code) {
+Java_${JNI_PACKAGE}_MainActivity_OnSpecialKey(JNIEnv *env, jobject thiz, jint code) {
     ImGui::GetIO().AddKeyEvent(ImGuiKey_AppForward, true);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_AppForward, false);
 }
@@ -214,7 +216,7 @@ void Init(struct android_app* app)
         //ImGui::StyleColorsLight();
         ImGui::GetStyle().ScaleAllSizes(g_IOUserData.dpiScale);
 
-        // Load Fonts
+        // TODO: Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
         // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
         // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
@@ -241,7 +243,7 @@ void Init(struct android_app* app)
                                               g_IOUserData.dpiScale * 17.0f, &cfg, icons_ranges);
         IM_ASSERT(font != nullptr);
 
-        // TODO 
+        // TODO: Open startup activity 
         //someActivity.Open();
     }
 }
@@ -400,7 +402,7 @@ static void GetDisplayInfo()
         return;
 
     jint rot = java_env->CallIntMethod(g_App->activity->clazz, method_id);
-    Java_com_example_myapplication_MainActivity_OnScreenRotation(java_env, g_App->activity->clazz, rot);
+    Java_${JNI_PACKAGE}_MainActivity_OnScreenRotation(java_env, g_App->activity->clazz, rot);
 
     jni_return = java_vm->DetachCurrentThread();
     if (jni_return != JNI_OK)

@@ -1,13 +1,13 @@
 // Generated with ImRAD 0.7
 // visit https://github.com/tpecholt/imrad
 
-#include "ui_clone_style.h"
+#include "ui_input_name.h"
 #include "ui_message_box.h"
 
-CloneStyle cloneStyle;
+InputName inputName;
 
 
-void CloneStyle::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
+void InputName::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
@@ -15,28 +15,28 @@ void CloneStyle::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     Init();
 }
 
-void CloneStyle::ClosePopup(ImRad::ModalResult mr)
+void InputName::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
 }
 
-void CloneStyle::Init()
+void InputName::Init()
 {
 	// TODO: Add your code here
-	styleName = "";
+	name = "";
 }
 
-void CloneStyle::Draw()
+void InputName::Draw()
 {
     /// @style Dark
     /// @unit px
     /// @begin TopWindow
     auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
-    ID = ImGui::GetID("###CloneStyle");
-    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, { 0.5f, 0.5f }); //Center
-    ImGui::SetNextWindowSize({ 250, 120 });
+    ID = ImGui::GetID("###InputName");
+    ImGui::SetNextWindowPos(ioUserData->WorkRect().GetCenter(), 0, { 0.5f, 0.5f }); //Center
+    ImGui::SetNextWindowSize({ 250, 120 }); //{ 250, 120 }
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("Clone Style###CloneStyle", &tmpOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal(ImRad::Format("{}###InputName", title).c_str(), &tmpOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
     {
         if (modalResult != ImRad::None)
         {
@@ -52,7 +52,7 @@ void CloneStyle::Draw()
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputTextWithHint("##styleName", "New style name", &styleName, ImGuiInputTextFlags_CharsNoBlank);
+        ImGui::InputTextWithHint("##name", ImRad::Format("{}", hint).c_str(), &name, ImGuiInputTextFlags_CharsNoBlank);
         if (ImGui::IsItemActive())
             ioUserData->imeType = ImRad::ImeText;
         /// @end Input
@@ -70,7 +70,7 @@ void CloneStyle::Draw()
 
             /// @begin Button
             ImRad::TableNextColumn(1);
-            ImGui::BeginDisabled(styleName==""||styleName=="Classic"||styleName=="Dark"||styleName=="Light");
+            ImGui::BeginDisabled(name==""||name=="Classic"||name=="Dark"||name=="Light");
             if (ImGui::Button("OK", { 90, 30 }) ||
                 (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
             {

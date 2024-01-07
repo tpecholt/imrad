@@ -1,5 +1,5 @@
+#include "imrad.h"
 #include <imgui.h>
-//#include <imgui_internal.h>
 //#include <IconsFontAwesome6.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -22,7 +22,7 @@
 #endif
 
 GLFWwindow* window;
-ImRad::IOUserData IOUserData;
+ImRad::IOUserData ioUserData;
 
 void Draw()
 {
@@ -37,6 +37,7 @@ static void glfw_error_callback(int error, const char* description)
 
 // On Windows if you want to avoid console window to be shown 
 // Use /SUBSYSTEM:WINDOWS and implement wWinMain instead
+// int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 int main(int argc, const char* argv[])
 {
 	// Setup window
@@ -79,7 +80,7 @@ int main(int argc, const char* argv[])
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
-	io.UserData = &IOUserData;
+	io.UserData = &ioUserData;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
@@ -88,22 +89,23 @@ int main(int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	// Load custom style and fonts from the ImRAD INI file
+	// TODO: Load custom style and fonts from the ImRAD INI file
 	//ImRad::LoadStyle("my-style.ini");
 
 	// Alternatively set ImGui style and fonts manually
 	// Read 'docs/FONTS.md' for more instructions and details.
 	ImGui::StyleColorsDark();
-	ImGui::GetStyle().ScaleAllSizes(IOUserData.dpiScale);
+	ImGui::GetStyle().ScaleAllSizes(ioUserData.dpiScale);
 	
-	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f * IOUserData.dpiScale);
 	/*
+	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f * ioUserData.dpiScale);
+	
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig icons_config;
 	icons_config.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f * IOUserData.dpiScale, &icons_config, icons_ranges);
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f * IOUserData.dpiScale, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f * ioUserData.dpiScale, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f * ioUserData.dpiScale, &icons_config, icons_ranges);
 	*/
 	
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);

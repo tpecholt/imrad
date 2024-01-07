@@ -32,7 +32,7 @@
 #include "ui_binding.h"
 #include "ui_combo_dlg.h"
 #include "ui_horiz_layout.h"
-#include "ui_clone_style.h"
+#include "ui_input_name.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -144,15 +144,46 @@ void NewFile(TopWindow::Kind k)
 	ActivateTab((int)fileTabs.size() - 1);
 }
 
-void NewTemplate(int type)
+void CopyFileReplace(const std::string& from, const std::string& to, std::vector<std::pair<std::string, std::string>>& repl)
 {
-    nfdchar_t *outPath = NULL;
-    nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Source code", (const nfdchar_t *)"cpp" } };
+	std::ifstream fin(from);
+	if (!fin)
+		throw std::runtime_error("can't read from " + from);
+	std::ofstream fout(to);
+	if (!fout)
+		throw std::runtime_error("can't write to " + to);
+	
+	std::string line;
+	while (std::getline(fin, line)) 
+	{
+		size_t i = 0;
+		while (true) 
+		{
+			i = line.find("${", i);
+			if (i == std::string::npos)
+				break;
+			size_t j = line.find("}", i);
+			if (j == std::string::npos)
+				break;
+			for (const auto& r : repl)
+				if (!line.compare(i + 2, j - i - 2, r.first)) {
+					line.replace(line.begin() + i, line.begin() + j + 1, r.second);
+					break;
+				}
+		}
+		fout << line << "\n";
+	}
+}
+
+void DoNewTemplate(int type, const std::string& name)
+{
+	nfdchar_t *outPath = NULL;
+	nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Source code", (const nfdchar_t *)"cpp" } };
 	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "main.cpp");
 	if (result != NFD_OKAY)
 		return;
 	fs::path p = outPath;
-    NFD_FreePath(outPath);
+	NFD_FreePath(outPath);
 	if (!p.has_extension())
 		p.replace_extension(".cpp");
 
@@ -162,13 +193,23 @@ void NewTemplate(int type)
 		case 0:
 			fs::copy_file("template/glfw-main.cpp", p, fs::copy_options::overwrite_existing);
 			break;
-		case 1:
-			fs::copy_file("template/android-main.cpp", p, fs::copy_options::overwrite_existing);
-			p.replace_filename("MainActivity.java");
-			fs::copy_file("template/MainActivity.java", p, fs::copy_options::overwrite_existing);
-			p.replace_filename("AndroidManifest.xml");
-			fs::copy_file("template/AndroidManifest.xml", p, fs::copy_options::overwrite_existing);
+		case 1: {
+			std::string jni = name;
+			stx::replace(jni, '.', '_');
+			if (name.find('.') == std::string::npos)
+				throw std::runtime_error("invalid package name");
+			std::string lib = name.substr(name.rfind('.') + 1);
+			
+			std::vector<std::pair<std::string, std::string>> repl{
+				{ "JAVA_PACKAGE", name },
+				{ "JNI_PACKAGE", jni },
+				{ "LIB_NAME", lib }
+			};
+			CopyFileReplace("template/android-main.cpp", p.string(), repl);
+			CopyFileReplace("template/MainActivity.java", p.replace_filename("MainActivity.java").string(), repl);
+			CopyFileReplace("template/AndroidManifest.xml", p.replace_filename("AndroidManifest.xml").string(), repl);
 			break;
+		}
 		}
 	}
 	catch (std::exception& e) {
@@ -177,6 +218,21 @@ void NewTemplate(int type)
 		messageBox.buttons = ImRad::Ok;
 		messageBox.OpenPopup();
 	}
+}
+
+void NewTemplate(int type)
+{
+	if (type == 1)
+	{
+		//android template
+		inputName.title = "Java package name";
+		inputName.hint = "com.example.test";
+		inputName.OpenPopup([type](ImRad::ModalResult mr) {
+			DoNewTemplate(type, inputName.name);
+			});
+	}
+	else
+		DoNewTemplate(type, "");
 }
 
 void DoOpenFile(const std::string& path, std::string* errs = nullptr)
@@ -818,20 +874,22 @@ void DoCloneStyle(const std::string& name)
 
 void CloneStyle()
 {
-	cloneStyle.OpenPopup([](ImRad::ModalResult mr)
+	inputName.title = "Clone Style";
+	inputName.hint = "Enter new style name";
+	inputName.OpenPopup([](ImRad::ModalResult mr)
 		{
-			std::string path = "style/" + cloneStyle.styleName + ".ini";
+			std::string path = "style/" + inputName.name + ".ini";
 			if (fs::exists(path)) {
 				messageBox.title = "Confirmation";
 				messageBox.message = "Overwrite existing style?";
 				messageBox.buttons = ImRad::Yes | ImRad::No;
 				messageBox.OpenPopup([=](ImRad::ModalResult mr) {
 					if (mr == ImRad::Yes)
-						DoCloneStyle(cloneStyle.styleName);
+						DoCloneStyle(inputName.name);
 					});
 			}
 			else
-				DoCloneStyle(cloneStyle.styleName);
+				DoCloneStyle(inputName.name);
 		});
 }
 
@@ -879,13 +937,20 @@ void DockspaceUI()
 
 	if (fileTabs.empty())
 	{
-		const char* label = "Start by clicking the New File button...";
-		ImVec2 size = ImGui::CalcTextSize(label);
+		const std::string label = "Start by clicking the New File button ";
+		const std::string shortcut = "Ctrl + N";
+		ImVec2 size = ImGui::CalcTextSize((label + shortcut).c_str());
 		ImGui::SetCursorPos({ (viewport->WorkSize.x - size.x) / 2, (viewport->WorkSize.y - size.y) / 2 });
 		ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-		clr.w = 0.7f;
+		clr.w = 0.5f;
 		ImGui::PushStyleColor(ImGuiCol_Text, clr);
-		ImGui::TextUnformatted(label);
+		ImGui::TextUnformatted(label.c_str());
+		ImGui::PopStyleColor();
+		ImGui::SameLine(0, 0);
+		//clr = ImGui::GetStyleColorVec4(ImGuiCol_PlotHistogramHovered);
+		clr.w = 1.f;
+		ImGui::PushStyleColor(ImGuiCol_Text, clr);
+		ImGui::TextUnformatted(shortcut.c_str());
 		ImGui::PopStyleColor();
 	}
 
@@ -912,12 +977,11 @@ void ToolbarUI()
 
 	const float BTN_SIZE = 30;
 	const auto& io = ImGui::GetIO();
-	if (ImGui::Button(ICON_FA_FILE " " ICON_FA_CARET_DOWN))
+	if (ImGui::Button(ICON_FA_FILE " " ICON_FA_CARET_DOWN) ||
+		(ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl))
 		ImGui::OpenPopup("NewMenu");
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("New File (Ctrl+N)");
-	if (ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl)
-		NewFile(TopWindow::Window);
 	ImGui::SetNextWindowPos(ImGui::GetCursorPos());
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
 	if (ImGui::BeginPopup("NewMenu"))
@@ -1398,7 +1462,7 @@ void PopupUI()
 
 	horizLayout.Draw();
 
-	cloneStyle.Draw();
+	inputName.Draw();
 }
 
 void Draw()

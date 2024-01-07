@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package ${JAVA_PACKAGE};
 
 import android.app.Activity;
 import android.app.NativeActivity;
