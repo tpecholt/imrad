@@ -133,8 +133,8 @@ void ActivateTab(int i)
 
 void NewFile(TopWindow::Kind k)
 {
+	ctx.kind = k;
 	auto top = std::make_unique<TopWindow>(ctx);
-	top->kind = k;
 	File file;
 	file.rootNode = std::move(top);
 	file.styleName = DEFAULT_STYLE;

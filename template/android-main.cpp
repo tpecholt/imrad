@@ -1,3 +1,4 @@
+#include "imrad.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_android.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -52,16 +53,16 @@ JNIEXPORT void JNICALL
 Java_com_example_myapplication_MainActivity_OnScreenRotation(JNIEnv *env, jobject thiz, jint angle) {
     switch (angle) {
         case 0:
-            g_IOUserData.displayRectMinOffset = { 0, 0 };
-            g_IOUserData.displayRectMaxOffset = { 0, (float)g_NavBarHeight };
+            g_IOUserData.displayOffsetMin = { 0, 0 };
+            g_IOUserData.displayOffsetMax = { 0, (float)g_NavBarHeight };
             break;
         case 90:
-            g_IOUserData.displayRectMinOffset = { 0, 0 };
-            g_IOUserData.displayRectMaxOffset = { (float)g_NavBarHeight, 0 };
+            g_IOUserData.displayOffsetMin = { 0, 0 };
+            g_IOUserData.displayOffsetMax = { (float)g_NavBarHeight, 0 };
             break;
         case 270:
-            g_IOUserData.displayRectMinOffset = { (float)g_NavBarHeight, 0 };
-            g_IOUserData.displayRectMaxOffset = { 0, 0 };
+            g_IOUserData.displayOffsetMin = { (float)g_NavBarHeight, 0 };
+            g_IOUserData.displayOffsetMax = { 0, 0 };
             break;
     }
 }

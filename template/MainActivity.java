@@ -3,13 +3,12 @@ package com.example.myapplication;
 import android.app.Activity;
 import android.app.NativeActivity;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
-import android.text.method.DateKeyListener;
-import android.text.method.KeyListener;
-import android.text.method.TimeKeyListener;
 import android.view.KeyEvent;
 import android.text.TextWatcher;
 import android.view.View;
@@ -20,19 +19,12 @@ import android.widget.Toast;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
-import android.text.method.DigitsKeyListener;
 import android.graphics.Rect;
 
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class MainActivity extends NativeActivity
 implements TextWatcher, TextView.OnEditorActionListener
 {
-    // Used to load the 'C++' library on application startup.
-    static {
-        System.loadLibrary("myapplication");
-    }
-
     protected View mView;
     private EditText mEditText;
 
@@ -46,7 +38,19 @@ implements TextWatcher, TextView.OnEditorActionListener
 
         super.onCreate(savedInstanceState);
 
-         //create hidden EditText to access more soft keyboard options
+        //load native library
+        try {
+            ActivityInfo ai = getPackageManager().getActivityInfo(
+                    getIntent().getComponent(), PackageManager.GET_META_DATA);
+            if (ai.metaData != null) {
+                String ln = ai.metaData.getString(META_DATA_LIB_NAME);
+                System.loadLibrary(ln);
+            }
+        }
+        catch (PackageManager.NameNotFoundException e) {
+        }
+
+        //create hidden EditText to access more soft keyboard options
         FrameLayout lay = new FrameLayout(this);
         setContentView(lay, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mEditText = new EditText(this);

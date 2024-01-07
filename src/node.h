@@ -13,7 +13,6 @@
 struct UINode;
 class CppGen;
 
-
 struct UIContext
 {
 	//set from outside
@@ -53,7 +52,7 @@ struct UIContext
 	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;
 	std::vector<std::string> contextMenus;
-	int kind = 0;
+	int kind = 0; //TopWindow::Kind
 	float unitFactor = 1; //for dimension value scaling
 	ImVec2 selStart, selEnd;
 	std::string ind;
@@ -287,7 +286,7 @@ struct Input : Widget
 	field_ref<> fieldName;
 	direct_val<std::string> label = "";
 	direct_val<std::string> type = "std::string";
-	direct_val<std::string> hint = "";
+	bindable<std::string> hint = "";
 	direct_val<int> imeType = ImRad::ImeText;
 	direct_val<float> step = 1;
 	direct_val<std::string> format = "%.3f";

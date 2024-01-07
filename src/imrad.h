@@ -303,7 +303,7 @@ inline int ScrollWhenDragging(bool drawScrollbars)
 // 0 - close popup either by sliding or clicking outside
 // 1 - nothing happening
 // 2 - todo: maximize up/down popup
-inline int MoveWhenDragging(ImVec2& pos, ImGuiDir dir)
+inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos)
 {
 	static int dragState = 0;
 	static ImVec2 lastPos[3];

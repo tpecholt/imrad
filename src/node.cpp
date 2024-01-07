@@ -416,7 +416,18 @@ void UINode::ScaleDimensions(float scale)
 //----------------------------------------------------
 
 TopWindow::TopWindow(UIContext& ctx)
+	: kind(Kind(ctx.kind))
 {
+	if (kind == Activity) {
+		title = "MyActivity";
+		size_x = 400;
+		size_y = 700;
+	}
+	else {
+		size_x = 640;
+		size_y = 480;
+	}
+
 	flags.prefix("ImGuiWindowFlags_");
 	flags.add$(ImGuiWindowFlags_NoTitleBar);
 	flags.add$(ImGuiWindowFlags_NoResize);
@@ -2250,7 +2261,7 @@ std::vector<UINode::Prop>
 Widget::Events()
 {
 	return {
-		{ "OnContextMenu", &onItemContextMenuClicked },
+		{ "IsItemContextMenu", &onItemContextMenuClicked },
 		{ "IsItemHovered", &onItemHovered },
 		{ "IsItemClicked", &onItemClicked },
 		{ "IsItemDoubleClicked", &onItemDoubleClicked },
@@ -2758,10 +2769,27 @@ void Selectable::DoDraw(UIContext& ctx)
 void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	cached_size = ImGui::GetItemRectSize();
+
+	assert(ctx.parents.back() == this);
+	const auto* parent = ctx.parents[ctx.parents.size() - 2];
+	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { 
+		return ch.get() == this; 
+		}) - parent->children.begin();
+	if (!(flags & ImGuiSelectableFlags_SpanAllColumns) &&
+		idx + 1 < parent->children.size() && 
+		parent->children[idx + 1]->sameLine) 
+	{
+		//when size.x=0 ItemRect spans to the right edge even anoter widget 
+		//is on the same line. Fix it here so next widget can be selected
+		cached_size.x = ImGui::CalcTextSize(label.c_str(), nullptr, true).x;
+		cached_size.x += ImGui::GetStyle().ItemSpacing.x;
+	}
 	
 	if (!(flags & ImGuiSelectableFlags_NoPadWithHalfSpacing)) {
-		cached_size.x -= ImGui::GetStyle().ItemSpacing.x;
-		cached_size.y -= ImGui::GetStyle().ItemSpacing.y;
+		//ItemRect has ItemSpacing padding by default. Adjust pos to make
+		//the rectangle look centered
+		cached_pos.x -= ImGui::GetStyle().ItemSpacing.x / 2; 
+		cached_pos.y -= ImGui::GetStyle().ItemSpacing.y / 2;
 	}
 }
 
@@ -3790,22 +3818,12 @@ void Input::DoDraw(UIContext& ctx)
 		size.y = size_y.eval_px(ctx);
 		ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
 	}
-	else if (type == "std::string")
+	else if (type == "std::string" || type == "ImGuiTextFilter")
 	{
 		float w = size_x.eval_px(ctx);
 		if (w)
 			ImGui::SetNextItemWidth(w);
-		if (hint != "")
-			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
-		else
-			ImGui::InputText(id.c_str(), &stmp, flags);
-	}
-	else if (type == "ImGuiTextFilter")
-	{
-		float w = size_x.eval_px(ctx);
-		if (w)
-			ImGui::SetNextItemWidth(w);
-		if (hint != "")
+		if (!hint.empty())
 			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
 		else
 			ImGui::InputText(id.c_str(), &stmp, flags);
@@ -3910,7 +3928,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	else if (type == "std::string")
 	{
-		if (hint != "")
+		if (!hint.empty())
 			os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
 		else
 			os << "ImGui::InputText(" << id << ", ";
@@ -3919,7 +3937,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	else if (type == "ImGuiTextFilter")
 	{
 		//.Draw function is deprecated see https://github.com/ocornut/imgui/issues/6395
-		if (hint != "")
+		if (!hint.empty())
 			os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
 		else
 			os << "ImGui::InputText(" << id << ", ";
@@ -4261,7 +4279,9 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##hint", hint.access());
+		changed = InputBindable("##hint", &hint, ctx);
+		ImGui::SameLine(0, 0);
+		BindingButton("hint", &hint, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 8:
