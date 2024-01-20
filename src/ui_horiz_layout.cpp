@@ -205,8 +205,8 @@ void HorizLayout::ExpandSelection(std::vector<UINode*>& selected, UINode* root)
 	for (size_t i = pos->second; i >= 1; --i) {
 		const auto& pch = parent->children[i - 1];
 		const auto& ch = parent->children[i];
-		if (!(ch->SnapBehavior() & UINode::SnapSides) ||
-			!(pch->SnapBehavior() & UINode::SnapSides))
+		if (!(ch->Behavior() & UINode::SnapSides) ||
+			!(pch->Behavior() & UINode::SnapSides))
 			break;
 		if (!existingLayout && 
 			(!ch->sameLine || ch->nextColumn))
@@ -215,7 +215,7 @@ void HorizLayout::ExpandSelection(std::vector<UINode*>& selected, UINode* root)
 	}
 	for (size_t i = pos->second + 1; i < parent->children.size(); ++i) {
 		const auto& ch = parent->children[i];
-		if (!(ch->SnapBehavior() & UINode::SnapSides))
+		if (!(ch->Behavior() & UINode::SnapSides))
 			break;
 		if (!existingLayout &&
 			(!ch->sameLine || ch->nextColumn))

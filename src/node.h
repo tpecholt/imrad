@@ -16,7 +16,10 @@ class CppGen;
 struct UIContext
 {
 	//set from outside
-	enum Mode { NormalSelection, RectSelection, Snap, PickPoint, ItemDragging };
+	enum Mode { 
+		NormalSelection, RectSelection, Snap, PickPoint, 
+		ItemDragging, ItemSizingX, ItemSizingY, ItemSizingXY 
+	};
 	Mode mode = NormalSelection;
 	std::vector<UINode*> selected;
 	CppGen* codeGen = nullptr;
@@ -44,6 +47,7 @@ struct UIContext
 	bool selUpdated;
 	UINode* hovered = nullptr;
 	UINode* dragged = nullptr;
+	ImVec2 lastSize;
 	int groupLevel = 0;
 	int importLevel;
 	std::string userCode;
@@ -78,7 +82,8 @@ struct UINode
 		SnapInterior = 0x2,
 		SnapGrandparentClip = 0x4,
 		NoContextMenu = 0x8,
-		NoOverlayPos = 0x10,
+		HasSizeX = 0x20,
+		HasSizeY = 0x40,
 	};
 
 	UINode() {}
@@ -92,7 +97,7 @@ struct UINode
 	virtual bool EventUI(int, UIContext& ctx) = 0;
 	virtual void Export(std::ostream&, UIContext& ctx) = 0;
 	virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
-	virtual int SnapBehavior() = 0;
+	virtual int Behavior() = 0;
 
 	void DrawInteriorRect(UIContext& ctx);
 	void DrawSnap(UIContext& ctx);
@@ -117,6 +122,8 @@ struct Widget : UINode
 	direct_val<bool> hasPos = false;
 	direct_val<dimension> pos_x = 0;
 	direct_val<dimension> pos_y = 0;
+	bindable<dimension> size_x = 0;
+	bindable<dimension> size_y = 0;
 	direct_val<bool> allowOverlap = false;
 	bindable<bool> visible = true;
 	bindable<bool> disabled = false;
@@ -151,7 +158,7 @@ struct Widget : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
-	int SnapBehavior();
+	int Behavior();
 	virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
 	virtual void DoDraw(UIContext& ctx) = 0;
 	virtual void DrawExtra(UIContext& ctx) {}
@@ -205,8 +212,6 @@ struct Selectable : Widget
 	direct_val<bool> alignToFrame = false;
 	direct_val<bool> readOnly = false;
 	field_ref<bool> fieldName;
-	bindable<dimension> size_x = 0.f;
-	bindable<dimension> size_y = 0.f;
 	event<> onChange;
 
 	Selectable(UIContext& ctx);
@@ -219,6 +224,7 @@ struct Selectable : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_AUDIO_DESCRIPTION; }
 };
 
@@ -227,8 +233,6 @@ struct Button : Widget
 	bindable<std::string> label = "OK";
 	direct_val<ImGuiDir> arrowDir = ImGuiDir_None;
 	direct_val<bool> small = false;
-	bindable<dimension> size_x = 0.f;
-	bindable<dimension> size_y = 0.f;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
 	bindable<color32> style_button;
@@ -244,6 +248,7 @@ struct Button : Widget
 	bool EventUI(int, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_CIRCLE_PLAY; }
 };
 
@@ -290,8 +295,6 @@ struct Input : Widget
 	direct_val<int> imeType = ImRad::ImeText;
 	direct_val<float> step = 1;
 	direct_val<std::string> format = "%.3f";
-	bindable<dimension> size_x = 200.f;
-	bindable<dimension> size_y = 100.f;
 	flags_helper flags = 0;
 	direct_val<bool> initialFocus = false;
 	field_ref<bool> forceFocus;
@@ -309,6 +312,7 @@ struct Input : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior();
 	const char* GetIcon() const { return "[ab]"; }
 };
 
@@ -317,7 +321,6 @@ struct Combo : Widget
 	direct_val<std::string> label = "";
 	field_ref<int> fieldName;
 	bindable<std::vector<std::string>> items;
-	bindable<dimension> size_x = 200.f;
 	event<> onChange;
 
 	Combo(UIContext& ctx);
@@ -329,6 +332,7 @@ struct Combo : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX; }
 	const char* GetIcon() const { return ICON_FA_SQUARE_CARET_DOWN; }
 };
 
@@ -340,7 +344,6 @@ struct Slider : Widget
 	direct_val<float> min = 0;
 	direct_val<float> max = 1;
 	direct_val<std::string> format = "";
-	bindable<dimension> size_x = 200.f;
 	event<> onChange;
 
 	Slider(UIContext& ctx);
@@ -352,6 +355,7 @@ struct Slider : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX; }
 	const char* GetIcon() const { return ICON_FA_SLIDERS; }
 };
 
@@ -359,8 +363,6 @@ struct ProgressBar : Widget
 {
 	direct_val<bool> indicator = true;
 	field_ref<float> fieldName;
-	bindable<dimension> size_x = 200.f;
-	bindable<dimension> size_y = 0.f;
 	bindable<color32> style_color;
 
 	ProgressBar(UIContext& ctx);
@@ -370,6 +372,7 @@ struct ProgressBar : Widget
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_BATTERY_HALF; }
 };
 
@@ -379,7 +382,6 @@ struct ColorEdit : Widget
 	direct_val<std::string> label = "";
 	direct_val<std::string> type = "color3";
 	flags_helper flags = ImGuiColorEditFlags_None;
-	bindable<dimension> size_x = 200.f;
 	event<> onChange;
 
 	ColorEdit(UIContext& ctx);
@@ -391,14 +393,13 @@ struct ColorEdit : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX; }
 	const char* GetIcon() const { return ICON_FA_CIRCLE_HALF_STROKE; }
 };
 
 struct Image : Widget
 {
 	bindable<std::string> fileName = "";
-	bindable<dimension> size_x = 0.f;
-	bindable<dimension> size_y = 0.f;
 	field_ref<ImRad::Texture> fieldName;
 	ImRad::Texture tex;
 
@@ -410,13 +411,12 @@ struct Image : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void RefreshTexture(UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_IMAGE; }
 };
 
 struct CustomWidget : Widget
 {
-	bindable<dimension> size_x = 0.f;
-	bindable<dimension> size_y = 0.f;
 	event<ImRad::CustomWidgetArgs> onDraw;
 	
 	CustomWidget(UIContext& ctx);
@@ -428,6 +428,7 @@ struct CustomWidget : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_EXPAND; }
 };
 
@@ -444,8 +445,6 @@ struct Table : Widget
 		}
 	};
 	flags_helper flags = ImGuiTableFlags_Borders;
-	bindable<dimension> size_x = 0.f;
-	bindable<dimension> size_y = 0.f;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
 	data_loop rowCount;
@@ -461,7 +460,7 @@ struct Table : Widget
 
 	Table(UIContext&);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapSides | SnapInterior; }
+	int Behavior() { return SnapSides | SnapInterior | HasSizeX | HasSizeY; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -477,8 +476,6 @@ struct Child : Widget
 {
 	flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding;
 	flags_helper wflags = ImGuiWindowFlags_NoSavedSettings;
-	bindable<dimension> size_x = 20.f; //zero size will be rendered wrongly
-	bindable<dimension> size_y = 20.f;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
 	data_loop itemCount;
@@ -492,7 +489,7 @@ struct Child : Widget
 
 	Child(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapSides | SnapInterior; }
+	int Behavior() { return SnapSides | SnapInterior | HasSizeX | HasSizeY; }
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -510,7 +507,7 @@ struct CollapsingHeader : Widget
 	
 	CollapsingHeader(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapSides | SnapInterior; }
+	int Behavior() { return SnapSides | SnapInterior; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -528,7 +525,7 @@ struct TabBar : Widget
 
 	TabBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapSides; }
+	int Behavior() { return SnapSides; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -545,7 +542,7 @@ struct TabItem : Widget
 
 	TabItem(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapInterior | SnapGrandparentClip; }
+	int Behavior() { return SnapInterior | SnapGrandparentClip; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -567,7 +564,7 @@ struct TreeNode : Widget
 
 	TreeNode(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapInterior | SnapSides; }
+	int Behavior() { return SnapInterior | SnapSides; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -581,7 +578,7 @@ struct MenuBar : Widget
 {
 	MenuBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return NoOverlayPos; }
+	int Behavior() { return 0; }
 	void DoDraw(UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
@@ -600,7 +597,7 @@ struct MenuIt : Widget
 
 	MenuIt(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return NoContextMenu | NoOverlayPos; }
+	int Behavior() { return NoContextMenu; }
 	void DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
@@ -619,14 +616,12 @@ struct Splitter : Widget
 	direct_val<dimension> min_size1 = 10;
 	direct_val<dimension> min_size2 = 10;
 	field_ref<dimension> position;
-	bindable<dimension> size_x = -1;
-	bindable<dimension> size_y = -1;
 	bindable<color32> style_active;
 	bindable<color32> style_bg;
 	
 	Splitter(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int SnapBehavior() { return SnapInterior | SnapSides; }
+	int Behavior() { return SnapInterior | SnapSides | HasSizeX | HasSizeY; }
 	void DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -666,7 +661,7 @@ struct TopWindow : UINode
 	bool PropertyUI(int i, UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
-	int SnapBehavior() { return SnapInterior | NoOverlayPos; }
+	int Behavior() { return SnapInterior; }
 	void ScaleDimensions(float);
 };
 

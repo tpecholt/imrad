@@ -133,7 +133,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	const float MARGIN = 7;
 	assert(ctx.parents.back() == this);
 	size_t level = ctx.parents.size() - 1;
-	int snapOp = SnapBehavior();
+	int snapOp = Behavior();
 	ImVec2 m = ImGui::GetMousePos();
 	ImVec2 d1 = m - cached_pos;
 	ImVec2 d2 = cached_pos + cached_size - m;
@@ -142,7 +142,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	//snap interior (first child)
 	if ((snapOp & SnapInterior) && 
 		mind >= 2 && //allow snapping sides with zero border
-		!stx::count_if(children, [](const auto& ch) { return ch->SnapBehavior() & SnapSides; }))
+		!stx::count_if(children, [](const auto& ch) { return ch->Behavior() & SnapSides; }))
 	{
 		ctx.snapParent = this;
 		ctx.snapIndex = children.size();
@@ -162,7 +162,7 @@ void UINode::DrawSnap(UIContext& ctx)
 	if (i == pchildren.size())
 		return;
 	UINode* clip = parent;
-	if (clip->SnapBehavior() & SnapGrandparentClip)
+	if (clip->Behavior() & SnapGrandparentClip)
 		clip = ctx.parents[ctx.parents.size() - 3];
 	if (m.x < clip->cached_pos.x ||
 		m.y < clip->cached_pos.y ||
@@ -264,7 +264,7 @@ void UINode::DrawSnap(UIContext& ctx)
 			if (pchildren[j]->nextColumn)
 				break;
 			if (j && 
-				(pchildren[j - 1]->SnapBehavior() & SnapSides) && //ignore preceeding MenuBar etc.
+				(pchildren[j - 1]->Behavior() & SnapSides) && //ignore preceeding MenuBar etc.
 				!pchildren[j]->sameLine && 
 				!pchildren[j]->nextColumn)
 				topmost = false;
@@ -1453,7 +1453,7 @@ void Widget::InitDimensions(UIContext& ctx)
 	ScaleDimensions(1.f / ctx.unitFactor);
 }
 
-int Widget::SnapBehavior()
+int Widget::Behavior()
 {
 	return hasPos ? 0 : SnapSides;
 }
@@ -1525,8 +1525,8 @@ void Widget::Draw(UIContext& ctx)
 	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && 
 		(ctx.activePopups.empty() || stx::count(ctx.activePopups, ImGui::GetCurrentWindow()));
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
-	if (allowed && hovered &&
-		ctx.mode == UIContext::NormalSelection)
+	if (ctx.mode == UIContext::NormalSelection &&
+		allowed && hovered)
 	{
 		if (ctx.hovered == lastHovered) //e.g. child widget was not selected
 		{
@@ -1542,16 +1542,48 @@ void Widget::Draw(UIContext& ctx)
 				ctx.selected = { this };
 			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 		}
-		if (ctx.hovered == this && hasPos && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+		bool hoverSizeX = 
+			(Behavior() & HasSizeX) &&
+			ctx.selected.size() == 1 && ctx.selected[0] == this &&
+			std::abs(ImGui::GetMousePos().x - cached_pos.x - cached_size.x) < 5 &&
+			size_x.has_value();
+		bool hoverSizeY =
+			(Behavior() & HasSizeY) &&
+			ctx.selected.size() == 1 && ctx.selected[0] == this &&
+			std::abs(ImGui::GetMousePos().y - cached_pos.y - cached_size.y) < 5 &&
+			size_y.has_value();
+		if (hoverSizeX || hoverSizeY)
 		{
-			ctx.mode = UIContext::ItemDragging;
-			ctx.dragged = this;
+			ImGui::SetMouseCursor((hoverSizeX && hoverSizeY) ? ImGuiMouseCursor_ResizeNWSE :
+				hoverSizeX ? ImGuiMouseCursor_ResizeEW :
+				ImGuiMouseCursor_ResizeNS
+			);
+			if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+			{
+				ctx.mode = (hoverSizeX && hoverSizeY) ? UIContext::ItemSizingXY :
+					hoverSizeX ? UIContext::ItemSizingX : 
+					UIContext::ItemSizingY;
+				ctx.dragged = this;
+				ctx.lastSize = { size_x.eval_px(ctx), size_y.eval_px(ctx) };
+				if (!ctx.lastSize.x)
+					ctx.lastSize.x = cached_size.x;
+				if (!ctx.lastSize.y)
+					ctx.lastSize.y = cached_size.y;
+			}
+		}
+		else if (hasPos && ctx.hovered == this)
+		{
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+			if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+			{
+				ctx.mode = UIContext::ItemDragging;
+				ctx.dragged = this;
+			}
 		}
 	}
-
-	if (allowed && hovered && 
-		(SnapBehavior() & SnapInterior) &&
-		ctx.mode == UIContext::PickPoint)
+	else if (ctx.mode == UIContext::PickPoint &&
+		allowed && hovered &&
+		(Behavior() & SnapInterior))
 	{
 		if (ctx.hovered == lastHovered) //e.g. child widget was not selected
 		{
@@ -1559,10 +1591,10 @@ void Widget::Draw(UIContext& ctx)
 			ctx.snapIndex = children.size();
 		}
 	}
-	
-	if (ctx.mode == UIContext::ItemDragging && ctx.dragged == this)
+	else if (ctx.mode == UIContext::ItemDragging && 
+			ctx.dragged == this)
 	{
-		ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
 			ImVec2 delta = ImGui::GetMouseDragDelta();
@@ -1574,18 +1606,67 @@ void Widget::Draw(UIContext& ctx)
 				ImGui::ResetMouseDragDelta();
 			}
 		}
-		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+		{
+			ctx.mode = UIContext::NormalSelection;
+			ctx.selected = { this };
+			ctx.selUpdated = true;
+		}
+	}
+	else if (ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
+			ctx.dragged == this)
+	{
+		ImGui::SetMouseCursor(
+			ctx.mode == UIContext::ItemSizingX ? ImGuiMouseCursor_ResizeEW :
+			ctx.mode == UIContext::ItemSizingY ? ImGuiMouseCursor_ResizeNS :
+			ImGuiMouseCursor_ResizeNWSE
+		);
+		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+		{
+			ImVec2 delta = ImGui::GetMouseDragDelta();
+			ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+			ImGuiWindow* win = ImGui::GetCurrentWindow();
+			if (ctx.mode != UIContext::ItemSizingY)
+			{
+				float val = ctx.lastSize.x + delta.x;
+				val = int(val / sp.x) * sp.x;
+				if (ctx.lastSize.x < 0 && !val)
+					val = -1; //snap to the end
+				if (ctx.lastSize.x > 0 && cached_pos.x + val >= win->WorkRect.Max.x)
+				{
+					const ImGuiTable* table = ImGui::GetCurrentTable();
+					const ImGuiTableColumn* column = table ? &table->Columns[table->CurrentColumn] : nullptr;
+					//don't set to stretchable when we are in FixedWidth=0 column
+					//because column width is calculated from widget size
+					if (!table ||
+						(column->Flags & ImGuiTableColumnFlags_WidthStretch) ||
+						column->InitStretchWeightOrWidth)
+						size_x = -1; //set stretchable
+					/*else the effect looks weird
+						size_x = val;*/
+				}
+				else if (std::signbit(ctx.lastSize.x) == std::signbit(val))
+					size_x = val;
+			}
+			if (ctx.mode != UIContext::ItemSizingX)
+			{
+				float val = ctx.lastSize.y + delta.y;
+				val = int(val / sp.y) * sp.y;
+				if (ctx.lastSize.y < 0 && !val)
+					val = -1; //snap to the end
+				if (ctx.lastSize.y > 0 && cached_pos.y + val >= win->WorkRect.Max.y)
+					size_y = -1; //set auto size
+				else if (std::signbit(ctx.lastSize.y) == std::signbit(val))
+					size_y = val;
+			}
+		}
+		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 		{
 			ctx.mode = UIContext::NormalSelection;
 			ctx.selUpdated = true;
-			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-				toggle(ctx.selected, this);
-			else
-				ctx.selected = { this };
-			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 		}
 	}
-
+	
 	if (hasPos)
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -1601,7 +1682,24 @@ void Widget::Draw(UIContext& ctx)
 			dl->AddTriangleFilled(cached_pos + cached_size, cached_pos + ImVec2(cached_size.x - d, cached_size.y), cached_pos + ImVec2(cached_size.x, cached_size.y - d), clr);
 	}
 	bool selected = stx::count(ctx.selected, this);
-	if (selected || ctx.hovered == this)
+	if (selected
+		/*ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
+		ctx.dragged == this*/)
+	{
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		ImRect wr = ImGui::GetCurrentWindow()->WorkRect;
+		ImRect ir = ImGui::GetCurrentWindow()->InnerRect;
+		ImVec2 pad = ImGui::GetStyle().WindowPadding;
+		ImGui::PushClipRect(ir.Min, ir.Max, false);
+		if (size_x.eval_px(ctx) < 0)
+			dl->AddRectFilled(ImVec2{ wr.Max.x, wr.Min.y - pad.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, 0x800000ff);
+		if (size_y.eval_px(ctx) < 0)
+			dl->AddRectFilled(ImVec2{ wr.Min.x - pad.x, wr.Max.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, 0x800000ff);
+		ImGui::PopClipRect();
+	}
+	if ((selected || ctx.hovered == this) &&
+		ctx.mode != UIContext::ItemDragging &&
+		(ctx.mode < UIContext::ItemSizingX || ctx.mode > UIContext::ItemSizingXY))
 	{
 		ImDrawList* dl = ImGui::GetWindowDrawList();
 		dl->AddRect(cached_pos, cached_pos + cached_size,
@@ -2064,22 +2162,17 @@ Widget::Properties()
 		{ "cursor", &cursor },
 		{ "disabled", &disabled },
 	};
-	if (!(SnapBehavior() & NoOverlayPos)) 
+	if (Behavior() & SnapSides) //only last section is optional
 	{
 		props.insert(props.end(), {
 			{ "@overlayPos.hasPos", &hasPos },
 			{ "@overlayPos.pos_x", &pos_x },
 			{ "@overlayPos.pos_y", &pos_y },
-			});
-	};
-	if (SnapBehavior() & SnapSides)
-	{
-		props.insert(props.end(), {
 			{ "indent", &indent },
 			{ "spacing", &spacing },
 			{ "sameLine", &sameLine },
-			{ "beginGroup", &beginGroup },
-			{ "endGroup", &endGroup },
+			/*{ "beginGroup", &beginGroup }, deprecated
+			{ "endGroup", &endGroup },*/
 			{ "nextColumn", &nextColumn },
 			{ "allowOverlap", &allowOverlap },
 			});
@@ -2095,7 +2188,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 	else
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
 
-	bool snapSides = SnapBehavior() & SnapSides;
+	bool snapSides = Behavior() & SnapSides;
 	bool changed = false;
 	switch (i)
 	{
@@ -2117,7 +2210,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 2:
 	{
-		ImGui::BeginDisabled(SnapBehavior() & NoContextMenu);
+		ImGui::BeginDisabled(Behavior() & NoContextMenu);
 		ImGui::Text("contextMenu");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2215,6 +2308,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
+	/* deprecated
 	case 11:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("beginGroup");
@@ -2228,8 +2322,8 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##endGroup", endGroup.access());
 		ImGui::EndDisabled();
-		break;
-	case 13:
+		break;*/
+	case 11:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("nextColumn");
 		ImGui::TableNextColumn();
@@ -2243,7 +2337,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 14:
+	case 12:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("allowOverlap");
 		ImGui::TableNextColumn();
@@ -2280,7 +2374,7 @@ bool Widget::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::BeginDisabled(SnapBehavior() & NoContextMenu);
+		ImGui::BeginDisabled(Behavior() & NoContextMenu);
 		ImGui::Text("IsItemContextMenuClicked");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
@@ -3747,6 +3841,9 @@ flags_helper Input::_imeAction = 0;
 
 Input::Input(UIContext& ctx)
 {
+	size_x = 200;
+	size_y = 100;
+
 	flags.prefix("ImGuiInputTextFlags_");
 	flags.add$(ImGuiInputTextFlags_CharsDecimal);
 	flags.add$(ImGuiInputTextFlags_CharsHexadecimal);
@@ -3798,6 +3895,14 @@ std::unique_ptr<Widget> Input::Clone(UIContext& ctx)
 		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 	}
 	return sel;
+}
+
+int Input::Behavior() 
+{ 
+	int b = Widget::Behavior() | HasSizeX;
+	if (flags & ImGuiInputTextFlags_Multiline)
+		b |= HasSizeY;
+	return b;
 }
 
 void Input::DoDraw(UIContext& ctx)
@@ -4403,6 +4508,8 @@ bool Input::EventUI(int i, UIContext& ctx)
 
 Combo::Combo(UIContext& ctx)
 {
+	size_x = 200;
+
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
 
@@ -4604,6 +4711,8 @@ bool Combo::EventUI(int i, UIContext& ctx)
 
 Slider::Slider(UIContext& ctx)
 {
+	size_x = 200;
+
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 
@@ -4868,6 +4977,8 @@ bool Slider::EventUI(int i, UIContext& ctx)
 
 ProgressBar::ProgressBar(UIContext& ctx)
 {
+	size_x = 200;
+
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
 
@@ -5005,6 +5116,8 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 
 ColorEdit::ColorEdit(UIContext& ctx)
 {
+	size_x = 200;
+
 	flags.prefix("ImGuiColorEditFlags_");
 	flags.add$(ImGuiColorEditFlags_NoAlpha);
 	flags.add$(ImGuiColorEditFlags_NoPicker);
@@ -5544,6 +5657,9 @@ Table::ColumnData::ColumnData()
 
 Table::Table(UIContext& ctx)
 {
+	size_x = -1; //here 0 has the same effect as -1 but -1 works with our sizing visualization
+	size_y = 0;
+
 	flags.prefix("ImGuiTableFlags_");
 	flags.add$(ImGuiTableFlags_Resizable);
 	flags.add$(ImGuiTableFlags_Reorderable);
@@ -6011,6 +6127,9 @@ void Table::ScaleDimensions(float scale)
 
 Child::Child(UIContext& ctx)
 {
+	//zero size will be rendered wrongly?
+	size_x = size_y = 20;
+
 	flags.prefix("ImGuiChildFlags_");
 	flags.add$(ImGuiChildFlags_Border);
 	flags.add$(ImGuiChildFlags_AlwaysUseWindowPadding);
@@ -6043,7 +6162,7 @@ bool Child::IsFirstItem(UIContext& ctx)
 	for (const auto& child : parent->children) {
 		if (child.get() == this)
 			return true;
-		if (child->SnapBehavior() & SnapSides)
+		if (child->Behavior() & SnapSides)
 			return false;
 	}
 	return false;
@@ -6443,6 +6562,8 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 
 Splitter::Splitter(UIContext& ctx)
 {
+	size_x = size_y = -1;
+
 	if (ctx.createVars) 
 		position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
 	

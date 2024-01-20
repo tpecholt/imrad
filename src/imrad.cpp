@@ -565,7 +565,7 @@ void NewWidget(const std::string& name)
 		size_t i = 0;
 		for (; i < ctx.root->children.size(); ++i)
 		{
-			if (ctx.root->children[i]->SnapBehavior() & Widget::SnapSides)
+			if (ctx.root->children[i]->Behavior() & Widget::SnapSides)
 				break;
 		}
 		popup->label = "ContextMenu" + std::to_string(i + 1);
@@ -1105,7 +1105,7 @@ void ToolbarUI()
 	ImGui::SameLine();
 	bool showHelper = activeTab >= 0 && 
 		ctx.selected.size() >= 1 && 
-		(ctx.selected[0]->SnapBehavior() & UINode::SnapSides);
+		(ctx.selected[0]->Behavior() & UINode::SnapSides);
 	ImGui::BeginDisabled(!showHelper);
 	if (ImGui::Button(ICON_FA_LEFT_RIGHT))
 	{
@@ -1614,7 +1614,7 @@ void Work()
 			activeButton = "";
 		}
 		else if (ImGui::GetIO().KeyCtrl && activeButton != "" && 
-			!(newNode->SnapBehavior() & UINode::NoOverlayPos))
+			(newNode->Behavior() & UINode::SnapSides))
 		{
 			ctx.mode = UIContext::PickPoint;
 		}
