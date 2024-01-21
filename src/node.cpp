@@ -860,10 +860,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		//closePopup
 		if (animate)
 		{
-			os << ctx.ind << "animator.Tick(dp);\n";
+			os << ctx.ind << "animator.Tick(ioUserData);\n";
 			if (placement == Left || placement == Right || placement == Top || placement == Bottom)
 			{
-				os << ctx.ind << "if (!ImRad::MoveWhenDragging(animPos, ";
+				os << ctx.ind << "if (!ImRad::MoveWhenDragging(";
 				if (placement == Left)
 					os << "ImGuiDir_Left";
 				else if (placement == Right)
@@ -872,7 +872,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 					os << "ImGuiDir_Up";
 				else if (placement == Bottom)
 					os << "ImGuiDir_Down";
-				os << "))\n";
+				os << ", animPos))\n";
 				ctx.ind_up();
 				os << ctx.ind << "ClosePopup();\n";
 				ctx.ind_down();
@@ -915,6 +915,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else
 	{
+		if (kind == Activity)
+		{
+			os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ImVec4{ 0.3, 0.3, 0.3, 0.5f*ioUserData->dimBgRatio });\n";
+		}
 		os << ctx.ind << "ImGui::End();\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
@@ -1681,6 +1685,16 @@ void Widget::Draw(UIContext& ctx)
 		else if (pos_x < 0 && pos_y < 0)
 			dl->AddTriangleFilled(cached_pos + cached_size, cached_pos + ImVec2(cached_size.x - d, cached_size.y), cached_pos + ImVec2(cached_size.x, cached_size.y - d), clr);
 	}
+	/*if (ctx.mode == UIContext::ItemSizingX &&
+		ctx.dragged == this)
+	{
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		ImRect ir = ImGui::GetCurrentWindow()->InnerRect;
+		ImU32 clr = ctx.colors[UIContext::Selected] & 0x4fffffff;
+		ImGui::PushClipRect(ir.Min, ir.Max, false);
+		dl->AddLine(ImVec2{ cached_pos.x + cached_size.x, ir.Min.y }, ImVec2{ cached_pos.x + cached_size.x, ir.Max.y }, clr);
+		ImGui::PopClipRect();
+	}*/
 	bool selected = stx::count(ctx.selected, this);
 	if (selected
 		/*ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
@@ -1691,10 +1705,11 @@ void Widget::Draw(UIContext& ctx)
 		ImRect ir = ImGui::GetCurrentWindow()->InnerRect;
 		ImVec2 pad = ImGui::GetStyle().WindowPadding;
 		ImGui::PushClipRect(ir.Min, ir.Max, false);
+		ImU32 clr = ctx.colors[UIContext::Selected] & 0x8fffffff;
 		if (size_x.eval_px(ctx) < 0)
-			dl->AddRectFilled(ImVec2{ wr.Max.x, wr.Min.y - pad.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, 0x800000ff);
+			dl->AddRectFilled(ImVec2{ wr.Max.x, wr.Min.y - pad.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, clr);
 		if (size_y.eval_px(ctx) < 0)
-			dl->AddRectFilled(ImVec2{ wr.Min.x - pad.x, wr.Max.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, 0x800000ff);
+			dl->AddRectFilled(ImVec2{ wr.Min.x - pad.x, wr.Max.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, clr);
 		ImGui::PopClipRect();
 	}
 	if ((selected || ctx.hovered == this) &&
@@ -5002,7 +5017,10 @@ void ProgressBar::DoDraw(UIContext& ctx)
 	float w = size_x.eval_px(ctx);
 	float h = size_y.eval_px(ctx);
 
-	ImGui::ProgressBar(0.5f, { w, h }, indicator ? nullptr : "");
+	float pc = 0.5f;
+	if (!fieldName.empty())
+		pc = fieldName.eval(ctx);
+	ImGui::ProgressBar(pc, { w, h }, indicator ? nullptr : "");
 
 	if (!style_color.empty())
 		ImGui::PopStyleColor();

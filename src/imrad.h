@@ -91,6 +91,7 @@ struct IOUserData
 	float dpiScale = 1;
 	ImVec2 displayOffsetMin;
 	ImVec2 displayOffsetMax;
+	float dimBgRatio = 1;
 	int imeType = ImeText;
 	std::string activeActivity;
 	
@@ -118,16 +119,19 @@ struct Animator
 	bool IsDone() const {
 		return std::abs(*var - varEnd) < 1.f;
 	}
-	void Tick(float dpiScale) {
+	//to be called from withing Begin
+	void Tick(IOUserData* ioUserData) {
 		time += ImGui::GetIO().DeltaTime;
 		size = ImGui::GetCurrentWindow()->Size;
 		if (var) {
 			float distance = varEnd - varStart;
-			float x = time * GetSpeed() * dpiScale / std::abs(distance);
+			float x = time * GetSpeed() * ioUserData->dpiScale / std::abs(distance);
 			if (x > 1) 
 				x = 1.f;
 			float y = 1 - (1 - x) * (1 - x); //easeOutQuad
 			*var = varStart + y * distance;
+			if (ImGui::GetCurrentWindow()->Flags & ImGuiWindowFlags_Modal)
+				ioUserData->dimBgRatio = varEnd > varStart ? x : 1.f - x;
 		}
 	}
 	ImVec2 GetWindowSize() const {
@@ -361,6 +365,36 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos)
 	}
 
 	return 1;
+}
+
+//copy from imgui.cpp + modifications
+//original version doesn't respect ioUserData.displayMinMaxOffset
+inline void RenderDimmedBackground(const ImRect& rect, const ImVec4& color)
+{
+	ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0, 0, 0, 0); //disable ImGui dimming
+	ImGuiWindow* modal_window = ImGui::GetTopMostAndVisiblePopupModal();
+	if (modal_window && color.w)
+	{
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		dl->AddRectFilled(rect.Min, rect.Max, ImGui::ColorConvertFloat4ToU32(color));
+		/*ImGuiWindow* dim_behind_window = ImGui::FindBottomMostVisibleWindowWithinBeginStack(modal_window);
+		//ImGui::RenderDimmedBackgroundBehindWindow(dim_behind_window, ImGui::GetColorU32(ImGuiCol_ModalWindowDimBg, 0.5));
+		// Draw behind window by moving the draw command at the FRONT of the draw list
+		// Draw list have been trimmed already, hence the explicit recreation of a draw command if missing.
+		// FIXME: This is creating complication, might be simpler if we could inject a drawlist in drawdata at a given position and not attempt to manipulate ImDrawCmd order.
+		ImDrawList* draw_list = dim_behind_window->RootWindowDockTree->DrawList;
+		draw_list->ChannelsMerge();
+		if (draw_list->CmdBuffer.Size == 0)
+			draw_list->AddDrawCmd();
+		draw_list->PushClipRect(rect.Min - ImVec2(1, 1), rect.Max + ImVec2(1, 1), false); // FIXME: Need to stricty ensure ImDrawCmd are not merged (ElemCount==6 checks below will verify that)
+		draw_list->AddRectFilled(rect.Min, rect.Max, ImGui::ColorConvertFloat4ToU32(color));
+		ImDrawCmd cmd = draw_list->CmdBuffer.back();
+		IM_ASSERT(cmd.ElemCount == 6);
+		draw_list->CmdBuffer.pop_back();
+		draw_list->CmdBuffer.push_front(cmd);
+		draw_list->AddDrawCmd(); // We need to create a command as CmdBuffer.back().IdxOffset won't be correct if we append to same command.
+		draw_list->PopClipRect();*/
+	}
 }
 
 inline std::string Format(std::string_view fmt)
