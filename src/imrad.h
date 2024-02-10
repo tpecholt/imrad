@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <functional>
+#include <functional> //for ModalPopup callback
 #include <fstream> //Save/LoadStyle
 #include <iomanip> //std::quoted
 #include <sstream> 
@@ -107,41 +107,74 @@ struct IOUserData
 
 struct Animator 
 {
-	void Start(float *v, float s, float e) {
-		time = 0;
-		var = v;
-		varStart = s;
-		varEnd = e;
+	//todo: configure
+	static inline const float DurOpenPopup = 0.4f; 
+	static inline const float DurClosePopup = 0.3f;
+
+	void StartAlways(float *v, float s, float e, float dur) 
+	{
+		Var nvar{ 0, v, s, e, dur, false };
+		for (auto& var : vars)
+			if (var.var == v) {
+				var = nvar;
+				return;
+			}
+		vars.push_back(nvar);
 	}
-	float GetSpeed() const {
-		return 500; //dp/s
+	void StartOnce(float *v, float s, float e, float dur) 
+	{
+		Var nvar{ 0, v, s, e, dur, true };
+		for (auto& var : vars)
+			if (var.var == v) {
+				var = nvar;
+				return;
+			}
+		vars.push_back(nvar);
 	}
-	bool IsDone() const {
-		return std::abs(*var - varEnd) < 1.f;
+	bool IsDone() const 
+	{
+		for (const auto& var : vars)
+			if (var.oneShot || std::abs(*var.var - var.end) / std::abs(var.end - var.start) > 0.01)
+				return false;
+		return true;
 	}
 	//to be called from withing Begin
-	void Tick(IOUserData* ioUserData) {
-		time += ImGui::GetIO().DeltaTime;
-		size = ImGui::GetCurrentWindow()->Size;
-		if (var) {
-			float distance = varEnd - varStart;
-			float x = time * GetSpeed() * ioUserData->dpiScale / std::abs(distance);
-			if (x > 1) 
+	void Tick() 
+	{
+		wsize = ImGui::GetCurrentWindow()->Size; //cache actual windows size
+		size_t j = 0;
+		for (size_t i = 0; i < vars.size(); ++i) {
+			auto& var = vars[i];
+			var.time += ImGui::GetIO().DeltaTime;
+			float distance = var.end - var.start;
+			float x = var.time / var.duration;
+			if (x > 1)
 				x = 1.f;
 			float y = 1 - (1 - x) * (1 - x); //easeOutQuad
-			*var = varStart + y * distance;
-			if (ImGui::GetCurrentWindow()->Flags & ImGuiWindowFlags_Modal)
-				ioUserData->dimBgRatio = varEnd > varStart ? x : 1.f - x;
+			*var.var = var.start + y * distance;
+			if (!var.oneShot || std::abs(x - 1.0) >= 0.01) { //keep current var
+				if (j < i)
+					vars[j] = var;
+				++j;
+			}
 		}
+		vars.resize(j);
 	}
-	ImVec2 GetWindowSize() const {
-		return size;
+	ImVec2 GetWindowSize() const 
+	{
+		return wsize;
 	}
 
-	float time = 999;
-	float* var = nullptr;
-	float varStart, varEnd;
-	ImVec2 size{ 0, 0 };
+	struct Var 
+	{
+		float time;
+		float* var = nullptr;
+		float start, end;
+		float duration;
+		bool oneShot;
+	};
+	std::vector<Var> vars;
+	ImVec2 wsize{ 0, 0 };
 };
 
 //------------------------------------------------------------------------
@@ -307,47 +340,73 @@ inline int ScrollWhenDragging(bool drawScrollbars)
 // 0 - close popup either by sliding or clicking outside
 // 1 - nothing happening
 // 2 - todo: maximize up/down popup
-inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos)
+inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 {
 	static int dragState = 0;
-	static ImVec2 lastPos[3];
+	static ImVec2 mousePos[3];
+	static ImVec2 startPos, lastPos;
+	static float lastDim;
 
 	if (!ImGui::IsWindowFocused())
 		return 1;
 
 	if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) 
 	{
-		if (!dragState)
-			lastPos[1] = lastPos[2] = ImGui::GetMousePos();
+		if (!dragState) 
+		{
+			startPos = pos;
+			mousePos[1] = mousePos[2] = ImGui::GetMousePos();
+		}
 		dragState = 1;
-		lastPos[0] = lastPos[1];
-		lastPos[1] = lastPos[2];
-		lastPos[2] = ImGui::GetMousePos();
+		mousePos[0] = mousePos[1];
+		mousePos[1] = mousePos[2];
+		mousePos[2] = ImGui::GetMousePos();
 		ImGuiWindow *window = ImGui::GetCurrentWindow();
 		ImGui::GetCurrentContext()->NavDisableMouseHover = true;
 
 		ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
-		if (dir == ImGuiDir_Left)
-			pos.x += delta.x;
-		else if (dir == ImGuiDir_Right)
-			pos.x -= delta.x;
-		else if (dir == ImGuiDir_Up)
-			pos.y += delta.y;
-		else if (dir == ImGuiDir_Down)
-			pos.y -= delta.y;
-		if (pos.x > 0)
+		//don't reset DragDelta - we need to apply full delta if pos
+		//was externally modified with Animator
+		//ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+		if (dir == ImGuiDir_Left) {
+			pos.x = startPos.x + delta.x;
+			dimBgRatio = (window->Size.x + pos.x) / window->Size.x;
+		}
+		else if (dir == ImGuiDir_Right) {
+			pos.x = startPos.x - delta.x;
+			dimBgRatio = (window->Size.x + pos.x) / window->Size.x;
+		}
+		else if (dir == ImGuiDir_Up) {
+			pos.y = startPos.y + delta.y;
+			dimBgRatio = (window->Size.y + pos.y) / window->Size.y;
+		}
+		else if (dir == ImGuiDir_Down) {
+			pos.y = startPos.y - delta.y;
+			dimBgRatio = (window->Size.y + pos.y) / window->Size.y;
+		}
+		if (pos.x > 0) {
 			pos.x = 0;
-		if (pos.y > 0)
+			dimBgRatio = 1;
+		}
+		if (pos.y > 0) {
 			pos.y = 0;
+			dimBgRatio = 1;
+		}
+		lastPos = pos;
+		lastDim = dimBgRatio;
 	}
 	else if (dragState == 1)
 	{
+		//apply lastPos because position could be rewritten by Animator but the real value
+		//needs to be taken for next closing animation
+		pos = lastPos;
+		dimBgRatio = lastDim;
 		dragState = 0;
 		ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 		ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
 
-		float spx = (lastPos[2].x - lastPos[0].x) / 2;
-		float spy = (lastPos[2].y - lastPos[0].y) / 2;
+		float spx = (mousePos[2].x - mousePos[0].x) / 2;
+		float spy = (mousePos[2].y - mousePos[0].y) / 2;
 		if (dir == ImGuiDir_Left && spx < -5)
 			return 0;
 		if (dir == ImGuiDir_Right && spx > 5)
@@ -367,34 +426,15 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos)
 	return 1;
 }
 
-//copy from imgui.cpp + modifications
 //original version doesn't respect ioUserData.displayMinMaxOffset
-inline void RenderDimmedBackground(const ImRect& rect, const ImVec4& color)
+inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
 {
 	ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0, 0, 0, 0); //disable ImGui dimming
-	ImGuiWindow* modal_window = ImGui::GetTopMostAndVisiblePopupModal();
-	if (modal_window && color.w)
-	{
-		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRectFilled(rect.Min, rect.Max, ImGui::ColorConvertFloat4ToU32(color));
-		/*ImGuiWindow* dim_behind_window = ImGui::FindBottomMostVisibleWindowWithinBeginStack(modal_window);
-		//ImGui::RenderDimmedBackgroundBehindWindow(dim_behind_window, ImGui::GetColorU32(ImGuiCol_ModalWindowDimBg, 0.5));
-		// Draw behind window by moving the draw command at the FRONT of the draw list
-		// Draw list have been trimmed already, hence the explicit recreation of a draw command if missing.
-		// FIXME: This is creating complication, might be simpler if we could inject a drawlist in drawdata at a given position and not attempt to manipulate ImDrawCmd order.
-		ImDrawList* draw_list = dim_behind_window->RootWindowDockTree->DrawList;
-		draw_list->ChannelsMerge();
-		if (draw_list->CmdBuffer.Size == 0)
-			draw_list->AddDrawCmd();
-		draw_list->PushClipRect(rect.Min - ImVec2(1, 1), rect.Max + ImVec2(1, 1), false); // FIXME: Need to stricty ensure ImDrawCmd are not merged (ElemCount==6 checks below will verify that)
-		draw_list->AddRectFilled(rect.Min, rect.Max, ImGui::ColorConvertFloat4ToU32(color));
-		ImDrawCmd cmd = draw_list->CmdBuffer.back();
-		IM_ASSERT(cmd.ElemCount == 6);
-		draw_list->CmdBuffer.pop_back();
-		draw_list->CmdBuffer.push_front(cmd);
-		draw_list->AddDrawCmd(); // We need to create a command as CmdBuffer.back().IdxOffset won't be correct if we append to same command.
-		draw_list->PopClipRect();*/
-	}
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	dl->PushClipRectFullScreen();
+	ImVec4 color{ 0, 0, 0, 0.5f * alpha_mul };
+    dl->AddRectFilled(rect.Min, rect.Max, ImGui::ColorConvertFloat4ToU32(color));
+	dl->PopClipRect();
 }
 
 inline std::string Format(std::string_view fmt)

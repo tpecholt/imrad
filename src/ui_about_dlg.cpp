@@ -52,7 +52,7 @@ void AboutDlg::Draw()
         /// @end Text
 
         /// @begin Text
-        ImGui::TextUnformatted(ImRad::Format("build with ImGui {}", IMGUI_VERSION).c_str());
+        ImGui::TextUnformatted(ImRad::Format("built with ImGui {}", IMGUI_VERSION).c_str());
         /// @end Text
 
         /// @begin Text

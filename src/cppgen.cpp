@@ -559,60 +559,66 @@ bool CppGen::WriteStub(
 	//immediate call
 	//CloseCurrentPopup has to be called from the popup Draw code so that's why
 	//defered call
-	if (id == "OpenPopup" && kind == TopWindow::ModalPopup)
+	if (id == "OpenPopup" && 
+		(kind == TopWindow::ModalPopup || kind == TopWindow::Popup))
 	{
-		fout << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
-		fout << INDENT << "callback = clb;\n";
-		fout << INDENT << "modalResult = ImRad::None;\n";
+		if (kind == TopWindow::ModalPopup) {
+			fout << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
+			fout << INDENT << "callback = clb;\n";
+			fout << INDENT << "modalResult = ImRad::None;\n";
+			fout << INDENT << "auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;\n";
+		}
+		else {
+			fout << "::OpenPopup()\n{\n";
+			fout << INDENT << "modalResult = ImRad::None;\n";
+		}
 		
-		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-			fout << INDENT << "animator.Start(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2, 0);\n";
-		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-			fout << INDENT << "animator.Start(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2, 0);\n";
-		
-		fout << INDENT << "ImGui::OpenPopup(ID);\n";
-		fout << INDENT << "Init();\n";
-		fout << "}";
-		return true;
-	}
-	else if (id == "OpenPopup" && kind == TopWindow::Popup)
-	{
-		fout << "::OpenPopup()\n{\n";
-		fout << INDENT << "modalResult = ImRad::None;\n";
-		
-		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-			fout << INDENT << "animator.Start(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2, 0);\n";
-		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-			fout << INDENT << "animator.Start(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2, 0);\n";
+		if (animPos != TopWindow::Placement::None)
+		{
+			if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+				fout << INDENT << "animator.StartAlways(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+			else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+				fout << INDENT << "animator.StartAlways(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+			if (kind == TopWindow::ModalPopup)
+				fout << INDENT << "animator.StartAlways(&ioUserData->dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
+		}
+		else if (kind == TopWindow::ModalPopup) 
+		{
+			fout << INDENT << "ioUserData->dimBgRatio = 1.f;\n";
+		}
 
 		fout << INDENT << "ImGui::OpenPopup(ID);\n";
 		fout << INDENT << "Init();\n";
 		fout << "}";
 		return true;
 	}
-	else if (id == "ClosePopup" && kind == TopWindow::ModalPopup)	
+	else if (id == "ClosePopup" && 
+		(kind == TopWindow::ModalPopup || kind == TopWindow::Popup))	
 	{
-		fout << "::ClosePopup(ImRad::ModalResult mr)\n{\n";
-		fout << INDENT << "modalResult = mr;\n";
+		if (kind == TopWindow::ModalPopup) {
+			fout << "::ClosePopup(ImRad::ModalResult mr)\n{\n";
+			fout << INDENT << "modalResult = mr;\n";
+			fout << INDENT << "auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;\n";
+		}
+		else {
+			fout << "::ClosePopup()\n{\n";
+			fout << INDENT << "modalResult = ImRad::Cancel;\n";
+		}
 		
-		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-			fout << INDENT << "animator.Start(&animPos.x, animPos.x, -animator.GetWindowSize().x);\n";
-		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-			fout << INDENT << "animator.Start(&animPos.y, animPos.y, -animator.GetWindowSize().y);\n";
-
-		fout << "}";
-		return true;
-	}
-	else if (id == "ClosePopup" && kind == TopWindow::Popup)
-	{
-		fout << "::ClosePopup()\n{\n";
-		fout << INDENT << "modalResult = ImRad::Cancel;\n";
+		if (animPos != TopWindow::Placement::None)
+		{
+			if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+				fout << INDENT << "animator.StartOnce(&animPos.x, animPos.x, -animator.GetWindowSize().x, ImRad::Animator::DurClosePopup);\n";
+			else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+				fout << INDENT << "animator.StartOnce(&animPos.y, animPos.x, -animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
+			if (kind == TopWindow::ModalPopup)
+				fout << INDENT << "animator.StartOnce(&ioUserData->dimBgRatio, ioUserData->dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
+		}
+		else if (kind == TopWindow::ModalPopup)
+		{
+			fout << INDENT << "ioUserData->dimBgRatio = 0.f;\n";
+		}
 		
-		if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-			fout << INDENT << "animator.Start(&animPos.x, animPos.x, -animator.GetWindowSize().x);\n";
-		else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-			fout << INDENT << "animator.Start(&animPos.y, animPos.y, -animator.GetWindowSize().y);\n";
-
 		fout << "}";
 		return true;
 	}

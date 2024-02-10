@@ -860,7 +860,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		//closePopup
 		if (animate)
 		{
-			os << ctx.ind << "animator.Tick(ioUserData);\n";
+			os << ctx.ind << "animator.Tick();\n";
 			if (placement == Left || placement == Right || placement == Top || placement == Bottom)
 			{
 				os << ctx.ind << "if (!ImRad::MoveWhenDragging(";
@@ -872,10 +872,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 					os << "ImGuiDir_Up";
 				else if (placement == Bottom)
 					os << "ImGuiDir_Down";
-				os << ", animPos))\n";
+				os << ", animPos, ioUserData->dimBgRatio))\n";
 				ctx.ind_up();
 				os << ctx.ind << "ClosePopup();\n";
 				ctx.ind_down();
+			}
+			if (kind == ModalPopup)
+			{
+				os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
 			}
 			os << ctx.ind << "if (modalResult != ImRad::None && animator.IsDone())\n";
 		}
@@ -887,8 +891,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		ctx.ind_up();
 		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
 		//callback is called after CloseCurrentPopup so it is able to open another dialog
-		if (kind == ModalPopup) 
-			os << ctx.ind << "if (modalResult != ImRad::Cancel) callback(modalResult);\n";
+		if (kind == ModalPopup)
+		{
+			os << ctx.ind << "if (modalResult != ImRad::Cancel)\n";
+			ctx.ind_up();
+			os << ctx.ind << "callback(modalResult);\n";
+			ctx.ind_down();
+		}
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
@@ -915,10 +924,6 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else
 	{
-		if (kind == Activity)
-		{
-			os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ImVec4{ 0.3, 0.3, 0.3, 0.5f*ioUserData->dimBgRatio });\n";
-		}
 		os << ctx.ind << "ImGui::End();\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
