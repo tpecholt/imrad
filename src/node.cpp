@@ -11,6 +11,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <IconsFontAwesome6.h>
 #include <algorithm>
+#include "binding_field.h"
 #include <array>
 
 const color32 FIELD_NAME_CLR = IM_COL32(222, 222, 255, 255);
@@ -1172,7 +1173,7 @@ void TopWindow::TreeUI(UIContext& ctx)
 			ImGui::PopStyleColor();
 		bool clicked = ImGui::IsItemClicked();
 		ImGui::SameLine();
-		ImGui::TextDisabled(NAMES[kind]);
+		ImGui::TextDisabled("%s", NAMES[kind]);
 		if (clicked)
 		{
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -1189,7 +1190,7 @@ void TopWindow::TreeUI(UIContext& ctx)
 		if (selected)
 			ImGui::PopStyleColor();
 		ImGui::SameLine();
-		ImGui::TextDisabled(NAMES[kind]);
+		ImGui::TextDisabled("%s", NAMES[kind]);
 	}
 }
 
@@ -1607,8 +1608,8 @@ void Widget::Draw(UIContext& ctx)
 		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
 			ImVec2 delta = ImGui::GetMouseDragDelta();
-			if (std::signbit(pos_x + delta.x) == std::signbit(pos_x) &&
-				std::signbit(pos_y + delta.y) == std::signbit(pos_y))
+			if (std::signbit(pos_x + delta.x) == std::signbit(float(pos_x)) &&
+				std::signbit(pos_y + delta.y) == std::signbit(float(pos_y)))
 			{
 				pos_x += delta.x;
 				pos_y += delta.y;
