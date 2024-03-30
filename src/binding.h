@@ -177,19 +177,8 @@ struct field_ref : property_base
 		return str;
 	}
 	
-	T eval(const UIContext& ctx) const
-	{
-		if (empty())
-			return {};
-		const auto* var = ctx.codeGen->GetVar(str);
-		if (!var)
-			return {};
-		T val;
-		std::istringstream is(var->init);
-		if (is >> val)
-			return val;
-		return {};
-	}
+	T eval(const UIContext& ctx) const;
+	
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
