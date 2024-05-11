@@ -25,7 +25,7 @@ ImRAD is under active development but these are the main features:
   * `MenuBar` and context menu editing
   * `CustomWidget` (a placeholder to user code)
 
-* generates layout using `SameLine`/`Spacing`/`NextColumn`/`BeginGroup` instead of absolute positioning 
+* generates layout using `SameLine`/`Spacing`/`NextColumn` instead of absolute positioning 
   
   * This ensures widgets respect item spacing and frame padding in a consistent way
   * There is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
@@ -70,7 +70,7 @@ ImRAD is under active development but these are the main features:
 
 # Download binaries
 
-for up-to date version clone & build the repository using CMake. 
+for up-to date version clone & build the repository using CMake. Don't forget to fetch submodules in the 3rdparty directory too.
 
 Somewhat older version can be downloaded from [Releases](https://github.com/tpecholt/imrad/releases)
 
@@ -83,11 +83,15 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
 
 ## Linux
-1. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
+1. Due to the GTK FileOpen dialog you need to `apt install` these packages first (exact list depends on your OS):
+   
+   `pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev`
 
-   ```sudo ./release-linux 0.5```
+3. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
 
-2. ImRAD will be installed into *./install/imrad-0.5*
+   ```sudo ./release-linux 0.7```
+
+4. ImRAD will be installed into *./install/imrad-0.7*
 
 # How to debug
    
