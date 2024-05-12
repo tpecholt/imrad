@@ -1806,6 +1806,8 @@ int main(int argc, const char* argv[])
 	icons[1].pixels = stbi_load("icon-100.png", &icons[1].width, &icons[1].height, 0, 4);
 	if (icons[0].pixels && icons[1].pixels)
 		glfwSetWindowIcon(window, 2, icons);
+	stbi_image_free(icons[0].pixels);
+	stbi_image_free(icons[1].pixels);
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 	glfwMaximizeWindow(window);
