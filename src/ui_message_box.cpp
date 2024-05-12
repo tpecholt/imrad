@@ -13,6 +13,7 @@ void MessageBox::Draw()
 {
 	ID = ImGui::GetID("###MessageBox");
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+	//todo: ImGuiCond_Appearing won't center
 	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 	bool open = true;
 	if (ImGui::BeginPopupModal((title + "###MessageBox").c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
@@ -22,7 +23,7 @@ void MessageBox::Draw()
 		{
 			ImGui::Spacing();
 			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(192, 0, 0, 255));
-			ImGui::Text(ICON_FA_TRIANGLE_EXCLAMATION " ");
+			ImGui::Text(" " ICON_FA_CIRCLE_EXCLAMATION " ");
 			ImGui::PopStyleColor();
 			ImGui::SameLine();
 			ImGui::TextWrapped("%s", message.c_str());

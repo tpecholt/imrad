@@ -64,6 +64,10 @@ bool CppGen::ExportUpdate(
 	if (!fs::exists(hpath) || fs::is_empty(hpath))
 	{
 		std::ofstream fout(hpath);
+		if (!fout) {
+			err = "can't write to '" + hpath.string() + "'";
+			return false;
+		}
 		CreateH(fout);
 	}
 	std::ifstream fin(hpath);
@@ -82,6 +86,10 @@ bool CppGen::ExportUpdate(
 	if (!fs::exists(fpath) || fs::is_empty(fpath))
 	{
 		std::ofstream fout(fpath);
+		if (!fout) {
+			err = "can't write to '" + hpath.string() + "'";
+			return false;
+		}
 		CreateCpp(fout);
 	}
 	fin.open(fpath);

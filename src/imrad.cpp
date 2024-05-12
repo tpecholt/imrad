@@ -430,9 +430,9 @@ void DoSaveFile(bool thenClose)
 		return;
 	}
 
-	tab.modified = false;
-	tab.time[0] = fs::last_write_time(tab.fname);
 	std::error_code err;
+	tab.modified = false;
+	tab.time[0] = fs::last_write_time(tab.fname, err);
 	tab.time[1] = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
 	if (messageBox.error != "")
 	{
@@ -509,9 +509,8 @@ void SaveAll()
 	int tmp = activeTab;
 	for (activeTab = 0; activeTab < fileTabs.size(); ++activeTab)
 	{
-		if (fileTabs[activeTab].modified)
-			if (!SaveFile(false))
-				break;
+		if (!SaveFile(false))
+			break;
 	}
 	activeTab = tmp;
 }
@@ -1563,7 +1562,7 @@ void Work()
 
 	if (initErrors != "")
 	{
-		messageBox.title = "ImRAD";
+		messageBox.title = "Startup";
 		messageBox.message = "Errors occured";
 		messageBox.buttons = ImRad::Ok;
 		messageBox.error = initErrors;
