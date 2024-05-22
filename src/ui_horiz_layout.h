@@ -15,7 +15,7 @@ public:
 
     int spacing = 1;
     int padding = 0;
-    int alignment = 0;
+    int alignment;
     std::vector<UINode *> selected;
     UINode * root;
     UIContext * ctx;

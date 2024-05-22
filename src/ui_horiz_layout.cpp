@@ -12,6 +12,7 @@ void HorizLayout::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 	requestClose = false;
 
 	//*** Add your init code here
+	alignment = -1; //force user to choose
 	ExpandSelection(selected, root);
 }
 
@@ -84,16 +85,28 @@ void HorizLayout::Draw()
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment==3?ImGuiCol_ButtonHovered:ImGuiCol_Button]);
-        if (ImGui::Button("\xef\x96\x8d", { 0, 0 }))
+        if (ImGui::Button("\xef\x80\xb9", { 0, 0 }))
         {
             OnAlignment();
         }
         ImGui::PopStyleColor();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip("Regular spacing");
+            ImGui::SetTooltip("Align left and right");
         /// @end Button
 
-        /// @begin Text
+		/// @begin Button
+		ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment == 4 ? ImGuiCol_ButtonHovered : ImGuiCol_Button]);
+		if (ImGui::Button("\xef\x96\x8d", { 0, 0 }))
+		{
+			OnAlignment();
+		}
+		ImGui::PopStyleColor();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+			ImGui::SetTooltip("Regular spacing");
+		/// @end Button
+
+		/// @begin Text
         ImRad::Spacing(1);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
         ImGui::TextUnformatted("Item spacing");
@@ -140,7 +153,7 @@ void HorizLayout::Draw()
 		
         /// @begin Button
         ImRad::Spacing(2);
-        ImGui::BeginDisabled(selected.empty());
+        ImGui::BeginDisabled(selected.empty() || alignment < 0);
         if (ImGui::Button("OK", { 100, 30 }))
         {
             Work();
@@ -175,8 +188,10 @@ void HorizLayout::OnAlignment()
 		alignment = 1;
 	else if (ImGui::GetItemID() == ImGui::GetID(ICON_FA_ALIGN_RIGHT))
 		alignment = 2;
-	else if (ImGui::GetItemID() == ImGui::GetID(ICON_FA_GRIP))
+	else if (ImGui::GetItemID() == ImGui::GetID(ICON_FA_ALIGN_JUSTIFY))
 		alignment = 3;
+	else if (ImGui::GetItemID() == ImGui::GetID(ICON_FA_GRIP))
+		alignment = 4;
 }
 
 void HorizLayout::ExpandSelection(std::vector<UINode*>& selected, UINode* root)
@@ -226,7 +241,7 @@ void HorizLayout::ExpandSelection(std::vector<UINode*>& selected, UINode* root)
 
 void HorizLayout::Work()
 {
-	if (selected.empty())
+	if (selected.empty() || alignment < 0)
 		return;
 	auto pos = root->FindChild(selected[0]);
 	auto* parent = pos->first;
@@ -294,7 +309,7 @@ void HorizLayout::Work()
 		table->flags = ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX;;
 		table->columnData.clear();
 
-		if (padding) //left
+		if (padding) //left padding
 			table->columnData.push_back({ "left-margin", ImGuiTableColumnFlags_WidthFixed, realPadding });
 		if (alignment == 1 || alignment == 2) //center, right
 			table->columnData.push_back({ "left-stretch", ImGuiTableColumnFlags_WidthStretch });
@@ -322,7 +337,18 @@ void HorizLayout::Work()
 				item->sameLine = !i ? false : true;
 				item->spacing = i ? spacing : 0;
 			}
-			else if (alignment == 3) //grid
+			else if (alignment == 3) //left&right
+			{
+				if (!i)
+					table->columnData.push_back({ "left-content", ImGuiTableColumnFlags_WidthStretch });
+				else if (i == selected.size() - 1)
+					table->columnData.push_back({ "right-content", ImGuiTableColumnFlags_WidthFixed, 0 });
+
+				item->nextColumn = !i ? (int)table->columnData.size() - 1 : i == selected.size() - 1 ? 1 : 0;
+				item->sameLine = !i ? false : true;
+				item->spacing = i ? spacing : 0;
+			}
+			else if (alignment == 4) //grid
 			{
 				if (i && spacing)
 					table->columnData.push_back({ "spacing" + std::to_string(i), ImGuiTableColumnFlags_WidthFixed, realSpacing });
@@ -335,7 +361,7 @@ void HorizLayout::Work()
 
 		if (alignment == 1) //center
 			table->columnData.push_back({ "right-stretch", ImGuiTableColumnFlags_WidthStretch });
-		if (padding) //right
+		if (padding) //right padding
 			table->columnData.push_back({ "right-margin", ImGuiTableColumnFlags_WidthFixed, realPadding });
 	}
 }
