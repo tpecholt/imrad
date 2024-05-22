@@ -993,11 +993,11 @@ void ToolbarUI()
 			NewFile(TopWindow::Window);
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 			ImGui::SetTooltip("Floating ImGui window");
-		if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE "  Popup", ""))
+		if (ImGui::MenuItem(ICON_FA_CLONE "  Popup", ""))
 			NewFile(TopWindow::Popup);
-		if (ImGui::MenuItem(ICON_FA_TABLET_SCREEN_BUTTON "  Modal Popup", ""))
+		if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE "  Modal Popup", ""))
 			NewFile(TopWindow::ModalPopup);
-		if (ImGui::MenuItem(ICON_FA_MOBILE "  Activity", "\tAndroid"))
+		if (ImGui::MenuItem(ICON_FA_MOBILE_SCREEN "  Activity", "\tAndroid"))
 			NewFile(TopWindow::Activity);
 		
 		ImGui::Separator();
