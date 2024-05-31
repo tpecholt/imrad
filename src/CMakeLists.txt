@@ -2,6 +2,10 @@ project (imrad)
 
 file(GLOB_RECURSE SRC "*.cpp" "*.h")
 	
+if (WIN32)
+  set(SRC ${SRC} "app.rc")
+endif()
+
 add_executable(imrad WIN32
    ${SRC}
 ) 	

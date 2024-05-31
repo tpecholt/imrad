@@ -1711,7 +1711,7 @@ void Widget::Draw(UIContext& ctx)
 		ImRect ir = ImGui::GetCurrentWindow()->InnerRect;
 		ImVec2 pad = ImGui::GetStyle().WindowPadding;
 		ImGui::PushClipRect(ir.Min, ir.Max, false);
-		ImU32 clr = ctx.colors[UIContext::Selected] & 0x8fffffff;
+		ImU32 clr = (ctx.colors[UIContext::Selected] & 0x00ffffff) | 0x60000000;
 		if (size_x.eval_px(ctx) < 0)
 			dl->AddRectFilled(ImVec2{ wr.Max.x, wr.Min.y - pad.y }, ImVec2{ wr.Max.x + pad.x, wr.Max.y + pad.y }, clr);
 		if (size_y.eval_px(ctx) < 0)

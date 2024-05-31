@@ -1027,7 +1027,7 @@ void ToolbarUI()
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Save File (Ctrl+S)");
 	
-	ImGui::SameLine(0, 0);
+	ImGui::SameLine(0, 1);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 2, ImGui::GetStyle().FramePadding.y });
 	if (ImGui::Button(ICON_FA_CARET_DOWN)) 
 		ImGui::OpenPopup("SaveMenu");
