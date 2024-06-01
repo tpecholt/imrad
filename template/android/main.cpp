@@ -2,7 +2,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_android.h"
 #include "imgui/imgui_impl_opengl3.h"
-#include "IconsMaterialDesign.h"
+//#include "IconsMaterialDesign.h"
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <android/asset_manager.h>
@@ -29,6 +29,7 @@ static int                  g_ImeType = 0;
 // Forward declarations of helper functions
 static void Init(struct android_app* app);
 static void Shutdown();
+static void FreeMem();
 static void MainLoopStep();
 static int ShowSoftKeyboardInput(int mode);
 static int GetAssetData(const char* filename, void** out_data);
@@ -38,7 +39,37 @@ static void GetDisplayInfo();
 
 void Draw()
 {
-	// TODO: Add your drawing code here
+	// TODO: Call your drawing code here
+
+    bool isOpen;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    ImGui::SetNextWindowPos(g_IOUserData.WorkRect().Min);
+    ImGui::SetNextWindowSize(g_IOUserData.WorkRect().GetSize());
+    if (ImGui::Begin("TODO", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings))
+    {
+        ImGui::TextWrapped("Welcome to android development with ImRAD!");
+        ImGui::Text("");
+        ImGui::TextWrapped("1. Load Suitable Fonts");
+        ImGui::Indent();
+        ImGui::Bullet();
+        ImGui::TextWrapped("Create assets directory and put Roboto and Material fonts there");
+        ImGui::Bullet();
+        ImGui::TextWrapped("Uncomment code to load fonts");
+        ImGui::Unindent();
+        ImGui::Text("");
+        ImGui::TextWrapped("2. Add your first activity to the project");
+        ImGui::Indent();
+        ImGui::Bullet();
+        ImGui::TextWrapped("Design activity in ImRAD");
+        ImGui::Bullet();
+        ImGui::TextWrapped("Uncomment code to use it");
+        ImGui::Unindent();
+        ImGui::Text("");
+        ImGui::TextWrapped("3. Have fun!");
+
+        ImGui::End();
+    }
+    ImGui::PopStyleVar();
 }
 
 //-----------------------------------------------------------------
@@ -93,7 +124,7 @@ static void handleAppCmd(struct android_app* app, int32_t appCmd)
             Init(app);
             break;
         case APP_CMD_TERM_WINDOW:
-            Shutdown();
+            FreeMem();
             break;
         case APP_CMD_GAINED_FOCUS:
         case APP_CMD_LOST_FOCUS:
@@ -126,9 +157,7 @@ void android_main(struct android_app* app)
             // Exit the app by returning from within the infinite loop
             if (app->destroyRequested != 0)
             {
-                // shutdown() should have been called already while processing the
-                // app command APP_CMD_TERM_WINDOW. But we play save here
-                if (!g_Initialized)
+                if (g_Initialized)
                     Shutdown();
 
                 return;
@@ -222,18 +251,19 @@ void Init(struct android_app* app)
         // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
         // - Read 'docs/FONTS.md' for more instructions and details.
         // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-        // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them.
-        void *roboto_data, *material_data;
+        // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them
+
+        ImFontConfig cfg;
+        cfg.SizePixels = g_IOUserData.dpiScale * 16.0f;
+        io.Fonts->AddFontDefault(&cfg);
+
+        /*void *roboto_data, *material_data;
         int roboto_size, material_size;
         ImFont *font;
-        //font_data_size = GetAssetData("DroidSans.ttf", &font_data);
-        //font = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, 16.0f);
-        //IM_ASSERT(font != nullptr);
         roboto_size = GetAssetData("Roboto-Regular.ttf", &roboto_data);
         material_size = GetAssetData(FONT_ICON_FILE_NAME_MD, &material_data);
         static ImWchar icons_ranges[] = {ICON_MIN_MD, ICON_MAX_16_MD, 0};
 
-        ImFontConfig cfg;
         font = io.Fonts->AddFontFromMemoryTTF(roboto_data, roboto_size,
                                               g_IOUserData.dpiScale * 17.0f);
         IM_ASSERT(font != nullptr);
@@ -241,7 +271,7 @@ void Init(struct android_app* app)
         cfg.GlyphOffset.y = 17.f * g_IOUserData.dpiScale / 5;
         font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size,
                                               g_IOUserData.dpiScale * 17.0f, &cfg, icons_ranges);
-        IM_ASSERT(font != nullptr);
+        IM_ASSERT(font != nullptr);*/
 
         // TODO: Open startup activity 
         //someActivity.Open();
@@ -249,7 +279,7 @@ void Init(struct android_app* app)
 }
 
 // this is called during app switching so no need to destroy everything
-void Shutdown()
+void FreeMem()
 {
     if (g_EglSurface != EGL_NO_SURFACE)
     {
@@ -257,9 +287,11 @@ void Shutdown()
         eglDestroySurface(g_EglDisplay, g_EglSurface);
         g_EglSurface = EGL_NO_SURFACE;
     }
+}
 
-
-    /*if (!g_Initialized)
+void Shutdown()
+{
+    if (!g_Initialized)
         return;
 
     // Cleanup
@@ -285,7 +317,7 @@ void Shutdown()
     g_EglSurface = EGL_NO_SURFACE;
     ANativeWindow_release(g_App->window);
 
-    g_Initialized = false;*/
+    g_Initialized = false;
 }
 
 void MainLoopStep()
