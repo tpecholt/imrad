@@ -61,6 +61,7 @@ struct File
 };
 
 bool firstTime;
+std::string rootPath;
 std::string initErrors;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
@@ -168,8 +169,10 @@ void CopyFileReplace(const std::string& from, const std::string& to, std::vector
 			for (const auto& r : repl)
 				if (!line.compare(i + 2, j - i - 2, r.first)) {
 					line.replace(line.begin() + i, line.begin() + j + 1, r.second);
+					j = i + r.second.size();
 					break;
 				}
+			i = j;
 		}
 		fout << line << "\n";
 	}
@@ -191,7 +194,7 @@ void DoNewTemplate(int type, const std::string& name)
 		switch (type)
 		{
 		case 0:
-			fs::copy_file("template/glfw-main.cpp", p, fs::copy_options::overwrite_existing);
+			fs::copy_file(rootPath + "/template/glfw/main.cpp", p, fs::copy_options::overwrite_existing);
 			break;
 		case 1: {
 			std::string jni = name;
@@ -203,11 +206,13 @@ void DoNewTemplate(int type, const std::string& name)
 			std::vector<std::pair<std::string, std::string>> repl{
 				{ "JAVA_PACKAGE", name },
 				{ "JNI_PACKAGE", jni },
-				{ "LIB_NAME", lib }
+				{ "LIB_NAME", lib },
+				{ "IMRAD_INCLUDE", rootPath + "/include" },
 			};
-			CopyFileReplace("template/android-main.cpp", p.string(), repl);
-			CopyFileReplace("template/MainActivity.java", p.replace_filename("MainActivity.java").string(), repl);
-			CopyFileReplace("template/AndroidManifest.xml", p.replace_filename("AndroidManifest.xml").string(), repl);
+			CopyFileReplace(rootPath + "/template/android/main.cpp", p.string(), repl);
+			CopyFileReplace(rootPath + "/template/android/CMakeLists.txt", p.replace_filename("CMakeLists.txt").string(), repl);
+			CopyFileReplace(rootPath + "/template/android/MainActivity.java", p.replace_filename("MainActivity.java").string(), repl);
+			CopyFileReplace(rootPath + "/template/android/AndroidManifest.xml", p.replace_filename("AndroidManifest.xml").string(), repl);
 			break;
 		}
 		}
@@ -669,7 +674,7 @@ void StyleColors()
 		}
 	}
 
-	//ImRad::SaveStyle("style/debug.ini");
+	//ImRad::SaveStyle(rootPath + "/style/debug.ini");
 }
 
 void GetStyles()
@@ -679,7 +684,7 @@ void GetStyles()
 		{ "Light", "" }, 
 		{ "Dark", "" } 
 	};
-	for (fs::directory_iterator it("style/"); it != fs::directory_iterator(); ++it)
+	for (fs::directory_iterator it(rootPath + "/style/"); it != fs::directory_iterator(); ++it)
 	{
 		if (it->path().extension() != ".ini")
 			continue;
@@ -734,16 +739,16 @@ void LoadStyle()
 	
 	//reload ImRAD UI first
 	StyleColors();
-	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 20.0f)->FallbackChar = '#';
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f)->FallbackChar = '#';
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig cfg;
 	cfg.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &cfg, icons_ranges);
-	io.Fonts->AddFontFromFileTTF((std::string("style/") + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
 	cfg.MergeMode = false;
 	strcpy(cfg.Name, "imrad.H1");
-	io.Fonts->AddFontFromFileTTF("style/Roboto-Medium.ttf", 26, &cfg)->FallbackChar = '#';
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 26, &cfg)->FallbackChar = '#';
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
@@ -828,7 +833,7 @@ void DoCloneStyle(const std::string& name)
 	};
 
 	std::string from = fileTabs[activeTab].styleName;
-	std::string path = "style/" + name + ".ini";
+	std::string path = rootPath + "/style/" + name + ".ini";
 	try 
 	{
 		if (from == "Classic" || from == "Dark" || from == "Light") 
@@ -856,7 +861,7 @@ void DoCloneStyle(const std::string& name)
 		}
 		else 
 		{
-			fs::copy_file("style/" + from + ".ini", path, fs::copy_options::overwrite_existing);
+			fs::copy_file(rootPath + "/style/" + from + ".ini", path, fs::copy_options::overwrite_existing);
 		}
 
 		fileTabs[activeTab].styleName = name;
@@ -877,7 +882,7 @@ void CloneStyle()
 	inputName.hint = "Enter new style name";
 	inputName.OpenPopup([](ImRad::ModalResult mr)
 		{
-			std::string path = "style/" + inputName.name + ".ini";
+			std::string path = rootPath + "/style/" + inputName.name + ".ini";
 			if (fs::exists(path)) {
 				messageBox.title = "Confirmation";
 				messageBox.message = "Overwrite existing style?";
@@ -1027,7 +1032,9 @@ void ToolbarUI()
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Save File (Ctrl+S)");
 	
-	ImGui::SameLine(0, 1);
+	ImGui::SameLine(0, 0);
+	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+	ImGui::SameLine(0, 0);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 2, ImGui::GetStyle().FramePadding.y });
 	if (ImGui::Button(ICON_FA_CARET_DOWN)) 
 		ImGui::OpenPopup("SaveMenu");
@@ -1755,17 +1762,32 @@ void AddINIHandler()
 	ImGui::GetCurrentContext()->SettingsHandlers.push_back(ini_handler);
 }
 
+std::string GetRootPath()
+{
+#ifdef WIN32
+	wchar_t tmp[1024];
+	int n = GetModuleFileNameW(NULL, tmp, sizeof(tmp));
+	return fs::path(tmp).parent_path().generic_string(); //need generic for CMake path output
+#else
+	fs::path pexe = fs::canonical("/proc/self/exe");
+	return pexe.parent_path().string();
+#endif
+}
+
 #ifdef WIN32
 int WINAPI wWinMain(
 	HINSTANCE   hInstance,
 	HINSTANCE   hPrevInstance,
 	PWSTR       lpCmdLine,
 	int         nCmdShow
-)
-#else
-int main(int argc, const char* argv[])
-#endif
+) 
 {
+#else
+int main(int argc, const char* argv[]) 
+{
+#endif	
+	rootPath = GetRootPath();
+
 	// Setup window
 	glfwSetErrorCallback(glfw_error_callback);
 	if (!glfwInit())
