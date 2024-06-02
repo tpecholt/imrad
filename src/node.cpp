@@ -274,11 +274,10 @@ void UINode::DrawSnap(UIContext& ctx)
 		size_t i1 = i, i2 = i;
 		for (int j = (int)i - 1; j >= 0; --j)
 		{
-			if (!pchildren[j + 1]->sameLine)
+			if (!pchildren[j + 1]->sameLine || pchildren[j + 1]->nextColumn) 
 				break;
 			if (pchildren[j + 1]->beginGroup)
 				break;
-			assert(!pchildren[j + 1]->nextColumn);
 			i1 = j;
 			const auto& ch = pchildren[j];
 			p.x = ch->cached_pos.x;
@@ -289,9 +288,8 @@ void UINode::DrawSnap(UIContext& ctx)
 		}
 		for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
 		{
-			if (!pchildren[j]->sameLine)
+			if (!pchildren[j]->sameLine || pchildren[j]->nextColumn)
 				break;
-			assert(!pchildren[j]->nextColumn);
 			i2 = j;
 			const auto& ch = pchildren[j];
 			x2 = ch->cached_pos.x + ch->cached_size.x;
@@ -1163,7 +1161,7 @@ void TopWindow::TreeUI(UIContext& ctx)
 
 	ctx.parents = { this };
 	std::string str = ctx.codeGen->GetName();
-	bool selected = stx::count(ctx.selected, this);
+	bool selected = stx::count(ctx.selected, this) || ctx.snapParent == this;
 	if (selected)
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
 	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
@@ -2486,7 +2484,7 @@ void Widget::TreeUI(UIContext& ctx)
 			suff += "C";
 	}
 
-	bool selected = stx::count(ctx.selected, this);
+	bool selected = stx::count(ctx.selected, this) || ctx.snapParent == this;
 	if (icon != "")
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 	else if (selected)
