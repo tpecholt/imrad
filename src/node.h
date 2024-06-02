@@ -594,6 +594,9 @@ struct MenuIt : Widget
 	direct_val<std::string> shortcut = "";
 	direct_val<bool> separator = false;
 	field_ref<bool> checked;
+	direct_val<pzdimension2> style_padding;
+	direct_val<pzdimension2> style_spacing;
+	direct_val<pzdimension> style_rounding;
 	event<> onChange;
 
 	MenuIt(UIContext& ctx);

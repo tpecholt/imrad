@@ -7584,15 +7584,30 @@ void MenuIt::DoDraw(UIContext& ctx)
 		if (open)
 		{
 			ImGui::SetNextWindowPos(cached_pos);
+			if (style_padding.has_value())
+				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding);
+			if (style_rounding.has_value())
+				ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, style_rounding);
+			if (style_spacing.has_value())
+				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
+
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
 			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings);
 			{
-				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
+				ctx.activePopups.push_back(ImGui::GetCurrentWindow());				
 				//for (const auto& child : children) defend against insertions within the loop
 				for (size_t i = 0; i < children.size(); ++i)
 					children[i]->Draw(ctx);
+
 				ImGui::End();
 			}
+
+			if (style_spacing.has_value())
+				ImGui::PopStyleVar();
+			if (style_rounding.has_value())
+				ImGui::PopStyleVar();
+			if (style_padding.has_value())
+				ImGui::PopStyleVar();
 		}
 	}
 	else if (children.size()) //normal menu
@@ -7754,11 +7769,19 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (contextMenu)
 	{
+		if (style_padding.has_value())
+			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, " << style_padding.to_arg(ctx.unit) << ");\n";
+		if (style_rounding.has_value())
+			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
+		if (style_spacing.has_value())
+			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
+
 		os << ctx.ind << "if (ImGui::BeginPopup(" << label.to_arg() << ", "
 			<< "ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings"
 			<< "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
+
 		os << ctx.ind << "/// @separator\n\n";
 
 		for (const auto& child : children)
@@ -7768,6 +7791,13 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::EndPopup();\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
+
+		if (style_spacing.has_value())
+			os << ctx.ind << "ImGui::PopStyleVar();\n";
+		if (style_rounding.has_value())
+			os << ctx.ind << "ImGui::PopStyleVar();\n";
+		if (style_padding.has_value())
+			os << ctx.ind << "ImGui::PopStyleVar();\n";
 	}
 	else if (children.size())
 	{
@@ -7860,6 +7890,15 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		separator = true;
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
+	{
+		if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_WindowPadding")
+			style_padding.set_from_arg(sit->params[1]);
+		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ItemSpacing")
+			style_spacing.set_from_arg(sit->params[1]);
+		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_PopupRounding")
+			style_rounding.set_from_arg(sit->params[1]);
+	}
 	else if (sit->kind == cpp::CallExpr && sit->callee.compare(0, 7, "ImGui::"))
 	{
 		ownerDraw = true;
@@ -7872,6 +7911,9 @@ MenuIt::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.padding", &style_padding },
+		{ "@style.spacing", &style_spacing },
+		{ "@style.rounding", &style_rounding },
 		{ "ownerDraw", &ownerDraw },
 		{ "label", &label, true },
 		{ "shortcut", &shortcut },
@@ -7887,6 +7929,30 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::BeginDisabled(!contextMenu);
+		ImGui::Text("padding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##padding", &style_padding, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 1:
+		ImGui::BeginDisabled(!contextMenu);
+		ImGui::Text("spacing");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##spacing", &style_spacing, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 2:
+		ImGui::BeginDisabled(!contextMenu);
+		ImGui::Text("rounding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##rounding", &style_rounding, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 3:
 		ImGui::BeginDisabled(contextMenu);
 		ImGui::Text("ownerDraw");
 		ImGui::TableNextColumn();
@@ -7894,7 +7960,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##ownerDraw", ownerDraw.access());
 		ImGui::EndDisabled();
 		break;
-	case 1:
+	case 4:
 		ImGui::BeginDisabled(ownerDraw);
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
@@ -7902,7 +7968,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##label", label.access());
 		ImGui::EndDisabled();
 		break;
-	case 2:
+	case 5:
 		ImGui::BeginDisabled(ownerDraw || contextMenu || children.size());
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
@@ -7910,7 +7976,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##shortcut", shortcut.access());
 		ImGui::EndDisabled();
 		break;
-	case 3:
+	case 6:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::BeginDisabled(ownerDraw || contextMenu || children.size());
 		ImGui::Text("checked");
@@ -7919,7 +7985,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##checked", &checked, true, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 4:
+	case 7:
 		ImGui::BeginDisabled(contextMenu);
 		ImGui::Text("separator");
 		ImGui::TableNextColumn();
@@ -7928,7 +7994,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 5, ctx);
+		return Widget::PropertyUI(i - 8, ctx);
 	}
 	return changed;
 }
