@@ -235,6 +235,7 @@ struct Button : Widget
 	direct_val<bool> small = false;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<std::string> shortcut = "";
+	direct_val<std::string> dropDownMenu = "";
 	bindable<color32> style_button;
 	bindable<color32> style_hovered;
 	event<> onChange;

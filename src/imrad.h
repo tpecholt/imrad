@@ -241,7 +241,9 @@ inline bool IsItemDisabled()
 //Push/PopID like TabControl
 inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
 {
-	ImGui::PushOverrideID(ImGui::GetCurrentWindow()->ID);
+	//RootWindow skips child window parents 
+	ImGui::PushOverrideID(ImGui::GetCurrentWindow()->RootWindow->ID);
+	//todo: for drop down menu use button's BL corner
 	ImGui::OpenPopup(str_id, flags);
 	ImGui::PopID();
 }

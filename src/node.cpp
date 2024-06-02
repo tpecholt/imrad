@@ -3315,7 +3315,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	
 	bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
 	os << ctx.ind;
-	if (!onChange.empty() || closePopup)
+	if (!onChange.empty() || closePopup || dropDownMenu != "")
 		os << "if (";
 	
 	if (arrowDir != ImGuiDir_None)
@@ -3340,7 +3340,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 	}
 
-	if (!onChange.empty() || closePopup)
+	if (!onChange.empty() || closePopup || dropDownMenu != "")
 	{
 		os << ")\n" << ctx.ind << "{\n";
 		ctx.ind_up();
@@ -3349,6 +3349,8 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 			os << ctx.ind << onChange.to_arg() << "();\n";
 		if (closePopup)
 			os << ctx.ind << "ClosePopup(" << modalResult.to_arg() << ");\n";
+		if (dropDownMenu != "")
+			os << ctx.ind << "ImRad::OpenWindowPopup(" << dropDownMenu.to_arg() << ");\n";
 
 		ctx.ind_down();			
 		os << ctx.ind << "}\n";
@@ -3406,6 +3408,8 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				modalResult.set_from_arg(sit->params[0]);
 		}
+		else if (sit->callee == "ImRad::OpenWindowPopup" && sit->params.size())
+			dropDownMenu.set_from_arg(sit->params[0]);
 		else if (sit->callee == "callback" && sit->params.size()) //compatibility with older version
 			modalResult.set_from_arg(sit->params[0]);
 		else
@@ -3427,6 +3431,7 @@ Button::Properties()
 		{ "label", &label, true },
 		{ "shortcut", &shortcut },
 		{ "button.modalResult", &modalResult },
+		{ "button.dropDownMenu", &dropDownMenu },
 		{ "button.small", &small },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
@@ -3533,13 +3538,35 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	case 9:
+		ImGui::Text("dropDownMenu");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		if (ImGui::BeginCombo("##ddm", dropDownMenu.c_str()))
+		{
+			if (ImGui::Selectable(" ", dropDownMenu.empty()))
+			{
+				changed = true;
+				contextMenu = "";
+			}
+			for (const std::string& cm : ctx.contextMenus)
+			{
+				if (ImGui::Selectable(cm.c_str(), cm == dropDownMenu.c_str()))
+				{
+					changed = true;
+					dropDownMenu = cm;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		break;
+	case 10:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##small", &small, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 10:
+	case 11:
 		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
@@ -3549,7 +3576,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 11:
+	case 12:
 		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -3560,7 +3587,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 12, ctx);
+		return Widget::PropertyUI(i - 13, ctx);
 	}
 	return changed;
 }
