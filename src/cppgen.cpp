@@ -815,15 +815,20 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		return false;
 	if (line[0] == "using" || line[0] == "typedef" || line[0] == "namespace")
 		return false;
-	if (line[0] == "enum")
+	if (line[0] == "enum" || line[0] == "template")
 		return false;
 	
-	if (line[0] == "void" && line.back() == ")" && line[line.size() - 2] == "(")
+	if (line.size() >= 4 && line[0] == "void" && cpp::is_id(line[1]) && line[2] == "(" && line.back() == ")")
 	{
-		std::string name = stx::join(line.begin() + 1, line.end() - 2, "");
-		if (name != "OpenPopup" && name != "Open" && name != "Draw" && name != "Init") { //other generated funs can be used as handlers
-			CreateNamedVar(name, "void()", "", flags, sname);
-		}
+		std::string name = line[1];
+		if (name == "OpenPopup" || name == "Open" || name == "Draw" || name == "Init")
+			return false;
+		
+		std::string type = "void()";
+		if (line[3] == "const" && line[line.size() - 3] == "&" && line[line.size() - 2] == "args")
+			type = "void(" + stx::join(line.begin() + 4, line.end() - 3, "") + ")";
+		
+		CreateNamedVar(name, type, "", flags, sname);
 	}
 	else
 	{
