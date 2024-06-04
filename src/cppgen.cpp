@@ -8,6 +8,9 @@
 const std::string CppGen::INDENT = "    ";
 const std::string CppGen::FOR_VAR = "i";
 
+const std::string SPEC_FUN[] = {
+	"Open", "Close", "OpenPopup", "ClosePopup", "Init", "Draw",
+};
 
 CppGen::CppGen()
 	: m_name("Untitled"), m_vname("untitled")
@@ -234,7 +237,7 @@ CppGen::ExportH(
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Interface))
 						continue;
 					if (!var.type.compare(0, 5, "void(")) {
-						if (var.name == "Close" || var.name == "ClosePopup")
+						if (stx::count(SPEC_FUN, var.name))
 							continue;
 						out << INDENT << "void " << var.name << "();\n";
 					}
@@ -297,7 +300,9 @@ CppGen::ExportH(
 				{
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
 						continue;
-					if (!var.type.compare(0, 5, "void(")) {
+					if (!var.type.compare(0, 5, "void(") ||
+						!stx::count(SPEC_FUN, var.name)) 
+					{
 						out << INDENT << "void " << var.name << "(";
 						std::string arg = var.type.substr(5, var.type.size() - 6);
 						if (arg.size())
@@ -407,6 +412,7 @@ CppGen::ExportCpp(
 {
 	int level = 0;
 	int skip_to_level = -1;
+	int comment_to_level = -1;
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
 	std::set<std::string> events;
@@ -461,24 +467,37 @@ CppGen::ExportCpp(
 				auto name = IsMemFun(line);
 				if (name != "")
 				{
-					events.insert(name);
 					//rewrite generated functions
 					if (name == "Draw")
 					{
+						events.insert(name);
 						skip_to_level = level - 1;
 						WriteStub(fout, "Draw", node->kind, animPos, params, code.str());
 					}
-					else if (name == "OpenPopup" || name == "ClosePopup" ||
-						name == "Open" || name == "Close") //ignore Init it contains user code
+					else if (stx::count(SPEC_FUN, name)) 
 					{
-						skip_to_level = level - 1;
-						if (!WriteStub(fout, name, node->kind, animPos)) 
-						{
-							//this member is no longer needed => rollback hack
-							fout.seekp((int)fout.tellp() - 5 - m_name.size());
-							//fout << std::string(5 + m_name.size(), ' ');
-							fout << "// void " << m_name << "::" << name << " REMOVED";
+						if (WriteStub(fout, name, node->kind, animPos)) {
+							events.insert(name);
+							skip_to_level = level - 1;
 						}
+						else {
+							//remove member which is no longer needed
+							fout.seekp((int)fout.tellp() - 5 - m_name.size());
+							if (name == "Init") {
+								//Init contains user code so we don't want to delete it completely
+								comment_to_level = level - 1;
+								fpos += fprev.tellg() - fpos;
+								fout << "/* void " << m_name << "::" << name << "() REMOVED\n{";
+							}
+							else {
+								skip_to_level = level - 1;
+								fout << "// void " << m_name << "::" << name << " REMOVED";
+							}
+						}
+					}
+					else
+					{
+						events.insert(name);
 					}
 				}
 				line.clear();
@@ -514,6 +533,11 @@ CppGen::ExportCpp(
 				skip_to_level = -1;
 				fpos = fprev.tellg();
 			}
+			if (comment_to_level == level) {
+				comment_to_level = -1;
+				copy_content();
+				fout << "*/";
+			}
 		}
 	}
 
@@ -523,7 +547,7 @@ CppGen::ExportCpp(
 	copy_content();
 
 	//add missing members
-	for (const char* name : { "OpenPopup", "ClosePopup", "Open", "Close", "Init", "Draw" })
+	for (const auto& name : SPEC_FUN)
 	{
 		if (events.count(name))
 			continue;
@@ -541,7 +565,7 @@ CppGen::ExportCpp(
 			continue;
 		if (var.type.compare(0, 5, "void("))
 			continue;
-		if (events.count(var.name))
+		if (events.count(var.name) || stx::count(SPEC_FUN, var.name))
 			continue;
 		fout << "\nvoid " << m_name << "::" << var.name << "(";
 		std::string arg = var.type.substr(5, var.type.size() - 6);
@@ -563,6 +587,7 @@ bool CppGen::WriteStub(
 	const std::map<std::string, std::string>& params,
 	const std::string& code)
 {
+	assert(stx::count(SPEC_FUN, id));
 	//OpenPopup has to be called from the window which wants to open it so that's why
 	//immediate call
 	//CloseCurrentPopup has to be called from the popup Draw code so that's why
@@ -821,7 +846,8 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 	if (line.size() >= 4 && line[0] == "void" && cpp::is_id(line[1]) && line[2] == "(" && line.back() == ")")
 	{
 		std::string name = line[1];
-		if (name == "OpenPopup" || name == "Open" || name == "Draw" || name == "Init")
+		//currently we allow generated Close/Popup in event handler list
+		if (stx::count(SPEC_FUN, name) && name != "Close" && name != "ClosePopup")
 			return false;
 		
 		std::string type = "void()";

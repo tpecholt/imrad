@@ -379,7 +379,7 @@ void ReloadFiles()
 			tab.modified = false;
 			if (&tab == &fileTabs[activeTab])
 				ctx.mode = UIContext::NormalSelection;
-				ctx.selected.clear();
+				ctx.selected = { tab.rootNode.get() };
 			});
 	}
 }
