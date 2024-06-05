@@ -457,8 +457,10 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 		if (fmt[i] == '{') {
 			if (i + 1 == fmt.size())
 				break;
-			if (fmt[i + 1] == '{')
+			if (fmt[i + 1] == '{') {
 				s += '{';
+				++i;
+			}
 			else {
 				auto j = fmt.find('}', i + 1);
 				if (j == std::string::npos)

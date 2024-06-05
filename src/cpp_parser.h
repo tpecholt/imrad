@@ -623,7 +623,7 @@ namespace cpp
 		return str;
 	}
 
-	inline std::string unescape(std::string_view str)
+	inline std::string unescape(std::string_view str, bool curly = false)
 	{
 		std::string tmp;
 		for (size_t i = 0; i < str.size(); ++i)
@@ -631,7 +631,10 @@ namespace cpp
 			switch (str[i])
 			{
 			default:
-				tmp += str[i];
+				if (curly && str[i] == '{')
+					tmp += "{{";
+				else
+					tmp += str[i];
 				break;
 			case '\\':
 				if (i + 1 == str.size())
@@ -668,7 +671,7 @@ namespace cpp
 		}
 		else if (is_cstr(str))
 		{
-			return unescape(str.substr(1, str.size() - 2));
+			return unescape(str.substr(1, str.size() - 2), true);
 		}
 		else if (!str.compare(0, 15, "ImRad::Format(\"") &&
 				!str.compare(str.size() - 9, 9, ").c_str()")) 
@@ -776,25 +779,30 @@ namespace cpp
 
 	inline std::string to_str_arg(std::string_view str)
 	{
-		std::string fmt, args;
+		std::string lit, fmt, args;
 		for (size_t i = 0; i < str.size(); ++i)
 		{
 			switch (str[i])
 			{
 			default:
+				lit += escape(str[i]);
 				fmt += escape(str[i]);
 				break;
 			case '{':
 				if (i + 1 < str.size() && str[i + 1] == '{') {
-					fmt += "{";
+					lit += "{";
+					fmt += "{{";
 					++i;
 				}
 				else {
 					size_t q = str.find('?', i + 1);
 					size_t c = str.find(':', i + 1);
 					size_t e = str.find('}', i + 1);
-					if (e == std::string::npos)
+					if (e == std::string::npos) {
+						lit = "error";
+						args.clear();
 						goto error;
+					}
 					if (c != std::string::npos && c < e &&
 						(q == std::string::npos || q > c)) //probably ?: operator misinterpreted as :fmt
 					{
@@ -813,7 +821,7 @@ namespace cpp
 		}
 error:
 		if (args.empty())
-			return "\"" + fmt + "\"";
+			return "\"" + lit + "\"";
 		return "ImRad::Format(\"" + fmt + "\"" + args + ").c_str()";
 	}
 

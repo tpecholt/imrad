@@ -2196,6 +2196,15 @@ Widget::Properties()
 			{ "allowOverlap", &allowOverlap },
 			});
 	}
+	else if (!(Behavior() & NoOverlayPos))
+	{
+		props.insert(props.end(), {
+			{ "@overlayPos.hasPos", &hasPos },
+			{ "@overlayPos.pos_x", &pos_x },
+			{ "@overlayPos.pos_y", &pos_y }
+			});
+	}
+
 	return props;
 }
 
@@ -2268,10 +2277,12 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		BindingButton("disabled", &disabled, ctx);
 		break;
 	case 5:
+		ImGui::BeginDisabled(Behavior() & NoOverlayPos);
 		ImGui::Text("hasPos");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##hasPos", hasPos.access());
+		ImGui::EndDisabled();
 		break;
 	case 6:
 		ImGui::BeginDisabled(!hasPos);

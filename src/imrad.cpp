@@ -346,7 +346,7 @@ void ReloadFiles()
 {
 	for (auto& tab : fileTabs)
 	{
-		if (tab.fname == "")
+		if (tab.fname == "" || !fs::is_regular_file(tab.fname))
 			continue;
 		auto time1 = fs::last_write_time(tab.fname);
 		std::error_code err;
