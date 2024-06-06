@@ -633,6 +633,8 @@ namespace cpp
 			default:
 				if (curly && str[i] == '{')
 					tmp += "{{";
+				else if (curly && str[i] == '}')
+					tmp += "}}";
 				else
 					tmp += str[i];
 				break;
@@ -787,6 +789,19 @@ namespace cpp
 			default:
 				lit += escape(str[i]);
 				fmt += escape(str[i]);
+				break;
+			case '}':
+				if (i + 1 < str.size() && str[i + 1] == '}') {
+					lit += "}";
+					fmt += "}}";
+					++i;
+				}
+				else {
+					//should be handled by {
+					lit = "error";
+					args.clear();
+					goto error; 
+				}
 				break;
 			case '{':
 				if (i + 1 < str.size() && str[i + 1] == '{') {

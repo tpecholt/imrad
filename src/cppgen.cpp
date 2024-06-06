@@ -260,7 +260,7 @@ CppGen::ExportH(
 				if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
 					node->kind == TopWindow::Activity)
 				{
-					out << INDENT << "void Init();\n\n";
+					out << INDENT << "void Init();\n";
 				}
 
 				if (node->kind == TopWindow::ModalPopup)
@@ -300,8 +300,8 @@ CppGen::ExportH(
 				{
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
 						continue;
-					if (!var.type.compare(0, 5, "void(") ||
-						!stx::count(SPEC_FUN, var.name)) 
+					if ((var.type.size() >= 5 && !var.type.compare(0, 5, "void(")) &&
+						!stx::count(SPEC_FUN, var.name))
 					{
 						out << INDENT << "void " << var.name << "(";
 						std::string arg = var.type.substr(5, var.type.size() - 6);
@@ -309,7 +309,14 @@ CppGen::ExportH(
 							out << "const " << arg << "& args";
 						out << ");\n";
 					}
-					else {
+				}
+				out << "\n";
+				for (const auto& var : m_fields[""])
+				{
+					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
+						continue;
+					if (var.type.size() < 5 || var.type.compare(0, 5, "void(")) 
+					{
 						out << INDENT << var.type << " " << var.name;
 						if (var.init != "")
 							out << " = " << var.init;
