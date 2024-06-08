@@ -80,10 +80,10 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 	ImGui::PopStyleVar();
 	ImGui::TableNextColumn();
 	ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-	changed = InputDataSize("##size", &val->limit, true, ctx);
+	changed |= InputDataSize("##size", &val->limit, true, ctx);
 	//changed = ImGui::InputText("##size", val->limit.access()); //allow empty
 	ImGui::SameLine(0, 0);
-	BindingButton(name, &val->limit, ctx);
+	changed |= BindingButton(name, &val->limit, ctx);
 	if (open)
 	{
 		ImGui::TableNextRow();
@@ -95,7 +95,7 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 		ImGui::Text("index");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputFieldRef("##index", &val->index, true, ctx) || changed;
+		changed |= InputFieldRef("##index", &val->index, true, ctx);
 		ImGui::EndDisabled();
 		ImGui::TreePop();
 	}
@@ -1239,18 +1239,18 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		int clr = (kind == Popup || kind == ModalPopup) ? ImGuiCol_PopupBg : ImGuiCol_WindowBg;
-		changed = InputBindable("##bg", &style_bg, clr, ctx) || changed;
+		changed = InputBindable("##bg", &style_bg, clr, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("bg", &style_bg, ctx);
+		changed |= BindingButton("bg", &style_bg, ctx);
 		break;
 	}
 	case 2:
 		ImGui::Text("menuBarBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##menubg", &style_menuBg, ImGuiCol_MenuBarBg, ctx) || changed;
+		changed = InputBindable("##menubg", &style_menuBg, ImGuiCol_MenuBarBg, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("menubg", &style_bg, ctx);
+		changed |= BindingButton("menubg", &style_bg, ctx);
 		break;
 	case 3:
 	{
@@ -1298,7 +1298,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 9:
 		TreeNodeProp("flags", "...", [&] {
@@ -1319,7 +1319,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##title", &title, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("title", &title, ctx);
+		changed |= BindingButton("title", &title, ctx);
 		break;
 	case 11:
 		ImGui::Text("size_x");
@@ -2226,7 +2226,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##visible", &visible, true, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("visible", &visible, ctx);
+		changed |= BindingButton("visible", &visible, ctx);
 		break;
 	case 1:
 		ImGui::Text("tooltip");
@@ -2234,7 +2234,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##tooltip", &tooltip, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("tooltip", &tooltip, ctx);
+		changed |= BindingButton("tooltip", &tooltip, ctx);
 		break;
 	case 2:
 	{
@@ -2274,7 +2274,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##disabled", &disabled, false, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("disabled", &disabled, ctx);
+		changed |= BindingButton("disabled", &disabled, ctx);
 		break;
 	case 5:
 		ImGui::BeginDisabled(Behavior() & NoOverlayPos);
@@ -2684,7 +2684,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 3, ctx);
@@ -2797,7 +2797,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_text, ctx);
+		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -2805,7 +2805,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("text");
@@ -2813,7 +2813,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##text", &text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("text", &text, ctx);
+		changed |= BindingButton("text", &text, ctx);
 		break;
 	case 3:
 		ImGui::Text("alignToFramePadding");
@@ -3043,7 +3043,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_text, ctx);
+		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -3051,7 +3051,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		TreeNodeProp("flags", "...", [&] {
@@ -3066,7 +3066,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	case 4:
 		ImGui::Text("readOnly");
@@ -3121,7 +3121,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 10:
 		ImGui::Text("size_y");
@@ -3129,7 +3129,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 11, ctx);
@@ -3457,39 +3457,39 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("text");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx) || changed;
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_text, ctx);
+		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("button");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##bg", &style_button, ImGuiCol_Button, ctx) || changed;
+		changed = InputBindable("##bg", &style_button, ImGuiCol_Button, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("bg", &style_button, ctx);
+		changed |= BindingButton("bg", &style_button, ctx);
 		break;
 	case 2:
 		ImGui::Text("hovered");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##hovered", &style_hovered, ImGuiCol_ButtonHovered, ctx) || changed;
+		changed = InputBindable("##hovered", &style_hovered, ImGuiCol_ButtonHovered, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("hovered", &style_hovered, ctx);
+		changed |= BindingButton("hovered", &style_hovered, ctx);
 		break;
 	case 3:
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##rounding", &style_frameRounding, ctx) || changed;
+		changed = InputDirectVal("##rounding", &style_frameRounding, ctx);
 		break;
 	case 4:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##font", &style_font, ctx) || changed;
+		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 5:
 	{
@@ -3515,7 +3515,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 7:
@@ -3582,7 +3582,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 12:
@@ -3592,7 +3592,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
 		break;
 	default:
@@ -3724,7 +3724,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_text, ctx);
+		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -3732,7 +3732,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("label");
@@ -3740,7 +3740,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	case 3:
 	{
@@ -3852,9 +3852,9 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx) || changed;
+		changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_text, ctx);
+		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("font");
@@ -3862,7 +3862,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 2:
 		ImGui::Text("label");
@@ -3870,7 +3870,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	case 3:
 		ImGui::Text("valueID");
@@ -4381,7 +4381,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##text", &style_text, ImGuiCol_Text, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("text", &style_text, ctx);
+		changed |= BindingButton("text", &style_text, ctx);
 		break;
 	case 1:
 		ImGui::Text("frameBg");
@@ -4389,7 +4389,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##frameBg", &style_frameBg, ImGuiCol_FrameBg, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("frameBg", &style_frameBg, ctx);
+		changed |= BindingButton("frameBg", &style_frameBg, ctx);
 		break;
 	case 2:
 		ImGui::Text("font");
@@ -4397,7 +4397,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##font", &style_font, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("font", &style_font, ctx);
+		changed |= BindingButton("font", &style_font, ctx);
 		break;
 	case 3:
 		TreeNodeProp("flags", "...", [&] {
@@ -4443,7 +4443,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##hint", &hint, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("hint", &hint, ctx);
+		changed |= BindingButton("hint", &hint, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 8:
@@ -4457,11 +4457,11 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			for (const auto& id : _imeClass.get_ids()) {
-				changed = ImGui::RadioButton(id.first.c_str(), &type, id.second) || changed;
+				changed |= ImGui::RadioButton(id.first.c_str(), &type, id.second);
 			}
 			ImGui::Separator();
 			for (const auto& id : _imeAction.get_ids()) {
-				changed = ImGui::RadioButton(id.first.c_str(), &action, id.second) || changed;
+				changed |= ImGui::RadioButton(id.first.c_str(), &action, id.second);
 			}
 			imeType = type | action;
 			});
@@ -4509,7 +4509,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 14:
 		ImGui::BeginDisabled(type != "std::string" || !(flags & ImGuiInputTextFlags_Multiline));
@@ -4518,7 +4518,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
 		break;
 	default:
@@ -4721,7 +4721,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 				});
 		}
 		ImGui::SameLine(0, 0);
-		BindingButton("items", &items, ctx);
+		changed |= BindingButton("items", &items, ctx);
 		break;
 	case 3:
 		ImGui::Text("size_x");
@@ -4729,7 +4729,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 4, ctx);
@@ -4995,7 +4995,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 7, ctx);
@@ -5131,7 +5131,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##color", &style_color, ImGuiCol_PlotHistogram, ctx) || changed;
+		changed = InputBindable("##color", &style_color, ImGuiCol_PlotHistogram, ctx);
 		break;
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -5156,7 +5156,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 4:
 		ImGui::Text("size_y");
@@ -5164,7 +5164,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 5, ctx);
@@ -5360,7 +5360,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 5, ctx);
@@ -5515,7 +5515,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 			(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			RefreshTexture(ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("fileName", &fileName, ctx);
+		changed |= BindingButton("fileName", &fileName, ctx);
 		break;
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -5530,7 +5530,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 3:
 		ImGui::Text("size_y");
@@ -5538,7 +5538,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 4, ctx);
@@ -5660,7 +5660,7 @@ bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 1:
 		ImGui::Text("size_y");
@@ -5668,7 +5668,7 @@ bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 2, ctx);
@@ -5852,25 +5852,25 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("cellPadding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##style_cellPadding", &style_cellPadding, ctx) || changed;
+		changed = InputDirectVal("##style_cellPadding", &style_cellPadding, ctx);
 		break;
 	case 1:
 		ImGui::Text("headerBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##headerbg", &style_headerBg, ImGuiCol_TableHeaderBg, ctx) || changed;
+		changed = InputBindable("##headerbg", &style_headerBg, ImGuiCol_TableHeaderBg, ctx);
 		break;
 	case 2:
 		ImGui::Text("rowBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##rowbg", &style_rowBg, ImGuiCol_TableRowBg, ctx) || changed;
+		changed = InputBindable("##rowbg", &style_rowBg, ImGuiCol_TableRowBg, ctx);
 		break;
 	case 3:
 		ImGui::Text("rowBgAlt");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx) || changed;
+		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx);
 		break;
 	case 4:
 		TreeNodeProp("flags", "...", [&] {
@@ -5906,7 +5906,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##rowh", &rowHeight, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("rowHeight", &rowHeight, ctx);
+		changed |= BindingButton("rowHeight", &rowHeight, ctx);
 		break;
 	case 9:
 		ImGui::BeginDisabled(rowCount.empty());
@@ -5915,7 +5915,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##rowFilter", rowFilter.access());
 		ImGui::SameLine(0, 0);
-		BindingButton("rowFilter", &rowFilter, ctx);
+		changed |= BindingButton("rowFilter", &rowFilter, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 10:
@@ -5930,7 +5930,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 12:
 		ImGui::Text("size_y");
@@ -5938,7 +5938,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 13, ctx);
@@ -6509,7 +6509,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##color", &style_bg, ImGuiCol_ChildBg, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("color", &style_bg, ctx);
+		changed |= BindingButton("color", &style_bg, ctx);
 		break;
 	case 1:
 		ImGui::Text("border");
@@ -6517,7 +6517,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("border", &style_border, ctx);
+		changed |= BindingButton("border", &style_border, ctx);
 		break;
 	case 2:
 		ImGui::Text("padding");
@@ -6571,7 +6571,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("windowFlags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
-			changed = CheckBoxFlags(&wflags) || changed;
+			changed = CheckBoxFlags(&wflags);
 			});
 		break;
 	case 8:
@@ -6580,7 +6580,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##columnCount", &columnCount, 1, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("columnCount", &columnCount, ctx);
+		changed |= BindingButton("columnCount", &columnCount, ctx);
 		break;
 	case 9:
 		ImGui::Text("columnBorder");
@@ -6602,7 +6602,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 13:
 		ImGui::Text("size_y");
@@ -6610,7 +6610,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 14, ctx);
@@ -6780,17 +6780,17 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("bg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##bg", &style_bg, ImGuiCol_ChildBg, ctx) || changed;
+		changed = InputBindable("##bg", &style_bg, ImGuiCol_ChildBg, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("bg", &style_bg, ctx);
+		changed |= BindingButton("bg", &style_bg, ctx);
 		break;
 	case 1:
 		ImGui::Text("active");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##active", &style_active, ImGuiCol_SeparatorActive, ctx) || changed;
+		changed = InputBindable("##active", &style_active, ImGuiCol_SeparatorActive, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("active", &style_active, ctx);
+		changed |= BindingButton("active", &style_active, ctx);
 		break;
 	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -6817,7 +6817,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_x", &size_x, ctx);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	case 6:
 		ImGui::Text("size_y");
@@ -6825,7 +6825,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("size_y", &size_y, ctx);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 7, ctx);
@@ -6932,7 +6932,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	case 1:
 		ImGui::Text("open");
@@ -6940,7 +6940,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##open", &open, true, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("open", &open, ctx);
+		changed |= BindingButton("open", &open, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 2, ctx);
@@ -7077,7 +7077,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("flags", "...", [&]{
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
-			changed = CheckBoxFlags(&flags) || changed;
+			changed = CheckBoxFlags(&flags);
 			});
 		break;
 	case 1:
@@ -7086,7 +7086,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	case 2:
 		ImGui::Text("open");
@@ -7094,7 +7094,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##open", &open, true, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("open", &open, ctx);
+		changed |= BindingButton("open", &open, ctx);
 		break;
 	default:
 		return Widget::PropertyUI(i - 3, ctx);
@@ -7452,7 +7452,7 @@ bool TabItem::PropertyUI(int i, UIContext& ctx)
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##label", &label, ctx);
 		ImGui::SameLine(0, 0);
-		BindingButton("label", &label, ctx);
+		changed |= BindingButton("label", &label, ctx);
 		break;
 	case 1:
 		ImGui::Text("closeButton");

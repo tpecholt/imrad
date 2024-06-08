@@ -32,6 +32,8 @@ struct UIContext
 	std::string unit; //for dimension export
 	bool createVars = true; //create variables etc. during contructor/Clone calls
 	ImGuiStyle style;
+	const property_base* setProp = nullptr;
+	std::string setPropValue;
 
 	//snap result
 	UINode* snapParent = nullptr;

@@ -56,6 +56,14 @@ std::string typeid_name()
 template <class T>
 inline bool BindingButton(const char* label, bindable<T>* val, const std::string& type, UIContext& ctx)
 {
+	if (val == ctx.setProp)
+	{
+		//doing it here imrad.cpp will be able to set property in all selected widgets
+		ctx.setProp = nullptr;
+		*val->access() = ctx.setPropValue;
+		return true;
+	}
+
 	bool bound;
 	if constexpr (std::is_same_v<T, std::string> || 
 				  std::is_same_v<T, std::vector<std::string>> ||
@@ -78,8 +86,9 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
 		bindingDlg.name = label;
 		bindingDlg.expr = val->c_str();
 		bindingDlg.type = type;
-		bindingDlg.OpenPopup([val](ImRad::ModalResult) {
-			*val->access() = bindingDlg.expr;
+		bindingDlg.OpenPopup([&ctx, val](ImRad::ModalResult) {
+			ctx.setProp = val;
+			ctx.setPropValue = bindingDlg.expr;
 			});
 		return true;
 	}
@@ -410,6 +419,14 @@ inline bool InputBindable(const char* label, bindable<T>* val, T defVal, UIConte
 template <class T>
 inline bool InputFieldRef(const char* label, field_ref<T>* val, const std::string& type, bool allowEmpty, UIContext& ctx)
 {
+	if (val == ctx.setProp)
+	{
+		//doing it here imrad.cpp will be able to set property in all selected widgets
+		ctx.setProp = nullptr;
+		*val->access() = ctx.setPropValue;
+		return true;
+	}
+
 	bool changed = false;
 	if (ImGui::BeginCombo(label, val->c_str()))
 	{
@@ -436,8 +453,9 @@ inline bool InputFieldRef(const char* label, field_ref<T>* val, const std::strin
 			newFieldPopup.varType = type;
 			newFieldPopup.codeGen = ctx.codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewField;
-			newFieldPopup.OpenPopup([val] {
-				*val->access() = newFieldPopup.varName;
+			newFieldPopup.OpenPopup([&ctx, val] {
+				ctx.setProp = val;
+				ctx.setPropValue = newFieldPopup.varName;
 				});
 		}
 		
@@ -470,6 +488,14 @@ inline bool InputFieldRef(const char* label, field_ref<void>* val, bool allowEmp
 
 inline bool InputDataSize(const char* label, bindable<int>* val, bool allowEmpty, UIContext& ctx)
 {
+	if (val == ctx.setProp)
+	{
+		//doing it here imrad.cpp will be able to set property in all selected widgets
+		ctx.setProp = nullptr;
+		*val->access() = ctx.setPropValue;
+		return true;
+	}
+
 	bool changed = false;
 	if (ImGui::BeginCombo(label, val->c_str()))
 	{
@@ -484,11 +510,12 @@ inline bool InputDataSize(const char* label, bindable<int>* val, bool allowEmpty
 			newFieldPopup.varType = ""; //allow to create std::vector etc.
 			newFieldPopup.codeGen = ctx.codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewField;
-			newFieldPopup.OpenPopup([val] {
+			newFieldPopup.OpenPopup([&ctx, val] {
+				ctx.setProp = val;
 				if (cpp::is_container(newFieldPopup.varType))
-					*val->access() = newFieldPopup.varName + ".size()";
+					ctx.setPropValue = newFieldPopup.varName + ".size()";
 				else
-					*val->access() = newFieldPopup.varName;
+					ctx.setPropValue = newFieldPopup.varName;
 				});
 		}
 
@@ -511,14 +538,22 @@ inline bool InputDataSize(const char* label, bindable<int>* val, bool allowEmpty
 template <class Arg>
 inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 {
+	if (val == ctx.setProp) 
+	{
+		//doing it here imrad.cpp will be able to set property in all selected widgets
+		ctx.setProp = nullptr;
+		*val->access() = ctx.setPropValue;
+		return true;
+	}
+
 	bool changed = false;
 	std::string type = "void(" + typeid_name<Arg>() + ")";
 	if (ImGui::BeginCombo(label, val->c_str()))
 	{
 		if (ImGui::Selectable("None"))
 		{
-			*val->access() = "";
 			changed = true;
+			*val->access() = "";
 		}
 		if (ImGui::Selectable("New Method..."))
 		{
@@ -526,8 +561,9 @@ inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 			newFieldPopup.varType = type;
 			newFieldPopup.codeGen = ctx.codeGen;
 			newFieldPopup.mode = NewFieldPopup::NewEvent;
-			newFieldPopup.OpenPopup([val] {
-				*val->access() = newFieldPopup.varName;
+			newFieldPopup.OpenPopup([&ctx, val] { 
+				ctx.setProp = val;
+				ctx.setPropValue = newFieldPopup.varName;
 				});
 		}
 
@@ -542,8 +578,8 @@ inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 		{
 			if (ImGui::Selectable(ev.c_str(), ev == val->c_str()))
 			{
-				*val->access() = ev;
 				changed = true;
+				*val->access() = ev;
 			}
 		}
 		ImGui::EndCombo();
