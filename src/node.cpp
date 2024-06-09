@@ -2011,7 +2011,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				ctx.userCode += "\n";
 			ctx.userCode += sit->line;
 		}
-		else if (sit->kind == cpp::IfBlock)
+		else if (sit->kind == cpp::IfBlock || sit->kind == cpp::IfCallBlock)
 		{
 			ifBlockIt = sit; //could be visible block
 		}
@@ -2089,45 +2089,45 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else
 				DoImport(sit, ctx);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemHovered")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemHovered")
 		{
-			if (sit->callee == "ImGui::SetTooltip")
+			if (sit->callee2 == "ImGui::SetTooltip")
 				tooltip.set_from_arg(sit->params2[0]);
-			else if (sit->callee == "ImGui::SetMouseCursor")
+			else if (sit->callee2 == "ImGui::SetMouseCursor")
 				cursor.set_from_arg(sit->params2[0]);
 			else
 				onItemHovered.set_from_arg(sit->callee);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::IsItemContextMenuClicked")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::IsItemContextMenuClicked")
 		{
-			if (sit->callee == "ImRad::OpenWindowPopup")
+			if (sit->callee2 == "ImRad::OpenWindowPopup")
 				contextMenu.set_from_arg(sit->params2[0]);
 			else
-				onItemContextMenuClicked.set_from_arg(sit->callee);
+				onItemContextMenuClicked.set_from_arg(sit->callee2);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemClicked")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemClicked")
 		{
-			onItemClicked.set_from_arg(sit->callee);
+			onItemClicked.set_from_arg(sit->callee2);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::IsItemDoubleClicked")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::IsItemDoubleClicked")
 		{
-			onItemDoubleClicked.set_from_arg(sit->callee);
+			onItemDoubleClicked.set_from_arg(sit->callee2);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemFocused")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemFocused")
 		{
-			onItemFocused.set_from_arg(sit->callee);
+			onItemFocused.set_from_arg(sit->callee2);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemActivated")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemActivated")
 		{
-			onItemActivated.set_from_arg(sit->callee);
+			onItemActivated.set_from_arg(sit->callee2);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemDeactivated")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemDeactivated")
 		{
-			onItemDeactivated.set_from_arg(sit->callee);
+			onItemDeactivated.set_from_arg(sit->callee2);
 		}
-		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsItemDeactivatedAfterEdit")
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemDeactivatedAfterEdit")
 		{
-			onItemDeactivatedAfterEdit.set_from_arg(sit->callee);
+			onItemDeactivatedAfterEdit.set_from_arg(sit->callee2);
 		}
 		else
 		{
@@ -2964,8 +2964,8 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && sit->callee == "ImRad::Selectable") ||
 		(sit->kind == cpp::CallExpr && sit->callee == "ImGui::Selectable") || //compatibility
-		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::Selectable") ||
-		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Selectable")) //compatibility
+		(sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::Selectable") ||
+		(sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::Selectable")) //compatibility
 	{
 		if (sit->params.size() >= 1) {
 			label.set_from_arg(sit->params[0]);
@@ -2983,7 +2983,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
@@ -3555,7 +3555,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			if (ImGui::Selectable(" ", dropDownMenu.empty()))
 			{
 				changed = true;
-				contextMenu = "";
+				dropDownMenu = "";
 			}
 			for (const std::string& cm : ctx.contextMenus)
 			{
@@ -3681,7 +3681,7 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::Checkbox") ||
-		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Checkbox"))
+		(sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::Checkbox"))
 	{
 		if (sit->params.size())
 			label.set_from_arg(sit->params[0]);
@@ -3696,7 +3696,7 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 }
 
@@ -4140,7 +4140,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	
 	if (!onImeAction.empty()) {
-		os << ctx.ind << "if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_AppForward))\n";
+		os << ctx.ind << "if (ImRad::IsItemImeAction())\n";
 		ctx.ind_up();
 		//os << ctx.ind << "ioUserData->imeActionPressed = false;\n";
 		os << ctx.ind << onImeAction.to_arg() << "();\n";
@@ -4151,7 +4151,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::InputTextMultiline") ||
-		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::InputTextMultiline"))
+		(sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::InputTextMultiline"))
 	{
 		type = "std::string";
 
@@ -4178,10 +4178,10 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			flags.set_from_arg(sit->params[3]);
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 16, "ImGui::InputText")) ||
-		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 16, "ImGui::InputText")) ||
+		(sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 16, "ImGui::InputText")) ||
 		(sit->kind == cpp::IfCallBlock && !sit->callee.compare(0, 16, "ImGui::InputText")))
 	{
 		if (sit->params.size()) {
@@ -4191,7 +4191,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		
 		size_t i = 0;
-		if (sit->callee == "ImGui::InputTextWithHint" || sit->cond == "ImGui::InputTextWithHint") {
+		if (sit->callee == "ImGui::InputTextWithHint") {
 			hint = cpp::parse_str_arg(sit->params[1]);
 			++i;
 		}
@@ -4216,7 +4216,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			flags.set_from_arg(sit->params[2 + i]);
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 		else if (sit->kind == cpp::IfCallBlock)
 			ctx.importLevel = sit->level;
 	}
@@ -4228,13 +4228,9 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 	}
 	else if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 12, "ImGui::Input")) ||
-			(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 12, "ImGui::Input")))
+			(sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 12, "ImGui::Input")))
 	{
-		if (sit->kind == cpp::CallExpr)
-			type = sit->callee.substr(12);
-		else
-			type = sit->cond.substr(12);
-		
+		type = sit->callee.substr(12);
 		type.access()->front() = std::tolower(std::string(type)[0]);
 
 		if (sit->params.size()) {
@@ -4269,7 +4265,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if (sit->kind == cpp::CallExpr && //for compatibility only
 		(!sit->callee.compare(sit->callee.size() - 5, 5, ".Draw") ||
@@ -4317,12 +4313,12 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 	}
 	else if (sit->kind == cpp::IfCallThenCall &&
-		sit->line.find("ImGui::IsItemActive()&&ImGui::IsKeyPressed(ImGuiKey_AppForward)") != std::string::npos)
+		sit->callee == "IsItemImeAction")
 	{
 		onImeAction.set_from_arg(sit->callee);
 	}
 	else if (sit->kind == cpp::IfCallThenCall &&
-			sit->cond == "ImGui::IsWindowAppearing" && sit->callee == "ImGui::SetKeyboardFocusHere")
+			sit->callee == "ImGui::IsWindowAppearing" && sit->callee2 == "ImGui::SetKeyboardFocusHere")
 	{
 		initialFocus = true;
 	}
@@ -4641,7 +4637,7 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && (sit->callee == "ImGui::Combo" || sit->callee == "ImRad::Combo")) ||
-		(sit->kind == cpp::IfCallThenCall && (sit->cond == "ImGui::Combo" || sit->cond == "ImRad::Combo")))
+		(sit->kind == cpp::IfCallThenCall && (sit->callee == "ImGui::Combo" || sit->callee == "ImRad::Combo")))
 	{
 		if (sit->params.size()) {
 			label.set_from_arg(sit->params[0]);
@@ -4661,7 +4657,7 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
 	{
@@ -4857,12 +4853,9 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
 void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 13, "ImGui::Slider")) || 
-		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 13, "ImGui::Slider")))
+		(sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 13, "ImGui::Slider")))
 	{
-		if (sit->kind == cpp::CallExpr)
-			type = sit->callee.substr(13);
-		else
-			type = sit->cond.substr(13);
+		type = sit->callee.substr(13);
 		type.access()->front() = std::tolower(type.c_str()[0]);
 
 		if (sit->params.size()) {
@@ -4884,7 +4877,7 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			format.set_from_arg(sit->params[4]);
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
 	{
@@ -5260,13 +5253,10 @@ void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
 void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 16, "ImGui::ColorEdit")) ||
-		(sit->kind == cpp::IfCallThenCall && !sit->cond.compare(0, 16, "ImGui::ColorEdit")))
+		(sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 16, "ImGui::ColorEdit")))
 	{
-		if (sit->kind == cpp::CallExpr)
-			type = sit->callee.substr(16, 1) == "3" ? "color3" : "color4";
-		else
-			type = sit->cond.substr(16, 1) == "3" ? "color3" : "color4";
-
+		type = sit->callee.substr(16, 1) == "3" ? "color3" : "color4";
+		
 		if (sit->params.size()) {
 			label.set_from_arg(sit->params[0]);
 			if (!label.access()->compare(0, 2, "##"))
@@ -5284,7 +5274,7 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			flags.set_from_arg(sit->params[2]);
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
 	{
@@ -7874,7 +7864,7 @@ void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
 void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
 	if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::MenuItem") ||
-		(sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::MenuItem"))
+		(sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::MenuItem"))
 	{
 		if (sit->params.size())
 			label.set_from_arg(sit->params[0]);
@@ -7884,7 +7874,7 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			checked.set_from_arg(sit->params[2].substr(1));
 
 		if (sit->kind == cpp::IfCallThenCall)
-			onChange.set_from_arg(sit->callee);
+			onChange.set_from_arg(sit->callee2);
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginPopup")
 	{

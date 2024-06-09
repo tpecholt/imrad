@@ -88,13 +88,16 @@ struct CustomWidgetArgs
 
 struct IOUserData
 {
+	//to UI
 	float dpiScale = 1;
 	ImVec2 displayOffsetMin;
 	ImVec2 displayOffsetMax;
 	float dimBgRatio = 1;
-	int imeType = ImeText;
+	bool kbdShown = false;
 	std::string activeActivity;
-	
+	//from UI 
+	int imeType = ImeText;
+
 	ImRect WorkRect() const 
 	{
 		return {
@@ -230,6 +233,11 @@ inline bool IsItemContextMenuClicked()
 {
 	return ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) && 
 		ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+}
+
+inline bool IsItemImeAction()
+{
+	return ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_AppForward);
 }
 
 inline bool IsItemDisabled()

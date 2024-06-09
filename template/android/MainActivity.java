@@ -101,8 +101,10 @@ implements TextWatcher, TextView.OnEditorActionListener
                         mgr.hideSoftInputFromWindow(mEditText.getWindowToken(), 0);
                         break;
                     default: //ImeText
-                        //TYPE_TEXT_VARIATION_VISIBLE_PASSWORD is needed otherwise NO_SUGGESTIONS will be ignored
-                        mEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD); //this resets selection
+                        //to enforce NO_SUGGESTIONS we can use TYPE_TEXT_VARIATION_VISIBLE_PASSWORD but then Passwords button may be shown which is weird
+                        //mEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD; //this resets selection
+                        //this seems to work better:
+                        mEditText.setInputType(InputType.TYPE_NULL);
                         //mEditText.setSelection(sel1, sel2);
                         mgr.showSoftInput(mEditText, InputMethodManager.SHOW_IMPLICIT);
                         break;

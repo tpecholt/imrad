@@ -481,6 +481,10 @@ CppGen::ExportCpp(
 						skip_to_level = level - 1;
 						WriteStub(fout, "Draw", node->kind, animPos, params, code.str());
 					}
+					else if (name == "Init") 
+					{
+						events.insert(name);
+					}
 					else if (stx::count(SPEC_FUN, name)) 
 					{
 						if (WriteStub(fout, name, node->kind, animPos)) {
@@ -871,16 +875,23 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		std::string type, name, init;
 		size_t name_idx;
 		auto it = stx::find(line, "=");
-		if (it != line.end()) {
+		if (it != line.end()) 
+		{
 			name_idx = it - line.begin() - 1;
 			if (it + 1 == line.end()) //= without initializer
 				return false;
-			for (++it; it != line.end(); ++it)
-				init += *it + " ";
-			init.pop_back();
-			//fix neg numbers
-			if (init.size() >= 3 && init[0] == '-' && std::isdigit(init[2]))
-				init.erase(1, 1);
+			init = *++it;
+			for (++it; it != line.end(); ++it) {
+				bool ws = true;
+				if (*it == "::" ||
+					(init.size() >= 2 && init.back() == ':' && init[init.size() - 2] == ':')) 
+					ws = false;
+				if (init.back() == '-' && std::isdigit((*it)[0]))
+					ws = false;
+				if (ws)
+					init += ' ';
+				init += *it;
+			}
 		}
 		else {
 			name_idx = (int)line.size() - 1;

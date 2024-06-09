@@ -254,7 +254,7 @@ void Init(struct android_app* app)
         // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them
 
         ImFontConfig cfg;
-        cfg.SizePixels = g_IOUserData.dpiScale * 16.0f;
+        cfg.SizePixels = g_IOUserData.dpiScale * 18.0f;
         io.Fonts->AddFontDefault(&cfg);
 
         /*void *roboto_data, *material_data;
@@ -265,12 +265,12 @@ void Init(struct android_app* app)
         static ImWchar icons_ranges[] = {ICON_MIN_MD, ICON_MAX_16_MD, 0};
 
         font = io.Fonts->AddFontFromMemoryTTF(roboto_data, roboto_size,
-                                              g_IOUserData.dpiScale * 17.0f);
+                                              g_IOUserData.dpiScale * 20.0f);
         IM_ASSERT(font != nullptr);
         cfg.MergeMode = true;
-        cfg.GlyphOffset.y = 17.f * g_IOUserData.dpiScale / 5;
+        cfg.GlyphOffset.y = 20.f * g_IOUserData.dpiScale / 5;
         font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size,
-                                              g_IOUserData.dpiScale * 17.0f, &cfg, icons_ranges);
+                                              g_IOUserData.dpiScale * 20.0f, &cfg, icons_ranges);
         IM_ASSERT(font != nullptr);*/
 
         // TODO: Open startup activity 

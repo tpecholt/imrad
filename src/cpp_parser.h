@@ -227,9 +227,10 @@ namespace cpp
 			int level = 0;
 			Kind kind = Other;
 			std::string line;
+			std::string cond;
 			std::string callee;
 			std::vector<std::string> params;
-			std::string cond;
+			std::string callee2;
 			std::vector<std::string> params2;
 		};
 
@@ -391,6 +392,10 @@ namespace cpp
 				{
 					std::string callee1, callee2;
 					std::vector<std::string> params1, params2;
+					data.callee = data.callee2 = "";
+					data.params.clear();
+					data.params2.clear();
+					data.cond = stx::join(tokens.begin() + b + 1, tokens.begin() + e, ""); 
 					if (parse_call(b + 1, e, callee1, params1)) {
 						if (block) {
 							data.kind = IfCallBlock;
@@ -399,9 +404,9 @@ namespace cpp
 						}
 						else if (parse_call(e + 1, tokens.size(), callee2, params2)) {
 							data.kind = IfCallThenCall;
-							data.cond = callee1;
+							data.callee = callee1;
 							data.params = params1;
-							data.callee = callee2;
+							data.callee2 = callee2;
 							data.params2 = params2;
 						}
 						else {
@@ -412,7 +417,6 @@ namespace cpp
 					}
 					else {
 						data.kind = block ? IfBlock : IfStmt;
-						data.cond = stx::join(tokens.begin() + b + 1, tokens.begin() + e, "");
 					}
 				}
 				else if (tokens[0] == "for")
