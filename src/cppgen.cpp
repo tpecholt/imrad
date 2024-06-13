@@ -872,47 +872,70 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 		//todo: parse std::function<void(xxx)> koko;
 		if (stx::count(line, "(") || stx::count(line, ")"))
 			return false;
-		std::string type, name, init;
-		size_t name_idx;
-		auto it = stx::find(line, "=");
-		if (it != line.end()) 
+		std::string type;
+		size_t beg = 0;
+		while (beg < line.size())
 		{
-			name_idx = it - line.begin() - 1;
-			if (it + 1 == line.end()) //= without initializer
+			int level = 0;
+			size_t end;
+			for (end = beg; end < line.size(); ++end)
+			{
+				const std::string& s = line[end];
+				if (s == "<" || s == "(" || s == "[" || s == "{")
+					++level;
+				else if (s == ">" || s == ")" || s == "]" || s == "}")
+					--level;
+				else if (!level && s == ",") //multiple variables
+					break;
+			}
+			auto it = std::find(line.begin() + beg, line.begin() + end, "=");
+			std::string name, init;
+			size_t name_idx = 0;
+			if (it != line.begin() + end)
+			{
+				name_idx = it - line.begin() - 1;
+				if (name_idx + 2 >= end) //= without initializer?
+					return false;
+				init = *++it;
+				for (++it; it != line.begin() + end; ++it) {
+					bool ws = true;
+					if (*it == "::" ||
+						(init.size() >= 2 && init.back() == ':' && init[init.size() - 2] == ':'))
+						ws = false;
+					if (init.back() == '-' && std::isdigit((*it)[0]))
+						ws = false;
+					if (ws)
+						init += ' ';
+					init += *it;
+				}
+			}
+			else {
+				name_idx = end - 1;
+			}
+			if (name_idx < 1) //no name or type
 				return false;
-			init = *++it;
-			for (++it; it != line.end(); ++it) {
-				bool ws = true;
-				if (*it == "::" ||
-					(init.size() >= 2 && init.back() == ':' && init[init.size() - 2] == ':')) 
-					ws = false;
-				if (init.back() == '-' && std::isdigit((*it)[0]))
-					ws = false;
-				if (ws)
-					init += ' ';
-				init += *it;
-			}
-		}
-		else {
-			name_idx = (int)line.size() - 1;
-		}
-		if (name_idx < 1) //no name or type
-			return false;
-		name = line[name_idx];
-		for (size_t i = 0; i < name_idx; ++i) {
-			if (line[i] == "::" || line[i] == "<" || line[i] == ">") {
-				if (type != "")
+			name = line[name_idx];
+			if (!beg)
+			{
+				for (size_t i = 0; i < name_idx; ++i) {
+					if (line[i] == "::" || line[i] == "<" || line[i] == ">") {
+						if (type != "")
+							type.pop_back();
+						type += line[i];
+					}
+					else
+						type += line[i] + " ";
+				}
+				if (type.back() == ' ')
 					type.pop_back();
-				type += line[i];
 			}
-			else
-				type += line[i] + " ";
+			if (name != "ID" && name != "modalResult" && name != "callback" &&
+				name != "isOpen" && name != "animator" && name != "animPos")
+			{
+				CreateNamedVar(name, type, init, flags, sname);
+			}
+			beg = end + 1;
 		}
-		if (type.back() == ' ')
-			type.pop_back();
-		if (name != "ID" && name != "modalResult" && name != "callback" &&
-			name != "isOpen" && name != "animator" && name != "animPos")
-			CreateNamedVar(name, type, init, flags, sname);
 	}
 	return true;
 }

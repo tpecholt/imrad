@@ -1170,8 +1170,8 @@ void TopWindow::TreeUI(UIContext& ctx)
 		if (selected)
 			ImGui::PopStyleColor();
 		bool clicked = ImGui::IsItemClicked();
-		ImGui::SameLine();
-		ImGui::TextDisabled("%s", NAMES[kind]);
+		ImGui::SameLine(0, 0);
+		ImGui::TextDisabled(" : %s", NAMES[kind]);
 		if (clicked)
 		{
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -1187,8 +1187,8 @@ void TopWindow::TreeUI(UIContext& ctx)
 	else {
 		if (selected)
 			ImGui::PopStyleColor();
-		ImGui::SameLine();
-		ImGui::TextDisabled("%s", NAMES[kind]);
+		ImGui::SameLine(0, 0);
+		ImGui::TextDisabled(" : %s", NAMES[kind]);
 	}
 }
 
@@ -2508,7 +2508,7 @@ void Widget::TreeUI(UIContext& ctx)
 	int flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 	if (children.empty())
 		flags |= ImGuiTreeNodeFlags_Leaf;
-	if (ImGui::TreeNodeEx((icon != "" ? icon.c_str() : label.c_str()), flags))
+	if (ImGui::TreeNodeEx(icon != "" ? icon.c_str() : ICON_FA_BARS, flags))
 	{
 		if (ImGui::IsItemClicked())
 		{
@@ -2517,13 +2517,12 @@ void Widget::TreeUI(UIContext& ctx)
 			else
 				ctx.selected = { this };
 		}
-		if (icon != "") 
-		{
-			ImGui::PopStyleColor();
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_Text]);
-			ImGui::SameLine();
-			ImGui::Text("%s", label.c_str());
-		}
+		ImGui::PopStyleColor();
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_Text]);
+		ImGui::SameLine();
+		ImGui::PushFont(ctx.defaultFont);
+		ImGui::Text("%s", label.c_str());
+		ImGui::PopFont();
 		ImGui::PopStyleColor();
 		ImGui::SameLine();
 		ImGui::TextDisabled("%s", suff.c_str());
@@ -4702,7 +4701,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("items");
 		ImGui::TableNextColumn();
 		//ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		if (ImGui::Selectable("[...]", false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			std::string tmp = *items.access(); //preserve embeded nulls
@@ -5873,7 +5872,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	{
 		ImGui::Text("columns");
 		ImGui::TableNextColumn();
-		if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		if (ImGui::Selectable("[...]", false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			tableColumns.columnData = columnData;

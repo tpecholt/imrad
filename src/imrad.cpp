@@ -111,6 +111,48 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 	}}
 };
 
+
+void ReloadFile()
+{
+	if (activeTab < 0)
+		return;
+	auto& tab = fileTabs[activeTab];
+	if (tab.fname == "" || !fs::is_regular_file(tab.fname))
+		return;
+	auto time1 = fs::last_write_time(tab.fname);
+	std::error_code err;
+	auto time2 = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
+	if (time1 == tab.time[0] && time2 == tab.time[1])
+		return;
+	tab.time[0] = time1;
+	tab.time[1] = time2;
+	auto fn = fs::path(tab.fname).filename().string();
+	messageBox.title = "Reload";
+	messageBox.message = "File content of '" + fn + "' has changed. Reload?";
+	messageBox.buttons = ImRad::Yes | ImRad::No;
+
+	messageBox.OpenPopup([&](ImRad::ModalResult mr) {
+		if (mr != ImRad::Yes)
+			return;
+		std::map<std::string, std::string> params;
+		tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
+		auto pit = params.find("style");
+		tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
+		pit = params.find("unit");
+		tab.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
+		bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
+			return st.first == tab.styleName;
+			});
+		if (!styleFound) {
+			messageBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + messageBox.error;
+			tab.styleName = DEFAULT_STYLE;
+		}
+		tab.modified = false;
+		ctx.mode = UIContext::NormalSelection;
+		ctx.selected = { tab.rootNode.get() };
+		});
+}
+
 void ActivateTab(int i)
 {
 	/*doesn't work when activeTab is closed
@@ -129,6 +171,7 @@ void ActivateTab(int i)
 	auto& tab = fileTabs[i];
 	ctx.selected = { tab.rootNode.get() };
 	ctx.codeGen = &tab.codeGen;
+	ReloadFile();
 	reloadStyle = true;
 }
 
@@ -340,48 +383,6 @@ void OpenFile()
 		DoOpenFile(outPath);
 	}
     NFD_FreePath(outPath);
-}
-
-void ReloadFiles()
-{
-	for (auto& tab : fileTabs)
-	{
-		if (tab.fname == "" || !fs::is_regular_file(tab.fname))
-			continue;
-		auto time1 = fs::last_write_time(tab.fname);
-		std::error_code err;
-		auto time2 = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
-		if (time1 == tab.time[0] && time2 == tab.time[1])
-			continue;
-		tab.time[0] = time1;
-		tab.time[1] = time2;
-		auto fn = fs::path(tab.fname).filename().string();
-		messageBox.title = "Reload";
-		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
-		messageBox.buttons = ImRad::Yes | ImRad::No;
-		
-		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
-			if (mr != ImRad::Yes)
-				return;
-			std::map<std::string, std::string> params;
-			tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
-			auto pit = params.find("style");
-			tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
-			pit = params.find("unit");
-			tab.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
-			bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
-				return st.first == tab.styleName;
-				});
-			if (!styleFound) {
-				messageBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + messageBox.error;
-				tab.styleName = DEFAULT_STYLE;
-			}
-			tab.modified = false;
-			if (&tab == &fileTabs[activeTab])
-				ctx.mode = UIContext::NormalSelection;
-				ctx.selected = { tab.rootNode.get() };
-			});
-	}
 }
 
 void DoCloseFile()
@@ -739,8 +740,8 @@ void LoadStyle()
 	
 	//reload ImRAD UI first
 	StyleColors();
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f)->FallbackChar = '#';
-	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+	static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig cfg;
 	cfg.MergeMode = true;
 	//icons_config.PixelSnapH = true;
@@ -748,7 +749,7 @@ void LoadStyle()
 	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
 	cfg.MergeMode = false;
 	strcpy(cfg.Name, "imrad.H1");
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 26, &cfg)->FallbackChar = '#';
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 26, &cfg);
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
@@ -761,18 +762,24 @@ void LoadStyle()
 		if (styleName == "Classic")
 		{
 			ImGui::StyleColorsClassic(&ctx.style);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
 		}
 		else if (styleName == "Light")
 		{
 			ImGui::StyleColorsLight(&ctx.style);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
 		}
 		else if (styleName == "Dark")
 		{
 			ImGui::StyleColorsDark(&ctx.style);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
 		}
@@ -1259,6 +1266,7 @@ void TabsUI()
 
 void HierarchyUI()
 {
+	//ImGui::PushFont(ctx.defaultFont); icons are FA
 	ImGui::Begin("Hierarchy");
 	if (activeTab >= 0 && fileTabs[activeTab].rootNode) 
 		fileTabs[activeTab].rootNode->TreeUI(ctx);
@@ -1428,6 +1436,7 @@ void PropertyRowsUI(bool pr)
 void PropertyUI()
 {
 	bool tmp = false;
+	ImGui::PushFont(ctx.defaultFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	ImGui::Begin("Events");
 	if (!ctx.selected.empty())
@@ -1447,6 +1456,7 @@ void PropertyUI()
 		tmp = true;
 	ImGui::End();
 	ImGui::PopStyleVar();
+	ImGui::PopFont();
 	pgFocused = tmp;
 }
 
@@ -1893,7 +1903,7 @@ int main(int argc, const char* argv[])
 
 		bool visible = glfwGetWindowAttrib(window, GLFW_FOCUSED);
 		if (visible && !lastVisible)
-			ReloadFiles();
+			ReloadFile();
 		lastVisible = visible;
 
 		DockspaceUI();

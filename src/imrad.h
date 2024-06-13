@@ -357,74 +357,74 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 	static ImVec2 startPos, lastPos;
 	static float lastDim;
 
-	if (!ImGui::IsWindowFocused())
-		return 1;
-
-	if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) 
+	if (ImGui::IsWindowFocused())
 	{
-		if (!dragState) 
+		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
-			startPos = pos;
-			mousePos[1] = mousePos[2] = ImGui::GetMousePos();
-		}
-		dragState = 1;
-		mousePos[0] = mousePos[1];
-		mousePos[1] = mousePos[2];
-		mousePos[2] = ImGui::GetMousePos();
-		ImGuiWindow *window = ImGui::GetCurrentWindow();
-		ImGui::GetCurrentContext()->NavDisableMouseHover = true;
+			if (!dragState)
+			{
+				startPos = pos;
+				mousePos[1] = mousePos[2] = ImGui::GetMousePos();
+			}
+			dragState = 1;
+			mousePos[0] = mousePos[1];
+			mousePos[1] = mousePos[2];
+			mousePos[2] = ImGui::GetMousePos();
+			ImGuiWindow *window = ImGui::GetCurrentWindow();
+			ImGui::GetCurrentContext()->NavDisableMouseHover = true;
 
-		ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
-		//don't reset DragDelta - we need to apply full delta if pos
-		//was externally modified with Animator
-		//ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
-		if (dir == ImGuiDir_Left) {
-			pos.x = startPos.x + delta.x;
-			dimBgRatio = (window->Size.x + pos.x) / window->Size.x;
+			ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+			//don't reset DragDelta - we need to apply full delta if pos
+			//was externally modified with Animator
+			//ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+			if (dir == ImGuiDir_Left) {
+				pos.x = startPos.x + delta.x;
+				dimBgRatio = (window->Size.x + pos.x) / window->Size.x;
+			}
+			else if (dir == ImGuiDir_Right) {
+				pos.x = startPos.x - delta.x;
+				dimBgRatio = (window->Size.x + pos.x) / window->Size.x;
+			}
+			else if (dir == ImGuiDir_Up) {
+				pos.y = startPos.y + delta.y;
+				dimBgRatio = (window->Size.y + pos.y) / window->Size.y;
+			}
+			else if (dir == ImGuiDir_Down) {
+				pos.y = startPos.y - delta.y;
+				dimBgRatio = (window->Size.y + pos.y) / window->Size.y;
+			}
+			if (pos.x > 0) {
+				pos.x = 0;
+				dimBgRatio = 1;
+			}
+			if (pos.y > 0) {
+				pos.y = 0;
+				dimBgRatio = 1;
+			}
+			lastPos = pos;
+			lastDim = dimBgRatio;
 		}
-		else if (dir == ImGuiDir_Right) {
-			pos.x = startPos.x - delta.x;
-			dimBgRatio = (window->Size.x + pos.x) / window->Size.x;
-		}
-		else if (dir == ImGuiDir_Up) {
-			pos.y = startPos.y + delta.y;
-			dimBgRatio = (window->Size.y + pos.y) / window->Size.y;
-		}
-		else if (dir == ImGuiDir_Down) {
-			pos.y = startPos.y - delta.y;
-			dimBgRatio = (window->Size.y + pos.y) / window->Size.y;
-		}
-		if (pos.x > 0) {
-			pos.x = 0;
-			dimBgRatio = 1;
-		}
-		if (pos.y > 0) {
-			pos.y = 0;
-			dimBgRatio = 1;
-		}
-		lastPos = pos;
-		lastDim = dimBgRatio;
-	}
-	else if (dragState == 1)
-	{
-		//apply lastPos because position could be rewritten by Animator but the real value
-		//needs to be taken for next closing animation
-		pos = lastPos;
-		dimBgRatio = lastDim;
-		dragState = 0;
-		ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-		ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
+		else if (dragState == 1)
+		{
+			//apply lastPos because position could be rewritten by Animator but the real value
+			//needs to be taken for next closing animation
+			pos = lastPos;
+			dimBgRatio = lastDim;
+			dragState = 0;
+			ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+			ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
 
-		float spx = (mousePos[2].x - mousePos[0].x) / 2;
-		float spy = (mousePos[2].y - mousePos[0].y) / 2;
-		if (dir == ImGuiDir_Left && spx < -5)
-			return 0;
-		if (dir == ImGuiDir_Right && spx > 5)
-			return 0;
-		if (dir == ImGuiDir_Up && spy < -5)
-			return 0;
-		if (dir == ImGuiDir_Down && spy > 5)
-			return 0;
+			float spx = (mousePos[2].x - mousePos[0].x) / 2;
+			float spy = (mousePos[2].y - mousePos[0].y) / 2;
+			if (dir == ImGuiDir_Left && spx < -5)
+				return 0;
+			if (dir == ImGuiDir_Right && spx > 5)
+				return 0;
+			if (dir == ImGuiDir_Up && spy < -5)
+				return 0;
+			if (dir == ImGuiDir_Down && spy > 5)
+				return 0;
+		}
 	}
 
 	if (ImGui::IsMouseClicked(0) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows))
