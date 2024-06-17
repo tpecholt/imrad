@@ -1633,6 +1633,10 @@ void Widget::Draw(UIContext& ctx)
 		{
 			ImVec2 delta = ImGui::GetMouseDragDelta();
 			ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+			if (!sp.x)
+				sp.x = 5;
+			if (!sp.y)
+				sp.y = 5;
 			ImGuiWindow* win = ImGui::GetCurrentWindow();
 			if (ctx.mode != UIContext::ItemSizingY)
 			{
@@ -2096,7 +2100,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else if (sit->callee2 == "ImGui::SetMouseCursor")
 				cursor.set_from_arg(sit->params2[0]);
 			else
-				onItemHovered.set_from_arg(sit->callee);
+				onItemHovered.set_from_arg(sit->callee2);
 		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::IsItemContextMenuClicked")
 		{
@@ -5761,6 +5765,8 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::PushStyleColor(ImGuiCol_TableRowBg, style_rowBg.eval(ctx));
 	if (!style_rowBgAlt.empty())
 		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.eval(ctx));
+	if (!style_childBg.empty())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_childBg.eval(ctx));
 
 	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ size_x.eval_px(ctx), size_y.eval_px(ctx) };
@@ -5800,14 +5806,16 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::EndTable();
 	}
 
-	if (style_cellPadding.has_value())
-		ImGui::PopStyleVar();
+	if (!style_childBg.empty())
+		ImGui::PopStyleColor();
 	if (!style_headerBg.empty())
 		ImGui::PopStyleColor();
 	if (!style_rowBg.empty())
 		ImGui::PopStyleColor();
 	if (!style_rowBgAlt.empty())
 		ImGui::PopStyleColor();
+	if (style_cellPadding.has_value())
+		ImGui::PopStyleVar();
 }
 
 std::vector<UINode::Prop>
@@ -5819,6 +5827,7 @@ Table::Properties()
 		{ "@style.headerBg", &style_headerBg },
 		{ "@style.rowBg", &style_rowBg },
 		{ "@style.rowBgAlt", &style_rowBgAlt },
+		{ "@style.bg", &style_childBg },
 		{ "table.flags", &flags },
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
@@ -5862,13 +5871,19 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx);
 		break;
 	case 4:
+		ImGui::Text("childBg");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##bg", &style_childBg, ImGuiCol_ChildBg, ctx);
+		break;
+	case 5:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 5:
+	case 6:
 	{
 		ImGui::Text("columns");
 		ImGui::TableNextColumn();
@@ -5881,15 +5896,15 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	}
-	case 6:
+	case 7:
 		ImGui::Text("header");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##header", header.access());
 		break;
-	case 7:
+	case 8:
 		changed = DataLoopProp("rowCount", &rowCount, ctx);
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("rowHeight");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5897,7 +5912,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("rowHeight", &rowHeight, ctx);
 		break;
-	case 9:
+	case 10:
 		ImGui::BeginDisabled(rowCount.empty());
 		ImGui::Text("rowFilter");
 		ImGui::TableNextColumn();
@@ -5907,13 +5922,13 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("rowFilter", &rowFilter, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("scrollWhenDragging");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##swd", &scrollWhenDragging, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5921,7 +5936,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 12:
+	case 13:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5930,7 +5945,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 13, ctx);
+		return Widget::PropertyUI(i - 14, ctx);
 	}
 	return changed;
 }
@@ -5977,6 +5992,26 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, "
 			<< style_cellPadding.to_arg(ctx.unit) << ");\n";
+	}
+	if (!style_headerBg.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, "
+			<< style_headerBg.to_arg(ctx.unit) << ");\n";
+	}
+	if (!style_rowBg.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_TableRowBg, "
+			<< style_rowBg.to_arg(ctx.unit) << ");\n";
+	}
+	if (!style_rowBgAlt.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, "
+			<< style_rowBgAlt.to_arg(ctx.unit) << ");\n";
+	}
+	if (!style_childBg.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, "
+			<< style_childBg.to_arg(ctx.unit) << ");\n";
 	}
 	if (scrollWhenDragging)
 	{
@@ -6075,10 +6110,18 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
-	if (scrollWhenDragging)
-		os << ctx.ind << "ImRad::PopInvisibleScrollbar();\n";
+	if (!style_rowBg.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_rowBgAlt.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_childBg.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_headerBg.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (style_cellPadding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	if (scrollWhenDragging)
+		os << ctx.ind << "ImRad::PopInvisibleScrollbar();\n";
 
 	++ctx.varCounter;
 }
@@ -6089,6 +6132,17 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		if (sit->params.size() && sit->params[0] == "ImGuiStyleVar_CellPadding")
 			style_cellPadding.set_from_arg(sit->params[1]);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() && sit->params[0] == "ImGuiCol_TableHeaderBg")
+			style_headerBg.set_from_arg(sit->params[1]);
+		if (sit->params.size() && sit->params[0] == "ImGuiCol_TableRowBg")
+			style_rowBg.set_from_arg(sit->params[1]);
+		if (sit->params.size() && sit->params[0] == "ImGuiCol_TableRowBgAlt")
+			style_rowBgAlt.set_from_arg(sit->params[1]);
+		if (sit->params.size() && sit->params[0] == "ImGuiCol_ChildBg")
+			style_childBg.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTable")
 	{

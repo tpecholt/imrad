@@ -459,6 +459,7 @@ struct Table : Widget
 	bindable<color32> style_headerBg;
 	bindable<color32> style_rowBg;
 	bindable<color32> style_rowBgAlt;
+	bindable<color32> style_childBg;
 	event<> onBeginRow;
 	event<> onEndRow;
 
