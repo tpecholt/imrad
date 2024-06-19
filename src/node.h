@@ -148,7 +148,7 @@ struct Widget : UINode
 	event<> onItemDeactivatedAfterEdit;
 	event<> onItemContextMenuClicked;
 
-	std::string userCode;
+	std::string userCodeBefore, userCodeAfter;
 
 	static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
@@ -659,6 +659,8 @@ struct TopWindow : UINode
 	bindable<color32> style_menuBg;
 	direct_val<Placement> placement = None;
 	direct_val<bool> animate = false;
+
+	std::string userCodeBefore, userCodeAfter;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);

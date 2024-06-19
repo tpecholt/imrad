@@ -638,6 +638,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	ctx.errors.clear();
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	
+	//todo: put before ///@ params
+	if (userCodeBefore != "")
+		os << userCodeBefore << "\n";
+
 	//provide stable ID when title changes
 	bindable<std::string> titleId = title;
 	*titleId.access() += "###" + ctx.codeGen->GetName();
@@ -904,7 +908,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "/// @separator\n\n";
 	
 	//at next import comment becomes userCode
-	if (children.empty() || children[0]->userCode.empty())
+	if (children.empty() || children[0]->userCodeBefore.empty())
 		os << ctx.ind << "// TODO: Add Draw calls of dependent popup windows here\n\n";
 
 	for (const auto& ch : children)
@@ -946,6 +950,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopFont();\n";
 
 	os << ctx.ind << "/// @end TopWindow\n";
+
+	if (userCodeAfter != "")
+		os << userCodeAfter << "\n";
 }
 
 void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
@@ -953,7 +960,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.errors.clear();
 	bool tmpCreateDeps = ctx.createVars;
 	ctx.createVars = false;
-	ctx.importState = 1;
+	ctx.importState = 2; //1 - inside TopWindow block, 2 - before TopWindow or outside @begin/end/separator, 3 - after @end TopWindow
 	ctx.userCode = "";
 	ctx.root = this;
 	ctx.parents = { this };
@@ -965,12 +972,20 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		bool parseCommentSize = false;
 		bool parseCommentPos = false;
 		
-		if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
+		if (sit->kind == cpp::Comment && !sit->line.compare(0, 20, "/// @begin TopWindow"))
 		{
 			ctx.importState = 1;
 			sit.enable_parsing(true);
-			auto node = Widget::Create(sit->line.substr(11), ctx);
-			if (node) {
+			userCodeBefore = ctx.userCode;
+			ctx.userCode = "";
+		}
+		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
+		{
+			ctx.importState = 1;
+			sit.enable_parsing(true);
+			std::string type = sit->line.substr(11);
+			if (auto node = Widget::Create(type, ctx))
+			{
 				node->Import(++sit, ctx);
 				children.push_back(std::move(node));
 				ctx.importState = 2;
@@ -978,20 +993,33 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				sit.enable_parsing(false);
 			}
 		}
+		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 18, "/// @end TopWindow"))
+		{
+			ctx.importState = 3;
+			sit.enable_parsing(false);
+		}
 		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 14, "/// @separator"))
 		{
-			if (ctx.importState == 1) {
+			if (ctx.importState == 1) { //separator at begin
 				ctx.importState = 2;
 				ctx.userCode = "";
 				sit.enable_parsing(false);
 			}
-			else {
+			else { //separator at end
+				if (!children.empty())
+					children.back()->userCodeAfter = ctx.userCode;
 				ctx.importState = 1;
 				sit.enable_parsing(true);
 			}
 		}
-		else if (ctx.importState == 2)
+		else if ((ctx.importState == 2 || ctx.importState == 3) && 
+				(sit->kind != cpp::Comment || sit->line.compare(0, 5, "/// @")))
 		{
+			if (ctx.importState == 3 && sit->line.back() == '}') { //reached end of Draw
+				sit.base().stream().putback('}');
+				sit.enable_parsing(true);
+				break;
+			}
 			if (ctx.userCode != "")
 				ctx.userCode += "\n";
 			ctx.userCode += sit->line;
@@ -1152,6 +1180,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 	}
 
+	userCodeAfter = ctx.userCode;
 	ctx.createVars = tmpCreateDeps;
 }
 
@@ -1761,8 +1790,8 @@ void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Widget::Export(std::ostream& os, UIContext& ctx)
 {
-	if (userCode != "")
-		os << userCode << "\n";
+	if (userCodeBefore != "")
+		os << userCodeBefore << "\n";
 	
 	std::string stype = typeid(*this).name();
 	auto i = stype.find(' ');
@@ -1964,6 +1993,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 
 	os << ctx.ind << "/// @end " << stype << "\n\n";
+
+	if (userCodeAfter != "")
+		os << userCodeAfter << "\n";
+
 }
 
 void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
@@ -1971,7 +2004,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.importState = 1;
 	ctx.importLevel = -1;
 	ctx.parents.push_back(this);
-	userCode = ctx.userCode;
+	userCodeBefore = ctx.userCode;
 	
 	while (sit != cpp::stmt_iterator())
 	{
@@ -1981,6 +2014,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
 		{
 			ctx.importState = 1;
+			sit.enable_parsing(true);
 			std::string name = sit->line.substr(11);
 			auto w = Widget::Create(name, ctx);
 			if (!w) {
@@ -1995,19 +2029,25 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			children.push_back(std::move(w));
 			ctx.importState = 2;
 			ctx.userCode = "";
+			sit.enable_parsing(false);
 		}
 		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 9, "/// @end "))
 		{
-			break;
+			break; //go back to parent::Import @begin
 		}
 		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 14, "/// @separator"))
 		{
-			if (ctx.importState == 1) {
+			if (ctx.importState == 1) { //separator at begin
 				ctx.importState = 2;
 				ctx.userCode = "";
+				sit.enable_parsing(false);
 			}
-			else
+			else { //separator at end
+				if (!children.empty())
+					children.back()->userCodeAfter = ctx.userCode;
 				ctx.importState = 1;
+				sit.enable_parsing(true);
+			}
 		}
 		else if (ctx.importState == 2)
 		{

@@ -31,10 +31,14 @@ namespace cpp
 		token_iterator(const token_iterator& it)
 			: in(it.in), tok(it.tok), line_mode(it.line_mode), eof(it.eof)
 		{}
-		token_iterator(std::istream& is)
-			: in(&is), line_mode(), eof()
+		token_iterator(std::istream& is, bool lm = false)
+			: in(&is), line_mode(lm), eof()
 		{
 			++(*this);
+		}
+		std::istream& stream() {
+			static std::istringstream dummy;
+			return in ? *in : dummy;
 		}
 		bool get_line_mode() const {
 			return line_mode;
@@ -262,6 +266,9 @@ namespace cpp
 		}
 		const data_t* operator->() const {
 			return &data;
+		}
+		token_iterator& base() {
+			return iter;
 		}
 		const token_iterator& base() const {
 			return iter;

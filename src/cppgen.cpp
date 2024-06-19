@@ -407,7 +407,7 @@ CppGen::ExportH(
 	return { origName, origVName, origHName };
 }
 
-//follows fprev and overwrites generated members/functions only only
+//follows fprev and overwrites generated members/functions only
 std::string 
 CppGen::ExportCpp(
 	std::ostream& fout, 
@@ -776,7 +776,7 @@ CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params
 	std::vector<std::string> line;
 	while (iter != cpp::token_iterator())
 	{
-		std::string tok = *iter++;
+		std::string tok = *iter;
 		bool is_comment = !tok.compare(0, 2, "//");
 
 		if (tok == "{") {
@@ -794,6 +794,10 @@ CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params
 			line.clear();
 		}
 		else if (tok == "}") {
+			if (scope.empty()) {
+				m_error += "Parsing stopped: found non-matching '}'\n";
+				break;
+			}
 			scope.pop_back();
 			if (scope.empty())
 				in_class = false;
@@ -838,6 +842,8 @@ CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params
 		}
 		else
 			line.push_back(tok); 
+
+		++iter;
 	}
 
 	return node;
@@ -968,6 +974,7 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
 	if (!IsMemDrawFun(line))
 		return {};
 	
+	auto pos1 = iter.stream().tellg();
 	cpp::stmt_iterator sit(iter);
 	while (sit != cpp::stmt_iterator()) 
 	{
@@ -983,6 +990,9 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
 		}
 		++sit;
 	}
+	iter.stream().seekg(pos1); //reparse to capture potential userCodeBefore
+	iter = cpp::token_iterator(iter.stream(), true); 
+	sit = cpp::stmt_iterator(iter);
 	UIContext ctx;
 	ctx.codeGen = this;
 	ctx.workingDir = ctx_workingDir;
