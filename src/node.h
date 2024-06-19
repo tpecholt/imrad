@@ -660,6 +660,8 @@ struct TopWindow : UINode
 	direct_val<Placement> placement = None;
 	direct_val<bool> animate = false;
 
+	event<> onBackButton;
+
 	std::string userCodeBefore, userCodeAfter;
 
 	TopWindow(UIContext& ctx);

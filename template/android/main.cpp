@@ -23,6 +23,8 @@ static bool                 g_Initialized = false;
 static char                 g_LogTag[] = "ImGuiExample";
 static std::string          g_IniFilename = "";
 static int                  g_NavBarHeight = 0;
+static int                  g_KbdHeight = 0;
+static int                  g_RotAngle = 0;
 static ImRad::IOUserData    g_IOUserData;
 static int                  g_ImeType = 0;
 
@@ -32,14 +34,15 @@ static void Shutdown();
 static void FreeMem();
 static void MainLoopStep();
 static int ShowSoftKeyboardInput(int mode);
-static int GetAssetData(const char* filename, void** out_data);
+/*static*/ int GetAssetData(const char* filename, void** out_data);
 static void GetDisplayInfo();
+static void UpdateScreenRect();
 
 //-----------------------------------------------------------------
 
 void Draw()
 {
-	// TODO: Call your drawing code here
+    // TODO: Call your drawing code here
 
     bool isOpen;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
@@ -76,41 +79,37 @@ void Draw()
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_${JNI_PACKAGE}_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jboolean b) {
-    if (!b)
+Java_${JNI_PACKAGE}_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jint height)
+{
+    g_KbdHeight = height;
+    g_IOUserData.kbdShown = height / g_IOUserData.dpiScale > 100;
+    if (!g_IOUserData.kbdShown)
         g_ImeType = 0;
+    UpdateScreenRect();
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_${JNI_PACKAGE}_MainActivity_OnScreenRotation(JNIEnv *env, jobject thiz, jint angle) {
-    switch (angle) {
-        case 0:
-            g_IOUserData.displayOffsetMin = { 0, 0 };
-            g_IOUserData.displayOffsetMax = { 0, (float)g_NavBarHeight };
-            break;
-        case 90:
-            g_IOUserData.displayOffsetMin = { 0, 0 };
-            g_IOUserData.displayOffsetMax = { (float)g_NavBarHeight, 0 };
-            break;
-        case 270:
-            g_IOUserData.displayOffsetMin = { (float)g_NavBarHeight, 0 };
-            g_IOUserData.displayOffsetMax = { 0, 0 };
-            break;
-    }
+Java_${JNI_PACKAGE}_MainActivity_OnScreenRotation(JNIEnv *env, jobject thiz, jint angle)
+{
+    g_RotAngle = angle;
+    UpdateScreenRect();
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_${JNI_PACKAGE}_MainActivity_OnInputCharacter(JNIEnv *env, jobject thiz, jint ch) {
+Java_${JNI_PACKAGE}_MainActivity_OnInputCharacter(JNIEnv *env, jobject thiz, jint ch)
+{
     ImGui::GetIO().AddInputCharacter(ch);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_${JNI_PACKAGE}_MainActivity_OnSpecialKey(JNIEnv *env, jobject thiz, jint code) {
-    ImGui::GetIO().AddKeyEvent(ImGuiKey_AppForward, true);
-    ImGui::GetIO().AddKeyEvent(ImGuiKey_AppForward, false);
+Java_${JNI_PACKAGE}_MainActivity_OnSpecialKey(JNIEnv *env, jobject thiz, jint code)
+{
+    ImGuiKey key = code == 4 ? ImGuiKey_AppBack : ImGuiKey_AppForward;
+    ImGui::GetIO().AddKeyEvent(key, true);
+    ImGui::GetIO().AddKeyEvent(key, false);
 }
 
 // Main code
@@ -323,7 +322,7 @@ void Shutdown()
 void MainLoopStep()
 {
     ImGuiIO& io = ImGui::GetIO();
-    if (g_EglDisplay == EGL_NO_DISPLAY)
+    if (g_EglDisplay == EGL_NO_DISPLAY || g_EglSurface == EGL_NO_SURFACE)
         return;
 
     // Our state
@@ -354,40 +353,8 @@ void MainLoopStep()
 
 // Helper functions
 
-// Unfortunately, there is no way to show the on-screen input from native code.
-// Therefore, we call ShowSoftKeyboardInput() of the main activity implemented in MainActivity.kt via JNI.
-static int ShowSoftKeyboardInput(int mode)
-{
-    JavaVM* java_vm = g_App->activity->vm;
-    JNIEnv* java_env = nullptr;
-
-    jint jni_return = java_vm->GetEnv((void**)&java_env, JNI_VERSION_1_6);
-    if (jni_return == JNI_ERR)
-        return -1;
-
-    jni_return = java_vm->AttachCurrentThread(&java_env, nullptr);
-    if (jni_return != JNI_OK)
-        return -2;
-
-    jclass native_activity_clazz = java_env->GetObjectClass(g_App->activity->clazz);
-    if (native_activity_clazz == nullptr)
-        return -3;
-
-    jmethodID method_id = java_env->GetMethodID(native_activity_clazz, "showSoftInput", "(I)V");
-    if (method_id == nullptr)
-        return -4;
-
-    java_env->CallVoidMethod(g_App->activity->clazz, method_id, mode);
-
-    jni_return = java_vm->DetachCurrentThread();
-    if (jni_return != JNI_OK)
-        return -5;
-
-    return 0;
-}
-
 // Helper to retrieve data placed into the assets/ directory (android/app/src/main/assets)
-static int GetAssetData(const char* filename, void** outData)
+/*static*/ int GetAssetData(const char* filename, void** outData)
 {
     int num_bytes = 0;
     AAsset* asset_descriptor = AAssetManager_open(g_App->activity->assetManager, filename, AASSET_MODE_BUFFER);
@@ -402,41 +369,90 @@ static int GetAssetData(const char* filename, void** outData)
     return num_bytes;
 }
 
+struct JniBlock 
+{
+    JniBlock()
+    {
+        JavaVM* java_vm = g_App->activity->vm;
+
+        jint jni_return = java_vm->GetEnv((void**)&java_env, JNI_VERSION_1_6);
+        if (jni_return == JNI_ERR)
+            return;
+
+        jni_return = java_vm->AttachCurrentThread(&java_env, nullptr);
+        if (jni_return != JNI_OK)
+            return;
+
+        native_activity_clazz = java_env->GetObjectClass(g_App->activity->clazz);
+        if (native_activity_clazz == nullptr)
+            return;
+    }
+    ~JniBlock()
+    {
+        if (!java_env)
+            return;
+        JavaVM* java_vm = g_App->activity->vm;
+        jint jni_return = java_vm->DetachCurrentThread();
+        if (jni_return != JNI_OK)
+            return;
+    }
+    JNIEnv* operator-> ()
+    {
+        return java_env;
+    }
+
+    JNIEnv* java_env = nullptr;
+    jclass native_activity_clazz = nullptr;
+};
+
+// Unfortunately, there is no way to show the on-screen input from native code.
+// Therefore, we call ShowSoftKeyboardInput() of the main activity implemented in MainActivity.kt via JNI.
+static int ShowSoftKeyboardInput(int mode)
+{
+    JniBlock bl;
+    jmethodID method_id = bl->GetMethodID(bl.native_activity_clazz, "showSoftInput", "(I)V");
+    if (method_id == nullptr)
+        return -4;
+    bl->CallVoidMethod(g_App->activity->clazz, method_id, mode);
+    return 0;
+}
+
 // Retrieve some display related information like DPI
 static void GetDisplayInfo()
 {
-    JavaVM* java_vm = g_App->activity->vm;
-    JNIEnv* java_env = nullptr;
+    JniBlock bl;
 
-    jint jni_return = java_vm->GetEnv((void**)&java_env, JNI_VERSION_1_6);
-    if (jni_return == JNI_ERR)
-        return;
-
-    jni_return = java_vm->AttachCurrentThread(&java_env, nullptr);
-    if (jni_return != JNI_OK)
-        return;
-
-    jclass native_activity_clazz = java_env->GetObjectClass(g_App->activity->clazz);
-    if (native_activity_clazz == nullptr)
-        return;
-
-    jmethodID method_id = java_env->GetMethodID(native_activity_clazz, "getDpi", "()I");
+    jmethodID method_id = bl->GetMethodID(bl.native_activity_clazz, "getDpi", "()I");
     if (method_id == nullptr)
         return;
 
-    jint dpi = java_env->CallIntMethod(g_App->activity->clazz, method_id);
+    jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
     g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
     g_IOUserData.dpiScale = dpi / 140.0; //relative to laptop screen DPI;
     ImGui::GetIO().UserData = &g_IOUserData;
 
-    method_id = java_env->GetMethodID(native_activity_clazz, "getRotation", "()I");
+    method_id = bl->GetMethodID(bl.native_activity_clazz, "getRotation", "()I");
     if (method_id == nullptr)
         return;
 
-    jint rot = java_env->CallIntMethod(g_App->activity->clazz, method_id);
-    Java_${JNI_PACKAGE}_MainActivity_OnScreenRotation(java_env, g_App->activity->clazz, rot);
+    g_RotAngle = bl->CallIntMethod(g_App->activity->clazz, method_id);
+    UpdateScreenRect();
+}
 
-    jni_return = java_vm->DetachCurrentThread();
-    if (jni_return != JNI_OK)
-        return;
+void UpdateScreenRect()
+{
+    switch (g_RotAngle) {
+        case 0:
+            g_IOUserData.displayOffsetMin = { 0, 0 };
+            g_IOUserData.displayOffsetMax = { 0, (float)g_NavBarHeight + (float)g_KbdHeight };
+            break;
+        case 90:
+            g_IOUserData.displayOffsetMin = { 0, 0 };
+            g_IOUserData.displayOffsetMax = { (float)g_NavBarHeight, (float)g_KbdHeight };
+            break;
+        case 270:
+            g_IOUserData.displayOffsetMin = { (float)g_NavBarHeight, 0 };
+            g_IOUserData.displayOffsetMax = { 0, (float)g_KbdHeight };
+            break;
+    }
 }

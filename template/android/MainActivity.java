@@ -28,7 +28,7 @@ implements TextWatcher, TextView.OnEditorActionListener
     protected View mView;
     private EditText mEditText;
 
-    private native void OnKeyboardShown(boolean b);
+    private native void OnKeyboardShown(int h);
     private native void OnScreenRotation(int deg);
     private native void OnInputCharacter(int ch);
     private native void OnSpecialKey(int code);
@@ -71,9 +71,9 @@ implements TextWatcher, TextView.OnEditorActionListener
                         int screenHeight = view.getRootView().getHeight();
                         Rect r = new Rect();
                         view.getWindowVisibleDisplayFrame(r);
-                        double hkbd = 2.54 * (double)(screenHeight - r.bottom) / getDpi();
-                        boolean kbdShown = hkbd > 3; //kbd height more than 3cm
-                        OnKeyboardShown(kbdShown);
+                        //double hkbd = 2.54 * (double)(screenHeight - r.bottom) / getDpi();
+                        //boolean kbdShown = hkbd > 3; //kbd height more than 3cm
+                        OnKeyboardShown(screenHeight - r.bottom);
                     }
                 });
     }
@@ -154,12 +154,21 @@ implements TextWatcher, TextView.OnEditorActionListener
 
     @Override
     public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-        OnSpecialKey(actionId + 256);
+        OnSpecialKey(actionId + 1024);
         return true;
     }
 
-    /* Not called with IME_TEXT, not called on hw keyboard
+    //Use this only for special keys, otherwise not called with IME_TEXT, not called on hw keyboard
     @Override
+    public boolean dispatchKeyEvent(KeyEvent ev) {
+        //intercept Back button
+        if (ev.getAction() == KeyEvent.ACTION_DOWN && ev.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            OnSpecialKey(ev.getKeyCode());
+            return false;
+        }
+        return super.dispatchKeyEvent(ev);
+    }
+    /*@Override
     public boolean dispatchKeyEvent(KeyEvent ev) {
         if (ev.getAction() == KeyEvent.ACTION_DOWN) {
             int ch = ev.getUnicodeChar(ev.getMetaState());

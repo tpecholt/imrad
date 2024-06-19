@@ -781,6 +781,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
+
+		if (!onBackButton.empty()) {
+			os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
+			ctx.ind_up();
+			os << ctx.ind << onBackButton.to_arg() << "();\n";
+			ctx.ind_down();
+		}
 	}
 	else if (kind == Window)
 	{
@@ -880,6 +887,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				os << ctx.ind << "ClosePopup();\n";
 				ctx.ind_down();
 			}
+			if (!onBackButton.empty()) 
+			{
+				os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
+				ctx.ind_up();
+				os << ctx.ind << onBackButton.to_arg() << "();\n";
+				ctx.ind_down();
+			}
 			if (kind == ModalPopup)
 			{
 				os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
@@ -888,6 +902,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		}
 		else
 		{
+			if (!onBackButton.empty()) 
+			{
+				os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
+				ctx.ind_up();
+				os << ctx.ind << onBackButton.to_arg() << "();\n";
+				ctx.ind_down();
+			}
 			os << ctx.ind << "if (modalResult != ImRad::None)\n";
 		}
 		os << ctx.ind << "{\n";
@@ -1098,6 +1119,10 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				if (!decorated)
 					flags |= ImGuiWindowFlags_NoTitleBar;
 			}
+		}
+		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsKeyPressed(ImGuiKey_AppBack)")
+		{
+			onBackButton.set_from_arg(sit->callee2);
 		}
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
 			sit->callee == "ImGui::BeginPopupModal")
@@ -1412,12 +1437,26 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 std::vector<UINode::Prop>
 TopWindow::Events()
 {
-	return {};
+	return {
+		{ "OnBackButton", &onBackButton },
+	};
 }
 
 bool TopWindow::EventUI(int i, UIContext& ctx)
 {
-	return false;
+	bool changed = false;
+	int sat = (i & 1) ? 202 : 164;
+	ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("OnBackButton");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##OnBakButton", &onBackButton, ctx);
+		break;
+	}
+	return changed;
 }
 
 void TopWindow::ScaleDimensions(float scale)
