@@ -48,6 +48,7 @@ const float TAB_SIZE = 25; //todo examine
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
 const std::string DEFAULT_UNIT = "px";
+const char* INI_FILE_NAME = "imgui.ini";
 
 struct File
 {
@@ -60,7 +61,8 @@ struct File
 	std::string unit;
 };
 
-bool firstTime;
+enum ProgramState { Run, Init, Shutdown };
+ProgramState programState;
 std::string rootPath;
 std::string initErrors;
 UIContext ctx;
@@ -111,6 +113,38 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 	}}
 };
 
+void DoReloadFile()
+{
+	if (activeTab < 0)
+		return;
+	auto& tab = fileTabs[activeTab];
+	if (tab.fname == "" || !fs::is_regular_file(tab.fname))
+		return;
+
+	std::map<std::string, std::string> params;
+	tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
+	auto pit = params.find("style");
+	tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
+	pit = params.find("unit");
+	tab.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
+	bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
+		return st.first == tab.styleName;
+		});
+	if (!styleFound) {
+		messageBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + messageBox.error;
+		tab.styleName = DEFAULT_STYLE;
+	}
+	tab.modified = false;
+	ctx.mode = UIContext::NormalSelection;
+	ctx.selected = { tab.rootNode.get() };
+
+	if (messageBox.error != "" && programState != Shutdown)
+	{
+		messageBox.title = "Reload";
+		messageBox.buttons = ImRad::Ok;
+		messageBox.OpenPopup();
+	}
+}
 
 void ReloadFile()
 {
@@ -126,31 +160,22 @@ void ReloadFile()
 		return;
 	tab.time[0] = time1;
 	tab.time[1] = time2;
-	auto fn = fs::path(tab.fname).filename().string();
-	messageBox.title = "Reload";
-	messageBox.message = "File content of '" + fn + "' has changed. Reload?";
-	messageBox.buttons = ImRad::Yes | ImRad::No;
 
-	messageBox.OpenPopup([&](ImRad::ModalResult mr) {
-		if (mr != ImRad::Yes)
-			return;
-		std::map<std::string, std::string> params;
-		tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
-		auto pit = params.find("style");
-		tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
-		pit = params.find("unit");
-		tab.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
-		bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
-			return st.first == tab.styleName;
+	if (programState != Shutdown) 
+	{
+		auto fn = fs::path(tab.fname).filename().string();
+		messageBox.title = "Reload";
+		messageBox.message = "File content of '" + fn + "' has changed. Reload?";
+		messageBox.buttons = ImRad::Yes | ImRad::No;
+
+		messageBox.OpenPopup([&](ImRad::ModalResult mr) {
+			if (mr == ImRad::Yes)
+				DoReloadFile();
 			});
-		if (!styleFound) {
-			messageBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + messageBox.error;
-			tab.styleName = DEFAULT_STYLE;
-		}
-		tab.modified = false;
-		ctx.mode = UIContext::NormalSelection;
-		ctx.selected = { tab.rootNode.get() };
-		});
+	}
+	else {
+		DoReloadFile();
+	}
 }
 
 void ActivateTab(int i)
@@ -172,7 +197,9 @@ void ActivateTab(int i)
 	ctx.selected = { tab.rootNode.get() };
 	ctx.codeGen = &tab.codeGen;
 	ReloadFile();
-	reloadStyle = true;
+
+	if (programState != Shutdown)
+		reloadStyle = true;
 }
 
 void NewFile(TopWindow::Kind k)
@@ -392,7 +419,7 @@ void DoCloseFile()
 	ActivateTab(activeTab);
 }
 
-bool SaveFile(bool thenClose = false);
+bool SaveFile(bool thenClose);
 
 void CloseFile()
 {
@@ -417,6 +444,18 @@ void CloseFile()
 	}
 }
 
+//CancelShutdown identifier is used in winuser.h
+void DoCancelShutdown()
+{
+	if (programState != Shutdown)
+		return;
+	
+	glfwSetWindowShouldClose(window, false);
+	programState = Run;
+	reloadStyle = true;
+	ImGui::GetIO().IniFilename = INI_FILE_NAME;
+}
+
 void DoSaveFile(bool thenClose)
 {
 	auto& tab = fileTabs[activeTab];
@@ -426,13 +465,11 @@ void DoSaveFile(bool thenClose)
 	};
 	if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, messageBox.error))
 	{
+		DoCancelShutdown();
 		messageBox.title = "CodeGen";
 		messageBox.message = "Unsuccessful export due to errors";
 		messageBox.buttons = ImRad::Ok;
-		messageBox.OpenPopup([=](ImRad::ModalResult) {
-			if (thenClose)
-				DoCloseFile();
-			});
+		messageBox.OpenPopup();
 		return;
 	}
 
@@ -440,7 +477,7 @@ void DoSaveFile(bool thenClose)
 	tab.modified = false;
 	tab.time[0] = fs::last_write_time(tab.fname, err);
 	tab.time[1] = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
-	if (messageBox.error != "")
+	if (messageBox.error != "" && programState != Shutdown)
 	{
 		messageBox.title = "CodeGen";
 		messageBox.message = "Export finished with errors";
@@ -456,14 +493,13 @@ void DoSaveFile(bool thenClose)
 		DoCloseFile();
 }
 
-bool SaveFileAs(bool thenClose = false)
+bool SaveFileAs(bool thenClose)
 {
 	nfdchar_t *outPath = NULL;
 	nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Header File", (const nfdchar_t *)"h,hpp" } };
 	nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, nullptr);
 	if (result != NFD_OKAY) {
-		if (thenClose)
-			DoCloseFile();
+		DoCancelShutdown();
 		return false;
 	}
 	auto& tab = fileTabs[activeTab];
@@ -484,7 +520,9 @@ bool SaveFileAs(bool thenClose = false)
 			fs::remove(fs::path(newName).replace_extension(".cpp"));
 		}
 	}
-	catch (std::exception& e) {
+	catch (std::exception& e) 
+	{
+		DoCancelShutdown();
 		messageBox.title = "error";
 		messageBox.message = e.what();
 		messageBox.buttons = ImRad::Ok;
@@ -502,14 +540,16 @@ bool SaveFileAs(bool thenClose = false)
 bool SaveFile(bool thenClose)
 {
 	auto& tab = fileTabs[activeTab];
-	if (tab.fname == "")
+	if (tab.fname == "") {
 		return SaveFileAs(thenClose);
+	}
 	else {
 		DoSaveFile(thenClose);
 		return true;
 	}
 }
 
+//todo: dangerous because of no reloading
 void SaveAll()
 {
 	int tmp = activeTab;
@@ -926,7 +966,7 @@ void DockspaceUI()
 
 	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode);
-	if (firstTime)
+	if (programState == Init)
 	{
 		ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
 		ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
@@ -1035,7 +1075,7 @@ void ToolbarUI()
 	float cx = ImGui::GetCursorPosX();
 	if (ImGui::Button(ICON_FA_FLOPPY_DISK) ||
 		(ImGui::IsKeyPressed(ImGuiKey_S, false) && io.KeyMods == ImGuiMod_Ctrl))
-		SaveFile();
+		SaveFile(false);
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Save File (Ctrl+S)");
 	
@@ -1050,7 +1090,7 @@ void ToolbarUI()
 	if (ImGui::BeginPopup("SaveMenu"))
 	{
 		if (ImGui::MenuItem("Save As..."))
-			SaveFileAs();
+			SaveFileAs(false);
 		if (ImGui::MenuItem("Save All", "\tCtrl+Shift+S"))
 			SaveAll();
 		ImGui::EndPopup();
@@ -1586,6 +1626,12 @@ void Work()
 		messageBox.OpenPopup();
 		initErrors = "";
 	}
+	
+	if (programState == Shutdown)
+	{
+		if (!fileTabs.empty())// && !ImGui::IsPopupOpen(-1, ImGuiPopupFlags_AnyPopupLevel))
+			CloseFile();
+	}
 
 	if (ctx.mode == UIContext::PickPoint)
 	{
@@ -1742,7 +1788,7 @@ void AddINIHandler()
 		};
 	ini_handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler*, void* entry, const char* line)
 		{
-			if (!firstTime)
+			if (programState != Init)
 				return;
 			if (!strcmp((const char*)entry, "Recent")) {
 				char buf[1000];
@@ -1826,7 +1872,7 @@ int main(int argc, const char* argv[])
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
-	// Initialized the native file dialog
+	// Initialize the native file dialog
 	NFD_Init();
 
 	// Create window with graphics context
@@ -1848,6 +1894,7 @@ int main(int argc, const char* argv[])
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	ImGui::GetIO().IniFilename = INI_FILE_NAME;
 	AddINIHandler();
 	ImGuiIO& io = ImGui::GetIO(); 
 	io.UserData = &ioUserData;
@@ -1859,31 +1906,31 @@ int main(int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	// Load Fonts
-	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-	// - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-	// - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-	// - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-	// - Read 'docs/FONTS.md' for more instructions and details.
-	// - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-	// Our state
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	GetStyles();
-	firstTime = true;
+	programState = (ProgramState)-1;
 	bool lastVisible = true;
 	while (true)
 	{
-		if (glfwWindowShouldClose(window)) 
+		if (programState == -1)
 		{
-#ifdef NDEBUG
-			if (fileTabs.empty())
+			programState = Init;
+		}
+		else if (programState == Init)
+		{
+			programState = Run;
+		}
+		else if (glfwWindowShouldClose(window))
+		{
+			if (programState == Run) { 
+				programState = Shutdown;
+				//save state before files close
+				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+				ImGui::GetIO().IniFilename = nullptr;
+			}
+			if (fileTabs.empty()) //Work() will close the tabs
 				break;
-			if (!ImGui::IsPopupOpen(-1, ImGuiPopupFlags_AnyPopupLevel))
-				CloseFile();
-#else
-			break;
-#endif
 		}
 
 		//font loading must be called before NewFrame
@@ -1917,7 +1964,6 @@ int main(int argc, const char* argv[])
 
 		//ImGui::ShowDemoWindow();
 
-		firstTime = false;
 		// Rendering
 		ImGui::Render();
 		int display_w, display_h;
