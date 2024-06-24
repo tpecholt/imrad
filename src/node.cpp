@@ -515,7 +515,16 @@ void TopWindow::Draw(UIContext& ctx)
 
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
 	assert(ctx.rootWin);
-	
+
+	if (placement == Left)
+		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersLeft);
+	else if (placement == Right)
+		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersRight);
+	else if (placement == Top)
+		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersTop);
+	else if (placement == Bottom)
+		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersBottom);
+
 	ImGui::GetCurrentContext()->NavDisableMouseHover = true;
 	for (size_t i = 0; i < children.size(); ++i)
 	{
@@ -903,6 +912,20 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		if (kind == ModalPopup)
 		{
 			os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
+		}
+		if (style_rounding && 
+			(placement == Left || placement == Right || placement == Top || placement == Bottom))
+		{
+			os << ctx.ind << "ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCorners";
+			if (placement == Left)
+				os << "Left";
+			else if (placement == Right)
+				os << "Right";
+			else if (placement == Top)
+				os << "Top";
+			else if (placement == Bottom)
+				os << "Bottom";
+			os << ");\n";
 		}
 
 		//CloseCurrentPopup

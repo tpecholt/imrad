@@ -447,6 +447,32 @@ inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
 	dl->PopClipRect();
 }
 
+inline void RenderFilledWindowCorners(ImDrawFlags fl)
+{
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	ImGuiWindow* win = ImGui::GetCurrentWindow();
+	ImVec2 pos = ImGui::GetWindowPos();
+	ImVec2 size = ImGui::GetWindowSize();
+	float r = (win->Flags & ImGuiWindowFlags_Popup) && !(win->Flags & ImGuiWindowFlags_Modal) ?
+		ImGui::GetStyle().PopupRounding : ImGui::GetStyle().WindowRounding;
+	ImVec2 pad = ImGui::GetStyle().WindowPadding;
+	//GetWindowBgColorIdx is not accessible
+	ImU32 col = ImGui::GetColorU32((win->Flags & ImGuiWindowFlags_Popup) ? ImGuiCol_PopupBg : ImGuiCol_WindowBg);
+
+	ImGui::PushClipRect(pos, { pos.x + size.x, pos.y + size.y }, false);
+
+	if (fl & ImDrawFlags_RoundCornersBottomLeft)
+		dl->AddRectFilled({ pos.x, pos.y + size.y - r }, { pos.x + r, pos.y + size.y },	col);
+	if (fl & ImDrawFlags_RoundCornersBottomRight)
+		dl->AddRectFilled({ pos.x + size.x - r, pos.y + size.y - r }, { pos.x + size.x, pos.y + size.y }, col);
+	if (fl & ImDrawFlags_RoundCornersTopLeft)
+		dl->AddRectFilled(pos, { pos.x + r, pos.y + r }, col);
+	if (fl & ImDrawFlags_RoundCornersTopRight)
+		dl->AddRectFilled({ pos.x + size.x - r, pos.y }, { pos.x + size.x, pos.y + r }, col);
+
+	ImGui::PopClipRect();
+}
+
 inline std::string Format(std::string_view fmt)
 {
 	return std::string(fmt);
