@@ -16,6 +16,9 @@
 
 const color32 FIELD_NAME_CLR = IM_COL32(222, 222, 255, 255);
 
+#define DRAW_STR(a) cpp::to_draw_str(a.value()).c_str()
+
+
 void toggle(std::vector<UINode*>& c, UINode* val)
 {
 	auto it = stx::find(c, val);
@@ -2571,7 +2574,7 @@ void Widget::TreeUI(UIContext& ctx)
 	const auto props = Properties();
 	for (const auto& p : props) {
 		if (p.kbdInput && p.property->c_str()) {
-			label = p.property->c_str();
+			label = cpp::to_draw_str(p.property->c_str());
 		}
 	}
 	if (label.empty()) {
@@ -2672,7 +2675,7 @@ void Separator::DoDraw(UIContext& ctx)
 	}
 
 	if (!label.empty())
-		ImGui::SeparatorText(label.c_str());
+		ImGui::SeparatorText(DRAW_STR(label));
 	else if (style_thickness.has_value())
 		ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal, style_thickness);
 	else 
@@ -2821,14 +2824,14 @@ void Text::DoDraw(UIContext& ctx)
 		//if (w < 0) w += ImGui::GetContentRegionAvail().x;
 		//ImGui::PushTextWrapPos(x1 + w);
 		ImGui::PushTextWrapPos(0);
-		ImGui::TextUnformatted(text.c_str());
+		ImGui::TextUnformatted(DRAW_STR(text));
 		ImGui::PopTextWrapPos();
 		//ImGui::SameLine(x1 + w);
 		//ImGui::NewLine();
 	}
 	else 
 	{
-		ImGui::TextUnformatted(text.c_str());
+		ImGui::TextUnformatted(DRAW_STR(text));
 	}
 }
 
@@ -2987,7 +2990,7 @@ void Selectable::DoDraw(UIContext& ctx)
 	ImVec2 size;
 	size.x = size_x.eval_px(ctx);
 	size.y = size_y.eval_px(ctx);
-	ImRad::Selectable(label.c_str(), false, flags, size);
+	ImRad::Selectable(DRAW_STR(label), false, flags, size);
 
 	if (readOnly)
 		ImGui::PopItemFlag();
@@ -3307,13 +3310,13 @@ void Button::DoDraw(UIContext& ctx)
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
 	else if (small)
-		ImGui::SmallButton(label.c_str());
+		ImGui::SmallButton(DRAW_STR(label));
 	else
 	{
 		ImVec2 size;
 		size.x = size_x.eval_px(ctx);
 		size.y = size_y.eval_px(ctx);
-		ImGui::Button(label.c_str(), size);
+		ImGui::Button(DRAW_STR(label), size);
 					  
 		//if (ctx.modalPopup && text.value() == "OK")
 			//ImGui::SetItemDefaultFocus();
@@ -3758,7 +3761,7 @@ void CheckBox::DoDraw(UIContext& ctx)
 	const auto* var = ctx.codeGen->GetVar(fieldName.c_str());
 	if (var)
 		dummy = var->init == "true";
-	ImGui::Checkbox(label.c_str(), &dummy);
+	ImGui::Checkbox(DRAW_STR(label), &dummy);
 }
 
 void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
@@ -3906,7 +3909,7 @@ std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 
 void RadioButton::DoDraw(UIContext& ctx)
 {
-	ImGui::RadioButton(label.c_str(), valueID==0);
+	ImGui::RadioButton(DRAW_STR(label), valueID==0);
 }
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
@@ -4091,7 +4094,7 @@ void Input::DoDraw(UIContext& ctx)
 		if (w)
 			ImGui::SetNextItemWidth(w);
 		if (!hint.empty())
-			ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &stmp, flags);
+			ImGui::InputTextWithHint(id.c_str(), DRAW_STR(hint), &stmp, flags);
 		else
 			ImGui::InputText(id.c_str(), &stmp, flags);
 	}
@@ -7000,7 +7003,7 @@ void CollapsingHeader::DoDraw(UIContext& ctx)
 	{
 		ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
 	}
-	if (ImGui::CollapsingHeader(label.c_str()))
+	if (ImGui::CollapsingHeader(DRAW_STR(label)))
 	{
 		for (size_t i = 0; i < children.size(); ++i)
 		{
@@ -7125,7 +7128,7 @@ void TreeNode::DoDraw(UIContext& ctx)
 		ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
 	}
 	lastOpen = false;
-	if (ImGui::TreeNodeEx(label.c_str(), flags))
+	if (ImGui::TreeNodeEx(DRAW_STR(label), flags))
 	{
 		lastOpen = true;
 		for (const auto& child : children)
@@ -7406,7 +7409,7 @@ void TabItem::DoDraw(UIContext& ctx)
 {
 	bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
 	bool tmp = true;
-	if (ImGui::BeginTabItem(label.c_str(), closeButton ? &tmp : nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
+	if (ImGui::BeginTabItem(DRAW_STR(label), closeButton ? &tmp : nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
 	{
 		for (const auto& child : children)
 			child->Draw(ctx);
@@ -7817,7 +7820,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 	else //menuItem
 	{
 		bool check = !checked.empty();
-		ImGui::MenuItem(label.c_str(), shortcut.c_str(), check);
+		ImGui::MenuItem(DRAW_STR(label), DRAW_STR(shortcut), check);
 	}
 }
 

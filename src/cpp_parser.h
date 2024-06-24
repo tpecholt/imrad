@@ -853,6 +853,57 @@ error:
 		return "ImRad::Format(\"" + fmt + "\"" + args + ").c_str()";
 	}
 
+	//1. limits length of lengthy {} expression (like in case it contains ?:)
+	//2. trims {{, }} into {, }
+	//3. errors out on incorrect format string 
+	inline std::string to_draw_str(std::string_view s, int n = 25)
+	{
+		std::string out;
+		size_t argFrom = 0;
+		for (size_t i = 0; i < s.size(); ++i)
+		{
+			if (s[i] == '{') {
+				out += "{";
+				if (i + 1 < s.size() && s[i + 1] == '{')
+					++i;
+				else {
+					if (argFrom)
+						return "error";
+					argFrom = i + 1;
+				}
+			}
+			else if (s[i] == '}') {
+				if (!argFrom) {
+					if (i + 1 == s.size() || s[i + 1] != '}')
+						return "error";
+					out += "}";
+					++i;
+				}
+				else {
+					if (i == argFrom)
+						return "error";
+					if (i - argFrom > n) {
+						out += s.substr(argFrom, n - 3);
+						while (out.back() < 0) //strip incomplete unicode char
+							out.pop_back();
+						out += "...}";
+					}
+					else {
+						out += s.substr(argFrom, i - argFrom);
+						out += "}";
+					}
+					argFrom = 0;
+				}
+			}
+			else if (!argFrom) {
+				out += s[i];
+			}
+		}
+		if (argFrom)
+			return "error";
+		return out;
+	}
+
 	inline std::pair<std::string, std::string> parse_size(const std::string& str)
 	{
 		std::pair<std::string, std::string> size;
