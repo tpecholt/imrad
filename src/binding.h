@@ -504,6 +504,7 @@ struct direct_val<std::string> : property_base
 	operator std::string&() { return val; }
 	operator const std::string&() const { return val; }
 	//operator std::string_view() const { return val; }
+	const std::string& value() const { return val; }
 	
 	void set_from_arg(std::string_view s) {
 		val = cpp::parse_str_arg(s);

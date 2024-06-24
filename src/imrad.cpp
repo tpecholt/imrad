@@ -1514,7 +1514,9 @@ void PopupUI()
 
 	aboutDlg.Draw();
 
+	ImGui::PushFont(ctx.defaultFont);
 	bindingDlg.Draw();
+	ImGui::PopFont();
 
 	horizLayout.Draw();
 

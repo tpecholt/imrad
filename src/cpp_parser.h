@@ -193,6 +193,8 @@ namespace cpp
 								in->putback(c);
 								break;
 							}
+							if (c == '-' && std::isdigit(in->peek())) //unary -
+								continue;
 							if ((c == '<' && in->peek() == '<') ||
 								(c == '<' && in->peek() == '=') ||
 								(c == '>' && in->peek() == '>') ||

@@ -700,7 +700,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	if (style_rounding.has_value())
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(";
-		os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
+		//ModalPopup uses WindowRounding
+		os << (kind == Popup ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
 		os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
 	}
 	if (style_border.has_value() && kind != Activity)
@@ -867,7 +868,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		
-		//closePopup
+		//animation
 		if (animate)
 		{
 			os << ctx.ind << "animator.Tick();\n";
@@ -887,34 +888,33 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				os << ctx.ind << "ClosePopup();\n";
 				ctx.ind_down();
 			}
-			if (!onBackButton.empty()) 
-			{
-				os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
-				ctx.ind_up();
-				os << ctx.ind << onBackButton.to_arg() << "();\n";
-				ctx.ind_down();
-			}
-			if (kind == ModalPopup)
-			{
-				os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
-			}
-			os << ctx.ind << "if (modalResult != ImRad::None && animator.IsDone())\n";
 		}
-		else
+
+		//back button
+		if (!onBackButton.empty())
 		{
-			if (!onBackButton.empty()) 
-			{
-				os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
-				ctx.ind_up();
-				os << ctx.ind << onBackButton.to_arg() << "();\n";
-				ctx.ind_down();
-			}
-			os << ctx.ind << "if (modalResult != ImRad::None)\n";
+			os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
+			ctx.ind_up();
+			os << ctx.ind << onBackButton.to_arg() << "();\n";
+			ctx.ind_down();
 		}
+
+		//rendering
+		if (kind == ModalPopup)
+		{
+			os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
+		}
+
+		//CloseCurrentPopup
+		os << ctx.ind << "if (modalResult != ImRad::None";
+		if (animate)
+			os << " && animator.IsDone()";
+		os << ")\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		os << ctx.ind << "ImGui::CloseCurrentPopup();\n";
 		//callback is called after CloseCurrentPopup so it is able to open another dialog
+		//without calling Draw from it
 		if (kind == ModalPopup)
 		{
 			os << ctx.ind << "if (modalResult != ImRad::Cancel)\n";
