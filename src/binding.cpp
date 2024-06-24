@@ -30,6 +30,8 @@ float bindable<dimension>::eval_px(const UIContext& ctx) const
 		std::istringstream is(var->init);
 		if (is >> val)
 			return val;
+		else
+			return 0;
 	}
 	else {
 		//experimental - currently parses:
