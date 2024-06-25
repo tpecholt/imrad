@@ -914,7 +914,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		//rendering
 		if (kind == ModalPopup)
 		{
+			os << ctx.ind << "if (ioUserData->activeActivity != \"\")\n";
+			ctx.ind_up();
 			os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
+			ctx.ind_down();
 		}
 		if (style_rounding && 
 			(placement == Left || placement == Right || placement == Top || placement == Bottom))

@@ -436,14 +436,20 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 	return 1;
 }
 
+//intended for android
 //original version doesn't respect ioUserData.displayMinMaxOffset
 inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
 {
 	ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0, 0, 0, 0); //disable ImGui dimming
 	ImDrawList* dl = ImGui::GetWindowDrawList();
 	dl->PushClipRectFullScreen();
-	ImVec4 color{ 0, 0, 0, 0.5f * alpha_mul };
-    dl->AddRectFilled(rect.Min, rect.Max, ImGui::ColorConvertFloat4ToU32(color));
+	//imgui dim default = 0.2f, 0.2f, 0.2f, 0.35f * alpha_mul
+	ImU32 color = ImGui::ColorConvertFloat4ToU32({ 0, 0, 0, 0.35f * alpha_mul });
+	const ImRect& wr = ImGui::GetCurrentWindow()->Rect();
+    dl->AddRectFilled(rect.Min, { rect.Max.x, wr.Min.y }, color);
+	dl->AddRectFilled({ rect.Min.x, wr.Min.y }, { wr.Min.x, wr.Max.y }, color);
+	dl->AddRectFilled({ wr.Max.x, wr.Min.y }, { rect.Max.x, wr.Max.y }, color);
+	dl->AddRectFilled({ rect.Min.x, wr.Max.y }, rect.Max, color);
 	dl->PopClipRect();
 }
 
