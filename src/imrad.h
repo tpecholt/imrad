@@ -168,6 +168,7 @@ struct Animator
 		return wsize;
 	}
 
+private:
 	struct Var 
 	{
 		float time;

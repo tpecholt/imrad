@@ -114,7 +114,8 @@ void NewFieldPopup::Draw()
 
 		ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 2 * 100));
 		ImGui::BeginDisabled(hint != "");
-		if (ImGui::Button("OK", { 100, 0 }) ||
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+		if (ImGui::Button("OK", { 100, 30 }) ||
 			(hint == "" && ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
 		{
 			CheckVarName();
@@ -157,10 +158,11 @@ void NewFieldPopup::Draw()
 			}
 		}
 		ImGui::EndDisabled();
+		ImGui::PopStyleColor();
 		ImGui::SetItemDefaultFocus();
 
 		ImGui::SameLine();
-		if (ImGui::Button("Cancel", { 100, 0 }) || ImGui::IsKeyPressed(ImGuiKey_Escape))
+		if (ImGui::Button("Cancel", { 100, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
 			const auto& g = ImGui::GetCurrentContext();
 			ClosePopup();

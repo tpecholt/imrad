@@ -214,6 +214,7 @@ CppGen::ExportH(
 				}
 
 				//write stuctures
+				bool found = false;
 				for (const auto& scope : m_fields)
 				{
 					if (scope.first == "")
@@ -221,6 +222,7 @@ CppGen::ExportH(
 					bool userCode = stx::count_if(scope.second, [](const auto& var) { return var.flags & Var::UserCode; });
 					if (userCode)
 						continue;
+					found = true;
 					out << INDENT << "struct " << scope.first << " {\n";
 					for (const auto& var : scope.second)
 					{
@@ -231,6 +233,9 @@ CppGen::ExportH(
 					}
 					out << INDENT << "};\n";
 				}
+				if (found)
+					out << "\n";
+
 				//write fields
 				for (const auto& var : m_fields[""])
 				{
@@ -260,7 +265,7 @@ CppGen::ExportH(
 				if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
 					node->kind == TopWindow::Activity)
 				{
-					out << INDENT << "void Init();\n";
+					out << INDENT << "void Init();\n\n";
 				}
 
 				if (node->kind == TopWindow::ModalPopup)
@@ -295,7 +300,6 @@ CppGen::ExportH(
 				}
 
 				//write impl fields
-				out << "\n";
 				for (const auto& var : m_fields[""])
 				{
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
@@ -310,6 +314,8 @@ CppGen::ExportH(
 						out << ");\n";
 					}
 				}
+				
+				//write impl events
 				out << "\n";
 				for (const auto& var : m_fields[""])
 				{

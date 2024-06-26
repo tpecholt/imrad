@@ -106,7 +106,7 @@ void BindingDlg::Draw()
         /// @end Table
 
         /// @begin Table
-        if (ImGui::BeginTable("table2201201801200", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 0, -44 }))
+        if (ImGui::BeginTable("table2201201801200", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 0, -48 }))
         {
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);
@@ -153,7 +153,7 @@ void BindingDlg::Draw()
             /// @separator
 
             /// @begin Button
-            if (ImGui::Button(" New Field... ", { 110, 0 }))
+            if (ImGui::Button(" New Field... ", { 110, 30 }))
             {
                 OnNewField();
             }
@@ -161,7 +161,7 @@ void BindingDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
-            if (ImGui::Button("OK", { 90, 0 }))
+            if (ImGui::Button("OK", { 90, 30 }))
             {
                 ClosePopup();
                 callback(ImRad::Ok);
@@ -170,7 +170,7 @@ void BindingDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
-            if (ImGui::Button("Cancel", { 90, 0 }) ||
+            if (ImGui::Button("Cancel", { 90, 30 }) ||
                 (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
             {
                 ClosePopup();
