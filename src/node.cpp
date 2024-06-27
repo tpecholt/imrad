@@ -1610,6 +1610,8 @@ void Widget::Draw(UIContext& ctx)
 		ImGui::PushStyleColor(ImGuiCol_FrameBg, style_frameBg.eval(ctx));
 	if (!style_frameRounding.empty())
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_frameRounding);
+	if (!style_framePadding.empty())
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_framePadding);
 
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
 	DoDraw(ctx);
@@ -1621,6 +1623,8 @@ void Widget::Draw(UIContext& ctx)
 	if (!style_frameBg.empty())
 		ImGui::PopStyleColor();
 	if (!style_frameRounding.empty())
+		ImGui::PopStyleVar();
+	if (!style_framePadding.empty())
 		ImGui::PopStyleVar();
 	if (style_font.has_value())
 		ImGui::PopFont();
@@ -1944,11 +1948,19 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, " << style_frameRounding.to_arg(ctx.unit) << ");\n";
 	}
+	if (!style_framePadding.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " << style_framePadding.to_arg(ctx.unit) << ");\n";
+	}
 
 	ctx.parents.push_back(this);
 	DoExport(os, ctx);
 	ctx.parents.pop_back();
 
+	if (!style_framePadding.empty())
+	{
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	}
 	if (!style_frameRounding.empty())
 	{
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -2198,6 +2210,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
 				style_frameRounding.set_from_arg(sit->params[1]);
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FramePadding")
+				style_framePadding.set_from_arg(sit->params[1]);
 			else
 				DoImport(sit, ctx);
 		}
@@ -3547,6 +3561,7 @@ Button::Properties()
 		{ "@style.text", &style_text },
 		{ "@style.button", &style_button },
 		{ "@style.hovered", &style_hovered },
+		{ "@style.padding", &style_framePadding },
 		{ "@style.rounding", &style_frameRounding },
 		{ "@style.font", &style_font },
 		{ "button.arrowDir", &arrowDir },
@@ -3591,12 +3606,18 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("hovered", &style_hovered, ctx);
 		break;
 	case 3:
+		ImGui::Text("padding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##padding", &style_framePadding, ctx);
+		break;
+	case 4:
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##rounding", &style_frameRounding, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3604,7 +3625,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 5:
+	case 6:
 	{
 		ImGui::Text("arrowDir");
 		ImGui::TableNextColumn();
@@ -3621,7 +3642,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	}
-	case 6:
+	case 7:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
@@ -3631,13 +3652,13 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("label", &label, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##shortcut", &shortcut, ctx);
 		break;
-	case 8:
+	case 9:
 	{
 		ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
 		ImGui::Text("modalResult");
@@ -3659,7 +3680,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	}
-	case 9:
+	case 10:
 		ImGui::Text("dropDownMenu");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3681,14 +3702,14 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 10:
+	case 11:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##small", &small, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 11:
+	case 12:
 		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
@@ -3698,7 +3719,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 12:
+	case 13:
 		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -3709,7 +3730,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 13, ctx);
+		return Widget::PropertyUI(i - 14, ctx);
 	}
 	return changed;
 }

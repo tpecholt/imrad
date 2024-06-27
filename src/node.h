@@ -138,6 +138,7 @@ struct Widget : UINode
 	bindable<color32> style_text;
 	bindable<color32> style_frameBg;
 	direct_val<pzdimension> style_frameRounding;
+	direct_val<pzdimension2> style_framePadding;
 	direct_val<std::string> contextMenu = "";
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
