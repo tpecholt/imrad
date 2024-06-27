@@ -1471,6 +1471,16 @@ void PropertyUI()
 	bool tmp = false;
 	ImGui::PushFont(ctx.defaultFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+	
+	ImGui::Begin("Properties");
+	if (!ctx.selected.empty())
+	{
+		PropertyRowsUI(1);
+	}
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+		tmp = true;
+	ImGui::End();
+	
 	ImGui::Begin("Events");
 	if (!ctx.selected.empty())
 	{
@@ -1480,14 +1490,6 @@ void PropertyUI()
 		tmp = true;
 	ImGui::End();
 
-	ImGui::Begin("Properties");
-	if (!ctx.selected.empty())
-	{
-		PropertyRowsUI(1);
-	}
-	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		tmp = true;
-	ImGui::End();
 	ImGui::PopStyleVar();
 	ImGui::PopFont();
 	pgFocused = tmp;

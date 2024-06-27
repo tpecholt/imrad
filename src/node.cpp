@@ -2280,6 +2280,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			}
 		}
 	}
+
+	ctx.parents.pop_back();
 }
 
 std::vector<UINode::Prop>

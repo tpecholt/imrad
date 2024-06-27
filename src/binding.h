@@ -320,10 +320,10 @@ struct direct_val<dimension> : property_base
 	bool operator== (dimension dv) const {
 		return val == dv;
 	}
-	bool operator!= (pzdimension dv) const {
+	bool operator!= (dimension dv) const {
 		return val != dv;
 	}
-	direct_val& operator= (pzdimension v) {
+	direct_val& operator= (dimension v) {
 		val = v;
 		return *this;
 	}
