@@ -1,4 +1,5 @@
 #include "cppgen.h"
+#include "cpp_parser.h"
 #include "stx.h"
 #include "utils.h"
 #include <fstream>
@@ -434,6 +435,7 @@ CppGen::ExportCpp(
 	UIContext ctx;
 	ctx.codeGen = this;
 	ctx.ind = INDENT;
+	ctx.forVarName = FOR_VAR;
 	auto uit = params.find("unit");
 	if (uit != params.end())
 		ctx.unit = uit->second;

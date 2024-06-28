@@ -401,7 +401,47 @@ inline bool InputBindable(const char* label, bindable<std::string>* val, UIConte
 	return changed;
 }
 
-template <class T>
+inline bool InputBindable(const char* label, bindable<dimension>* val, dimension defVal, bool canStretch, UIContext& ctx)
+{
+	static std::string GROW_STR = "stretch";
+
+	if (canStretch) {
+		const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
+		bool hasWidth = nextItemData.Flags & ImGuiNextItemDataFlags_HasWidth;
+		ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
+	}
+
+	bool grow = val->stretched();
+	ImGui::BeginDisabled(grow);
+	bool changed = ImGui::InputText(label, grow ? &GROW_STR : val->access());
+	ImGui::EndDisabled();
+
+	if (canStretch) {
+		ImGui::SameLine(0, 0);
+		ImGui::PushFont(ImGui::GetDefaultFont());
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[grow ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+		std::string id = ICON_FA_LEFT_RIGHT + std::string("##") + label;
+		if (ImGui::Button(id.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		{
+			grow = !grow;
+			*val = grow ? dimension::GROW : defVal;
+		};
+		ImGui::PopStyleColor();
+		ImGui::PopFont();
+	}
+
+	//disallow empty state except string values
+	if (ImGui::IsItemDeactivatedAfterEdit() &&
+		val->access()->empty())
+	{
+		*val = defVal;
+	}
+
+	return changed;
+}
+
+template <class T, 
+	class = std::enable_if_t<!std::is_same_v<T, dimension>> >
 inline bool InputBindable(const char* label, bindable<T>* val, T defVal, UIContext& ctx)
 {
 	bool changed = ImGui::InputText(label, val->access());

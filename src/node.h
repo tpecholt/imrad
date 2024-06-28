@@ -5,70 +5,11 @@
 #include <sstream>
 #include <iomanip>
 #include <imgui.h>
+#include "uicontext.h"
 #include "binding.h"
 #include "cpp_parser.h"
 #include "imrad.h"
 #include "IconsFontAwesome6.h"
-
-struct UINode;
-class CppGen;
-
-struct UIContext
-{
-	//set from outside
-	enum Mode { 
-		NormalSelection, RectSelection, Snap, PickPoint, 
-		ItemDragging, ItemSizingX, ItemSizingY, ItemSizingXY 
-	};
-	Mode mode = NormalSelection;
-	std::vector<UINode*> selected;
-	CppGen* codeGen = nullptr;
-	ImVec2 wpos, wpos2;
-	std::string workingDir;
-	enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
-	std::array<ImU32, Color::COUNT> colors;
-	std::vector<std::string> fontNames;
-	ImFont* defaultFont = nullptr;
-	std::string unit; //for dimension export
-	bool createVars = true; //create variables etc. during contructor/Clone calls
-	ImGuiStyle style;
-	const property_base* setProp = nullptr;
-	std::string setPropValue;
-
-	//snap result
-	UINode* snapParent = nullptr;
-	size_t snapIndex;
-	bool snapSameLine;
-	int snapNextColumn;
-	bool snapBeginGroup;
-	bool snapSetNextSameLine;
-	bool snapClearNextNextColumn;
-	
-	//recursive info
-	int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
-	bool selUpdated;
-	UINode* hovered = nullptr;
-	UINode* dragged = nullptr;
-	ImVec2 lastSize;
-	int groupLevel = 0;
-	int importLevel;
-	std::string userCode;
-	UINode* root = nullptr;
-	ImGuiWindow* rootWin = nullptr;
-	std::vector<ImGuiWindow*> activePopups;
-	std::vector<UINode*> parents;
-	std::vector<std::string> contextMenus;
-	int kind = 0; //TopWindow::Kind
-	float unitFactor = 1; //for dimension value scaling
-	ImVec2 selStart, selEnd;
-	std::string ind;
-	int varCounter;
-	std::vector<std::string> errors;
-
-	//convenience
-	void ind_up();
-	void ind_down();
-};
 
 struct Widget;
 
@@ -114,6 +55,8 @@ struct UINode
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
 	std::vector<std::unique_ptr<Widget>> children;
+	std::vector<ImRad::VBox> vbox;
+	std::vector<ImRad::HBox> hbox;
 };
 
 struct Widget : UINode
@@ -148,8 +91,15 @@ struct Widget : UINode
 	event<> onItemDeactivated;
 	event<> onItemDeactivatedAfterEdit;
 	event<> onItemContextMenuClicked;
-
 	std::string userCodeBefore, userCodeAfter;
+
+	struct Layout 
+	{
+		enum { Topmost = 0x1, Leftmost = 0x2, HLayout = 0x4, VLayout = 0x8 };
+		int flags = 0;
+		int colId = 0;
+		int rowId = 0;
+	};
 
 	static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
@@ -163,6 +113,7 @@ struct Widget : UINode
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
 	int Behavior();
+	Layout GetLayout(UINode* parent);
 	virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
 	virtual void DoDraw(UIContext& ctx) = 0;
 	virtual void DrawExtra(UIContext& ctx) {}
@@ -170,6 +121,19 @@ struct Widget : UINode
 	virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
 	virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	virtual const char* GetIcon() const { return ""; }
+};
+
+struct Spacer : Widget
+{
+	Spacer(UIContext&);
+	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
+	void DoDraw(UIContext& ctx);
+	auto Properties()->std::vector<Prop>;
+	bool PropertyUI(int, UIContext& ctx);
+	void DoExport(std::ostream&, UIContext& ctx);
+	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_LEFT_RIGHT; }
+	void ScaleDimensions(float scale);
 };
 
 struct Separator : Widget

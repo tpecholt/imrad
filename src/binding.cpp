@@ -2,6 +2,9 @@
 #include "cppgen.h"
 #include <imgui.h>
 
+const float dimension::GROW = 12345.0e11f;
+
+
 float direct_val<dimension>::eval_px(const UIContext& ctx) const
 {
 	return val * ctx.unitFactor;
@@ -17,10 +20,13 @@ ImVec2 direct_val<pzdimension2>::eval_px(const UIContext& ctx) const
 	return { val[0] * ctx.unitFactor, val[1] * ctx.unitFactor };
 }
 
-float bindable<dimension>::eval_px(const UIContext& ctx) const
+float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
 {
 	if (empty()) {
 		return 0;
+	}
+	else if (stretched()) {
+		return ctx.stretchSize[axis];
 	}
 	else if (has_value()) {
 		return value() * ctx.unitFactor;

@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <imgui.h>
+#include "uicontext.h"
 #include "stx.h"
 #include "utils.h"
 #include "cpp_parser.h"
@@ -13,6 +14,8 @@ struct UIContext;
 //negative values allowed
 struct dimension
 {
+	static const float GROW;
+	
 	float value;
 	dimension(float v = 0) : value(v) {}
 	dimension& operator= (float v) { value = v; return *this; }
@@ -156,7 +159,7 @@ private:
 
 struct property_base
 {
-	virtual std::string to_arg(std::string_view unit) const = 0;
+	virtual std::string to_arg(std::string_view a = "", std::string_view b = "") const = 0;
 	virtual void set_from_arg(std::string_view s) = 0;
 	virtual const char* c_str() const = 0;
 	virtual std::vector<std::string> used_variables() const = 0;
@@ -176,13 +179,13 @@ struct field_ref : property_base
 	const std::string& value() const {
 		return str;
 	}
-	
+
 	T eval(const UIContext& ctx) const;
-	
+
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -215,7 +218,7 @@ struct event : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -283,7 +286,7 @@ struct direct_val : property_base
 			}
 		}
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		if (ids.size()) {
 			auto it = stx::find_if(ids, [this](const auto& id) { return id.second == val; });
 			return it != ids.end() ? it->first : "";
@@ -347,7 +350,7 @@ struct direct_val<dimension> : property_base
 				val = v;
 		}
 	}
-	std::string to_arg(std::string_view unit) const {
+	std::string to_arg(std::string_view unit, std::string_view = "") const {
 		std::ostringstream os;
 		os << val;
 		if (unit != "")
@@ -410,7 +413,7 @@ struct direct_val<pzdimension> : property_base
 				val = v;
 		}
 	}
-	std::string to_arg(std::string_view unit) const {
+	std::string to_arg(std::string_view unit, std::string_view = "") const {
 		std::ostringstream os;
 		os << val;
 		if (unit != "")
@@ -462,7 +465,7 @@ struct direct_val<pzdimension2> : property_base
 	void set_from_arg(std::string_view s) {
 		val = cpp::parse_fsize(std::string(s));
 	}
-	std::string to_arg(std::string_view unit) const {
+	std::string to_arg(std::string_view unit, std::string_view = "") const {
 		bool hasv = has_value();
 		std::ostringstream os;
 		os << "{ " << val[0];
@@ -509,7 +512,7 @@ struct direct_val<std::string> : property_base
 	void set_from_arg(std::string_view s) {
 		val = cpp::parse_str_arg(s);
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		return cpp::to_str_arg(val);
 	}
 	std::vector<std::string> used_variables() const {
@@ -570,7 +573,7 @@ public:
 	}
 	operator int() const { return f; }
 	int* access() { return &f; }
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		std::string str;
 		for (const auto& id : ids)
 			if ((f & id.second) && id.first != "")
@@ -656,7 +659,7 @@ struct bindable : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -716,6 +719,15 @@ struct bindable<dimension> : property_base
 			return false;
 		return is.eof() || is.tellg() == str.size();
 	}
+	bool stretched() const {
+		if (empty())
+			return false;
+		std::istringstream is(str);
+		dimension val;
+		if (!(is >> val) || val != dimension::GROW)
+			return false;
+		return is.eof() || is.tellg() == str.size();
+	}
 	bool has_value() const {
 		if (empty())
 			return false;
@@ -725,7 +737,7 @@ struct bindable<dimension> : property_base
 			return false;
 		return is.eof() || is.tellg() == str.size();
 	}
-	float eval_px(const UIContext& ctx) const;
+	float eval_px(int axis, const UIContext& ctx) const;
 	
 	void set_from_arg(std::string_view s) {
 		str = s;
@@ -739,7 +751,11 @@ struct bindable<dimension> : property_base
 				str = s.substr(0, s.size() - 3);
 		}
 	}
-	std::string to_arg(std::string_view unit) const {
+	std::string to_arg(std::string_view unit, std::string_view stretchCode = "todo") const {
+		if (stretched())
+		{
+			return std::string(stretchCode);
+		}
 		if (unit != "" && has_value() && 
 			str != "0" && str != "-1") //don't suffix special values
 		{
@@ -813,7 +829,7 @@ struct bindable<std::string> : property_base
 	{
 		str = cpp::parse_str_arg(s);
 	}
-	std::string to_arg(std::string_view = "") const
+	std::string to_arg(std::string_view = "", std::string_view = "") const
 	{
 		return cpp::to_str_arg(str);
 	}
@@ -899,7 +915,7 @@ struct bindable<std::vector<std::string>> : property_base
 		if (str.empty() && s != "\"\"")
 			str = "{" + s + "}";
 	}
-	std::string to_arg(std::string_view = "") const
+	std::string to_arg(std::string_view = "", std::string_view = "") const
 	{
 		auto vars = used_variables();
 		if (vars.empty())
@@ -989,7 +1005,7 @@ struct bindable<font_name> : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -1074,7 +1090,7 @@ struct bindable<color32> : property_base
 	void set_from_arg(std::string_view s) {
 		str = s;
 	}
-	std::string to_arg(std::string_view = "") const {
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
 		return str;
 	}
 	std::vector<std::string> used_variables() const {
@@ -1145,11 +1161,11 @@ struct data_loop : property_base
 
 		limit.set_from_arg(code.substr(i + 1));
 	}
-	std::string to_arg(std::string_view vn) const {
+	std::string to_arg(std::string_view forVarName, std::string_view = "") const {
 		if (empty())
 			return "";
 		std::ostringstream os;
-		std::string name = index_name_or(std::string(vn));
+		std::string name = index_name_or(std::string(forVarName));
 		os << "for (";
 		if (index.empty())
 			os << "int ";

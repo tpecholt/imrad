@@ -98,6 +98,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_CIRCLE_HALF_STROKE, "ColorEdit" },
 		{ ICON_FA_BATTERY_HALF, "ProgressBar" },
 		{ ICON_FA_IMAGE, "Image" },
+		{ ICON_FA_LEFT_RIGHT, "Spacer" },
 		{ ICON_FA_WINDOW_MINIMIZE, "Separator" },
 		{ ICON_FA_EXPAND, "CustomWidget" },
 	}},
@@ -1323,7 +1324,7 @@ bool BeginPropGroup(const std::string& label, const UINode::Prop& prop, bool& op
 	{
 		eatProp = true;
 		ImGui::TableNextColumn();
-		bool tmp = prop.property->to_arg("") == "true";
+		bool tmp = prop.property->to_arg() == "true";
 		if (ImGui::Checkbox(("##" + prop.name).c_str(), &tmp))
 			prop.property->set_from_arg(tmp ? "true" : "false");
 	}
@@ -1441,7 +1442,7 @@ void PropertyRowsUI(bool pr)
 				fileTabs[activeTab].modified = true;
 				if (props[i].property) {
 					pname = props[i].name;
-					pval = props[i].property->to_arg(ctx.unit);
+					pval = props[i].property->to_arg();
 				}
 			}
 		}
@@ -1692,9 +1693,15 @@ void Work()
 			}
 			if (n)
 			{
+				bool firstItem = true;
+				for (size_t i = 0; i < ctx.snapIndex; ++i) 
+				{
+					auto* ch = ctx.snapParent->children[i].get();
+					if (!ch->hasPos && (ch->Behavior() & UINode::SnapSides))
+						firstItem = false;
+				}
 				newNodes[0]->sameLine = ctx.snapSameLine;
-				if (newNodes[0]->sameLine)
-					newNodes[0]->spacing = 1;
+				newNodes[0]->spacing = firstItem ? 0 : 1;
 				newNodes[0]->nextColumn = ctx.snapNextColumn;
 				newNodes[0]->beginGroup = ctx.snapBeginGroup;
 			}
