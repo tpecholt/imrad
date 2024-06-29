@@ -502,15 +502,18 @@ void TopWindow::Draw(UIContext& ctx)
 
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
 	assert(ctx.rootWin);
-	ctx.beingResized = false;
 	for (int i = 0; i < 4; ++i) 
 	{
 		if (ImGui::GetActiveID() == ImGui::GetWindowResizeCornerID(ctx.rootWin, i) ||
 			ImGui::GetActiveID() == ImGui::GetWindowResizeBorderID(ctx.rootWin, i))
 			ctx.beingResized = true;
 	}
+	if (ctx.beingResized && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+		ctx.beingResized = false;
+		ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event so random widget won't get selected
+	}
 	if (ctx.beingResized)
-		ctx.selected = { this };
+		ctx.selected = { this }; //reset selection so there is no visual noise
 
 	if (placement == Left)
 		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersLeft);
@@ -639,6 +642,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	ctx.groupLevel = 0;
 	ctx.varCounter = 1;
 	ctx.parents = { this };
+	ctx.parentId = 0;
 	ctx.kind = kind;
 	ctx.errors.clear();
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
@@ -1654,7 +1658,7 @@ void Widget::Draw(UIContext& ctx)
 				parent->vbox.resize(l.colId + 1);
 			auto& vbox = parent->vbox[l.colId];
 			
-			if (l.flags & Layout::Topmost)
+			if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
 				vbox.BeginLayout();
 			if (l.flags & Layout::Leftmost)
 				ImGui::SetCursorPosY(vbox);
@@ -2032,13 +2036,13 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			std::ostringstream osv;
 			osv << VBOX_NAME;
-			if (ctx.parents.size() > 1)
-				osv << (ctx.parents.size() - 1);
+			if (ctx.parentId)
+				osv << ctx.parentId;
 			osv << (l.colId + 1);
 			vbName = osv.str();
 			ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
 			
-			if (l.flags & Layout::Topmost)
+			if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
 				os << ctx.ind << vbName << ".BeginLayout();\n";
 			if (l.flags & Layout::Leftmost)
 				os << ctx.ind << "ImGui::SetCursorPosY(" << vbName << ");\n";
@@ -2049,8 +2053,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			std::ostringstream osv;
 			osv << HBOX_NAME;
-			if (ctx.parents.size() > 1)
-				osv << (ctx.parents.size() - 1);
+			if (ctx.parentId)
+				osv << ctx.parentId;
 			osv << (l.rowId + 1);
 			hbName = osv.str();
 			ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
@@ -2127,6 +2131,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 
 	ctx.parents.push_back(this);
+	if (children.size())
+		++ctx.parentId;
 	DoExport(os, ctx);
 	ctx.parents.pop_back();
 

@@ -229,16 +229,7 @@ struct BoxLayout
 		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
 		if (size == ItemSize)
 			size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
-		if (!HORIZ && items.size() && ImGui::GetCurrentWindow()->DC.IsSameLine) {
-			Item& it = items.back();
-			if (spacing > it.spacing)
-				it.spacing = spacing;
-			if (size == Stretch || size > it.size)
-				it.size = size;
-		}
-		else {
-			items.push_back({ spacing, size });
-		}
+		items.push_back({ spacing, size });
 	}
 	void UpdateSize(float sp, float size) 
 	{
