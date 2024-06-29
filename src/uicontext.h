@@ -18,7 +18,7 @@ struct UIContext
 	Mode mode = NormalSelection;
 	std::vector<UINode*> selected;
 	CppGen* codeGen = nullptr;
-	ImVec2 wpos, wpos2;
+	ImVec2 designAreaMin, designAreaMax; //ImRect is internal?
 	std::string workingDir;
 	enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
 	std::array<ImU32, Color::COUNT> colors;
@@ -30,7 +30,8 @@ struct UIContext
 	const property_base* setProp = nullptr;
 	std::string setPropValue;
 	std::string forVarName;
-	
+	ImTextureID dashTexId = 0;
+
 	//snap result
 	UINode* snapParent = nullptr;
 	size_t snapIndex;
@@ -51,6 +52,7 @@ struct UIContext
 	std::string userCode;
 	UINode* root = nullptr;
 	ImGuiWindow* rootWin = nullptr;
+	bool beingResized = false;
 	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;
 	std::vector<std::string> contextMenus;
@@ -60,7 +62,8 @@ struct UIContext
 	std::string ind;
 	int varCounter;
 	std::vector<std::string> errors;
-	ImVec2 stretchSize; //todo
+	ImVec2 stretchSize;
+	std::array<std::string, 2> stretchSizeExpr;
 
 	//convenience
 	void ind_up();

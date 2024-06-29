@@ -450,7 +450,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.snapParent = nullptr;
 	ctx.kind = kind;
 	ctx.contextMenus.clear();
-
+	
 	std::string cap = title.value();
 	cap += "###TopWindow"; //don't clash 
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
@@ -479,11 +479,11 @@ void TopWindow::Draw(UIContext& ctx)
 	if (!style_menuBg.empty())
 		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, style_menuBg.eval(ctx));
 
-	ImGui::SetNextWindowPos(ctx.wpos); // , ImGuiCond_Always, { 0.5, 0.5 });
+	ImGui::SetNextWindowPos(ctx.designAreaMin + ImVec2{ 20, 20 }); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
 	if (kind == MainWindow && placement == Maximize) 
 	{
-		ImGui::SetNextWindowSize(ctx.wpos2 - ctx.wpos);
+		ImGui::SetNextWindowSize(ctx.designAreaMax - ctx.designAreaMin - ImVec2{ 40, 40 });
 	}
 	else if (!(fl & ImGuiWindowFlags_AlwaysAutoResize)) 
 	{
@@ -502,6 +502,15 @@ void TopWindow::Draw(UIContext& ctx)
 
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
 	assert(ctx.rootWin);
+	ctx.beingResized = false;
+	for (int i = 0; i < 4; ++i) 
+	{
+		if (ImGui::GetActiveID() == ImGui::GetWindowResizeCornerID(ctx.rootWin, i) ||
+			ImGui::GetActiveID() == ImGui::GetWindowResizeBorderID(ctx.rootWin, i))
+			ctx.beingResized = true;
+	}
+	if (ctx.beingResized)
+		ctx.selected = { this };
 
 	if (placement == Left)
 		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersLeft);
@@ -634,6 +643,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	ctx.errors.clear();
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	
+	ctx.codeGen->RemovePrefixedVars(HBOX_NAME);
+	ctx.codeGen->RemovePrefixedVars(VBOX_NAME);
+
 	//todo: put before ///@ params
 	if (userCodeBefore != "")
 		os << userCodeBefore << "\n";
@@ -1574,6 +1586,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 				l.flags |= vlay * Layout::VLayout;
 			if (rowId == l.rowId)
 				l.flags |= hlay * Layout::HLayout;
+			++rowId; 
 			topmost = child->nextColumn;
 			leftmost = true;
 			hlay = false;
@@ -1582,7 +1595,6 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 				vlay = false;
 				colId += child->nextColumn;
 			}
-			++rowId;
 		}
 		else if (child->sameLine && !child->nextColumn) {
 			leftmost = false;
@@ -1601,7 +1613,6 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 
 		firstWidget = false;
 	}
-	assert(l.rowId >= 0 && l.colId >= 0);
 	if (colId == l.colId)
 		l.flags |= vlay * Layout::VLayout;
 	if (rowId == l.rowId)
@@ -1628,14 +1639,21 @@ void Widget::Draw(UIContext& ctx)
 	}
 	else if (l.flags & (Layout::HLayout | Layout::VLayout)) 
 	{
-		if (l.colId >= parent->vbox.size())
-			parent->vbox.resize(l.colId + 1);
-		auto& vbox = parent->vbox[l.colId];
-		
+		if (nextColumn) {
+			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+			if (inTable)
+				ImRad::TableNextColumn(nextColumn);
+			else
+				ImRad::NextColumn(nextColumn);
+		}
 		if (!(l.flags & Layout::Leftmost))
 			ImGui::SameLine();
 		if (l.flags & Layout::VLayout)
 		{
+			if (l.colId >= parent->vbox.size())
+				parent->vbox.resize(l.colId + 1);
+			auto& vbox = parent->vbox[l.colId];
+			
 			if (l.flags & Layout::Topmost)
 				vbox.BeginLayout();
 			if (l.flags & Layout::Leftmost)
@@ -1968,7 +1986,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 {
 	Layout l = GetLayout(ctx.parents.back());
 	ctx.stretchSize = { 0, 0 };
+	ctx.stretchSizeExpr = { "", "" };
 	const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
+	std::string hbName, vbName;
 
 	if (userCodeBefore != "")
 		os << userCodeBefore << "\n";
@@ -1998,22 +2018,47 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (l.flags & (Layout::HLayout | Layout::VLayout))
 	{
+		if (nextColumn)
+		{
+			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+			if (inTable)
+				os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
+			else
+				os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
+		}
 		if (!(l.flags & Layout::Leftmost))
 			os << ctx.ind << "ImGui::SameLine();\n";
 		if (l.flags & Layout::VLayout)
 		{
-			std::string var = VBOX_NAME + std::to_string(l.colId + 1);
+			std::ostringstream osv;
+			osv << VBOX_NAME;
+			if (ctx.parents.size() > 1)
+				osv << (ctx.parents.size() - 1);
+			osv << (l.colId + 1);
+			vbName = osv.str();
+			ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
+			
 			if (l.flags & Layout::Topmost)
-				os << ctx.ind << var << ".BeginLayout();\n";
+				os << ctx.ind << vbName << ".BeginLayout();\n";
 			if (l.flags & Layout::Leftmost)
-				os << ctx.ind << "ImGui::SetCursorPosY(" << var << ");\n";
+				os << ctx.ind << "ImGui::SetCursorPosY(" << vbName << ");\n";
+			ctx.stretchSizeExpr[1] = vbName + ".GetSize(" +
+				((l.flags & Layout::Leftmost) ? "false)" : "true)");
 		}
 		if (l.flags & Layout::HLayout)
 		{
-			std::string var = HBOX_NAME + std::to_string(l.rowId + 1);
+			std::ostringstream osv;
+			osv << HBOX_NAME;
+			if (ctx.parents.size() > 1)
+				osv << (ctx.parents.size() - 1);
+			osv << (l.rowId + 1);
+			hbName = osv.str();
+			ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
+
 			if (l.flags & Layout::Leftmost)
-				os << ctx.ind << var << ".BeginLayout();\n";
-			os << ctx.ind << "ImGui::SetCursorPosX(" << var << ");\n";
+				os << ctx.ind << hbName << ".BeginLayout();\n";
+			os << ctx.ind << "ImGui::SetCursorPosX(" << hbName << ");\n";
+			ctx.stretchSizeExpr[0] = hbName + ".GetSize()";
 		}
 	}
 	else
@@ -2087,23 +2132,21 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (l.flags & Layout::VLayout)
 	{
-		std::string var = VBOX_NAME + std::to_string(l.colId + 1);
 		std::string sizeY = size_y.stretched() ? "ImRad::VBox::Stretch" : 
 			size_y.zero() ? "ImRad::VBox::ItemSize" :
 			size_y.to_arg(ctx.unit);
 		if (l.flags & Layout::Leftmost)
-			os << ctx.ind << var << ".AddSize(" << spacing << ", " << sizeY << ");\n";
+			os << ctx.ind << vbName << ".AddSize(" << spacing << ", " << sizeY << ");\n";
 		else
-			os << ctx.ind << var << ".UpdateSize(0, " << sizeY << ");\n";
+			os << ctx.ind << vbName << ".UpdateSize(0, " << sizeY << ");\n";
 	}
 	if (l.flags & Layout::HLayout)
 	{
-		std::string var = HBOX_NAME + std::to_string(l.rowId + 1);
 		std::string sizeX = size_x.stretched() ? "ImRad::HBox::Stretch" : 
 			size_x.zero() ? "ImRad::HBox::ItemSize" :
 			size_x.to_arg(ctx.unit);
 		int sp = (l.flags & Layout::Leftmost) ? 0 : spacing;
-		os << ctx.ind << var << ".AddSize(" << sp << ", " << sizeX << ");\n";
+		os << ctx.ind << hbName << ".AddSize(" << sp << ", " << sizeX << ");\n";
 	}
 
 	if (!style_framePadding.empty())
@@ -2876,22 +2919,52 @@ void Spacer::DoDraw(UIContext& ctx)
 		size.x = 20;
 	if (!size.y)
 		size.y = 20;*/
-	size = ImGui::CalcItemSize(size, 20, 20);
+	ImVec2 r = ImGui::CalcItemSize(size, 20, 20);
 	
-	ImGui::GetWindowDrawList()->AddRect(
-		ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + size,
-		ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_Border))
-		);
-	ImRad::Dummy(size);
+	if (!ctx.beingResized) 
+	{
+		auto* dl = ImGui::GetWindowDrawList();
+		ImVec2 p = ImGui::GetCursorScreenPos();
+		ImU32 clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_Border));
+		//dl->AddRect(p, p + size, clr);
+		
+		float th = 2;
+		ImVec2 xuv{ std::round(r.x / 5), 0 };
+		ImVec2 yuv{ 0, std::round(r.y / 5) };
+		
+		dl->PushTextureID(ctx.dashTexId);
+		dl->PrimReserve(4*6, 4*4);
+		dl->PrimRectUV(p, { p.x + r.x, p.y + th }, { 0, 0 }, xuv, clr);
+		dl->PrimRectUV({ p.x, p.y + r.y - th }, p + r, { 0, 0 }, xuv, clr);
+		dl->PrimRectUV(p, { p.x + th, p.y + r.y }, { 0, 0 }, yuv, clr);
+		dl->PrimRectUV({ p.x + r.x - th, p.y }, p + r, { 0, 0 }, yuv, clr);
+		dl->PopTextureID();
+
+		/*if (!size.y) {
+			dl->PushTextureID(ctx.dashTexId);
+			dl->PrimReserve(6, 4);
+			dl->PrimRectUV({ p.x, p.y + (r.y - th) / 2 }, { p.x + r.x, p.y + (r.y - th) / 2 + th }, { 0, 0 }, xuv, clr);
+			dl->PopTextureID(); 
+			dl->AddLine(p, { p.x, p.y + r.y }, clr, th);
+			dl->AddLine({ p.x + r.x, p.y }, p + r, clr, th);
+		}
+		else if (!size.x) {
+			dl->PushTextureID(ctx.dashTexId);
+			dl->PrimReserve(6, 4);
+			dl->PrimRectUV({ p.x + (r.x - th) / 2, p.y }, { p.x + (r.x - th) / 2 + th, p.y + r.y }, { 0, 0 }, yuv, clr);
+			dl->PopTextureID(); 
+			dl->AddLine(p, { p.x + r.x, p.y }, clr, th);
+			dl->AddLine({ p.x, p.y + r.y }, p + r, clr, th);
+		}*/
+		
+	}
+	ImRad::Dummy(r);
 }
 
 void Spacer::DoExport(std::ostream& os, UIContext& ctx)
 {
-	std::string stretchX = HBOX_NAME + ".GetSize()";
-	std::string stretchY = VBOX_NAME + ".GetSize()";
-	
-	os << ctx.ind << "ImRad::Dummy({ " << size_x.to_arg(ctx.unit, stretchX)
-		<< ", " << size_y.to_arg(ctx.unit, stretchY) << " });\n";
+	os << ctx.ind << "ImRad::Dummy({ " << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0])
+		<< ", " << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " });\n";
 }
 
 void Spacer::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3347,8 +3420,10 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	else
 		os << "&" << fieldName.to_arg();
 	
-	os << ", " << flags.to_arg() << ", "
-		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " })";
+	os << ", " << flags.to_arg() << ", { "
+		<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+		<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) 
+		<< " })";
 	
 	if (!onChange.empty()) {
 		os << ")\n";
@@ -3743,9 +3818,10 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	else
 	{
-		os << "ImGui::Button(" << label.to_arg() << ", "
-			<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }"
-			<< ")";
+		os << "ImGui::Button(" << label.to_arg() << ", { "
+			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
+			<< " })";
 	}
 
 	if (shortcut != "") {
@@ -4449,7 +4525,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	}
 
 	if (!(flags & ImGuiInputTextFlags_Multiline))
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 	
 	os << ctx.ind;
 	if (type == "ImGuiTextFilter" || !onChange.empty())
@@ -4497,8 +4573,9 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 	else if (flags & ImGuiInputTextFlags_Multiline)
 	{
 		os << "ImGui::InputTextMultiline(" << id << ", &" 
-			<< fieldName.to_arg()
-			<< ", { " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
+			<< fieldName.to_arg() << ", { " 
+			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
 			<< flags.to_arg() << ")";
 	}
 	else if (type == "std::string")
@@ -5015,7 +5092,7 @@ void Combo::DoDraw(UIContext& ctx)
 void Combo::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!size_x.empty())
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -5232,7 +5309,7 @@ void Slider::DoDraw(UIContext& ctx)
 
 void Slider::DoExport(std::ostream& os, UIContext& ctx)
 {
-	os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
+	os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -5484,7 +5561,8 @@ void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
 	
 	os << ctx.ind << "ImGui::ProgressBar(" 
 		<< fieldName.to_arg() << ", { "
-		<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
+		<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+		<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
 		<< fmt << ");\n";
 
 	if (!style_color.empty())
@@ -5631,7 +5709,7 @@ void ColorEdit::DoDraw(UIContext& ctx)
 void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!size_x.empty())
-		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit) << ");\n";
+		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
 	os << ctx.ind;
 	if (!onChange.empty())
@@ -5849,14 +5927,14 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
 	if (size_x.zero())
 		os << "(float)" << fieldName.to_arg() << ".w";
 	else
-		os << size_x.to_arg(ctx.unit);
+		os << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]);
 	
 	os << ", ";
 	
 	if (size_y.zero())
 		os << "(float)" << fieldName.to_arg() << ".h";
 	else
-		os << size_y.to_arg(ctx.unit);
+		os << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]);
 	
 	os << " });\n";
 }
@@ -6023,7 +6101,8 @@ void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 		return;
 	}
 	os << ctx.ind << onDraw.to_arg() << "({ " 
-		<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit)
+		<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+		<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
 		<< " });\n";
 }
 
@@ -6432,7 +6511,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 		<< "\"table" << ctx.varCounter << "\", " 
 		<< columnData.size() << ", " 
 		<< flags.to_arg() << ", "
-		<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }"
+		<< "{ " << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }"
 		<< "))\n"
 		<< ctx.ind << "{\n";
 	ctx.ind_up();
@@ -6778,7 +6857,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		std::string posvar = "pos" + std::to_string(ctx.varCounter);
 		std::string szvar = "sz" + std::to_string(ctx.varCounter);
 		os << ctx.ind << "ImVec2 " << szvar << "{ "
-			<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " };\n";
+			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " };\n";
 		os << ctx.ind << "ImRect " << rvar << " = ImGui::GetCurrentWindow()->InnerRect;\n";
 		os << ctx.ind << "ImGui::PushClipRect(" << rvar << ".Min, " << rvar << ".Max, false);\n";
 		os << ctx.ind << "ImVec2 " << posvar << "{ ";
@@ -6807,8 +6887,9 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	}
 	else
 	{
-		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
-			<< "{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
+		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", { "
+			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
 			<< flags.to_arg() << ", " << wflags.to_arg() << ");\n";
 	}
 
@@ -7133,8 +7214,9 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 	
-	os << ctx.ind << "ImGui::BeginChild(\"splitter" << ctx.varCounter << "\""
-		<< ", { " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit)
+	os << ctx.ind << "ImGui::BeginChild(\"splitter" << ctx.varCounter << "\", { "
+		<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+		<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
 		<< " });\n" << ctx.ind << "{\n";
 	ctx.ind_up();
 	++ctx.varCounter;

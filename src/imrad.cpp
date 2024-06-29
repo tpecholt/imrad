@@ -739,7 +739,7 @@ GetCtxColors(const std::string& styleName)
 		IM_COL32(0, 255, 0, 255),
 	};
 	static const std::array<ImU32, UIContext::Color::COUNT> light {
-		IM_COL32(255, 0, 0, 255),
+		IM_COL32(64, 64, 64, 128),
 		IM_COL32(255, 0, 0, 255),
 		IM_COL32(128, 128, 255, 255),
 		IM_COL32(255, 0, 255, 255),
@@ -771,6 +771,11 @@ void LoadStyle()
 	reloadStyle = false;
 	auto& io = ImGui::GetIO();
 	io.Fonts->Clear();
+
+	ctx.dashTexId = ImRad::LoadTextureFromFile(
+		(rootPath + "/style/dash.png").c_str(),
+		GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT
+	).id;
 	
 	//reload ImRAD UI first
 	StyleColors();
@@ -1274,12 +1279,12 @@ void TabsUI()
 			{
 				auto min = ImGui::GetItemRectMin();
 				auto max = ImGui::GetItemRectMax();
-				ctx.wpos.x = min.x + 20;
-				ctx.wpos.y = max.y + 20;
+				ctx.designAreaMin.x = min.x;
+				ctx.designAreaMin.y = max.y;
 				const ImGuiWindow* win = ImGui::GetCurrentWindow();
 				const auto* viewport = ImGui::GetMainViewport();
-				ctx.wpos2.x = win->Pos.x + win->Size.x - 20;
-				ctx.wpos2.y = viewport->Pos.y + viewport->Size.y - 20;
+				ctx.designAreaMax.x = win->Pos.x + win->Size.x;
+				ctx.designAreaMax.y = viewport->Pos.y + viewport->Size.y;
 			}
 			if (!notClosed ||
 				(i == activeTab && ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))
@@ -1473,15 +1478,6 @@ void PropertyUI()
 	ImGui::PushFont(ctx.defaultFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	
-	ImGui::Begin("Properties");
-	if (!ctx.selected.empty())
-	{
-		PropertyRowsUI(1);
-	}
-	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		tmp = true;
-	ImGui::End();
-	
 	ImGui::Begin("Events");
 	if (!ctx.selected.empty())
 	{
@@ -1491,6 +1487,15 @@ void PropertyUI()
 		tmp = true;
 	ImGui::End();
 
+	ImGui::Begin("Properties");
+	if (!ctx.selected.empty())
+	{
+		PropertyRowsUI(1);
+	}
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+		tmp = true;
+	ImGui::End();
+	
 	ImGui::PopStyleVar();
 	ImGui::PopFont();
 	pgFocused = tmp;
@@ -1717,6 +1722,7 @@ void Work()
 				if (ctx.snapClearNextNextColumn) {
 					next->nextColumn = 0;
 					next->sameLine = false;
+					next->spacing = std::max((int)next->spacing, 1);
 				}
 				if (next->sameLine)
 					next->indent = 0; //otherwise creates widgets overlaps
@@ -1743,6 +1749,11 @@ void Work()
 	}
 	else if (!pgFocused)
 	{
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()))
+		{
+			ctx.selected = { ctx.root };
+		}
 		if (ImGui::IsKeyPressed(ImGuiKey_Delete))
 		{
 			RemoveSelected();
@@ -1963,9 +1974,9 @@ int main(int argc, const char* argv[])
 		HierarchyUI();
 		PropertyUI();
 		PopupUI();
-		Draw();
 		Work();
-
+		Draw(); //last
+		
 		//ImGui::ShowDemoWindow();
 
 		// Rendering

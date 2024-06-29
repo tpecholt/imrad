@@ -644,8 +644,13 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 #if (defined (IMRAD_WITH_GLFW) || defined(ANDROID)) && defined(IMRAD_WITH_STB)
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
-inline Texture LoadTextureFromFile(std::string_view filename)
-{
+inline Texture LoadTextureFromFile(
+	std::string_view filename,
+	int minFilter = GL_LINEAR, 
+	int magFilter = GL_LINEAR, 
+	int wrapS = GL_CLAMP_TO_EDGE, // This is required on WebGL for non power-of-two textures
+	int wrapT = GL_CLAMP_TO_EDGE // Same
+) {
 	// Load from file
 	Texture tex;
 	unsigned char* image_data = nullptr;
@@ -667,10 +672,10 @@ inline Texture LoadTextureFromFile(std::string_view filename)
 	glBindTexture(GL_TEXTURE_2D, image_texture);
 
 	// Setup filtering parameters for display
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT); 
 
 	// Upload pixels into texture
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
