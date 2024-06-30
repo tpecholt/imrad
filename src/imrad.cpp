@@ -1547,7 +1547,7 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
 {
 	auto& tab = fileTabs[activeTab];
 	std::vector<UINode*> allNodes = tab.rootNode->GetAllChildren();
-	std::vector<std::pair<int, UINode*>> sortedSel;
+	std::vector<UINode*> children;
 	for (UINode* node : sel)
 	{
 		if (node == tab.rootNode.get())
@@ -1555,8 +1555,23 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
 		auto it = stx::find(allNodes, node);
 		if (it == allNodes.end())
 			continue;
-		sortedSel.push_back({ int(it - allNodes.begin()), node });
+		auto ch = node->GetAllChildren();
+		assert(ch.size() && ch[0] == node);
+		children.insert(children.end(), ch.begin() + 1, ch.end());
 	}
+	std::vector<std::pair<int, UINode*>> sortedSel;
+	for (UINode* node : sel)
+	{
+		if (node == tab.rootNode.get())
+			continue;
+		auto it = stx::find(allNodes, node);
+		if (it == allNodes.end() || stx::find(children, node) != children.end())
+			continue;
+		sortedSel.push_back({ int(it - allNodes.begin()), node });
+		auto ch = node->GetAllChildren();
+		children.insert(children.end(), ch.begin(), ch.end());
+	}
+
 	stx::sort(sortedSel);
 	allNodes.clear();
 	for (const auto& sel : sortedSel)

@@ -445,7 +445,6 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.root = this;
 	ctx.activePopups.clear();
 	ctx.parents = { this };
-	ctx.selUpdated = false;
 	ctx.hovered = nullptr;
 	ctx.snapParent = nullptr;
 	ctx.kind = kind;
@@ -560,7 +559,6 @@ void TopWindow::Draw(UIContext& ctx)
 		}
 	}
 	if (ctx.mode == UIContext::NormalSelection &&
-		!ctx.selUpdated &&
 		ImGui::IsWindowHovered() &&
 		ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 	{
@@ -568,6 +566,7 @@ void TopWindow::Draw(UIContext& ctx)
 			; //don't participate in group selection
 		else
 			ctx.selected = { this };
+		ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 	}
 	if (ctx.mode == UIContext::RectSelection)
@@ -1767,14 +1766,13 @@ void Widget::Draw(UIContext& ctx)
 		{
 			ctx.hovered = this;
 		}
-		if (!ctx.selUpdated &&
-			ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
 		{
-			ctx.selUpdated = true;
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 				toggle(ctx.selected, this);
 			else
 				ctx.selected = { this };
+			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 		}
 		bool hoverSizeX = 
@@ -1806,7 +1804,7 @@ void Widget::Draw(UIContext& ctx)
 					ctx.lastSize.y = cached_size.y;
 			}
 		}
-		else if (hasPos && ctx.hovered == this)
+		else if (hasPos && ctx.hovered == this && !ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
 		{
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -1845,7 +1843,7 @@ void Widget::Draw(UIContext& ctx)
 		{
 			ctx.mode = UIContext::NormalSelection;
 			ctx.selected = { this };
-			ctx.selUpdated = true;
+			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		}
 	}
 	else if (ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
@@ -1902,7 +1900,7 @@ void Widget::Draw(UIContext& ctx)
 		else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 		{
 			ctx.mode = UIContext::NormalSelection;
-			ctx.selUpdated = true;
+			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		}
 	}
 	
