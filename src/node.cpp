@@ -2146,7 +2146,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	if (l.flags & Layout::HLayout)
 	{
 		std::string sizeX = "ImRad::HBox::ItemSize";
-		if (Behavior() & HasSizeY) {
+		if (Behavior() & HasSizeX) {
 			sizeX = size_x.stretched() ? "ImRad::HBox::Stretch" :
 				size_x.zero() ? "ImRad::HBox::ItemSize" :
 				size_x.to_arg(ctx.unit);
