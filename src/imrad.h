@@ -181,6 +181,101 @@ private:
 	ImVec2 wsize{ 0, 0 };
 };
 
+
+template <bool HORIZ>
+struct BoxLayout
+{
+	enum {
+		Stretch = -1,
+		ItemSize = 0
+	};
+
+	struct Item {
+		float spacing;
+		float size;
+	};
+
+	void BeginLayout() 
+	{
+		pos1 = HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
+		std::swap(prevItems, items);
+		items.clear();
+
+		float avail = HORIZ ? ImGui::GetContentRegionAvail().x : ImGui::GetContentRegionAvail().y;
+		float total = 0;
+		int num = 0;
+		for (const Item& it : prevItems) {
+			total += it.spacing;
+			if (it.size == Stretch)
+				++num;
+			else if (it.size < 0)
+				total += avail + it.size;
+			else
+				total += it.size;
+		}
+		float stretchSize = 0;
+		if (num)
+			stretchSize = (avail - total) / num;
+
+		for (Item& it : prevItems) {
+			if (it.size == Stretch)
+				it.size = stretchSize;
+			else if (it.size < 0)
+				it.size += avail;
+		}
+	}
+	void AddSize(int sp, float size) 
+	{
+		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
+		if (size == ItemSize)
+			size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+		items.push_back({ spacing, size });
+	}
+	void UpdateSize(float sp, float size) 
+	{
+		assert(items.size());
+		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
+		if (size == ItemSize)
+			size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+		Item& it = items.back();
+		if (spacing > it.spacing)
+			it.spacing = spacing;
+		if (size == Stretch || (it.size != Stretch && size > it.size))
+			it.size = size;
+	}
+	//for use in SetCursorX/Y
+	operator float() 
+	{
+		if (prevItems.size() <= items.size()) //stop positioning - widgets changed
+			return HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
+		/*if (HORIZ && items.size())
+			ImGui::SameLine();*/
+		float pos = pos1;
+		for (size_t i = 0; i < items.size(); ++i) {
+			pos += prevItems[i].size + prevItems[i].spacing;
+		}
+		if (prevItems.size() > items.size())
+			pos += prevItems[items.size()].spacing;
+		return pos;
+	}
+	//for use in SetNextItemWidth/ctor
+	float GetSize(bool sameLine = false)
+	{
+		assert(!HORIZ || !sameLine);
+		size_t i = sameLine ? items.size() - 1 : items.size();
+		if (i >= prevItems.size()) //widgets changed
+			return 0;
+		return prevItems[i].size;
+	}
+
+private:
+	std::vector<Item> items, prevItems;
+	float pos1;
+};
+
+using HBox = BoxLayout<true>;
+using VBox = BoxLayout<false>;
+
 //------------------------------------------------------------------------
 
 #ifdef ANDROID
@@ -194,6 +289,13 @@ inline bool Combo(const char* label, int* curr, const std::vector<std::string>& 
 	for (size_t i = 0; i < items.size(); ++i)
 		citems[i] = items[i].c_str();
 	return ImGui::Combo(label, curr, citems.data(), (int)citems.size(), maxh);
+}
+
+inline void Dummy(const ImVec2& size)
+{
+	//ImGui Dummy doesn't support negative dimensions like other controls
+	ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
+	return ImGui::Dummy(sz);
 }
 
 inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
@@ -259,8 +361,13 @@ inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
 
 inline void Spacing(int n)
 {
-	while (n--)
-		ImGui::Spacing();
+	/*while (n--)
+		ImGui::Spacing();*/
+	/*ImGuiWindow* window = ImGui::GetCurrentWindow();
+	if (window->SkipItems)
+		return;*/
+	float sp = ImGui::GetStyle().ItemSpacing.y;
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + n * sp);
 }
 
 inline bool TableNextColumn(int n)
@@ -528,8 +635,13 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 #if (defined (IMRAD_WITH_GLFW) || defined(ANDROID)) && defined(IMRAD_WITH_STB)
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
-inline Texture LoadTextureFromFile(std::string_view filename)
-{
+inline Texture LoadTextureFromFile(
+	std::string_view filename,
+	int minFilter = GL_LINEAR, 
+	int magFilter = GL_LINEAR, 
+	int wrapS = GL_CLAMP_TO_EDGE, // This is required on WebGL for non power-of-two textures
+	int wrapT = GL_CLAMP_TO_EDGE // Same
+) {
 	// Load from file
 	Texture tex;
 	unsigned char* image_data = nullptr;
@@ -551,10 +663,10 @@ inline Texture LoadTextureFromFile(std::string_view filename)
 	glBindTexture(GL_TEXTURE_2D, image_texture);
 
 	// Setup filtering parameters for display
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT); 
 
 	// Upload pixels into texture
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)

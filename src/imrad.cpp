@@ -98,6 +98,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_CIRCLE_HALF_STROKE, "ColorEdit" },
 		{ ICON_FA_BATTERY_HALF, "ProgressBar" },
 		{ ICON_FA_IMAGE, "Image" },
+		{ ICON_FA_LEFT_RIGHT, "Spacer" },
 		{ ICON_FA_WINDOW_MINIMIZE, "Separator" },
 		{ ICON_FA_EXPAND, "CustomWidget" },
 	}},
@@ -414,6 +415,7 @@ void OpenFile()
 
 void DoCloseFile()
 {
+	ctx.root = nullptr;
 	ctx.selected.clear();
 	fileTabs.erase(fileTabs.begin() + activeTab);
 	ActivateTab(activeTab);
@@ -738,7 +740,7 @@ GetCtxColors(const std::string& styleName)
 		IM_COL32(0, 255, 0, 255),
 	};
 	static const std::array<ImU32, UIContext::Color::COUNT> light {
-		IM_COL32(255, 0, 0, 255),
+		IM_COL32(64, 64, 64, 128),
 		IM_COL32(255, 0, 0, 255),
 		IM_COL32(128, 128, 255, 255),
 		IM_COL32(255, 0, 255, 255),
@@ -770,6 +772,11 @@ void LoadStyle()
 	reloadStyle = false;
 	auto& io = ImGui::GetIO();
 	io.Fonts->Clear();
+
+	ctx.dashTexId = ImRad::LoadTextureFromFile(
+		(rootPath + "/style/dash.png").c_str(),
+		GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT
+	).id;
 	
 	//reload ImRAD UI first
 	StyleColors();
@@ -1273,12 +1280,12 @@ void TabsUI()
 			{
 				auto min = ImGui::GetItemRectMin();
 				auto max = ImGui::GetItemRectMax();
-				ctx.wpos.x = min.x + 20;
-				ctx.wpos.y = max.y + 20;
+				ctx.designAreaMin.x = min.x;
+				ctx.designAreaMin.y = max.y;
 				const ImGuiWindow* win = ImGui::GetCurrentWindow();
 				const auto* viewport = ImGui::GetMainViewport();
-				ctx.wpos2.x = win->Pos.x + win->Size.x - 20;
-				ctx.wpos2.y = viewport->Pos.y + viewport->Size.y - 20;
+				ctx.designAreaMax.x = win->Pos.x + win->Size.x;
+				ctx.designAreaMax.y = viewport->Pos.y + viewport->Size.y;
 			}
 			if (!notClosed ||
 				(i == activeTab && ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))
@@ -1323,7 +1330,7 @@ bool BeginPropGroup(const std::string& label, const UINode::Prop& prop, bool& op
 	{
 		eatProp = true;
 		ImGui::TableNextColumn();
-		bool tmp = prop.property->to_arg("") == "true";
+		bool tmp = prop.property->to_arg() == "true";
 		if (ImGui::Checkbox(("##" + prop.name).c_str(), &tmp))
 			prop.property->set_from_arg(tmp ? "true" : "false");
 	}
@@ -1441,7 +1448,7 @@ void PropertyRowsUI(bool pr)
 				fileTabs[activeTab].modified = true;
 				if (props[i].property) {
 					pname = props[i].name;
-					pval = props[i].property->to_arg(ctx.unit);
+					pval = props[i].property->to_arg();
 				}
 			}
 		}
@@ -1472,15 +1479,6 @@ void PropertyUI()
 	ImGui::PushFont(ctx.defaultFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	
-	ImGui::Begin("Properties");
-	if (!ctx.selected.empty())
-	{
-		PropertyRowsUI(1);
-	}
-	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		tmp = true;
-	ImGui::End();
-	
 	ImGui::Begin("Events");
 	if (!ctx.selected.empty())
 	{
@@ -1490,6 +1488,15 @@ void PropertyUI()
 		tmp = true;
 	ImGui::End();
 
+	ImGui::Begin("Properties");
+	if (!ctx.selected.empty())
+	{
+		PropertyRowsUI(1);
+	}
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+		tmp = true;
+	ImGui::End();
+	
 	ImGui::PopStyleVar();
 	ImGui::PopFont();
 	pgFocused = tmp;
@@ -1541,7 +1548,7 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
 {
 	auto& tab = fileTabs[activeTab];
 	std::vector<UINode*> allNodes = tab.rootNode->GetAllChildren();
-	std::vector<std::pair<int, UINode*>> sortedSel;
+	std::vector<UINode*> children;
 	for (UINode* node : sel)
 	{
 		if (node == tab.rootNode.get())
@@ -1549,8 +1556,23 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
 		auto it = stx::find(allNodes, node);
 		if (it == allNodes.end())
 			continue;
-		sortedSel.push_back({ int(it - allNodes.begin()), node });
+		auto ch = node->GetAllChildren();
+		assert(ch.size() && ch[0] == node);
+		children.insert(children.end(), ch.begin() + 1, ch.end());
 	}
+	std::vector<std::pair<int, UINode*>> sortedSel;
+	for (UINode* node : sel)
+	{
+		if (node == tab.rootNode.get())
+			continue;
+		auto it = stx::find(allNodes, node);
+		if (it == allNodes.end() || stx::find(children, node) != children.end())
+			continue;
+		sortedSel.push_back({ int(it - allNodes.begin()), node });
+		auto ch = node->GetAllChildren();
+		children.insert(children.end(), ch.begin(), ch.end());
+	}
+
 	stx::sort(sortedSel);
 	allNodes.clear();
 	for (const auto& sel : sortedSel)
@@ -1663,6 +1685,7 @@ void Work()
 			ctx.mode = UIContext::NormalSelection;
 			activeButton = "";
 			fileTabs[activeTab].modified = true;
+			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		}
 	}
 	else if (ctx.mode == UIContext::Snap)
@@ -1692,9 +1715,15 @@ void Work()
 			}
 			if (n)
 			{
+				bool firstItem = true;
+				for (size_t i = 0; i < ctx.snapIndex; ++i) 
+				{
+					auto* ch = ctx.snapParent->children[i].get();
+					if (!ch->hasPos && (ch->Behavior() & UINode::SnapSides))
+						firstItem = false;
+				}
 				newNodes[0]->sameLine = ctx.snapSameLine;
-				if (newNodes[0]->sameLine)
-					newNodes[0]->spacing = 1;
+				newNodes[0]->spacing = firstItem ? 0 : 1;
 				newNodes[0]->nextColumn = ctx.snapNextColumn;
 				newNodes[0]->beginGroup = ctx.snapBeginGroup;
 			}
@@ -1710,6 +1739,7 @@ void Work()
 				if (ctx.snapClearNextNextColumn) {
 					next->nextColumn = 0;
 					next->sameLine = false;
+					next->spacing = std::max((int)next->spacing, 1);
 				}
 				if (next->sameLine)
 					next->indent = 0; //otherwise creates widgets overlaps
@@ -1732,10 +1762,19 @@ void Work()
 			ctx.mode = UIContext::NormalSelection;
 			activeButton = "";
 			fileTabs[activeTab].modified = true;
+			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		}
 	}
 	else if (!pgFocused)
 	{
+		//don't IsMouseReleased otherwise closing modal popup will fire here too
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && 
+			ctx.root &&
+			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
+			!ImRect(ctx.root->cached_pos, ctx.root->cached_pos + ctx.root->cached_size).Contains(ImGui::GetMousePos()))
+		{
+			ctx.selected = { ctx.root };
+		}
 		if (ImGui::IsKeyPressed(ImGuiKey_Delete))
 		{
 			RemoveSelected();
@@ -1956,9 +1995,9 @@ int main(int argc, const char* argv[])
 		HierarchyUI();
 		PropertyUI();
 		PopupUI();
-		Draw();
 		Work();
-
+		Draw(); //last
+		
 		//ImGui::ShowDemoWindow();
 
 		// Rendering

@@ -3,7 +3,6 @@
 #include <vector>
 #include <map>
 #include "node.h"
-#include "cpp_parser.h"
 
 //------------------------------------------------------
 class CppGen
@@ -38,6 +37,7 @@ public:
 	bool CreateNamedVar(const std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope = "");
 	bool RenameVar(const std::string& oldn, const std::string& newn, const std::string& scope = "");
 	bool RemoveVar(const std::string& name, const std::string& scope = "");
+	void RemovePrefixedVars(const std::string& prefix, const std::string& scope = "");
 	bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
 	const Var* GetVar(const std::string& name, const std::string& scope = "") const;
 	const std::vector<Var>& GetVars(const std::string& scope = "");

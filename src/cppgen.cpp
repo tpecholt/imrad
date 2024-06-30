@@ -1,4 +1,5 @@
 #include "cppgen.h"
+#include "cpp_parser.h"
 #include "stx.h"
 #include "utils.h"
 #include <fstream>
@@ -434,6 +435,7 @@ CppGen::ExportCpp(
 	UIContext ctx;
 	ctx.codeGen = this;
 	ctx.ind = INDENT;
+	ctx.forVarName = FOR_VAR;
 	auto uit = params.find("unit");
 	if (uit != params.end())
 		ctx.unit = uit->second;
@@ -1093,6 +1095,24 @@ bool CppGen::RemoveVar(const std::string& name, const std::string& scope)
 		return false;
 	vit->second.erase(it);
 	return true;
+}
+
+void CppGen::RemovePrefixedVars(const std::string& prefix, const std::string& scope)
+{
+	auto vit = m_fields.find(scope);
+	if (vit == m_fields.end())
+		return;
+	stx::erase_if(vit->second, [&](const auto& var) 
+	{
+		if (var.flags & Var::UserCode)
+			return false;
+		if (var.name.compare(0, prefix.size(), prefix))
+			return false;
+		for (size_t i = prefix.size(); i < var.name.size(); ++i)
+			if (!std::isdigit(var.name[i]))
+				return false;
+		return true;
+	});
 }
 
 bool CppGen::ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope)

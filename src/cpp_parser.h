@@ -936,6 +936,7 @@ error:
 		{
 			std::istringstream is(str.substr(1, str.size() - 2));
 			is >> fsize.x;
+			is.clear();
 			int c = is.get(); 
 			while (c != EOF && c != ',') //ignore suffixes like 0.5f and *fs
 				c = is.get();
