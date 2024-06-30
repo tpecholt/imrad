@@ -1767,6 +1767,7 @@ void Work()
 	else if (!pgFocused)
 	{
 		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+			ctx.root &&
 			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
 			!ImRect(ctx.root->cached_pos, ctx.root->cached_pos + ctx.root->cached_size).Contains(ImGui::GetMousePos()))
 		{
