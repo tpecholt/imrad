@@ -1750,7 +1750,7 @@ void Widget::Draw(UIContext& ctx)
 		float sizeX = size_x.stretched() ? ImRad::HBox::Stretch :
 			size_x.zero() ? ImRad::HBox::ItemSize :
 			size_x.eval_px(ImGuiAxis_X, ctx);
-		int sp = (l.flags & Layout::Leftmost) ? 0 : spacing;
+		int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
 		hbox.AddSize(sp, sizeX);
 	}
 
@@ -2149,7 +2149,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		std::string sizeX = size_x.stretched() ? "ImRad::HBox::Stretch" : 
 			size_x.zero() ? "ImRad::HBox::ItemSize" :
 			size_x.to_arg(ctx.unit);
-		int sp = (l.flags & Layout::Leftmost) ? 0 : spacing;
+		int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
 		os << ctx.ind << hbName << ".AddSize(" << sp << ", " << sizeX << ");\n";
 	}
 

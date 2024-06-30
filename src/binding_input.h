@@ -424,7 +424,7 @@ inline bool InputBindable(const char* label, bindable<dimension>* val, dimension
 		if (ImGui::Button(id.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			grow = !grow;
-			*val = grow ? dimension::GROW : defVal;
+			*val = grow ? dimension::GROW : (float)defVal;
 		};
 		ImGui::PopStyleColor();
 		ImGui::PopFont();

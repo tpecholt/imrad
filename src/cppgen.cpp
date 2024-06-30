@@ -1102,9 +1102,17 @@ void CppGen::RemovePrefixedVars(const std::string& prefix, const std::string& sc
 	auto vit = m_fields.find(scope);
 	if (vit == m_fields.end())
 		return;
-	stx::erase_if(vit->second, [&](const auto& var) { 
-		return !var.name.compare(0, prefix.size(), prefix); 
-		});
+	stx::erase_if(vit->second, [&](const auto& var) 
+	{
+		if (var.flags & Var::UserCode)
+			return false;
+		if (var.name.compare(0, prefix.size(), prefix))
+			return false;
+		for (size_t i = prefix.size(); i < var.name.size(); ++i)
+			if (!std::isdigit(var.name[i]))
+				return false;
+		return true;
+	});
 }
 
 bool CppGen::ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope)

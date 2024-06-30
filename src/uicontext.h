@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <array>
+#include <string>
 #include <imgui.h>
 
 struct UINode;
