@@ -31,6 +31,11 @@ ImRAD is under active development but these are the main features:
   * There is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
   * Overlay widgets can be placed on top using relative position to the nearest window corner
 
+* supports box layout
+
+  * powerful and simple to use layout mechanism implemented on top of ImGui functionality
+  * stretch and/or align any widget in horizontal or vertical direction   
+
 * supports property binding 
   
   * class variables can be managed through simple class wizard or from binding dialog
