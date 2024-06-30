@@ -132,8 +132,8 @@ struct Spacer : Widget
 	bool PropertyUI(int, UIContext& ctx);
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_LEFT_RIGHT; }
-	void ScaleDimensions(float scale);
 };
 
 struct Separator : Widget
@@ -151,7 +151,6 @@ struct Separator : Widget
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_WINDOW_MINIMIZE; }// "-- "; }
-	void ScaleDimensions(float scale);
 };
 
 struct Text : Widget
@@ -639,6 +638,5 @@ struct TopWindow : UINode
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
 	int Behavior() { return SnapInterior; }
-	void ScaleDimensions(float);
 };
 

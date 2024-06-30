@@ -1487,16 +1487,6 @@ bool TopWindow::EventUI(int i, UIContext& ctx)
 	return changed;
 }
 
-void TopWindow::ScaleDimensions(float scale)
-{
-	UINode::ScaleDimensions(scale);
-	style_padding.scale_dimension(scale);	
-	style_spacing.scale_dimension(scale);
-	style_rounding.scale_dimension(scale);
-	style_border.scale_dimension(scale);
-	style_scrollbarSize.scale_dimension(scale);
-}
-
 //-------------------------------------------------
 
 std::unique_ptr<Widget> 
@@ -1736,9 +1726,12 @@ void Widget::Draw(UIContext& ctx)
 	if (l.flags & Layout::VLayout) 
 	{
 		auto& vbox = parent->vbox[l.colId];
-		float sizeY = size_y.stretched() ? ImRad::VBox::Stretch :
-			size_y.zero() ? ImRad::VBox::ItemSize : 
-			size_y.eval_px(ImGuiAxis_Y, ctx);
+		float sizeY = ImRad::VBox::ItemSize;
+		if (Behavior() & HasSizeY) {
+			sizeY = size_y.stretched() ? ImRad::VBox::Stretch :
+				size_y.zero() ? ImRad::VBox::ItemSize :
+				size_y.eval_px(ImGuiAxis_Y, ctx);
+		}
 		if (l.flags & Layout::Leftmost)
 			vbox.AddSize(spacing, sizeY);
 		else
@@ -1747,9 +1740,12 @@ void Widget::Draw(UIContext& ctx)
 	if (l.flags & Layout::HLayout)
 	{
 		auto& hbox = parent->hbox[l.rowId];
-		float sizeX = size_x.stretched() ? ImRad::HBox::Stretch :
-			size_x.zero() ? ImRad::HBox::ItemSize :
-			size_x.eval_px(ImGuiAxis_X, ctx);
+		float sizeX = ImRad::HBox::ItemSize;
+		if (Behavior() & HasSizeX) {
+			sizeX = size_x.stretched() ? ImRad::HBox::Stretch :
+				size_x.zero() ? ImRad::HBox::ItemSize :
+				size_x.eval_px(ImGuiAxis_X, ctx);
+		}
 		int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
 		hbox.AddSize(sp, sizeX);
 	}
@@ -2136,9 +2132,12 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (l.flags & Layout::VLayout)
 	{
-		std::string sizeY = size_y.stretched() ? "ImRad::VBox::Stretch" : 
-			size_y.zero() ? "ImRad::VBox::ItemSize" :
-			size_y.to_arg(ctx.unit);
+		std::string sizeY = "ImRad::VBox::ItemSize";
+		if (Behavior() & HasSizeY) {
+			sizeY = size_y.stretched() ? "ImRad::VBox::Stretch" :
+				size_y.zero() ? "ImRad::VBox::ItemSize" :
+				size_y.to_arg(ctx.unit);
+		}
 		if (l.flags & Layout::Leftmost)
 			os << ctx.ind << vbName << ".AddSize(" << spacing << ", " << sizeY << ");\n";
 		else
@@ -2146,9 +2145,12 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	if (l.flags & Layout::HLayout)
 	{
-		std::string sizeX = size_x.stretched() ? "ImRad::HBox::Stretch" : 
-			size_x.zero() ? "ImRad::HBox::ItemSize" :
-			size_x.to_arg(ctx.unit);
+		std::string sizeX = "ImRad::HBox::ItemSize";
+		if (Behavior() & HasSizeY) {
+			sizeX = size_x.stretched() ? "ImRad::HBox::Stretch" :
+				size_x.zero() ? "ImRad::HBox::ItemSize" :
+				size_x.to_arg(ctx.unit);
+		}
 		int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
 		os << ctx.ind << hbName << ".AddSize(" << sp << ", " << sizeX << ");\n";
 	}
@@ -2912,10 +2914,6 @@ std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
 	return std::unique_ptr<Widget>(new Spacer(*this));
 }
 
-void Spacer::ScaleDimensions(float scale)
-{
-}
-
 void Spacer::DoDraw(UIContext& ctx)
 {
 	ImVec2 size { size_x.eval_px(ImGuiAxis_X, ctx),	size_y.eval_px(ImGuiAxis_Y, ctx) };
@@ -3031,11 +3029,6 @@ Separator::Separator(UIContext& ctx)
 std::unique_ptr<Widget> Separator::Clone(UIContext& ctx) 
 { 
 	return std::unique_ptr<Widget>(new Separator(*this)); 
-}
-
-void Separator::ScaleDimensions(float scale)
-{
-	style_thickness.scale_dimension(scale);
 }
 
 void Separator::DoDraw(UIContext& ctx)
