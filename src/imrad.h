@@ -195,6 +195,10 @@ struct BoxLayout
 		float size;
 	};
 
+	void Reset()
+	{
+		prevItems.clear();
+	}
 	void BeginLayout() 
 	{
 		pos1 = HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();

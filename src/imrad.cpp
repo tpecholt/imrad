@@ -114,6 +114,18 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 	}}
 };
 
+//CancelShutdown identifier is used in winuser.h
+void DoCancelShutdown()
+{
+	if (programState != Shutdown)
+		return;
+
+	glfwSetWindowShouldClose(window, false);
+	programState = Run;
+	reloadStyle = true;
+	ImGui::GetIO().IniFilename = INI_FILE_NAME;
+}
+
 void DoReloadFile()
 {
 	if (activeTab < 0)
@@ -413,15 +425,18 @@ void OpenFile()
     NFD_FreePath(outPath);
 }
 
+void CloseFile();
+bool SaveFile(bool thenClose);
+
 void DoCloseFile()
 {
 	ctx.root = nullptr;
 	ctx.selected.clear();
 	fileTabs.erase(fileTabs.begin() + activeTab);
 	ActivateTab(activeTab);
+	if (programState == Shutdown)
+		CloseFile();
 }
-
-bool SaveFile(bool thenClose);
 
 void CloseFile()
 {
@@ -433,29 +448,19 @@ void CloseFile()
 		if (fname.empty())
 			fname = UNTITLED;
 		messageBox.message = "Save changes to " + fname + "?";
-		messageBox.buttons = ImRad::Yes | ImRad::No;
+		messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
 		messageBox.OpenPopup([=](ImRad::ModalResult mr) {
 			if (mr == ImRad::Yes)
 				SaveFile(true);
 			else if (mr == ImRad::No)
 				DoCloseFile();
+			else
+				DoCancelShutdown();
 			});
 	}
 	else {
 		DoCloseFile();
 	}
-}
-
-//CancelShutdown identifier is used in winuser.h
-void DoCancelShutdown()
-{
-	if (programState != Shutdown)
-		return;
-	
-	glfwSetWindowShouldClose(window, false);
-	programState = Run;
-	reloadStyle = true;
-	ImGui::GetIO().IniFilename = INI_FILE_NAME;
 }
 
 void DoSaveFile(bool thenClose)
@@ -1648,8 +1653,7 @@ void Work()
 	
 	if (programState == Shutdown)
 	{
-		if (!fileTabs.empty())// && !ImGui::IsPopupOpen(-1, ImGuiPopupFlags_AnyPopupLevel))
-			CloseFile();
+		CloseFile();
 	}
 
 	if (ctx.mode == UIContext::PickPoint)

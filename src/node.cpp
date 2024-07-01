@@ -372,6 +372,16 @@ UINode::GetAllChildren()
 	return chs;
 }
 
+void UINode::ResetBoxLayout(UINode* node)
+{
+	if (!node)
+		node = this;
+	node->hbox.clear();
+	node->vbox.clear();
+	for (auto& ch : node->children)
+		ResetBoxLayout(ch.get());
+}
+
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 {
 	for (int i = 0; i < 2; ++i)
@@ -1386,13 +1396,17 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
-			changed = CheckBoxFlags(&flags);
+			bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
 			bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
+			changed = CheckBoxFlags(&flags);
 			bool flagsMB = flags & ImGuiWindowFlags_MenuBar;
 			if (flagsMB && !hasMB)
 				children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
 			else if (!flagsMB && hasMB)
 				children.erase(children.begin());
+			bool autoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
+			if (autoResize && !hasAutoResize)
+				ResetBoxLayout();
 			});
 		break;
 	case 10:
@@ -1408,7 +1422,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, false, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, 0, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 12:
@@ -1416,7 +1432,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, {}, false, ctx);
+		changed = InputBindable("##size_y", &size_y, {}, 0, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 13:
@@ -3001,7 +3019,7 @@ bool Spacer::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -3597,7 +3615,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -4066,7 +4084,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
@@ -4990,7 +5008,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -5210,7 +5228,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -5473,7 +5491,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -5635,7 +5653,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -5836,7 +5854,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -6006,7 +6024,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -6137,7 +6155,7 @@ bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -6418,7 +6436,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -7031,6 +7049,7 @@ Child::Properties()
 
 bool Child::PropertyUI(int i, UIContext& ctx)
 {
+	bool autoResize;
 	bool changed = false;
 	switch (i)
 	{
@@ -7077,6 +7096,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
+			bool hasAutoResize = flags & ImGuiChildFlags_AlwaysAutoResize;
 			int ch = CheckBoxFlags(&flags);
 			if (ch) {
 				changed = true;
@@ -7095,6 +7115,13 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 					else
 						flags &= ~(ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
 				}
+				//
+				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX) &&
+					size_x.stretched())
+					size_x = 0;
+				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY) &&
+					size_y.stretched())
+					size_y = 0;
 			}
 			});
 		break;
@@ -7131,7 +7158,8 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		autoResize = (flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton | (autoResize*InputBindable_StretchButtonDisabled), ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
@@ -7139,7 +7167,8 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, {}, true, ctx);
+		autoResize = (flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY);
+		changed = InputBindable("##size_y", &size_y, {}, InputBindable_StretchButton | (autoResize*InputBindable_StretchButtonDisabled), ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
@@ -7347,7 +7376,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, true, ctx);
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
