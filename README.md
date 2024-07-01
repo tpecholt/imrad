@@ -27,14 +27,16 @@ ImRAD is under active development but these are the main features:
 
 * generates layout using `SameLine`/`Spacing`/`NextColumn` instead of absolute positioning 
   
-  * This ensures widgets respect item spacing and frame padding in a consistent way
-  * There is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
-  * Overlay widgets can be placed on top using relative position to the nearest window corner
+  * this ensures widgets respect item spacing and frame padding in a consistent way
+  * there is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
+  * overlay widgets can be placed on top using relative position to the nearest window corner
 
 * supports box layout
 
   * powerful and simple to use layout mechanism implemented on top of ImGui functionality
-  * stretch and/or align any widget in horizontal or vertical direction   
+  * stretch any sizeable widget in horizontal or vertical direction
+  * insert spacers to achieve alignment
+  * alternatively you can use Table Layout Helper to generate horizontal layout using invisible Table
 
 * supports property binding 
   

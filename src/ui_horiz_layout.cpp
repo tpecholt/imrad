@@ -28,14 +28,14 @@ void HorizLayout::Draw()
     /// @begin TopWindow
     if (requestOpen) {
         requestOpen = false;
-        ImGui::OpenPopup("Horizontal Layout Helper");
+        ImGui::OpenPopup("Table Layout Helper");
     }
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5, 10 });
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("Horizontal Layout Helper", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("Table Layout Helper", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (requestClose)
             ImGui::CloseCurrentPopup();

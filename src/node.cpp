@@ -372,14 +372,12 @@ UINode::GetAllChildren()
 	return chs;
 }
 
-void UINode::ResetBoxLayout(UINode* node)
+void UINode::ResetBoxLayout()
 {
-	if (!node)
-		node = this;
-	node->hbox.clear();
-	node->vbox.clear();
-	for (auto& ch : node->children)
-		ResetBoxLayout(ch.get());
+	hbox.clear();
+	vbox.clear();
+	for (auto& ch : children)
+		ch->ResetBoxLayout();
 }
 
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
@@ -6735,6 +6733,7 @@ void Table::ScaleDimensions(float scale)
 Child::Child(UIContext& ctx)
 {
 	//zero size will be rendered wrongly?
+	//it seems 0 is equivalent to -1 but only if children exist which is confusing
 	size_x = size_y = 20;
 
 	flags.prefix("ImGuiChildFlags_");
@@ -7049,7 +7048,6 @@ Child::Properties()
 
 bool Child::PropertyUI(int i, UIContext& ctx)
 {
-	bool autoResize;
 	bool changed = false;
 	switch (i)
 	{
@@ -7096,7 +7094,6 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
-			bool hasAutoResize = flags & ImGuiChildFlags_AlwaysAutoResize;
 			int ch = CheckBoxFlags(&flags);
 			if (ch) {
 				changed = true;
@@ -7116,12 +7113,12 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 						flags &= ~(ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
 				}
 				//
-				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX) &&
-					size_x.stretched())
+				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX))
 					size_x = 0;
-				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY) &&
-					size_y.stretched())
+				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY))
 					size_y = 0;
+				if (flags & ImGuiChildFlags_AlwaysAutoResize)
+					ResetBoxLayout();
 			}
 			});
 		break;
@@ -7158,19 +7155,21 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		autoResize = (flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX);
-		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton | (autoResize*InputBindable_StretchButtonDisabled), ctx);
+		ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX));
+		changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
+		ImGui::EndDisabled();
 		break;
 	case 13:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		autoResize = (flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY);
-		changed = InputBindable("##size_y", &size_y, {}, InputBindable_StretchButton | (autoResize*InputBindable_StretchButtonDisabled), ctx);
+		ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY));
+		changed = InputBindable("##size_y", &size_y, {}, InputBindable_StretchButton, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_y", &size_y, ctx);
+		ImGui::EndDisabled();
 		break;
 	default:
 		return Widget::PropertyUI(i - 14, ctx);

@@ -1175,7 +1175,7 @@ void ToolbarUI()
 	}
 	ImGui::EndDisabled();
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-		ImGui::SetTooltip("Horizontal Layout Helper");
+		ImGui::SetTooltip("Table Layout Helper");
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 

@@ -51,7 +51,7 @@ struct UINode
 	auto FindInRect(const ImRect& r) -> std::vector<UINode*>;
 	auto GetAllChildren() -> std::vector<UINode*>;
 	void CloneChildrenFrom(const UINode& node, UIContext& ctx);
-	void ResetBoxLayout(UINode* node = nullptr);
+	void ResetBoxLayout();
 
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
