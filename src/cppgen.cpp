@@ -64,6 +64,21 @@ bool CppGen::ExportUpdate(
 	m_vname = (char)std::tolower(m_name[0]) + m_name.substr(1);
 	*/
 
+	//export node before ExportH
+	//TopWindow::Export generates some variables on the fly
+	UIContext ctx;
+	ctx.codeGen = this;
+	ctx.ind = INDENT;
+	ctx.forVarName = FOR_VAR;
+	auto uit = params.find("unit");
+	if (uit != params.end())
+		ctx.unit = uit->second;
+	std::ostringstream code;
+	node->Export(code, ctx);
+	for (const std::string& e : ctx.errors)
+		err += e + "\n";
+
+	//export .h
 	auto hpath = fs::path(fname).replace_extension(".h");
 	if (!fs::exists(hpath) || fs::is_empty(hpath))
 	{
@@ -85,7 +100,8 @@ bool CppGen::ExportUpdate(
 	auto origNames = ExportH(fout, fprev, m_hname, node);
 	m_hname = hpath.filename().string();
 	fout.close();
-
+	
+	//export .cpp
 	auto fpath = fs::path(fname).replace_extension(".cpp");
 	if (!fs::exists(fpath) || fs::is_empty(fpath))
 	{
@@ -104,7 +120,7 @@ bool CppGen::ExportUpdate(
 	fin.close();
 	fprev.seekg(0);
 	fout.open(fpath, std::ios::trunc);
-	err = ExportCpp(fout, fprev, origNames, params, node);
+	ExportCpp(fout, fprev, origNames, params, node, code.str());
 	return true;
 }
 
@@ -415,13 +431,14 @@ CppGen::ExportH(
 }
 
 //follows fprev and overwrites generated members/functions only
-std::string 
+void 
 CppGen::ExportCpp(
 	std::ostream& fout, 
 	std::istream& fprev, 
 	const std::array<std::string, 3>& origNames, //name, vname, old header name
 	const std::map<std::string, std::string>& params, 
-	TopWindow* node
+	TopWindow* node,
+	const std::string& code
 )
 {
 	int level = 0;
@@ -432,19 +449,6 @@ CppGen::ExportCpp(
 	std::set<std::string> events;
 	auto animPos = node->animate ? (TopWindow::Placement)node->placement : TopWindow::None;
 
-	UIContext ctx;
-	ctx.codeGen = this;
-	ctx.ind = INDENT;
-	ctx.forVarName = FOR_VAR;
-	auto uit = params.find("unit");
-	if (uit != params.end())
-		ctx.unit = uit->second;
-	std::ostringstream code;
-	node->Export(code, ctx);
-	std::string err;
-	for (const std::string& e : ctx.errors)
-		err += e + "\n";
-	
 	//xpos == 0 => copy until current position
 	//xpos > 0 => copy until xpos
 	//xpos < 0 => copy except last xpos characters
@@ -487,7 +491,7 @@ CppGen::ExportCpp(
 					{
 						events.insert(name);
 						skip_to_level = level - 1;
-						WriteStub(fout, "Draw", node->kind, animPos, params, code.str());
+						WriteStub(fout, "Draw", node->kind, animPos, params, code);
 					}
 					else if (name == "Init") 
 					{
@@ -571,7 +575,7 @@ CppGen::ExportCpp(
 		if (events.count(name))
 			continue;
 		std::ostringstream os;
-		if (WriteStub(os, name, node->kind, animPos, params, code.str())) {
+		if (WriteStub(os, name, node->kind, animPos, params, code)) {
 			events.insert(name);
 			fout << "\nvoid " << m_name << os.str() << "\n";
 		}
@@ -592,8 +596,6 @@ CppGen::ExportCpp(
 			fout << "const " << arg << "& args";
 		fout << ")\n{\n}\n";
 	}
-
-	return err;
 }
 
 //we always replace code of all generated functions because parameters and code depend

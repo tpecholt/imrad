@@ -248,7 +248,7 @@ struct BoxLayout
 			it.size = size;
 	}
 	//for use in SetCursorX/Y
-	operator float() 
+	float GetPos()
 	{
 		if (prevItems.size() <= items.size()) //stop positioning - widgets changed
 			return HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
@@ -261,6 +261,10 @@ struct BoxLayout
 		if (prevItems.size() > items.size())
 			pos += prevItems[items.size()].spacing;
 		return pos;
+	}
+	operator float()
+	{
+		return GetPos();
 	}
 	//for use in SetNextItemWidth/ctor
 	float GetSize(bool sameLine = false)

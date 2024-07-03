@@ -1934,6 +1934,8 @@ int main(int argc, const char* argv[])
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	auto& g = *ImGui::GetCurrentContext();
+	g.ConfigNavWindowingKeyNext = g.ConfigNavWindowingKeyPrev = ImGuiKey_None; //disable imgui ctrl+tab menu
 	ImGui::GetIO().IniFilename = INI_FILE_NAME;
 	AddINIHandler();
 	ImGuiIO& io = ImGui::GetIO(); 
@@ -1945,9 +1947,8 @@ int main(int argc, const char* argv[])
 	// Setup Platform/Renderer backends
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
-
 	const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
+	
 	GetStyles();
 	programState = (ProgramState)-1;
 	bool lastVisible = true;
