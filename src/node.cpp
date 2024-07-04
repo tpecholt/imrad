@@ -1577,6 +1577,13 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 {
 	Layout l;
 	l.colId = l.rowId = -1;
+	
+	if (hasPos || !(Behavior() & SnapSides)) 
+	{
+		l.flags |= Layout::Topmost | Layout::Leftmost;
+		return l;
+	}
+
 	bool firstWidget = true;
 	bool leftmost = true;
 	bool topmost = true;

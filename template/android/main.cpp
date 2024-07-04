@@ -1,7 +1,7 @@
 #include "imrad.h"
 #include "imgui/imgui.h"
-#include "imgui/imgui_impl_android.h"
-#include "imgui/imgui_impl_opengl3.h"
+#include "imgui/backends/imgui_impl_android.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
 //#include "IconsMaterialDesign.h"
 #include <android/log.h>
 #include <android_native_app_glue.h>
@@ -46,32 +46,41 @@ void Draw()
 
     bool isOpen;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { ImGui::GetTextLineHeight()/2, ImGui::GetTextLineHeight()/2 });
     ImGui::SetNextWindowPos(g_IOUserData.WorkRect().Min);
     ImGui::SetNextWindowSize(g_IOUserData.WorkRect().GetSize());
     if (ImGui::Begin("TODO", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings))
     {
         ImGui::TextWrapped("Welcome to android development with ImRAD!");
-        ImGui::Text("");
-        ImGui::TextWrapped("1. Load Suitable Fonts");
+        ImGui::Spacing();
+        ImGui::TextWrapped("1. Patch imgui_impl_android.cpp");
+        ImGui::Indent();
+        ImGui::Bullet();
+        ImGui::TextWrapped("As reported in #6627 the stock version leaves all buttons in pushed state after a press");
+        ImGui::Button(" Test here ");
+        ImGui::Unindent();
+        ImGui::Spacing();
+        ImGui::TextWrapped("2. Load Suitable Fonts");
         ImGui::Indent();
         ImGui::Bullet();
         ImGui::TextWrapped("Create assets directory and put Roboto and Material fonts there");
         ImGui::Bullet();
         ImGui::TextWrapped("Uncomment code to load fonts");
         ImGui::Unindent();
-        ImGui::Text("");
-        ImGui::TextWrapped("2. Add your first activity to the project");
+        ImGui::Spacing();
+        ImGui::TextWrapped("3. Add your first activity to the project");
         ImGui::Indent();
         ImGui::Bullet();
         ImGui::TextWrapped("Design activity in ImRAD");
         ImGui::Bullet();
         ImGui::TextWrapped("Uncomment code to use it");
         ImGui::Unindent();
-        ImGui::Text("");
-        ImGui::TextWrapped("3. Have fun!");
+        ImGui::Spacing();
+        ImGui::TextWrapped("Have fun!");
 
         ImGui::End();
     }
+    ImGui::PopStyleVar();
     ImGui::PopStyleVar();
 }
 
