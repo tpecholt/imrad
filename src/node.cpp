@@ -512,7 +512,7 @@ void TopWindow::Draw(UIContext& ctx)
 	for (int i = 0; i < 4; ++i) 
 	{
 		if (ImGui::GetActiveID() == ImGui::GetWindowResizeCornerID(ctx.rootWin, i) ||
-			ImGui::GetActiveID() == ImGui::GetWindowResizeBorderID(ctx.rootWin, i))
+			ImGui::GetActiveID() == ImGui::GetWindowResizeBorderID(ctx.rootWin, (ImGuiDir)i))
 			ctx.beingResized = true;
 	}
 	if (ctx.beingResized && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
@@ -7670,6 +7670,9 @@ TabBar::TabBar(UIContext& ctx)
 	flags.add$(ImGuiTabBarFlags_Reorderable);
 	flags.add$(ImGuiTabBarFlags_TabListPopupButton);
 	flags.add$(ImGuiTabBarFlags_NoTabListScrollingButtons);
+	flags.add$(ImGuiTabBarFlags_DrawSelectedOverline);
+	flags.add$(ImGuiTabBarFlags_FittingPolicyResizeDown);
+	flags.add$(ImGuiTabBarFlags_FittingPolicyScroll);
 
 	if (ctx.createVars)
 		children.push_back(std::make_unique<TabItem>(ctx));
@@ -8201,7 +8204,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 		{
 			ImVec2 pos = cached_pos;
 			if (mbm)
-				pos.y += ctx.rootWin->MenuBarHeight();
+				pos.y += ctx.rootWin->MenuBarHeight;
 			else {
 				ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 				ImVec2 pad = ImGui::GetStyle().WindowPadding;
@@ -8321,7 +8324,7 @@ void MenuIt::CalcSizeEx(ImVec2 x1, UIContext& ctx)
 	else if (mbm)
 	{
 		++cached_pos.y;
-		cached_size.y = ctx.rootWin->MenuBarHeight() - 2;
+		cached_size.y = ctx.rootWin->MenuBarHeight - 2;
 	}
 	else
 	{
