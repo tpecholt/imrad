@@ -1641,6 +1641,7 @@ void Widget::Draw(UIContext& ctx)
 {
 	UINode* parent = ctx.parents.back();
 	Layout l = GetLayout(parent);
+	const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
 	ctx.stretchSize = { 0, 0 };
 
 	if (hasPos) 
@@ -1664,6 +1665,7 @@ void Widget::Draw(UIContext& ctx)
 		}
 		if (!(l.flags & Layout::Leftmost))
 			ImGui::SameLine();
+
 		if (l.flags & Layout::VLayout)
 		{
 			if (l.colId >= parent->vbox.size())
@@ -1676,6 +1678,11 @@ void Widget::Draw(UIContext& ctx)
 				ImGui::SetCursorPosY(vbox);
 			ctx.stretchSize.y = vbox.GetSize(!(l.flags & Layout::Leftmost));
 		}
+		else if (l.flags & Layout::Leftmost)
+		{
+			ImRad::Spacing(spacing - defSpacing);
+		}
+
 		if (l.flags & Layout::HLayout)
 		{
 			if (l.rowId >= parent->hbox.size())
@@ -1701,9 +1708,7 @@ void Widget::Draw(UIContext& ctx)
 			ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
 		}
 		else {
-			//ImGui already adds 1 spacing except in first row by default
-			int imsp = !(l.flags & Layout::Topmost);
-			ImRad::Spacing(spacing - imsp); 
+			ImRad::Spacing(spacing - defSpacing); 
 		}
 		if (indent)
 			ImGui::Indent(indent * ImGui::GetStyle().IndentSpacing / 2);
@@ -2066,6 +2071,11 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 			ctx.stretchSizeExpr[1] = vbName + ".GetSize(" +
 				((l.flags & Layout::Leftmost) ? "false)" : "true)");
 		}
+		else if ((l.flags & Layout::Leftmost) && (spacing - defSpacing))
+		{
+			os << ctx.ind << "ImRad::Spacing(" << (spacing - defSpacing) << ");\n";
+		}
+
 		if (l.flags & Layout::HLayout)
 		{
 			std::ostringstream osv;

@@ -53,19 +53,19 @@ void Draw()
     {
         ImGui::TextWrapped("Welcome to android development with ImRAD!");
         ImGui::Spacing();
-        ImGui::TextWrapped("1. Patch imgui_impl_android.cpp");
-        ImGui::Indent();
-        ImGui::Bullet();
-        ImGui::TextWrapped("As reported in #6627 the stock version leaves all buttons in pushed state after a press");
-        ImGui::Button(" Test here ");
-        ImGui::Unindent();
-        ImGui::Spacing();
-        ImGui::TextWrapped("2. Load Suitable Fonts");
+        ImGui::TextWrapped("1. Load Suitable Fonts");
         ImGui::Indent();
         ImGui::Bullet();
         ImGui::TextWrapped("Create assets directory and put Roboto and Material fonts there");
         ImGui::Bullet();
         ImGui::TextWrapped("Uncomment code to load fonts");
+        ImGui::Unindent();
+        ImGui::Spacing();
+        ImGui::TextWrapped("2. Patch imgui_impl_android.cpp");
+        ImGui::Indent();
+        ImGui::Bullet();
+        ImGui::TextWrapped("As reported in #6627 the stock version leaves all buttons in pushed state after a press");
+        ImGui::Button(" Test here ");
         ImGui::Unindent();
         ImGui::Spacing();
         ImGui::TextWrapped("3. Add your first activity to the project");

@@ -552,20 +552,65 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 	return 1;
 }
 
+//todo
 //intended for android
 //original version doesn't respect ioUserData.displayMinMaxOffset
 inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
 {
 	ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0, 0, 0, 0); //disable ImGui dimming
-	ImDrawList* dl = ImGui::GetWindowDrawList();
-	dl->PushClipRectFullScreen();
 	//imgui dim default = 0.2f, 0.2f, 0.2f, 0.35f * alpha_mul
 	ImU32 color = ImGui::ColorConvertFloat4ToU32({ 0, 0, 0, 0.35f * alpha_mul });
+
+	// Draw list have been trimmed already, hence the explicit recreation of a draw command if missing.
+	// FIXME: This is creating complication, might be simpler if we could inject a drawlist in drawdata at a given position and not attempt to manipulate ImDrawCmd order.
+	/*ImDrawList* dl = ImGui::GetCurrentWindow()->RootWindowDockTree->DrawList;
+	dl->ChannelsMerge();
+	//if (dl->CmdBuffer.Size == 0)
+		dl->AddDrawCmd();
+	dl->PushClipRectFullScreen();
+	//dl->PushClipRect(rect.Min - ImVec2(1, 1), rect.Max + ImVec2(1, 1), false); // FIXME: Need to stricty ensure ImDrawCmd are not merged (ElemCount==6 checks below will verify that)
+	dl->AddRectFilled(rect.Min, rect.Max, color);
+	ImDrawCmd cmd = dl->CmdBuffer.back();
+	IM_ASSERT(cmd.ElemCount == 6);
+	dl->CmdBuffer.pop_back();
+	dl->CmdBuffer.push_front(cmd);
+	dl->AddDrawCmd(); // We need to create a command as CmdBuffer.back().IdxOffset won't be correct if we append to same command.
+	dl->PopClipRect();*/
+
+	/*ImDrawList* dl = ImGui::GetCurrentWindow()->RootWindowDockTree->DrawList;
+	dl->PushClipRectFullScreen();
+	dl->AddRectFilled(rect.Min, rect.Max, color);
+	dl->PopClipRect();*/
+
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	dl->PushClipRectFullScreen();
 	const ImRect& wr = ImGui::GetCurrentWindow()->Rect();
     dl->AddRectFilled(rect.Min, { rect.Max.x, wr.Min.y }, color);
 	dl->AddRectFilled({ rect.Min.x, wr.Min.y }, { wr.Min.x, wr.Max.y }, color);
 	dl->AddRectFilled({ wr.Max.x, wr.Min.y }, { rect.Max.x, wr.Max.y }, color);
 	dl->AddRectFilled({ rect.Min.x, wr.Max.y }, rect.Max, color);
+	float r = ImGui::GetCurrentWindow()->WindowRounding;
+	if (r)
+	{
+		dl->AddRectFilled(wr.Min, { wr.Min.x + r, wr.Min.y + r }, color);
+		dl->AddRectFilled({ wr.Min.x, wr.Max.y - r }, { wr.Min.x + r, wr.Max.y }, color);
+		dl->AddRectFilled({ wr.Max.x - r, wr.Min.y }, { wr.Max.x, wr.Min.y + r }, color);
+		dl->AddRectFilled({ wr.Max.x - r, wr.Max.y - r }, wr.Max, color);
+
+		ImU32 bg = ImGui::GetColorU32(ImGui::GetStyleColorVec4(ImGuiCol_PopupBg));
+		dl->PathArcToFast({ wr.Min.x + r, wr.Min.y + r }, r, 6, 9);
+		dl->PathLineTo({ wr.Min.x + r, wr.Min.y + r });
+		dl->PathFillConvex(bg);
+		dl->PathArcToFast({ wr.Min.x + r, wr.Max.y - r }, r, 3, 6);
+		dl->PathLineTo({ wr.Min.x + r, wr.Max.y - r });
+		dl->PathFillConvex(bg);
+		dl->PathArcToFast({ wr.Max.x - r, wr.Min.y + r }, r, 9, 12);
+		dl->PathLineTo({ wr.Max.x - r, wr.Min.y + r });
+		dl->PathFillConvex(bg);
+		dl->PathArcToFast({ wr.Max.x - r, wr.Max.y - r }, r, 0, 3);
+		dl->PathLineTo({ wr.Max.x - r, wr.Max.y - r });
+		dl->PathFillConvex(bg);
+	}
 	dl->PopClipRect();
 }
 
