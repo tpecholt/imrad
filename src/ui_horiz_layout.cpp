@@ -274,7 +274,6 @@ void HorizLayout::Work()
 
 				item->sameLine = i ? true : false;
 				item->nextColumn = false;
-				item->beginGroup = false;
 				parent->children.insert(parent->children.begin() + idx, std::unique_ptr<Widget>(item));
 				++idx;
 			}

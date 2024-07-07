@@ -63,8 +63,6 @@ struct UINode
 struct Widget : UINode
 {
 	direct_val<bool> sameLine = false;
-	direct_val<bool> beginGroup = false;
-	direct_val<bool> endGroup = false;
 	direct_val<int> nextColumn = 0;
 	direct_val<bool> hasPos = false;
 	direct_val<dimension> pos_x = 0;

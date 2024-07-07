@@ -38,7 +38,6 @@ struct UIContext
 	size_t snapIndex;
 	bool snapSameLine;
 	int snapNextColumn;
-	bool snapBeginGroup;
 	bool snapSetNextSameLine;
 	bool snapClearNextNextColumn;
 	
@@ -47,7 +46,6 @@ struct UIContext
 	UINode* hovered = nullptr;
 	UINode* dragged = nullptr;
 	ImVec2 lastSize;
-	int groupLevel = 0;
 	int importLevel;
 	std::string userCode;
 	UINode* root = nullptr;

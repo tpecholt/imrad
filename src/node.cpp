@@ -114,7 +114,6 @@ void UINode::DrawSnap(UIContext& ctx)
 {
 	ctx.snapSameLine = false;
 	ctx.snapNextColumn = 0;
-	ctx.snapBeginGroup = false;
 	ctx.snapSetNextSameLine = false;
 	ctx.snapClearNextNextColumn = false;
 
@@ -189,18 +188,15 @@ void UINode::DrawSnap(UIContext& ctx)
 	{
 		p = cached_pos;
 		h = cached_size.y;
-		bool leftmost = !i || !pch->sameLine || pch->nextColumn || pch->beginGroup;
+		bool leftmost = !i || !pch->sameLine || pch->nextColumn;
 		if (!leftmost) //handled by right(i-1)
 			return;
-		bool inGroup = pch->cached_pos.x - parent->cached_pos.x > 100; //todo
-		if ((pch->nextColumn || pch->beginGroup || inGroup) && 
-			m.x < pch->cached_pos.x)
+		if (pch->nextColumn && m.x < pch->cached_pos.x)
 			return;
 		ctx.snapParent = parent;
 		ctx.snapIndex = i;
 		ctx.snapSameLine = pchildren[i]->sameLine;
 		ctx.snapNextColumn = pchildren[i]->nextColumn;
-		ctx.snapBeginGroup = pchildren[i]->beginGroup;
 		ctx.snapSetNextSameLine = true;
 		break;
 	}
@@ -263,8 +259,6 @@ void UINode::DrawSnap(UIContext& ctx)
 		{
 			if (!pchildren[j + 1]->sameLine || pchildren[j + 1]->nextColumn) 
 				break;
-			if (pchildren[j + 1]->beginGroup)
-				break;
 			i1 = j;
 			const auto& ch = pchildren[j];
 			p.x = ch->cached_pos.x;
@@ -289,11 +283,10 @@ void UINode::DrawSnap(UIContext& ctx)
 		if (down)
 		{
 			const auto* nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
-			//bool inGroup = nch && nch->cached_pos.x - parent->cached_pos.x > 100; //todo
 			//check m.y not pointing in next row
 			//we assume all columns belong to the same row and there is no more rows so
 			//we don't check
-			if (nch && !nch->nextColumn) // && !inGroup)
+			if (nch && !nch->nextColumn)
 			{
 				if (m.y >= nch->cached_pos.y + MARGIN)
 					return;
@@ -301,7 +294,7 @@ void UINode::DrawSnap(UIContext& ctx)
 			}
 			ctx.snapParent = parent;
 			ctx.snapIndex = i2 + 1;
-			ctx.snapSameLine = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
+			ctx.snapSameLine = false;
 			ctx.snapNextColumn = 0;
 		}
 		else
@@ -310,9 +303,8 @@ void UINode::DrawSnap(UIContext& ctx)
 				return;
 			ctx.snapParent = parent;
 			ctx.snapIndex = i1;
-			ctx.snapSameLine = pchildren[i1]->sameLine && pchildren[i1]->beginGroup;
+			ctx.snapSameLine = false;
 			ctx.snapNextColumn = pchildren[i1]->nextColumn;
-			ctx.snapBeginGroup = pchildren[i1]->beginGroup;
 			ctx.snapClearNextNextColumn = true;
 		}
 		break;
@@ -449,7 +441,6 @@ void TopWindow::Draw(UIContext& ctx)
 {
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	ctx.unitFactor = ScaleFactor(ctx.unit, "");
-	ctx.groupLevel = 0;
 	ctx.root = this;
 	ctx.activePopups.clear();
 	ctx.parents = { this };
@@ -619,11 +610,6 @@ void TopWindow::Draw(UIContext& ctx)
 		dl->AddRectFilled(a, b, ctx.colors[UIContext::Hovered]);
 	}
 
-	while (ctx.groupLevel) { //fix missing endGroup
-		ImGui::EndGroup();
-		--ctx.groupLevel;
-	}
-
 	ImGui::End();
 	
 	if (!style_bg.empty())
@@ -646,7 +632,6 @@ void TopWindow::Draw(UIContext& ctx)
 
 void TopWindow::Export(std::ostream& os, UIContext& ctx)
 {
-	ctx.groupLevel = 0;
 	ctx.varCounter = 1;
 	ctx.parents = { this };
 	ctx.parentId = 0;
@@ -971,9 +956,6 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	for (const auto& ch : children)
 		ch->Export(os, ctx);
 		
-	if (ctx.groupLevel)
-		ctx.errors.push_back("missing EndGroup");
-
 	os << ctx.ind << "/// @separator\n";
 	
 	if (kind == Popup || kind == ModalPopup)
@@ -1712,10 +1694,6 @@ void Widget::Draw(UIContext& ctx)
 		}
 		if (indent)
 			ImGui::Indent(indent * ImGui::GetStyle().IndentSpacing / 2);
-		if (beginGroup) {
-			ImGui::BeginGroup();
-			++ctx.groupLevel;
-		}
 	}
 	
 	ImGui::PushID(this);
@@ -1994,13 +1972,6 @@ void Widget::Draw(UIContext& ctx)
 	
 	ctx.parents.pop_back();
 	ImGui::PopID();
-	
-	if (!hasPos) {
-		if (endGroup && ctx.groupLevel) {
-			ImGui::EndGroup();
-			--ctx.groupLevel;
-		}
-	}
 }
 
 void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -2115,11 +2086,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		if (indent)
 		{
 			os << ctx.ind << "ImGui::Indent(" << indent << " * ImGui::GetStyle().IndentSpacing / 2);\n";
-		}
-		if (beginGroup)
-		{
-			os << ctx.ind << "ImGui::BeginGroup();\n";
-			++ctx.groupLevel;
 		}
 		if (allowOverlap)
 		{
@@ -2297,11 +2263,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
-	if (endGroup && ctx.groupLevel) 
-	{
-		os << ctx.ind << "ImGui::EndGroup();\n";
-		--ctx.groupLevel;
-	}
 
 	os << ctx.ind << "/// @end " << stype << "\n\n";
 
@@ -2445,14 +2406,6 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				indent.set_from_arg(sit->params[0]);
 		}
-		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginGroup")
-		{
-			beginGroup = true;
-		}
-		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::EndGroup")
-		{
-			endGroup = true;
-		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemAllowOverlap")
 		{
 			allowOverlap = true;
@@ -2588,8 +2541,6 @@ Widget::Properties()
 			{ "indent", &indent },
 			{ "spacing", &spacing },
 			{ "sameLine", &sameLine },
-			/*{ "beginGroup", &beginGroup }, deprecated
-			{ "endGroup", &endGroup },*/
 			{ "nextColumn", &nextColumn },
 			{ "allowOverlap", &allowOverlap },
 			});
@@ -2736,21 +2687,6 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	/* deprecated
-	case 11:
-		ImGui::BeginDisabled(!snapSides);
-		ImGui::Text("beginGroup");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##beginGroup", beginGroup.access());
-		ImGui::EndDisabled();
-		break;
-	case 12:
-		ImGui::BeginDisabled(!snapSides);
-		ImGui::Text("endGroup");
-		ImGui::TableNextColumn();
-		changed = ImGui::Checkbox("##endGroup", endGroup.access());
-		ImGui::EndDisabled();
-		break;*/
 	case 11:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("nextColumn");
@@ -2885,10 +2821,6 @@ void Widget::TreeUI(UIContext& ctx)
 	else {
 		if (sameLine)
 			suff += "L";
-		if (beginGroup)
-			suff += "B";
-		if (endGroup)
-			suff += "E";
 		if (nextColumn)
 			suff += "C";
 	}

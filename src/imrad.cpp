@@ -1603,8 +1603,6 @@ RemoveSelected()
 		tab.modified = true;
 		Widget* wdg = dynamic_cast<Widget*>(node);
 		bool sameLine = wdg->sameLine;
-		bool beginGroup = wdg->beginGroup;
-		bool endGroup = wdg->endGroup;
 		int nextColumn = wdg->nextColumn;
 		remove.push_back(std::move(pi->first->children[pi->second]));
 		pi->first->children.erase(pi->first->children.begin() + pi->second);
@@ -1615,10 +1613,6 @@ RemoveSelected()
 			wdg->nextColumn += nextColumn;
 			if (!sameLine)
 				wdg->sameLine = false;
-			if (beginGroup)
-				wdg->beginGroup = true;
-			if (endGroup)
-				wdg->endGroup = true;
 		}
 	}
 	//move selection. Useful for things like menu items
@@ -1731,13 +1725,11 @@ void Work()
 				newNodes[0]->sameLine = ctx.snapSameLine;
 				newNodes[0]->spacing = firstItem ? 0 : 1;
 				newNodes[0]->nextColumn = ctx.snapNextColumn;
-				newNodes[0]->beginGroup = ctx.snapBeginGroup;
 			}
 			if (ctx.snapIndex < ctx.snapParent->children.size())
 			{
 				auto& next = ctx.snapParent->children[ctx.snapIndex];
 				if (ctx.snapSetNextSameLine) {
-					next->beginGroup = false; 
 					next->nextColumn = false;
 					next->sameLine = true;
 					next->spacing = std::max((int)next->spacing, 1);
