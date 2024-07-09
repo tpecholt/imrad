@@ -438,6 +438,9 @@ static void GetDisplayInfo()
     jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
     g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
     g_IOUserData.dpiScale = dpi / 140.0; //relative to laptop screen DPI;
+    //round dpiScale otherwise when using box sizers floating point errors in imgui
+    //accumulate and cause the window contentRegionRect to grow continuously
+    g_IOUserData.dpiScale = std::round(1000 * g_IOUserData.dpiScale) / 1000.0;
     ImGui::GetIO().UserData = &g_IOUserData;
 
     method_id = bl->GetMethodID(bl.native_activity_clazz, "getRotation", "()I");

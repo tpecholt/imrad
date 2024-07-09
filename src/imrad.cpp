@@ -1629,6 +1629,10 @@ RemoveSelected()
 	{
 		ctx.selected.clear();
 	}
+	//always reset layout because removed item may cause box layout to disappear
+	//and layout change won't be detected in BoxLayout::BeginLayout
+	tab.rootNode->ResetLayout();
+
 	return remove;
 }
 

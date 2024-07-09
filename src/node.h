@@ -51,7 +51,7 @@ struct UINode
 	auto FindInRect(const ImRect& r) -> std::vector<UINode*>;
 	auto GetAllChildren() -> std::vector<UINode*>;
 	void CloneChildrenFrom(const UINode& node, UIContext& ctx);
-	void ResetBoxLayout();
+	void ResetLayout();
 
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
@@ -457,7 +457,7 @@ struct Child : Widget
 
 	Child(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int Behavior() { return Widget::Behavior() | SnapInterior | HasSizeX | HasSizeY; }
+	int Behavior();
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);

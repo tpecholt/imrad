@@ -364,12 +364,12 @@ UINode::GetAllChildren()
 	return chs;
 }
 
-void UINode::ResetBoxLayout()
+void UINode::ResetLayout()
 {
 	hbox.clear();
 	vbox.clear();
 	for (auto& ch : children)
-		ch->ResetBoxLayout();
+		ch->ResetLayout();
 }
 
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
@@ -483,7 +483,12 @@ void TopWindow::Draw(UIContext& ctx)
 	{
 		ImGui::SetNextWindowSize(ctx.designAreaMax - ctx.designAreaMin - ImVec2{ 40, 40 });
 	}
-	else if (!(fl & ImGuiWindowFlags_AlwaysAutoResize)) 
+	else if (fl & ImGuiWindowFlags_AlwaysAutoResize)
+	{
+		//prevent autosized window to collapse 
+		ImGui::SetNextWindowSizeConstraints({ 30, 30 }, { FLT_MAX, FLT_MAX });
+	}
+	else
 	{
 		float w = size_x.eval_px(ImGuiAxis_X, ctx);
 		if (!w)
@@ -1054,7 +1059,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if ((ctx.importState == 2 || ctx.importState == 3) && 
 				(sit->kind != cpp::Comment || sit->line.compare(0, 5, "/// @")))
 		{
-			if (ctx.importState == 3 && sit->line.back() == '}') { //reached end of Draw
+			if (ctx.importState == 3 && sit->line.size() && sit->line.back() == '}') { //reached end of Draw
 				sit.base().stream().putback('}');
 				sit.enable_parsing(true);
 				break;
@@ -1386,7 +1391,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 				children.erase(children.begin());
 			bool autoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
 			if (autoResize && !hasAutoResize)
-				ResetBoxLayout();
+				ResetLayout();
 			});
 		break;
 	case 10:
@@ -1645,8 +1650,12 @@ void Widget::Draw(UIContext& ctx)
 			else
 				ImRad::NextColumn(nextColumn);
 		}
-		if (!(l.flags & Layout::Leftmost))
-			ImGui::SameLine();
+		if (!(l.flags & Layout::Leftmost)) {
+			//we need to provide correct spacing even though SetCursorX is called later
+			//because after hbox.Reset() hbox.GetPos() will return CursorPos with a wrong
+			//spacing and it will be used in autosized window contentSize
+			ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
+		}
 
 		if (l.flags & Layout::VLayout)
 		{
@@ -2001,6 +2010,12 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (hasPos)
 	{
+		if (!visible.has_value() || !visible.value())
+		{
+			os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
+			ctx.ind_up();
+			os << ctx.ind << "//visible\n";
+		}
 		os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
 		if (pos_x < 0)
 			os << "ImGui::GetCurrentWindow()->InnerRect.Max.x" << pos_x.to_arg(ctx.unit);
@@ -2023,8 +2038,15 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 			else
 				os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
 		}
+		if (!visible.has_value() || !visible.value())
+		{
+			os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
+			ctx.ind_up();
+			os << ctx.ind << "//visible\n";
+		}
+
 		if (!(l.flags & Layout::Leftmost))
-			os << ctx.ind << "ImGui::SameLine();\n";
+			os << ctx.ind << "ImGui::SameLine(0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x);\n";
 		if (l.flags & Layout::VLayout)
 		{
 			std::ostringstream osv;
@@ -2073,6 +2095,12 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 			else
 				os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
 		}
+		if (!visible.has_value() || !visible.value())
+		{
+			os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
+			ctx.ind_up();
+			os << ctx.ind << "//visible\n";
+		}
 		if (sameLine)
 		{
 			os << ctx.ind << "ImGui::SameLine(";
@@ -2087,16 +2115,11 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			os << ctx.ind << "ImGui::Indent(" << indent << " * ImGui::GetStyle().IndentSpacing / 2);\n";
 		}
-		if (allowOverlap)
-		{
-			os << ctx.ind << "ImGui::SetNextItemAllowOverlap();\n";
-		}
 	}
-	if (!visible.has_value() || !visible.value())
+
+	if (allowOverlap)
 	{
-		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
-		ctx.ind_up();
-		os << ctx.ind << "//visible\n"; 
+		os << ctx.ind << "ImGui::SetNextItemAllowOverlap();\n";
 	}
 	if (!disabled.has_value() || disabled.value())
 	{
@@ -6708,6 +6731,16 @@ std::unique_ptr<Widget> Child::Clone(UIContext& ctx)
 	return sel;
 }
 
+int Child::Behavior() 
+{
+	int fl = Widget::Behavior() | SnapInterior;
+	if (!(flags & ImGuiWindowFlags_AlwaysAutoResize) || !(flags & ImGuiChildFlags_AutoResizeX))
+		fl |= HasSizeX;
+	if (!(flags & ImGuiWindowFlags_AlwaysAutoResize) || !(flags & ImGuiChildFlags_AutoResizeY))
+		fl |= HasSizeY;
+	return fl;
+}
+
 bool Child::IsFirstItem(UIContext& ctx)
 {
 	const auto* parent = ctx.parents[ctx.parents.size() - 2];
@@ -7064,7 +7097,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY))
 					size_y = 0;
 				if (flags & ImGuiChildFlags_AlwaysAutoResize)
-					ResetBoxLayout();
+					ResetLayout();
 			}
 			});
 		break;
