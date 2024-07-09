@@ -1225,7 +1225,7 @@ void ToolbarUI()
 		{
 			int rows = (stx::ssize(cat.second) + n - 1) / n;
 			float h = rows * BTN_SIZE + (rows - 1) * 5;
-			ImGui::BeginChild(("cat" + cat.first).c_str(), { 0, h }, 0, 0);
+			ImGui::BeginChild(("cat" + cat.first).c_str(), { 0, h }, ImGuiChildFlags_NavFlattened, 0);
 			ImGui::Columns(n, nullptr, false);
 			for (const auto& tb : cat.second)
 			{
@@ -1935,7 +1935,7 @@ int main(int argc, const char* argv[])
 	ImGuiIO& io = ImGui::GetIO(); 
 	io.UserData = &ioUserData;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 	
 	// Setup Platform/Renderer backends

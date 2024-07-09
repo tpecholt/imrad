@@ -151,7 +151,7 @@ void ClassWizard::Draw()
 		/// @begin Child
 		ImGui::Spacing();
 		ImGui::Spacing();
-		ImGui::BeginChild("child2551", { 0, -45 }, true);
+		ImGui::BeginChild("child2551", { 0, -45 }, ImGuiChildFlags_Border | ImGuiChildFlags_NavFlattened, 0);
 		float autoSizeW = (ImGui::GetContentRegionAvail().x - 150) / 1;
 		ImGui::Columns(2, "", false);
 		ImGui::SetColumnWidth(0, autoSizeW);

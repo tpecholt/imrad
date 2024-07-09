@@ -442,7 +442,7 @@ struct Table : Widget
 
 struct Child : Widget
 {
-	flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding;
+	flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened;
 	flags_helper wflags = ImGuiWindowFlags_NoSavedSettings;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;

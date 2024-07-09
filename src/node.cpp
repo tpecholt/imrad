@@ -2811,10 +2811,11 @@ void Widget::TreeUI(UIContext& ctx)
 		if (it != label.end())
 			label.erase(0, it - label.begin());
 	}
-	std::string icon;
+	std::string icon = ICON_FA_BARS;
 	if (GetIcon()) {
 		icon = GetIcon();
 	}
+	icon += "##" + std::to_string((unsigned long long)this);
 	std::string suff;
 	if (hasPos)
 		suff += "P";
@@ -2826,19 +2827,14 @@ void Widget::TreeUI(UIContext& ctx)
 	}
 
 	bool selected = stx::count(ctx.selected, this) || ctx.snapParent == this;
-	if (icon != "")
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-	else if (selected)
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
-	else
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_Text]);
-
+	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+	
 	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	//we keep all items open, OpenOnDoubleClick is to block flickering
 	int flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 	if (children.empty())
 		flags |= ImGuiTreeNodeFlags_Leaf;
-	if (ImGui::TreeNodeEx(icon != "" ? icon.c_str() : ICON_FA_BARS, flags))
+	if (ImGui::TreeNodeEx(icon.c_str(), flags))
 	{
 		if (ImGui::IsItemClicked())
 		{
@@ -6692,7 +6688,8 @@ Child::Child(UIContext& ctx)
 	flags.add$(ImGuiChildFlags_AutoResizeX);
 	flags.add$(ImGuiChildFlags_AutoResizeY);
 	flags.add$(ImGuiChildFlags_FrameStyle);
-	
+	flags.add$(ImGuiChildFlags_NavFlattened);
+
 	wflags.prefix("ImGuiWindowFlags_");
 	wflags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 	wflags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
