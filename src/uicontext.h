@@ -50,6 +50,8 @@ struct UIContext
 	std::string userCode;
 	UINode* root = nullptr;
 	ImGuiWindow* rootWin = nullptr;
+	bool isAutoSize;
+	ImU32 layoutHash = 0, prevLayoutHash = 0;
 	bool beingResized = false;
 	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;

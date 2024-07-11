@@ -204,11 +204,13 @@ struct BoxLayout
 		pos1 = HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
 		std::swap(prevItems, items);
 		items.clear();
-
+		
 		float avail = HORIZ ? ImGui::GetContentRegionAvail().x : ImGui::GetContentRegionAvail().y;
 		float total = 0;
 		int num = 0;
-		for (const Item& it : prevItems) {
+		for (Item& it : prevItems) {
+			//it.spacing = (int)it.spacing;
+			//it.size = (int)it.size;
 			total += it.spacing;
 			if (it.size == Stretch)
 				++num;
@@ -217,25 +219,31 @@ struct BoxLayout
 			else
 				total += it.size;
 		}
-		float stretchSize = 0;
-		if (num)
-			stretchSize = (avail - total) / num;
-
+		float stretchSize = 0, firstStretchSize = 0;
+		if (num) {
+			stretchSize = (float)(int)((avail - total) / num + 0.5);
+			firstStretchSize = avail - total - (num - 1) * stretchSize;
+		}
 		for (Item& it : prevItems) {
-			if (it.size == Stretch)
-				it.size = stretchSize;
+			if (it.size == Stretch) {
+				it.size = firstStretchSize;
+				firstStretchSize = stretchSize;
+			}
 			else if (it.size < 0)
 				it.size += avail;
 		}
 	}
+	//call after a widget call
 	void AddSize(int sp, float size) 
 	{
 		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
 		if (size == ItemSize)
 			size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+		int sz = (int)size;
 		items.push_back({ spacing, size });
 	}
-	void UpdateSize(float sp, float size) 
+	//call after a widget call for vert layout having multiple widgets in a row
+	void UpdateSize(float sp, float size)
 	{
 		assert(items.size());
 		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
@@ -289,6 +297,12 @@ using VBox = BoxLayout<false>;
 #ifdef ANDROID
 extern int GetAssetData(const char* filename, void** outData);
 #endif
+
+template <class T>
+inline void HashCombine(ImU32& hash, T data)
+{
+	hash = ImHashData(&data, sizeof(data), hash);
+}
 
 inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)
 {

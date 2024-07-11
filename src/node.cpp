@@ -427,6 +427,8 @@ TopWindow::TopWindow(UIContext& ctx)
 	flags.add$(ImGuiWindowFlags_MenuBar);
 	flags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 	flags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
+	flags.add$(ImGuiWindowFlags_NoNavInputs);
+	flags.add$(ImGuiWindowFlags_NoNavFocus);
 	flags.add$(ImGuiWindowFlags_NoDocking);
 
 	placement.add(" ", None);
@@ -442,6 +444,9 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
 	ctx.unitFactor = ScaleFactor(ctx.unit, "");
 	ctx.root = this;
+	ctx.isAutoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
+	ctx.prevLayoutHash = ctx.layoutHash;
+	ctx.layoutHash = ctx.isAutoSize;
 	ctx.activePopups.clear();
 	ctx.parents = { this };
 	ctx.hovered = nullptr;
@@ -528,10 +533,12 @@ void TopWindow::Draw(UIContext& ctx)
 		ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersBottom);
 
 	ImGui::GetCurrentContext()->NavDisableMouseHover = true;
+	ImGui::GetCurrentContext()->NavDisableHighlight = true;
 	for (size_t i = 0; i < children.size(); ++i)
 	{
 		children[i]->Draw(ctx);
 	}
+	ImGui::GetCurrentContext()->NavDisableHighlight = false;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 
 	//use all client area to allow snapping close to the border
@@ -616,7 +623,7 @@ void TopWindow::Draw(UIContext& ctx)
 	}
 
 	ImGui::End();
-	
+
 	if (!style_bg.empty())
 		ImGui::PopStyleColor();
 	if (!style_menuBg.empty())
@@ -1246,10 +1253,10 @@ void TopWindow::TreeUI(UIContext& ctx)
 	{
 		if (selected)
 			ImGui::PopStyleColor();
-		bool clicked = ImGui::IsItemClicked();
+		bool activated = ImGui::IsItemClicked(); //todo || ImGui::IsItemActivated();
 		ImGui::SameLine(0, 0);
 		ImGui::TextDisabled(" : %s", NAMES[kind]);
-		if (clicked)
+		if (activated)
 		{
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
 				; // don't participate in group selection toggle(ctx.selected, this);
@@ -1389,9 +1396,6 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 				children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
 			else if (!flagsMB && hasMB)
 				children.erase(children.begin());
-			bool autoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
-			if (autoResize && !hasAutoResize)
-				ResetLayout();
 			});
 		break;
 	case 10:
@@ -1631,6 +1635,14 @@ void Widget::Draw(UIContext& ctx)
 	const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
 	ctx.stretchSize = { 0, 0 };
 
+	if (!hasPos && nextColumn) {
+		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+		if (inTable)
+			ImRad::TableNextColumn(nextColumn);
+		else
+			ImRad::NextColumn(nextColumn);
+	}
+
 	if (hasPos) 
 	{
 		ImRect r = ImGui::GetCurrentWindow()->InnerRect;
@@ -1643,13 +1655,6 @@ void Widget::Draw(UIContext& ctx)
 	}
 	else if (l.flags & (Layout::HLayout | Layout::VLayout)) 
 	{
-		if (nextColumn) {
-			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
-			if (inTable)
-				ImRad::TableNextColumn(nextColumn);
-			else
-				ImRad::NextColumn(nextColumn);
-		}
 		if (!(l.flags & Layout::Leftmost)) {
 			//we need to provide correct spacing even though SetCursorX is called later
 			//because after hbox.Reset() hbox.GetPos() will return CursorPos with a wrong
@@ -1682,19 +1687,12 @@ void Widget::Draw(UIContext& ctx)
 			
 			if (l.flags & Layout::Leftmost)
 				hbox.BeginLayout();
-			ImGui::SetCursorPosX(hbox);
+			ImGui::SetCursorPosX(hbox); //currently not needed but may be useful if we upgrade layouts
 			ctx.stretchSize.x = hbox.GetSize();
 		}
 	}
 	else 
 	{
-		if (nextColumn) {
-			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
-			if (inTable)
-				ImRad::TableNextColumn(nextColumn);
-			else
-				ImRad::NextColumn(nextColumn);
-		}
 		if (sameLine) {
 			ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
 		}
@@ -1726,7 +1724,7 @@ void Widget::Draw(UIContext& ctx)
 	DoDraw(ctx);
 	ImGui::EndDisabled();
 	CalcSizeEx(p1, ctx);
-
+	
 	if (!style_text.empty())
 		ImGui::PopStyleColor();
 	if (!style_frameBg.empty())
@@ -1738,6 +1736,8 @@ void Widget::Draw(UIContext& ctx)
 	if (style_font.has_value())
 		ImGui::PopFont();
 
+	if (!hasPos)
+		ImRad::HashCombine(ctx.layoutHash, ImGui::GetItemID());
 	if (l.flags & Layout::VLayout) 
 	{
 		auto& vbox = parent->vbox[l.colId];
@@ -1746,6 +1746,7 @@ void Widget::Draw(UIContext& ctx)
 			sizeY = size_y.stretched() ? ImRad::VBox::Stretch :
 				size_y.zero() ? ImRad::VBox::ItemSize :
 				size_y.eval_px(ImGuiAxis_Y, ctx);
+			ImRad::HashCombine(ctx.layoutHash, sizeY);
 		}
 		if (l.flags & Layout::Leftmost)
 			vbox.AddSize(spacing, sizeY);
@@ -1760,6 +1761,7 @@ void Widget::Draw(UIContext& ctx)
 			sizeX = size_x.stretched() ? ImRad::HBox::Stretch :
 				size_x.zero() ? ImRad::HBox::ItemSize :
 				size_x.eval_px(ImGuiAxis_X, ctx);
+			ImRad::HashCombine(ctx.layoutHash, sizeX);
 		}
 		int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
 		hbox.AddSize(sp, sizeX);
@@ -2008,14 +2010,23 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		stype.erase(0, it - stype.begin());
 	os << ctx.ind << "/// @begin " << stype << "\n";
 
+	if (!hasPos && nextColumn)
+	{
+		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+		if (inTable)
+			os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
+		else
+			os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
+	}
+	if (!visible.has_value() || !visible.value())
+	{
+		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
+		ctx.ind_up();
+		os << ctx.ind << "//visible\n";
+	}
+
 	if (hasPos)
 	{
-		if (!visible.has_value() || !visible.value())
-		{
-			os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
-			ctx.ind_up();
-			os << ctx.ind << "//visible\n";
-		}
 		os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
 		if (pos_x < 0)
 			os << "ImGui::GetCurrentWindow()->InnerRect.Max.x" << pos_x.to_arg(ctx.unit);
@@ -2030,21 +2041,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (l.flags & (Layout::HLayout | Layout::VLayout))
 	{
-		if (nextColumn)
-		{
-			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
-			if (inTable)
-				os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
-			else
-				os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
-		}
-		if (!visible.has_value() || !visible.value())
-		{
-			os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
-			ctx.ind_up();
-			os << ctx.ind << "//visible\n";
-		}
-
 		if (!(l.flags & Layout::Leftmost))
 			os << ctx.ind << "ImGui::SameLine(0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x);\n";
 		if (l.flags & Layout::VLayout)
@@ -2087,20 +2083,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 	else
 	{
-		if (nextColumn)
-		{
-			bool inTable = dynamic_cast<Table*>(ctx.parents.back());
-			if (inTable)
-				os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
-			else
-				os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
-		}
-		if (!visible.has_value() || !visible.value())
-		{
-			os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
-			ctx.ind_up();
-			os << ctx.ind << "//visible\n";
-		}
 		if (sameLine)
 		{
 			os << ctx.ind << "ImGui::SameLine(";
@@ -2376,7 +2358,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			(sit->callee.find(".AddSize") != std::string::npos ||
 			 sit->callee.find(".UpdateSize") != std::string::npos))
 		{
-			if (sit->callee.find(".AddSize") && sit->params.size())
+			if (sit->callee.find(".AddSize") != std::string::npos && sit->params.size())
 				spacing.set_from_arg(sit->params[0]);
 
 			if (sit->params.size() >= 2) 
@@ -6719,6 +6701,7 @@ Child::Child(UIContext& ctx)
 	wflags.add$(ImGuiWindowFlags_NoBackground);
 	wflags.add$(ImGuiWindowFlags_NoScrollbar);
 	wflags.add$(ImGuiWindowFlags_NoSavedSettings);
+	wflags.add$(ImGuiWindowFlags_NoNavInputs);
 
 	InitDimensions(ctx);
 }
@@ -6755,6 +6738,12 @@ bool Child::IsFirstItem(UIContext& ctx)
 
 void Child::DoDraw(UIContext& ctx)
 {
+	if (flags & ImGuiWindowFlags_AlwaysAutoResize) 
+	{
+		ctx.isAutoSize = true;
+		ImRad::HashCombine(ctx.layoutHash, true);
+	}
+
 	ImVec2 sz;
 	sz.x = size_x.eval_px(ImGuiAxis_X, ctx);
 	sz.y = size_y.eval_px(ImGuiAxis_Y, ctx);
@@ -7096,8 +7085,6 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 					size_x = 0;
 				if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY))
 					size_y = 0;
-				if (flags & ImGuiChildFlags_AlwaysAutoResize)
-					ResetLayout();
 			}
 			});
 		break;

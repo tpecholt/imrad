@@ -41,6 +41,7 @@ public:
 	bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
 	const Var* GetVar(const std::string& name, const std::string& scope = "") const;
 	const std::vector<Var>& GetVars(const std::string& scope = "");
+	std::vector<std::string> GetLayoutVars();
 	std::vector<std::string> GetStructTypes();
 	enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
 	VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");

@@ -1028,6 +1028,7 @@ void ToolbarUI()
 		| ImGuiWindowFlags_NoResize
 		| ImGuiWindowFlags_NoMove
 		| ImGuiWindowFlags_NoScrollbar
+		| ImGuiWindowFlags_NoNavInputs
 		;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
 	ImGui::Begin("TOOLBAR", nullptr, window_flags);
@@ -1629,9 +1630,6 @@ RemoveSelected()
 	{
 		ctx.selected.clear();
 	}
-	//always reset layout because removed item may cause box layout to disappear
-	//and layout change won't be detected in BoxLayout::BeginLayout
-	tab.rootNode->ResetLayout();
 
 	return remove;
 }
@@ -1962,7 +1960,7 @@ int main(int argc, const char* argv[])
 		}
 		else if (glfwWindowShouldClose(window))
 		{
-			if (programState == Run) { 
+			if (programState == Run) {
 				programState = Shutdown;
 				//save state before files close
 				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
@@ -2004,6 +2002,13 @@ int main(int argc, const char* argv[])
 		//ImGui::ShowDemoWindow();
 
 		// Rendering
+		if (ctx.isAutoSize && ctx.layoutHash != ctx.prevLayoutHash) 
+		{
+			ctx.root->ResetLayout();
+			if (ctx.rootWin)
+				ctx.rootWin->HiddenFramesCannotSkipItems = 2; //flicker removal
+		}
+		
 		ImGui::Render();
 		int display_w, display_h;
 		glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -2011,7 +2016,6 @@ int main(int argc, const char* argv[])
 		glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
 		glClear(GL_COLOR_BUFFER_BIT);
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
 		glfwSwapBuffers(window);
 	}
 

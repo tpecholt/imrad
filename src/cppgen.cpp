@@ -10,7 +10,7 @@ const std::string CppGen::INDENT = "    ";
 const std::string CppGen::FOR_VAR = "i";
 
 const std::string SPEC_FUN[] = {
-	"Open", "Close", "OpenPopup", "ClosePopup", "Init", "Draw",
+	"Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw",
 };
 
 CppGen::CppGen()
@@ -174,6 +174,7 @@ CppGen::ExportH(
 	std::string className;
 	std::string origName, origVName;
 	std::stringstream out;
+	bool hasLayout = GetLayoutVars().size();
 
 	auto copy_content = [&] {
 		std::string buf;
@@ -222,7 +223,7 @@ CppGen::ExportH(
 				}
 				else if (node->kind == TopWindow::Activity)
 				{
-					out << INDENT << "void Open();\n\n";
+					out << INDENT << "void Open();\n";
 					out << INDENT << "void Draw();\n\n";
 				}
 				else
@@ -277,14 +278,42 @@ CppGen::ExportH(
 				ignore_section = true;
 				copy_content();
 				out << "\n";
+				
+				//write special members
+				bool delim = false;
+				if (hasLayout)
+				{
+					out << INDENT << "void ResetLayout();\n";
+					delim = true;
+				}
 
-				//write special fields
 				if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
 					node->kind == TopWindow::Activity)
 				{
-					out << INDENT << "void Init();\n\n";
+					out << INDENT << "void Init();\n";
+					delim = true;
 				}
 
+				if (delim)
+					out << "\n";
+
+				//write events
+				for (const auto& var : m_fields[""])
+				{
+					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
+						continue;
+					if ((var.type.size() >= 5 && !var.type.compare(0, 5, "void(")) &&
+						!stx::count(SPEC_FUN, var.name))
+					{
+						out << INDENT << "void " << var.name << "(";
+						std::string arg = var.type.substr(5, var.type.size() - 6);
+						if (arg.size())
+							out << "const " << arg << "& args";
+						out << ");\n";
+					}
+				}
+
+				//special fields
 				if (node->kind == TopWindow::ModalPopup)
 				{
 					out << INDENT << "ImGuiID ID = 0;\n";
@@ -308,32 +337,8 @@ CppGen::ExportH(
 				{
 					out << INDENT << "bool isOpen = true;\n";
 				}
-				else if (node->kind == TopWindow::MainWindow || node->kind == TopWindow::Activity)
-				{
-				}
-				else
-				{
-					assert(false);
-				}
-
-				//write impl fields
-				for (const auto& var : m_fields[""])
-				{
-					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
-						continue;
-					if ((var.type.size() >= 5 && !var.type.compare(0, 5, "void(")) &&
-						!stx::count(SPEC_FUN, var.name))
-					{
-						out << INDENT << "void " << var.name << "(";
-						std::string arg = var.type.substr(5, var.type.size() - 6);
-						if (arg.size())
-							out << "const " << arg << "& args";
-						out << ");\n";
-					}
-				}
 				
-				//write impl events
-				out << "\n";
+				//other fields
 				for (const auto& var : m_fields[""])
 				{
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
@@ -446,7 +451,7 @@ CppGen::ExportCpp(
 	int comment_to_level = -1;
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
-	std::set<std::string> events;
+	std::set<std::string> funs;
 	auto animPos = node->animate ? (TopWindow::Placement)node->placement : TopWindow::None;
 
 	//xpos == 0 => copy until current position
@@ -484,44 +489,39 @@ CppGen::ExportCpp(
 			else if (tok == "{") {
 				++level;
 				auto name = IsMemFun(line);
-				if (name != "")
+				//rewrite generated functions
+				if (name == "Init") 
 				{
-					//rewrite generated functions
-					if (name == "Draw")
-					{
-						events.insert(name);
+					std::ostringstream tmp;
+					if (WriteStub(tmp, name, node->kind, animPos)) {
+						funs.insert(name);
+						//copy following code
+					}
+					else {
+						//remove member which is no longer needed
+						//Init contains user code so we don't want to delete it completely
+						fout.seekp((int)fout.tellp() - 5 - m_name.size());
+						comment_to_level = level - 1;
+						fpos = fprev.tellg();
+						fout << "/* void " << m_name << "::" << name << "() REMOVED\n{";
+					}
+				}
+				else if (stx::count(SPEC_FUN, name)) 
+				{
+					if (WriteStub(fout, name, node->kind, animPos, params, code)) {
+						funs.insert(name);
 						skip_to_level = level - 1;
-						WriteStub(fout, "Draw", node->kind, animPos, params, code);
 					}
-					else if (name == "Init") 
-					{
-						events.insert(name);
+					else {
+						//remove member which is no longer needed
+						fout.seekp((int)fout.tellp() - 5 - m_name.size());
+						skip_to_level = level - 1;
+						fout << "// void " << m_name << "::" << name << " REMOVED";
 					}
-					else if (stx::count(SPEC_FUN, name)) 
-					{
-						if (WriteStub(fout, name, node->kind, animPos)) {
-							events.insert(name);
-							skip_to_level = level - 1;
-						}
-						else {
-							//remove member which is no longer needed
-							fout.seekp((int)fout.tellp() - 5 - m_name.size());
-							if (name == "Init") {
-								//Init contains user code so we don't want to delete it completely
-								comment_to_level = level - 1;
-								fpos += fprev.tellg() - fpos;
-								fout << "/* void " << m_name << "::" << name << "() REMOVED\n{";
-							}
-							else {
-								skip_to_level = level - 1;
-								fout << "// void " << m_name << "::" << name << " REMOVED";
-							}
-						}
-					}
-					else
-					{
-						events.insert(name);
-					}
+				}
+				else if (name != "")
+				{
+					funs.insert(name);
 				}
 				line.clear();
 			}
@@ -572,11 +572,11 @@ CppGen::ExportCpp(
 	//add missing members
 	for (const auto& name : SPEC_FUN)
 	{
-		if (events.count(name))
+		if (funs.count(name))
 			continue;
 		std::ostringstream os;
 		if (WriteStub(os, name, node->kind, animPos, params, code)) {
-			events.insert(name);
+			funs.insert(name);
 			fout << "\nvoid " << m_name << os.str() << "\n";
 		}
 	}
@@ -588,7 +588,7 @@ CppGen::ExportCpp(
 			continue;
 		if (var.type.compare(0, 5, "void("))
 			continue;
-		if (events.count(var.name) || stx::count(SPEC_FUN, var.name))
+		if (funs.count(var.name) || stx::count(SPEC_FUN, var.name))
 			continue;
 		fout << "\nvoid " << m_name << "::" << var.name << "(";
 		std::string arg = var.type.substr(5, var.type.size() - 6);
@@ -596,6 +596,18 @@ CppGen::ExportCpp(
 			fout << "const " << arg << "& args";
 		fout << ")\n{\n}\n";
 	}
+}
+
+std::vector<std::string> CppGen::GetLayoutVars()
+{
+	std::vector<std::string> vars;
+	const auto& allVars = m_fields[""];
+	for (const Var& var : allVars)
+	{
+		if (var.type == "ImRad::HBox" || var.type == "ImRad::VBox")
+			vars.push_back(var.name);
+	}
+	return vars;
 }
 
 //we always replace code of all generated functions because parameters and code depend
@@ -707,6 +719,15 @@ bool CppGen::WriteStub(
 	{
 		fout << "::Init()\n{\n";
 		fout << INDENT << "// TODO: Add your code here\n";
+		fout << "}";
+		return true;
+	}
+	else if (id == "ResetLayout" && GetLayoutVars().size())
+	{
+		auto vars = GetLayoutVars();
+		fout << "::ResetLayout()\n{\n";
+		for (const std::string& var : vars)
+			fout << INDENT << var << ".Reset();\n";
 		fout << "}";
 		return true;
 	}
