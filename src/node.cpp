@@ -2282,10 +2282,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.importLevel = -1;
 	ctx.parents.push_back(this);
 	userCodeBefore = ctx.userCode;
-	
-	Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
-	spacing = (l.flags & Layout::Topmost) ? 0 : 1; //default ImGui spacing
-	
+	spacing = -1;
+
 	while (sit != cpp::stmt_iterator())
 	{
 		cpp::stmt_iterator ifBlockIt;
@@ -2396,14 +2394,15 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Spacing") //compatibility
 		{
-			++spacing;
+			spacing = 1;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::Spacing")
 		{
 			if (sit->params.size()) {
-				int def = spacing;
 				spacing.set_from_arg(sit->params[0]);
-				spacing += def;
+				Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
+				int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1; //default ImGui spacing
+				spacing += defSpacing;
 			}
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Indent")
@@ -2521,6 +2520,12 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				DoImport(screenPosIt, ctx);
 			}
 		}
+	}
+
+	if (spacing < 0) 
+	{
+		Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
+		spacing = (l.flags & Layout::Topmost) ? 0 : 1; //default ImGui spacing
 	}
 
 	ctx.parents.pop_back();
@@ -2670,7 +2675,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 9:
 		ImGui::BeginDisabled(!snapSides);
-		ImGui::Text("spacing");
+		ImGui::Text(sameLine && !nextColumn ? "spacing_x" : "spacing_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputInt("##spacing", spacing.access());

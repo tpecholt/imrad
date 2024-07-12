@@ -1549,6 +1549,13 @@ void Draw()
 	ctx.workingDir = fs::path(tab.fname).parent_path().string();
 	ctx.unit = tab.unit;
 	tab.rootNode->Draw(ctx);
+	
+	if (ctx.isAutoSize && ctx.layoutHash != ctx.prevLayoutHash)
+	{
+		ctx.root->ResetLayout();
+		if (ctx.rootWin)
+			ctx.rootWin->HiddenFramesCannotSkipItems = 2; //flicker removal
+	}
 
 	ImGui::PopFont();
 	ImGui::GetStyle() = tmpStyle;
@@ -1733,12 +1740,19 @@ void Work()
 			if (ctx.snapIndex < ctx.snapParent->children.size())
 			{
 				auto& next = ctx.snapParent->children[ctx.snapIndex];
-				if (ctx.snapSetNextSameLine) {
+				if (ctx.snapSetNextSameLine) 
+				{
 					next->nextColumn = false;
 					next->sameLine = true;
-					next->spacing = std::max((int)next->spacing, 1);
+					if (!ctx.snapSameLine) {
+						newNodes[0]->spacing = next->spacing;
+						next->spacing = 1;
+					}
+					else
+						next->spacing = std::max((int)next->spacing, 1);
 				}
-				if (ctx.snapClearNextNextColumn) {
+				if (ctx.snapClearNextNextColumn) 
+				{
 					next->nextColumn = 0;
 					next->sameLine = false;
 					next->spacing = std::max((int)next->spacing, 1);
@@ -2004,13 +2018,6 @@ int main(int argc, const char* argv[])
 		//ImGui::ShowDemoWindow();
 
 		// Rendering
-		if (ctx.isAutoSize && ctx.layoutHash != ctx.prevLayoutHash) 
-		{
-			ctx.root->ResetLayout();
-			if (ctx.rootWin)
-				ctx.rootWin->HiddenFramesCannotSkipItems = 2; //flicker removal
-		}
-		
 		ImGui::Render();
 		int display_w, display_h;
 		glfwGetFramebufferSize(window, &display_w, &display_h);
