@@ -12,7 +12,7 @@ class AboutDlg
 public:
     /// @begin interface
     void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});
-    void ClosePopup(ImRad::ModalResult mr);
+    void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);
     void Draw();
 
     void OpenURL();
@@ -22,11 +22,11 @@ private:
     /// @begin impl
     void Init();
 
+    void HoverURL();
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
-    ImRad::Animator animator;
     std::function<void(ImRad::ModalResult)> callback;
-
+    ImRad::Texture value1;
     /// @end impl
 };
 

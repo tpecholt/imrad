@@ -1918,8 +1918,8 @@ int main(int argc, const char* argv[])
 	if (window == NULL)
 		return 1;
 	GLFWimage icons[2];
-	icons[0].pixels = stbi_load("icon-40.png", &icons[0].width, &icons[0].height, 0, 4);
-	icons[1].pixels = stbi_load("icon-100.png", &icons[1].width, &icons[1].height, 0, 4);
+	icons[0].pixels = stbi_load((rootPath + "/style/icon-40.png").c_str(), &icons[0].width, &icons[0].height, 0, 4);
+	icons[1].pixels = stbi_load((rootPath + "/style/icon-100.png").c_str(), &icons[1].width, &icons[1].height, 0, 4);
 	if (icons[0].pixels && icons[1].pixels)
 		glfwSetWindowIcon(window, 2, icons);
 	stbi_image_free(icons[0].pixels);

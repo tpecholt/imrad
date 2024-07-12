@@ -31,5 +31,3 @@ add_dependencies(imrad nativefiledialog)
 
 install(FILES "imrad.h" DESTINATION "include/")
 install(TARGETS imrad DESTINATION ".")
-install(FILES "icon-40.png" DESTINATION ".")
-install(FILES "icon-100.png" DESTINATION ".")
