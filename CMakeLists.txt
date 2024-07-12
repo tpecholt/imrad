@@ -46,9 +46,13 @@ install(
     DESTINATION "style"
 )
 
-include(ExternalProject)
 include(cmake/glfw.cmake)
 include(cmake/imgui.cmake)
+include(cmake/fa.cmake)
+include(cmake/stb.cmake)
+include(cmake/freetype.cmake)
+
+include(ExternalProject)
 set(NFD_PREFIX 3rdparty/nativefiledialog)
 ExternalProject_Add(nativefiledialog
   PREFIX ${NFD_PREFIX}
@@ -59,9 +63,6 @@ ExternalProject_Add(nativefiledialog
 )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/${NFD_PREFIX}/src/include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/${NFD_PREFIX}/src/nativefiledialog-build/src/)
-
-include(cmake/fa.cmake)
-include(cmake/stb.cmake)
 
 add_subdirectory(src)
 

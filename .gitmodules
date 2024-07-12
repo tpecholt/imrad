@@ -13,4 +13,7 @@
 [submodule "3rdparty/nativefiledialog"]
 	path = 3rdparty/nativefiledialog
 	url = https://github.com/btzy/nativefiledialog-extended.git
-        branch = master
+	branch = master
+[submodule "3rdparty/freetype"]
+	path = 3rdparty/freetype
+	url = https://github.com/freetype/freetype.git

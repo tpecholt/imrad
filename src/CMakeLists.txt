@@ -18,9 +18,9 @@ add_definitions(-DIMRAD_WITH_STB)
 
 target_link_libraries(imrad
 	fa
-	nfd
-	imgui
 	glfw
+	imgui
+	nfd
 	stb
 	${OPENGL_LIBRARIES}
 	${CMAKE_DL_LIBS}

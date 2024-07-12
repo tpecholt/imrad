@@ -773,6 +773,8 @@ GetCtxColors(const std::string& styleName)
 
 void LoadStyle()
 {
+	const float FONT_SIZE = 20.f;
+	const float FA_SIZE = 18.f;
 	if (!reloadStyle)
 		return;
 	
@@ -787,16 +789,16 @@ void LoadStyle()
 	
 	//reload ImRAD UI first
 	StyleColors();
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
 	static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig cfg;
 	cfg.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAR).c_str(), 18.0f, &cfg, icons_ranges);
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), 18.0f, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAR).c_str(), FA_SIZE, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), FA_SIZE, &cfg, icons_ranges);
 	cfg.MergeMode = false;
 	strcpy(cfg.Name, "imrad.H1");
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 26, &cfg);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE * 1.5, &cfg);
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
@@ -809,7 +811,7 @@ void LoadStyle()
 		if (styleName == "Classic")
 		{
 			ImGui::StyleColorsClassic(&ctx.style);
-			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
 			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
@@ -817,7 +819,7 @@ void LoadStyle()
 		else if (styleName == "Light")
 		{
 			ImGui::StyleColorsLight(&ctx.style);
-			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
 			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
@@ -825,7 +827,7 @@ void LoadStyle()
 		else if (styleName == "Dark")
 		{
 			ImGui::StyleColorsDark(&ctx.style);
-			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), 20.0f);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
 			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
