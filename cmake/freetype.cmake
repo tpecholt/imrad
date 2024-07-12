@@ -4,4 +4,4 @@ option(FT_DISABLE_HARFBUZZ ON)
 option(FT_DISABLE_PNG ON)
 option(FT_DISABLE_ZLIB ON)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty/freetype)
+add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty/freetype EXCLUDE_FROM_ALL)

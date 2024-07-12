@@ -21,17 +21,10 @@ else()
     find_library(MISC_FRAMEWORKS UniformTypeIdentifiers)
     set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
   elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Linux")
-      find_package(PkgConfig REQUIRED)
-      pkg_check_modules(MISC REQUIRED gtk+-3.0 glib-2.0)
-      set(MISC_FRAMEWORKS "${MISC_STATIC_LIBRARIES}")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(MISC REQUIRED gtk+-3.0 glib-2.0)
+    set(MISC_FRAMEWORKS "${MISC_STATIC_LIBRARIES}")
   endif()
-
-    # boost errors
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings -fext-numeric-literals")
-    # imgui opengl3 warnings
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-warning-option")
-    # strip binaries
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
     add_definitions(-DGL_SILENCE_DEPRECATION=1)
 endif()
