@@ -64,7 +64,7 @@ struct File
 enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
 std::string rootPath;
-std::string initErrors;
+std::string initErrors, showError;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -839,37 +839,35 @@ void LoadStyle()
 			try {
 				auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
 				ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
+			
+				ctx.defaultFont = fontMap[""];
+				for (const auto& f : fontMap) {
+					ctx.fontNames.push_back(f.first);
+				}
+				for (const auto& ex : extra) {
+					if (ex.first.compare(0, 13, "imrad.colors."))
+						continue;
+					std::istringstream is(ex.second);
+					int r, g, b, a;
+					is >> r >> g >> b >> a;
+					auto clr = IM_COL32(r, g, b, a);
+					std::string key = ex.first.substr(13);
+
+	#define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
+					SET_CLR(Selected);
+					SET_CLR(Hovered);
+					SET_CLR(Snap1);
+					SET_CLR(Snap2);
+					SET_CLR(Snap3);
+					SET_CLR(Snap4);
+					SET_CLR(Snap5);
+	#undef SET_CLR
+				}
 			}
 			catch (std::exception& e)
 			{
-				messageBox.title = "Error";
-				messageBox.message = e.what();
-				messageBox.buttons = ImRad::Ok;
-				messageBox.OpenPopup();
-				return;
-			}
-			ctx.defaultFont = fontMap[""];
-			for (const auto& f : fontMap) {
-				ctx.fontNames.push_back(f.first);
-			}
-			for (const auto& ex : extra) {
-				if (ex.first.compare(0, 13, "imrad.colors."))
-					continue;
-				std::istringstream is(ex.second);
-				int r, g, b, a;
-				is >> r >> g >> b >> a;
-				auto clr = IM_COL32(r, g, b, a);
-				std::string key = ex.first.substr(13);
-
-#define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
-				SET_CLR(Selected);
-				SET_CLR(Hovered);
-				SET_CLR(Snap1);
-				SET_CLR(Snap2);
-				SET_CLR(Snap3);
-				SET_CLR(Snap4);
-				SET_CLR(Snap5);
-#undef SET_CLR
+				//can't OpenPopup here, there is no window parent
+				showError = e.what();
 			}
 		}
 	}
@@ -1486,7 +1484,7 @@ void PropertyRowsUI(bool pr)
 void PropertyUI()
 {
 	bool tmp = false;
-	ImGui::PushFont(ctx.defaultFont);
+	//ImGui::PushFont(ctx.defaultFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	
 	ImGui::Begin("Events");
@@ -1508,7 +1506,7 @@ void PropertyUI()
 	ImGui::End();
 	
 	ImGui::PopStyleVar();
-	ImGui::PopFont();
+	//ImGui::PopFont();
 	pgFocused = tmp;
 }
 
@@ -1657,7 +1655,15 @@ void Work()
 		messageBox.OpenPopup();
 		initErrors = "";
 	}
-	
+	else if (showError != "")
+	{
+		messageBox.title = "Error";
+		messageBox.message = showError;
+		messageBox.buttons = ImRad::Ok;
+		messageBox.OpenPopup();
+		showError = "";
+	}
+
 	if (programState == Shutdown)
 	{
 		CloseFile();
@@ -1974,16 +1980,25 @@ int main(int argc, const char* argv[])
 		{
 			programState = Run;
 		}
-		else if (glfwWindowShouldClose(window))
+		else if (programState == Shutdown) 
 		{
-			if (programState == Run) {
+			if (fileTabs.empty()) //Work() will close the tabs
+				break;
+		}
+		else if (programState == Run && glfwWindowShouldClose(window))
+		{
+			if (ImGui::GetTopMostAndVisiblePopupModal())
+			{
+				glfwSetWindowShouldClose(window, false);
+			}
+			else
+			{	
 				programState = Shutdown;
 				//save state before files close
 				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
 				ImGui::GetIO().IniFilename = nullptr;
+
 			}
-			if (fileTabs.empty()) //Work() will close the tabs
-				break;
 		}
 
 		//font loading must be called before NewFrame

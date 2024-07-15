@@ -4864,7 +4864,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##label", label.access());
+		changed = InputDirectVal("##label", &label, ctx);
 		break;
 	case 5:
 		ImGui::Text("type");
@@ -5147,7 +5147,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##label", label.access());
+		changed = InputDirectVal("##label", &label, ctx);
 		break;
 	case 1:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -5166,6 +5166,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 			std::string tmp = *items.access(); //preserve embeded nulls
 			stx::replace(tmp, '\0', '\n');
 			comboDlg.value = tmp;
+			comboDlg.defaultFont = ctx.defaultFont;
 			comboDlg.OpenPopup([this](ImRad::ModalResult) {
 				std::string tmp = comboDlg.value;
 				if (!tmp.empty() && tmp.back() != '\n')
@@ -5382,7 +5383,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##label", label.access());
+		changed = InputDirectVal("##label", &label, ctx);
 		break;
 	case 1:
 		ImGui::Text("type");
@@ -5777,7 +5778,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##label", label.access());
+		changed = InputDirectVal("##label", &label, ctx);
 		break;
 	case 2:
 		ImGui::Text("type");
@@ -6349,6 +6350,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 			changed = true;
 			tableColumns.columnData = columnData;
 			tableColumns.target = &columnData;
+			tableColumns.defaultFont = ctx.defaultFont;
 			tableColumns.OpenPopup();
 		}
 		break;
@@ -8510,7 +8512,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##label", label.access());
+		changed = InputDirectVal("##label", &label, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 5:

@@ -50,11 +50,13 @@ void TableColumns::Draw()
 					selY = cy;
 				
 				/// @begin Input
+				ImGui::PushFont(defaultFont);
 				ImGui::SetNextItemWidth(-1);
 				ImGui::InputText("##lab", &cd.label);
 				if (ImGui::IsItemFocused() || selRow < 0) {
 					selRow = i;
 				}
+				ImGui::PopFont();
 				/// @end Input
 				
 				/// @begin Combo

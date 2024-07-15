@@ -77,7 +77,8 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
 	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sp);
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + sp);
 	ImGui::BeginChild(("child" + std::string(label)).c_str(), { 11, 11 }, true);
-	bool pushed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered();
+	bool pushed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered()
+		&& !ImRad::IsItemDisabled();
 	ImGui::EndChild();
 	ImGui::PopStyleColor();
 	if (pushed)
@@ -130,7 +131,10 @@ inline bool InputDirectVal(const char* label, direct_val<bool>* val, UIContext& 
 
 inline bool InputDirectVal(const char* label, direct_val<std::string>* val, UIContext& ctx)
 {
-	return ImGui::InputText(label, val->access());
+	ImGui::PushFont(ctx.defaultFont);
+	bool ch = ImGui::InputText(label, val->access());
+	ImGui::PopFont();
+	return ch;
 }
 
 inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, UIContext& ctx)
@@ -396,8 +400,9 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 
 inline bool InputBindable(const char* label, bindable<std::string>* val, UIContext& ctx)
 {
+	ImGui::PushFont(ctx.defaultFont);
 	bool changed = ImGui::InputText(label, val->access());
-	
+	ImGui::PopFont();
 	return changed;
 }
 

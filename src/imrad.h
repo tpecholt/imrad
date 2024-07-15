@@ -893,13 +893,14 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 			}
 			else if (cat == "fonts")
 			{
-				std::string path;
+				std::string fname, path;
 				float size = 20;
 				ImVec2 goffset;
 				bool hasRange = false;
 				static std::vector<std::unique_ptr<ImWchar[]>> rngs;
 
-				is >> std::quoted(path);
+				is >> std::quoted(fname);
+				path = fname;
 				bool isAbsolute = path.size() >= 2 && (path[0] == '/' || path[1] == ':');
 				if (!isAbsolute)
 					path = parentPath + path;
@@ -928,9 +929,11 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
 				cfg.GlyphOffset = { goffset.x * fontScaling, goffset.y * fontScaling };
 #ifdef ANDROID
 				void* font_data;
-				int font_data_size = GetAssetData(path.c_str(), &font_data);
+				int font_data_size = GetAssetData(fname.c_str(), &font_data);
 				ImFont* fnt = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, size * fontScaling);
 #else
+				if (!std::ifstream(path))
+					throw std::runtime_error("Can't read '" + path + "'");
 				ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size * fontScaling, &cfg);
 #endif
 				if (!fnt)

@@ -16,6 +16,7 @@ public:
     void Draw();
 
     std::string value;
+	ImFont* defaultFont = nullptr;
 
 private:
     /// @impl
