@@ -624,8 +624,9 @@ struct TopWindow : UINode
 	direct_val<bool> animate = false;
 
 	event<> onBackButton;
+	event<> onWindowAppearing;
 
-	std::string userCodeBefore, userCodeAfter;
+	std::string userCodeBefore, userCodeAfter, userCodeMid;
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);

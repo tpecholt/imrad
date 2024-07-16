@@ -302,7 +302,8 @@ namespace cpp
 					++iter;
 				}
 				else if (*iter == "{" && !parenthesis) {
-					if (!tokens.empty() && is_id(tokens.back())) {
+					if (!tokens.empty() && is_id(tokens.back()) && tokens.back() != "else") {
+						//brace-initialization
 						tokens.push_back(*iter);
 						eat_level = ++data.level;
 						++iter;

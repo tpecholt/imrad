@@ -761,11 +761,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				<< std::boolalpha << !(flags & ImGuiWindowFlags_NoTitleBar) << ");\n";
 			ctx.ind_down();
 			os << ctx.ind << "}\n";
-
-			os << ctx.ind << "ImVec2 csize = ImGui::GetCurrentWindow()->ContentSize;\n";
-			os << ctx.ind << "csize.x += 2 * ImGui::GetStyle().WindowPadding.x;\n";
-			os << ctx.ind << "csize.y += 2 * ImGui::GetStyle().WindowPadding.y;\n";
-			os << ctx.ind << "glfwSetWindowSize(window, (int)csize.x, (int)csize.y);\n";
+			//glfwSetWindowSize only when SizeFull is determined
+			//alternatively calculate it from ContentSize + padding
+			os << ctx.ind << "else\n" << ctx.ind << "{\n";
+			ctx.ind_up();
+			os << ctx.ind << "ImVec2 size = ImGui::GetCurrentWindow()->SizeFull;\n";
+			os << ctx.ind << "glfwSetWindowSize(window, (int)size.x, (int)size.y);\n";
+			ctx.ind_down();
+			os << ctx.ind << "}\n";
 		}
 		else
 		{
@@ -959,9 +962,19 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "}\n";
 	}
 	
+	if (!onWindowAppearing.empty())
+	{
+		os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
+		ctx.ind_up();
+		os << ctx.ind << onWindowAppearing.to_arg() << "();\n";
+		ctx.ind_down();
+	}
+
 	os << ctx.ind << "/// @separator\n\n";
 	
 	//at next import comment becomes userCode
+	/*if (userCodeMid != "")
+		os << userCodeMid << "\n";*/
 	if (children.empty() || children[0]->userCodeBefore.empty())
 		os << ctx.ind << "// TODO: Add Draw calls of dependent popup windows here\n\n";
 
@@ -1017,6 +1030,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.parents = { this };
 	ctx.kind = kind = Window;
 	bool hasGlfw = false;
+	bool windowAppearing = false;
 	
 	while (sit != cpp::stmt_iterator())
 	{
@@ -1047,6 +1061,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 18, "/// @end TopWindow"))
 		{
 			ctx.importState = 3;
+			ctx.userCode = "";
 			sit.enable_parsing(false);
 		}
 		else if (sit->kind == cpp::Comment && !sit->line.compare(0, 14, "/// @separator"))
@@ -1059,6 +1074,9 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else { //separator at end
 				if (!children.empty())
 					children.back()->userCodeAfter = ctx.userCode;
+				else
+					userCodeMid = ctx.userCode;
+				ctx.userCode = "";
 				ctx.importState = 1;
 				sit.enable_parsing(true);
 			}
@@ -1074,6 +1092,15 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (ctx.userCode != "")
 				ctx.userCode += "\n";
 			ctx.userCode += sit->line;
+		}
+		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::IsWindowAppearing")
+		{
+			windowAppearing = true;
+		}
+		else if (sit->kind == cpp::Other && sit->line == "else" && 
+			sit->level == ctx.importLevel + 1)
+		{
+			windowAppearing = false;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
@@ -1122,7 +1149,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				title.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSize" && 
-			sit->level == ctx.importLevel + 2) //in IsWindowAppearing only
+			windowAppearing)
 		{
 			hasGlfw = true;
 			if (sit->params.size() >= 3) {
@@ -1153,6 +1180,11 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsKeyPressed(ImGuiKey_AppBack)")
 		{
 			onBackButton.set_from_arg(sit->callee2);
+		}
+		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsWindowAppearing")
+		{
+			if (sit->params.empty() && sit->params2.empty())
+				onWindowAppearing.set_from_arg(sit->callee2);
 		}
 		else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
 			sit->callee == "ImGui::BeginPopupModal")
@@ -1473,6 +1505,7 @@ std::vector<UINode::Prop>
 TopWindow::Events()
 {
 	return {
+		{ "OnWindowAppearing", &onWindowAppearing },
 		{ "OnBackButton", &onBackButton },
 	};
 }
@@ -1485,10 +1518,16 @@ bool TopWindow::EventUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("OnWindowAppearing");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##OnWindowAppearing", &onWindowAppearing, ctx);
+		break;
+	case 1:
 		ImGui::Text("OnBackButton");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
-		changed = InputEvent("##OnBakButton", &onBackButton, ctx);
+		changed = InputEvent("##OnBackButton", &onBackButton, ctx);
 		break;
 	}
 	return changed;

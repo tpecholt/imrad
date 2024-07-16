@@ -783,9 +783,7 @@ void LoadStyle()
 	io.Fonts->Clear();
 
 	ctx.dashTexId = ImRad::LoadTextureFromFile(
-		(rootPath + "/style/dash.png").c_str(),
-		GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT
-	).id;
+		(rootPath + "/style/dash.png").c_str(), GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT).id;
 	
 	//reload ImRAD UI first
 	StyleColors();
