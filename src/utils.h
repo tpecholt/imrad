@@ -57,15 +57,4 @@ inline std::ostream& operator<< (std::ostream& os, std::string_view t)
 	return os;
 }
 
-inline float ScaleFactor(std::string_view from, std::string_view to)
-{
-	//on non-adroid platform dp unit should equal to pixels
-	float scale = 1;
-	if (from == "fs")
-		scale *= ImGui::GetFontSize();
-	if (to == "fs")
-		scale /= ImGui::GetFontSize();
-	return scale;
-}
-
 void ShellExec(const std::string& path);

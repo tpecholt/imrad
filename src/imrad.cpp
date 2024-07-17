@@ -1154,7 +1154,6 @@ void ToolbarUI()
 			auto& tab = fileTabs[activeTab];
 			auto oldUnit = tab.unit;
 			tab.unit = UNITS[usel];
-			tab.rootNode->ScaleDimensions(ScaleFactor(oldUnit, tab.unit));
 			tab.modified = true;
 			});
 	}
@@ -1540,8 +1539,9 @@ void Draw()
 	auto tmpStyle = ImGui::GetStyle();
 	ImGui::GetStyle() = ctx.style;
 	ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
+	ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
 	ImGui::PushFont(ctx.defaultFont);
-
+	
 	ctx.workingDir = fs::path(tab.fname).parent_path().string();
 	ctx.unit = tab.unit;
 	tab.rootNode->Draw(ctx);

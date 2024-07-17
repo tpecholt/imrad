@@ -7,17 +7,17 @@ const float dimension::GROW = 12345.0e11f;
 
 float direct_val<dimension>::eval_px(const UIContext& ctx) const
 {
-	return val * ctx.unitFactor;
+	return val * ctx.zoomFactor;
 }
 
 float direct_val<pzdimension>::eval_px(const UIContext& ctx) const 
 {
-	return val * ctx.unitFactor;
+	return val * ctx.zoomFactor;
 }
 
 ImVec2 direct_val<pzdimension2>::eval_px(const UIContext& ctx) const
 {
-	return { val[0] * ctx.unitFactor, val[1] * ctx.unitFactor };
+	return { val[0] * ctx.zoomFactor, val[1] * ctx.zoomFactor };
 }
 
 float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
@@ -29,7 +29,7 @@ float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
 		return ctx.stretchSize[axis];
 	}
 	else if (has_value()) {
-		return value() * ctx.unitFactor;
+		return value() * ctx.zoomFactor;
 	}
 	else if (const auto* var = ctx.codeGen->GetVar(str)) {
 		float val;
@@ -77,7 +77,7 @@ float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
 		}
 		if (state >= 2)
 			ret = std::min(ret ? ret : 1e9f, val);
-		return ret * ctx.unitFactor;
+		return ret * ctx.zoomFactor;
 	}
 }
 

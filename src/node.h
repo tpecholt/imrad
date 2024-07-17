@@ -46,7 +46,6 @@ struct UINode
 	void DrawInteriorRect(UIContext& ctx);
 	void DrawSnap(UIContext& ctx);
 	void RenameFieldVars(const std::string& oldn, const std::string& newn);
-	void ScaleDimensions(float scale);
 	auto FindChild(const UINode*) -> std::optional<std::pair<UINode*, int>>;
 	auto FindInRect(const ImRect& r) -> std::vector<UINode*>;
 	auto GetAllChildren() -> std::vector<UINode*>;
@@ -102,7 +101,6 @@ struct Widget : UINode
 
 	static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
-	void InitDimensions(UIContext& ctx);
 	void Draw(UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
@@ -437,7 +435,6 @@ struct Table : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_TABLE_CELLS_LARGE; }
-	void ScaleDimensions(float scale);
 };
 
 struct Child : Widget

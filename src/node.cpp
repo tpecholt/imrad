@@ -387,18 +387,6 @@ void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 		child->RenameFieldVars(oldn, newn);
 }
 
-void UINode::ScaleDimensions(float scale)
-{
-	auto props = Properties();
-	for (auto& p : props) {
-		if (!p.property)
-			continue;
-		p.property->scale_dimension(scale);
-	}
-	for (auto& child : children)
-		child->ScaleDimensions(scale);
-}
-
 //----------------------------------------------------
 
 TopWindow::TopWindow(UIContext& ctx)
@@ -442,7 +430,6 @@ TopWindow::TopWindow(UIContext& ctx)
 void TopWindow::Draw(UIContext& ctx)
 {
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
-	ctx.unitFactor = ScaleFactor(ctx.unit, "");
 	ctx.root = this;
 	ctx.isAutoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
 	ctx.prevLayoutHash = ctx.layoutHash;
@@ -507,6 +494,7 @@ void TopWindow::Draw(UIContext& ctx)
 	bool tmp;
 	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
 	ImGui::Begin(cap.c_str(), &tmp, fl);
+	ImGui::SetWindowFontScale(ctx.zoomFactor);
 
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
 	assert(ctx.rootWin);
@@ -1586,13 +1574,6 @@ Widget::Create(const std::string& name, UIContext& ctx)
 		return std::make_unique<Splitter>(ctx);
 	else
 		return {};
-}
-
-void Widget::InitDimensions(UIContext& ctx)
-{
-	//adjust initial values like size_x in case fontSize unit is used
-	//should be called from all widget constructors
-	ScaleDimensions(1.f / ctx.unitFactor);
 }
 
 int Widget::Behavior()
@@ -2916,7 +2897,6 @@ void Widget::TreeUI(UIContext& ctx)
 
 Spacer::Spacer(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
@@ -3033,7 +3013,6 @@ bool Spacer::PropertyUI(int i, UIContext& ctx)
 
 Separator::Separator(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Separator::Clone(UIContext& ctx) 
@@ -3182,7 +3161,6 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 
 Text::Text(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Text::Clone(UIContext& ctx)
@@ -3333,8 +3311,6 @@ Selectable::Selectable(UIContext& ctx)
 	vertAlignment.add("AlignTop", ImRad::AlignTop);
 	vertAlignment.add("AlignVCenter", ImRad::AlignVCenter);
 	vertAlignment.add("AlignBottom", ImRad::AlignBottom);
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
@@ -3671,8 +3647,6 @@ Button::Button(UIContext& ctx)
 	arrowDir.add$(ImGuiDir_Right);
 	arrowDir.add$(ImGuiDir_Up);
 	arrowDir.add$(ImGuiDir_Down);
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
@@ -4130,8 +4104,6 @@ CheckBox::CheckBox(UIContext& ctx)
 {
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
@@ -4285,7 +4257,6 @@ bool CheckBox::EventUI(int i, UIContext& ctx)
 RadioButton::RadioButton(UIContext& ctx)
 {
 	//variable is shared among buttons so don't generate new here
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
@@ -4437,8 +4408,6 @@ Input::Input(UIContext& ctx)
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Input::Clone(UIContext& ctx)
@@ -5062,8 +5031,6 @@ Combo::Combo(UIContext& ctx)
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
@@ -5266,8 +5233,6 @@ Slider::Slider(UIContext& ctx)
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Slider::Clone(UIContext& ctx)
@@ -5529,8 +5494,6 @@ ProgressBar::ProgressBar(UIContext& ctx)
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> ProgressBar::Clone(UIContext& ctx)
@@ -5684,8 +5647,6 @@ ColorEdit::ColorEdit(UIContext& ctx)
 
 	if (ctx.createVars)
 		fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> ColorEdit::Clone(UIContext& ctx)
@@ -5890,8 +5851,6 @@ Image::Image(UIContext& ctx)
 {
 	if (ctx.createVars)
 		*fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Image::Clone(UIContext& ctx)
@@ -6074,7 +6033,6 @@ void Image::RefreshTexture(UIContext& ctx)
 
 CustomWidget::CustomWidget(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> CustomWidget::Clone(UIContext& ctx)
@@ -6238,8 +6196,6 @@ Table::Table(UIContext& ctx)
 	columnData.resize(3);
 	for (size_t i = 0; i < columnData.size(); ++i)
 		columnData[i].label = char('A' + i);
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Table::Clone(UIContext& ctx)
@@ -6710,20 +6666,6 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 }
 
-void Table::ScaleDimensions(float scale)
-{
-	UINode::ScaleDimensions(scale);
-
-	for (auto& col : columnData)
-	{
-		if (col.flags & ImGuiTableColumnFlags_WidthFixed) {
-			direct_val<dimension> dim(col.width);
-			dim.scale_dimension(scale);
-			col.width = *dim.access();
-		}
-	}
-}
-
 //---------------------------------------------------------
 
 Child::Child(UIContext& ctx)
@@ -6748,8 +6690,6 @@ Child::Child(UIContext& ctx)
 	wflags.add$(ImGuiWindowFlags_NoScrollbar);
 	wflags.add$(ImGuiWindowFlags_NoSavedSettings);
 	wflags.add$(ImGuiWindowFlags_NoNavInputs);
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Child::Clone(UIContext& ctx)
@@ -7197,8 +7137,6 @@ Splitter::Splitter(UIContext& ctx)
 
 	if (ctx.createVars) 
 		position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
-	
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> Splitter::Clone(UIContext& ctx)
@@ -7269,7 +7207,6 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
 		axisX = children[1]->sameLine;
 		th = children[1]->cached_pos[!axisX] - children[0]->cached_pos[!axisX] - children[0]->cached_size[!axisX];
 	}
-	th.scale_dimension(1 / ctx.unitFactor);
 
 	os << ctx.ind << "ImRad::Splitter(" 
 		<< std::boolalpha << axisX 
@@ -7409,7 +7346,6 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 
 CollapsingHeader::CollapsingHeader(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> CollapsingHeader::Clone(UIContext& ctx)
@@ -7532,8 +7468,6 @@ TreeNode::TreeNode(UIContext& ctx)
 	flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);
 	flags.add$(ImGuiTreeNodeFlags_SpanAvailWidth);
 	flags.add$(ImGuiTreeNodeFlags_SpanFullWidth);
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> TreeNode::Clone(UIContext& ctx)
@@ -7688,8 +7622,6 @@ TabBar::TabBar(UIContext& ctx)
 
 	if (ctx.createVars)
 		children.push_back(std::make_unique<TabItem>(ctx));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> TabBar::Clone(UIContext& ctx)
@@ -7822,7 +7754,6 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 
 TabItem::TabItem(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> TabItem::Clone(UIContext& ctx)
@@ -8076,8 +8007,6 @@ MenuBar::MenuBar(UIContext& ctx)
 {
 	if (ctx.createVars)
 		children.push_back(std::make_unique<MenuIt>(ctx));
-
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> MenuBar::Clone(UIContext& ctx)
@@ -8145,7 +8074,6 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 MenuIt::MenuIt(UIContext& ctx)
 {
-	InitDimensions(ctx);
 }
 
 std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)

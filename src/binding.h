@@ -164,7 +164,6 @@ struct property_base
 	virtual const char* c_str() const = 0;
 	virtual std::vector<std::string> used_variables() const = 0;
 	virtual void rename_variable(const std::string& oldn, const std::string& newn) = 0;
-	virtual void scale_dimension(float scale) = 0;
 };
 
 //member variable expression like id, id.member, id[0], id.size()
@@ -200,8 +199,6 @@ struct field_ref : property_base
 		if (str.substr(0, i) == oldn)
 			str.replace(0, i, newn);
 	}
-	void scale_dimension(float)
-	{}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -231,8 +228,6 @@ struct event : property_base
 		if (str == oldn)
 			str = newn;
 	}
-	void scale_dimension(float)
-	{}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -302,8 +297,6 @@ struct direct_val : property_base
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{}
-	void scale_dimension(float scale)
-	{}
 	T* access() { return &val; }
 	const char* c_str() const { return nullptr; }
 
@@ -362,10 +355,6 @@ struct direct_val<dimension> : property_base
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{}
-	void scale_dimension(float scale)
-	{
-		val = (int)std::round(100 * val * scale) / 100.f;
-	}
 	float* access() { return &val.value; }
 	const char* c_str() const { return nullptr; }
 
@@ -425,12 +414,6 @@ struct direct_val<pzdimension> : property_base
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{}
-	void scale_dimension(float scale)
-	{
-		if (!has_value())
-			return;
-		val = (int)std::round(100 * val * scale) / 100.f;
-	}
 	float* access() { return &val.value; }
 	const char* c_str() const { return nullptr; }
 
@@ -482,15 +465,6 @@ struct direct_val<pzdimension2> : property_base
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
 	{}
-	void scale_dimension(float scale)
-	{
-		if (!has_value())
-			return;
-		val = ImVec2{
-			(int)std::round(100 * val[0] * scale) / 100.f,
-			(int)std::round(100 * val[1] * scale) / 100.f
-		};
-	}
 	ImVec2* access() { return &val.value; }
 	const char* c_str() const { return nullptr; }
 
@@ -519,8 +493,6 @@ struct direct_val<std::string> : property_base
 		return {};
 	}
 	void rename_variable(const std::string& oldn, const std::string& newn)
-	{}
-	void scale_dimension(float)
 	{}
 	std::string* access() { return &val; }
 	const char* c_str() const { return val.c_str(); }
@@ -614,7 +586,6 @@ public:
 	}
 	std::vector<std::string> used_variables() const { return {}; }
 	void rename_variable(const std::string& oldn, const std::string& newn) {}
-	void scale_dimension(float) {}
 	const char* c_str() const { return nullptr; }
 
 private:
@@ -689,7 +660,6 @@ struct bindable : property_base
 				str.replace(id.data() - str.data(), id.size(), newn);
 		}
 	}
-	void scale_dimension(float scale) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -790,13 +760,6 @@ struct bindable<dimension> : property_base
 				str.replace(id.data() - str.data(), id.size(), newn);
 		}
 	}
-	void scale_dimension(float scale)
-	{
-		if (has_value()) {
-			float val = (int)std::round(100 * value() * scale) / 100.f;
-			*this = val;
-		}
-	}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 
@@ -890,7 +853,6 @@ struct bindable<std::string> : property_base
 			}
 		}
 	}
-	void scale_dimension(float) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -978,7 +940,6 @@ struct bindable<std::vector<std::string>> : property_base
 			}
 		}
 	};
-	void scale_dimension(float) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -1035,7 +996,6 @@ struct bindable<font_name> : property_base
 				str.replace(id.data() - str.data(), id.size(), newn);
 		}
 	}
-	void scale_dimension(float scale) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -1120,7 +1080,6 @@ struct bindable<color32> : property_base
 				str.replace(id.data() - str.data(), id.size(), newn);
 		}
 	}
-	void scale_dimension(float scale) {}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
 private:
@@ -1184,8 +1143,6 @@ struct data_loop : property_base
 		limit.rename_variable(oldn, newn);
 		index.rename_variable(oldn, newn);
 	}
-	void scale_dimension(float)
-	{}
 	const char* c_str() const { return limit.c_str(); }
 	std::string* access() { return limit.access(); }
 };
