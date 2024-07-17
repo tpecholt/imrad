@@ -51,6 +51,7 @@ struct UINode
 	auto GetAllChildren() -> std::vector<UINode*>;
 	void CloneChildrenFrom(const UINode& node, UIContext& ctx);
 	void ResetLayout();
+	auto GetParentId(UIContext& ctx) -> std::string;
 
 	ImVec2 cached_pos;
 	ImVec2 cached_size;
@@ -147,7 +148,7 @@ struct Separator : Widget
 	bool PropertyUI(int, UIContext& ctx);
 	void DoExport(std::ostream&, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
-	const char* GetIcon() const { return ICON_FA_WINDOW_MINIMIZE; }// "-- "; }
+	const char* GetIcon() const { return ICON_FA_MINUS; }
 };
 
 struct Text : Widget
@@ -278,7 +279,7 @@ struct Input : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	int Behavior();
-	const char* GetIcon() const { return "[ab]"; }
+	const char* GetIcon() const { return "|a_|"; }
 };
 
 struct Combo : Widget

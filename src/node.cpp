@@ -425,6 +425,7 @@ TopWindow::TopWindow(UIContext& ctx)
 	placement.add$(Top);
 	placement.add$(Bottom);
 	placement.add$(Center);
+	placement.add$(Maximize);
 }
 
 void TopWindow::Draw(UIContext& ctx)
@@ -634,7 +635,6 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 {
 	ctx.varCounter = 1;
 	ctx.parents = { this };
-	ctx.parentId = 0;
 	ctx.kind = kind;
 	ctx.errors.clear();
 	ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
@@ -2010,6 +2010,20 @@ void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 	cached_size = ImGui::GetItemRectSize();
 }
 
+std::string UINode::GetParentId(UIContext& ctx)
+{
+	std::string id;
+	UINode* node = ctx.parents.back();
+	for (auto it = ++ctx.parents.rbegin(); it != ctx.parents.rend(); ++it) {
+		size_t i = stx::find_if((*it)->children, [=](const auto& ch) {
+			return ch.get() == node; 
+			}) - (*it)->children.begin();
+		id = std::to_string(i) + id;
+		node = *it;
+	}
+	return id;
+}
+
 void Widget::Export(std::ostream& os, UIContext& ctx)
 {
 	Layout l = GetLayout(ctx.parents.back());
@@ -2067,8 +2081,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			std::ostringstream osv;
 			osv << VBOX_NAME;
-			if (ctx.parentId)
-				osv << ctx.parentId;
+			osv << GetParentId(ctx);
 			osv << (l.colId + 1);
 			vbName = osv.str();
 			ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
@@ -2089,8 +2102,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			std::ostringstream osv;
 			osv << HBOX_NAME;
-			if (ctx.parentId)
-				osv << ctx.parentId;
+			osv << GetParentId(ctx);
 			osv << (l.rowId + 1);
 			hbName = osv.str();
 			ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
@@ -2149,8 +2161,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	}
 
 	ctx.parents.push_back(this);
-	if (children.size())
-		++ctx.parentId;
 	DoExport(os, ctx);
 	ctx.parents.pop_back();
 
@@ -2856,9 +2866,15 @@ void Widget::TreeUI(UIContext& ctx)
 			suff += "C";
 	}
 
+	/*float cx = ImGui::GetCursorPosX();
+	cx += 2 * ImGui::GetStyle().FramePadding.x + ImGui::GetFontSize(); //indentation used by TreeNodeEx
+	cx += ImGui::GetFontSize() * 1.3f;*/
 	bool selected = stx::count(ctx.selected, this) || ctx.snapParent == this;
+	float sp = ImGui::GetFontSize() * 1.4f - ImGui::CalcTextSize(icon.c_str(), 0, true).x;
+	ImGui::Dummy({ sp, 0 });
+	ImGui::SameLine(0, 0);
+
 	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-	
 	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	//we keep all items open, OpenOnDoubleClick is to block flickering
 	int flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -6602,6 +6618,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		header = false;
 		columnData.clear();
+		ctx.importLevel = sit->level;
 
 		/*if (sit->params.size() >= 2) {
 			std::istringstream is(sit->params[1]);
@@ -6650,7 +6667,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		rowCount.set_from_arg(sit->line);
 	}
-	else if (sit->kind == cpp::CallExpr && columnData.size() &&
+	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 &&
+		columnData.size() &&
 		sit->callee.compare(0, 7, "ImGui::") &&
 		sit->callee.compare(0, 7, "ImRad::"))
 	{
@@ -6659,7 +6677,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		else
 			onBeginRow.set_from_arg(sit->callee);
 	}
-	else if (sit->kind == cpp::IfStmt && columnData.size() &&
+	else if (sit->kind == cpp::IfStmt && sit->level == ctx.importLevel + 1 &&
+		columnData.size() &&
 		!sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
 	{
 		rowFilter.set_from_arg(sit->cond.substr(2, sit->cond.size() - 3));

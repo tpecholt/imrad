@@ -55,7 +55,6 @@ struct UIContext
 	bool beingResized = false;
 	std::vector<ImGuiWindow*> activePopups;
 	std::vector<UINode*> parents;
-	int parentId;
 	std::vector<std::string> contextMenus;
 	int kind = 0; //TopWindow::Kind
 	float zoomFactor = 1; //for dimension value scaling

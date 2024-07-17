@@ -90,7 +90,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_FONT, "Text" },
 		{ ICON_FA_AUDIO_DESCRIPTION, "Selectable" },
 		{ ICON_FA_CIRCLE_PLAY, "Button" }, //ICON_FA_SQUARE_PLUS
-		{ "[ab]", "Input" }, //ICON_FA_CLOSED_CAPTIONING
+		{ "[a_]", "Input" }, //ICON_FA_CLOSED_CAPTIONING
 		{ ICON_FA_SQUARE_CHECK, "CheckBox" },
 		{ ICON_FA_CIRCLE_DOT, "RadioButton" },
 		{ ICON_FA_SQUARE_CARET_DOWN, "Combo" },
@@ -99,7 +99,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_BATTERY_HALF, "ProgressBar" },
 		{ ICON_FA_IMAGE, "Image" },
 		{ ICON_FA_LEFT_RIGHT, "Spacer" },
-		{ ICON_FA_WINDOW_MINIMIZE, "Separator" },
+		{ ICON_FA_MINUS, "Separator" },
 		{ ICON_FA_EXPAND, "CustomWidget" },
 	}},
 	{ "Containers", {
@@ -1408,6 +1408,8 @@ void PropertyRowsUI(bool pr)
 		//when selecting other widget of same kind from Tree, value from previous widget
 		//wants to be sent to the new widget because input IDs are the same
 		//PushID widget ptr to prevent it
+		//We PopID/PushID before a category treeNode to keep them open/close across all widgets
+		//having same property
 		ImGui::PushID(ctx.selected[0]); 
 		//edit first widget
 		auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
@@ -1432,8 +1434,11 @@ void PropertyRowsUI(bool pr)
 			if (cat != inCat)
 			{
 				inCat = cat;
-				if (inCat != "")
+				if (inCat != "") {
+					ImGui::PopID();
 					skip = BeginPropGroup(cat, prop, catOpen);
+					ImGui::PushID(ctx.selected[0]);
+				}
 				else 
 					EndPropGroup(catOpen);
 			}
@@ -1772,7 +1777,7 @@ void Work()
 			}
 			else
 			{
-				for (int i = 0; i < n; ++i) 
+				for (int i = 0; i < n; ++i)
 				{
 					auto wdg = newNodes[i]->Clone(ctx);
 					ctx.selected.push_back(wdg.get());
@@ -1788,7 +1793,7 @@ void Work()
 	else if (!pgFocused)
 	{
 		//don't IsMouseReleased otherwise closing modal popup will fire here too
-		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && 
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
 			ctx.root &&
 			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
 			!ImRect(ctx.root->cached_pos, ctx.root->cached_pos + ctx.root->cached_size).Contains(ImGui::GetMousePos()))

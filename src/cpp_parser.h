@@ -666,6 +666,10 @@ namespace cpp
 				else if (str[i + 1] == '0') {
 					tmp += '\0';
 					++i;
+					if (i + 1 < str.size() && str[i + 1] == '0')
+						++i;
+					if (i + 1 < str.size() && str[i + 1] == '0')
+						++i;
 				}
 				else if (str[i + 1] == 'x' && i + 3 < str.size()) {
 					int h = std::tolower(str[i + 2]) >= 'a' ? str[i + 2] - 'a' + 10 : str[i + 2] - '0';
@@ -773,7 +777,8 @@ namespace cpp
 				str += c;
 			break;
 		case '\0': //Combo.items use it
-			str += "\\0";
+			//output all 3 digits so it won't get mixed up with potential next digit character
+			str += "\\000";
 			break;
 		case '\t':
 			str += "\\t";
