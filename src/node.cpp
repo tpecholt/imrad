@@ -3360,7 +3360,8 @@ void Selectable::DoDraw(UIContext& ctx)
 	ImVec2 size;
 	size.x = size_x.eval_px(ImGuiAxis_X, ctx);
 	size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
-	ImRad::Selectable(DRAW_STR(label), false, flags, size);
+	bool selected = fieldName.empty()? value.eval(ctx) : fieldName.eval(ctx);
+	ImRad::Selectable(DRAW_STR(label), selected, flags, size);
 
 	if (readOnly)
 		ImGui::PopItemFlag();
@@ -3416,10 +3417,10 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 		os << "if (";
 	
 	os << "ImRad::Selectable(" << label.to_arg() << ", ";
-	if (fieldName.empty())
-		os << "false";
-	else
+	if (!fieldName.empty())
 		os << "&" << fieldName.to_arg();
+	else
+		os << value.to_arg();
 	
 	os << ", " << flags.to_arg() << ", { "
 		<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
@@ -3454,8 +3455,12 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			if (label.value() == cpp::INVALID_TEXT)
 				ctx.errors.push_back("Selectable: unable to parse label");
 		}
-		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
-			fieldName.set_from_arg(sit->params[1].substr(1));
+		if (sit->params.size() >= 2) {
+			if (!sit->params[1].compare(0, 1, "&"))
+				fieldName.set_from_arg(sit->params[1].substr(1));
+			else
+				value.set_from_arg(sit->params[1]);
+		}
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
 		if (sit->params.size() >= 4) {
@@ -3507,6 +3512,7 @@ Selectable::Properties()
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
 		{ "alignToFrame", &alignToFrame },
+		{ "selectable.value", &value },
 		{ "selectable.fieldName", &fieldName },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }
@@ -3591,13 +3597,23 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
 		break;
 	case 8:
+		ImGui::Text("value");
+		ImGui::TableNextColumn();
+		ImGui::BeginDisabled(!fieldName.empty());
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##value", &value, false, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("value", &value, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 9:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, true, ctx);
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3605,7 +3621,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3614,7 +3630,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 11, ctx);
+		return Widget::PropertyUI(i - 12, ctx);
 	}
 	return changed;
 }
@@ -5055,7 +5071,7 @@ std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
 {
 	auto sel = std::make_unique<Combo>(*this);
 	if (!fieldName.empty() && ctx.createVars) {
-		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
+		sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
 	}
 	return sel;
 }
@@ -5093,17 +5109,9 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 	std::string id = label.to_arg();
 	if (label.empty())
 		id = std::string("\"##") + fieldName.c_str() + "\"";
-	auto vars = items.used_variables();
-	if (vars.empty())
-	{
-		os << "ImGui::Combo(" << id << ", &"
-			<< fieldName.to_arg() << ", " << items.to_arg() << ")";
-	}
-	else
-	{
-		os << "ImRad::Combo(" << id << ", &"
-			<< fieldName.to_arg() << ", " << items.to_arg() << ")";
-	}
+	
+	os << "ImRad::Combo(" << id << ", &" << fieldName.to_arg() 
+		<< ", " << items.to_arg() << ")";
 
 	if (!onChange.empty()) {
 		os << ")\n";

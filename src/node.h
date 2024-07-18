@@ -177,6 +177,7 @@ struct Selectable : Widget
 	direct_val<bool> alignToFrame = false;
 	direct_val<bool> readOnly = false;
 	field_ref<bool> fieldName;
+	bindable<bool> value;
 	event<> onChange;
 
 	Selectable(UIContext& ctx);
@@ -285,7 +286,7 @@ struct Input : Widget
 struct Combo : Widget
 {
 	direct_val<std::string> label = "";
-	field_ref<int> fieldName;
+	field_ref<std::string> fieldName;
 	bindable<std::vector<std::string>> items;
 	event<> onChange;
 

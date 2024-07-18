@@ -304,13 +304,38 @@ inline void HashCombine(ImU32& hash, T data)
 	hash = ImHashData(&data, sizeof(data), hash);
 }
 
-inline bool Combo(const char* label, int* curr, const std::vector<std::string>& items, int maxh = -1)
+inline bool Combo(const char* label, std::string* curr, const std::vector<std::string>& items, int flags = 0)
 {
-	//todo: BeginCombo/Selectable
-	std::vector<const char*> citems(items.size());
-	for (size_t i = 0; i < items.size(); ++i)
-		citems[i] = items[i].c_str();
-	return ImGui::Combo(label, curr, citems.data(), (int)citems.size(), maxh);
+	bool changed = false;
+	if (ImGui::BeginCombo(label, curr->c_str(), flags))
+	{
+		for (const auto& item : items) {
+			if (ImGui::Selectable(item.c_str(), item == *curr)) {
+				*curr = item;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
+}
+
+inline bool Combo(const char* label, std::string* curr, const char* items, int flags = 0)
+{
+	bool changed = false;
+	if (ImGui::BeginCombo(label, curr->c_str(), flags))
+	{
+		const char* p = items;
+		while (*p) {
+			if (ImGui::Selectable(p, !curr->compare(p))) {
+				*curr = p;
+				changed = true;
+			}
+			p += strlen(p) + 1;
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
 }
 
 inline void Dummy(const ImVec2& size)
