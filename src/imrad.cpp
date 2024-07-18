@@ -1615,6 +1615,7 @@ RemoveSelected()
 		Widget* wdg = dynamic_cast<Widget*>(node);
 		bool sameLine = wdg->sameLine;
 		int nextColumn = wdg->nextColumn;
+		int spacing = wdg->spacing;
 		remove.push_back(std::move(pi->first->children[pi->second]));
 		pi->first->children.erase(pi->first->children.begin() + pi->second);
 		if (pi->second < pi->first->children.size() &&
@@ -1622,8 +1623,10 @@ RemoveSelected()
 		{
 			wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
 			wdg->nextColumn += nextColumn;
-			if (!sameLine)
+			if (!sameLine) {
 				wdg->sameLine = false;
+				wdg->spacing = spacing;
+			}
 		}
 	}
 	//move selection. Useful for things like menu items
@@ -1770,18 +1773,21 @@ void Work()
 					next->indent = 0; //otherwise creates widgets overlaps
 			}
 			ctx.selected.clear();
-			if (newNodes[0].get() == newNode.get())
+			if (activeButton != "")
 			{
-				ctx.selected = { newNode.get() };
+				ctx.selected.push_back(newNodes[0].get());
 				ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex, std::move(newNodes[0]));
 			}
 			else
 			{
 				for (int i = 0; i < n; ++i)
 				{
+					//paste original widgets and push cloned widgets back to the clipboard
+					//so original variables will be used in a pasted widget
 					auto wdg = newNodes[i]->Clone(ctx);
-					ctx.selected.push_back(wdg.get());
-					ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex + i, std::move(wdg));
+					ctx.selected.push_back(newNodes[i].get());
+					ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex + i, std::move(newNodes[i]));
+					newNodes[i] = std::move(wdg);
 				}
 			}
 			ctx.mode = UIContext::NormalSelection;

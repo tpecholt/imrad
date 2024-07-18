@@ -619,13 +619,16 @@ struct bindable : property_base
 		return is.tellg() == str.size();
 	}
 	T value() const {
-		if (!has_value()) return {};
+		if (!has_value())
+			return {};
 		std::istringstream is(str);
 		T val{};
 		is >> std::boolalpha >> val;
 		return val;
 	}
-	//T eval(const UIContext& ctx) const;
+	T eval(const UIContext& ctx) const {
+		return value();
+	}
 
 	void set_from_arg(std::string_view s) {
 		str = s;
@@ -873,8 +876,9 @@ struct bindable<std::vector<std::string>> : property_base
 	bool empty() const { return str.empty(); }
 	void set_from_arg(std::string_view s)
 	{
-		str = cpp::parse_str_arg(s);
-		if (str.empty() && s != "\"\"")
+		if (cpp::is_cstr(s))
+			str = cpp::parse_str_arg(s);
+		else if (s != "\"\"")
 			str = "{" + s + "}";
 	}
 	std::string to_arg(std::string_view = "", std::string_view = "") const

@@ -3377,7 +3377,9 @@ void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { 
 		return ch.get() == this; 
 		}) - parent->children.begin();
+	bool explicitWidth = size_x.has_value() && !size_x.zero();
 	if (!(flags & ImGuiSelectableFlags_SpanAllColumns) &&
+		!explicitWidth &&
 		idx + 1 < parent->children.size() && 
 		parent->children[idx + 1]->sameLine) 
 	{
