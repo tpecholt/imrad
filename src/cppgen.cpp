@@ -6,12 +6,15 @@
 #include <cctype>
 #include <set>
 
+const std::string GENERATED_WITH = "Generated with ";
 const std::string CppGen::INDENT = "    ";
 const std::string CppGen::FOR_VAR = "i";
 
 const std::string SPEC_FUN[] = {
 	"Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw",
 };
+
+//----------------------------------------------------------------
 
 CppGen::CppGen()
 	: m_name("Untitled"), m_vname("untitled")
@@ -126,7 +129,7 @@ bool CppGen::ExportUpdate(
 
 void CppGen::CreateH(std::ostream& out)
 {
-	out << "// Generated with " << VER_STR << "\n"
+	out << "// " << GENERATED_WITH << VER_STR << "\n"
 		<< "// visit " << GITHUB_URL << "\n\n";
 
 	out << "#pragma once\n";
@@ -767,7 +770,7 @@ CppGen::Import(
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";
 	else
-		node = ImportCode(fin, params);
+		node = ImportCode(fin, m_hname, params);
 	fin.close();
 
 	fpath = fs::path(path).replace_extension("cpp");
@@ -775,7 +778,7 @@ CppGen::Import(
 	if (!fin)
 		m_error += "Can't read " + fpath.string() + "\n";
 	else {
-		auto node2 = ImportCode(fin, params);
+		auto node2 = ImportCode(fin, fpath.filename().string(), params);
 		if (!node)
 			node = std::move(node2);
 	}
@@ -795,7 +798,7 @@ CppGen::Import(
 }
 
 std::unique_ptr<TopWindow> 
-CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params)
+CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::string, std::string>& params)
 {
 	std::unique_ptr<TopWindow> node;
 	cpp::token_iterator iter(fin);
@@ -808,8 +811,7 @@ CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params
 	while (iter != cpp::token_iterator())
 	{
 		std::string tok = *iter;
-		bool is_comment = !tok.compare(0, 2, "//");
-
+		
 		if (tok == "{") {
 			if (line.size() && (line[0] == "class" || line[0] == "struct")) {
 				scope.push_back(line[1]);
@@ -856,7 +858,16 @@ CppGen::ImportCode(std::istream& fin, std::map<std::string, std::string>& params
 		else if (in_class && tok == "/// @end impl") {
 			in_impl = false;
 		}
-		else if (!tok.compare(0, 2, "//") || tok[0] == '#')
+		else if (!tok.compare(0, 2, "//")) 
+		{
+			if (!tok.compare(2, GENERATED_WITH.size(), GENERATED_WITH)) {
+				std::string ver = tok.substr(2 + GENERATED_WITH.size());
+				if (ver != VER_STR)
+					m_error += "'" + fname + "' was saved in different version [" 
+						+ ver + "]. Full compatibility is not guaranteed.\n";
+			}
+		}
+		else if (tok[0] == '#')
 			;
 		else if (tok == ";") {
 			if (in_class) {

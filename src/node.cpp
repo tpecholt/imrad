@@ -704,7 +704,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << (kind == Popup ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
 		os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
 	}
-	if (style_border.has_value() && kind != Activity)
+	if (style_border.has_value() && kind != Activity && kind != MainWindow)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(";
 		os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
@@ -718,6 +718,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	if (kind == MainWindow)
 	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 		os << ctx.ind << "glfwSetWindowTitle(window, " << title.to_arg() << ");\n";
 		os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
 		if (!autoSize) 
@@ -985,7 +986,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	if (style_scrollbarSize.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
-	if (style_border.has_value() || kind == Activity)
+	if (style_border.has_value() || kind == Activity || kind == MainWindow)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -8134,6 +8135,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
 
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
 			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings);
 			{
 				ctx.activePopups.push_back(ImGui::GetCurrentWindow());				
@@ -8143,6 +8145,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 
 				ImGui::End();
 			}
+			ImGui::PopStyleVar();
 
 			if (style_spacing.has_value())
 				ImGui::PopStyleVar();
@@ -8165,7 +8168,9 @@ void MenuIt::DoDraw(UIContext& ctx)
 			float w = ImGui::CalcTextSize(ICON_FA_ANGLE_RIGHT).x;
 			ImGui::SameLine(0, 0);
 			ImGui::SetCursorPosX(ImGui::GetCursorPosX() - w);
+			ImGui::PushFont(nullptr);
 			ImGui::Text(ICON_FA_ANGLE_RIGHT);
+			ImGui::PopFont();
 		}
 		bool open = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
 		if (open)
@@ -8181,6 +8186,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 			}
 			ImGui::SetNextWindowPos(pos);
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
 			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings);
 			{
 				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
@@ -8189,13 +8195,14 @@ void MenuIt::DoDraw(UIContext& ctx)
 					children[i]->Draw(ctx);
 				ImGui::End();
 			}
+			ImGui::PopStyleVar();
 		}
 	}
 	else if (ownerDraw)
 	{
 		std::string s = onChange.to_arg();
 		if (s.empty())
-			s = "???";
+			s = "OnDraw not set";
 		else
 			s += "()";
 		ImGui::MenuItem(s.c_str(), nullptr, nullptr, false);
@@ -8558,7 +8565,7 @@ bool MenuIt::EventUI(int i, UIContext& ctx)
 	{
 	case 0:
 		ImGui::BeginDisabled(children.size());
-		ImGui::Text("OnChange");
+		ImGui::Text(ownerDraw ? "OnDraw" : "OnChange");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-1);
 		changed = InputEvent("##onChange", &onChange, ctx);

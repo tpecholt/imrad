@@ -1825,9 +1825,9 @@ void Work()
 	{
 		//don't IsMouseReleased otherwise closing modal popup will fire here too
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-			ctx.root &&
+			ctx.rootWin &&
 			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
-			!ImRect(ctx.root->cached_pos, ctx.root->cached_pos + ctx.root->cached_size).Contains(ImGui::GetMousePos()))
+			!ImRect(ctx.rootWin->Pos, ctx.rootWin->Pos + ctx.rootWin->SizeFull).Contains(ImGui::GetMousePos()))
 		{
 			ctx.selected = { ctx.root };
 		}

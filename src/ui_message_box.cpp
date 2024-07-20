@@ -3,6 +3,42 @@
 
 MessageBox messageBox;
 
+std::string WordWrap(std::string& str, float multilineWidth) 
+{
+	float textSize = 0;
+	std::string tmpStr = "";
+	std::string finalStr = "";
+	int curChr = 0;
+	while (curChr < str.size()) {
+
+		if (str[curChr] == '\n') {
+			finalStr += tmpStr + "\n";
+			tmpStr = "";
+		}
+		else
+			tmpStr += str[curChr];
+		textSize = ImGui::CalcTextSize(tmpStr.c_str()).x;
+
+		if (textSize > multilineWidth) {
+			int lastSpace = (int)tmpStr.size() - 1;
+			while (tmpStr[lastSpace] != ' ' && lastSpace > 0)
+				lastSpace--;
+			if (lastSpace == 0)
+				lastSpace = (int)tmpStr.size() - 2;
+			finalStr += tmpStr.substr(0, lastSpace + 1) + "\n";
+			if (lastSpace + 1 > tmpStr.size())
+				tmpStr = "";
+			else
+				tmpStr = tmpStr.substr(lastSpace + 1);
+		}
+		curChr++;
+	}
+	if (tmpStr.size() > 0)
+		finalStr += tmpStr;
+
+	return finalStr;
+};
+
 void MessageBox::OpenPopup(std::function<void(ImRad::ModalResult)> f)
 {
 	callback = std::move(f);
@@ -22,7 +58,7 @@ void MessageBox::Draw()
 		if (error != "")
 		{
 			ImGui::Spacing();
-			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(192, 0, 0, 255));
+			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(192, 96, 0, 255));
 			ImGui::Text(" " ICON_FA_CIRCLE_EXCLAMATION " ");
 			ImGui::PopStyleColor();
 			ImGui::SameLine();
@@ -31,6 +67,8 @@ void MessageBox::Draw()
 			ImGui::Spacing();
 			ImGui::Spacing();
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(164, 164, 164, 255));
+			if (ImGui::IsWindowAppearing())
+				error = WordWrap(error, 500);
 			ImGui::InputTextMultiline("##err", &error, { 500, 300 }, ImGuiInputTextFlags_ReadOnly);
 			ImGui::PopStyleColor();
 		}
