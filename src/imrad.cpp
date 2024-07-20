@@ -33,6 +33,7 @@
 #include "ui_combo_dlg.h"
 #include "ui_horiz_layout.h"
 #include "ui_input_name.h"
+#include "ui_settings_dlg.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -65,6 +66,8 @@ enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
 std::string rootPath;
 std::string initErrors, showError;
+std::string fontName = "Roboto-Medium.ttf";
+float fontSize = 20;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -773,8 +776,8 @@ GetCtxColors(const std::string& styleName)
 
 void LoadStyle()
 {
-	const float FONT_SIZE = 20.f;
-	const float FA_SIZE = 18.f;
+	float faSize = fontSize * 18.f / 20.f;
+	std::string fontPath = rootPath + "/style/" + fontName;
 	if (!reloadStyle)
 		return;
 	
@@ -787,16 +790,18 @@ void LoadStyle()
 	
 	//reload ImRAD UI first
 	StyleColors();
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
+	io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
 	static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig cfg;
 	cfg.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAR).c_str(), FA_SIZE, &cfg, icons_ranges);
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), FA_SIZE, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
+	io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
 	cfg.MergeMode = false;
 	strcpy(cfg.Name, "imrad.H1");
-	io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE * 1.5, &cfg);
+	io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.5f, &cfg);
+	strcpy(cfg.Name, "imrad.H3");
+	io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.1f, &cfg);
 
 	ctx.defaultFont = nullptr;
 	ctx.fontNames.clear();
@@ -809,7 +814,7 @@ void LoadStyle()
 		if (styleName == "Classic")
 		{
 			ImGui::StyleColorsClassic(&ctx.style);
-			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
 			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
@@ -817,7 +822,7 @@ void LoadStyle()
 		else if (styleName == "Light")
 		{
 			ImGui::StyleColorsLight(&ctx.style);
-			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
 			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
@@ -825,7 +830,7 @@ void LoadStyle()
 		else if (styleName == "Dark")
 		{
 			ImGui::StyleColorsDark(&ctx.style);
-			ctx.defaultFont = io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Medium.ttf").c_str(), FONT_SIZE);
+			ctx.defaultFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
 			ctx.defaultFont->FallbackChar = '#';
 			ctx.fontNames = { "" };
 			ctx.colors = GetCtxColors(styleName);
@@ -1145,17 +1150,9 @@ void ToolbarUI()
 		usel = (int)(stx::find(UNITS, unit) - UNITS.begin());
 	if (ImGui::Combo("##units", &usel, stx::join(UNITS, std::string_view("\0", 1)).c_str())) // "px\0fs\0dp\0"))
 	{
-		messageBox.title = "Dialog units";
-		messageBox.message = "Scale all dimensions now ?";
-		messageBox.buttons = ImRad::Yes | ImRad::Cancel;
-		messageBox.OpenPopup([usel, UNITS](ImRad::ModalResult mr) {
-			if (mr != ImRad::Yes)
-				return;
-			auto& tab = fileTabs[activeTab];
-			auto oldUnit = tab.unit;
-			tab.unit = UNITS[usel];
-			tab.modified = true;
-			});
+		auto& tab = fileTabs[activeTab];
+		tab.unit = UNITS[usel];
+		tab.modified = true;
 	}
 	ImGui::SameLine();
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -1177,8 +1174,7 @@ void ToolbarUI()
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Table Layout Helper");
 	ImGui::SameLine();
-	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-
+	
 	ImGui::SameLine();
 	ImGui::BeginDisabled(activeTab < 0);
 	if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
@@ -1200,6 +1196,33 @@ void ToolbarUI()
 		ImGui::SetTooltip("Class Wizard");
 	
 	ImGui::EndDisabled();
+	
+	ImGui::SameLine();
+	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+	ImGui::SameLine();
+	if (ImGui::Button(ICON_FA_GEAR))
+	{
+		std::vector<std::string> fontNames;
+		for (const auto& entry : fs::directory_iterator(rootPath + "/style/")) 
+		{
+			if (entry.is_regular_file() && entry.path().extension() == ".ttf")
+				fontNames.push_back(entry.path().stem().string());
+		}
+		settingsDlg.fontNames = std::move(fontNames);
+		settingsDlg.fontName = fontName.substr(0, fontName.size() - 4);
+		settingsDlg.fontSize = std::to_string((int)fontSize);
+		settingsDlg.OpenPopup([](ImRad::ModalResult) 
+		{
+			fontName = settingsDlg.fontName + ".ttf";
+			fontSize = std::stof(settingsDlg.fontSize);
+			ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+			reloadStyle = true;
+		});
+	}
+
+	ImGui::SameLine();
+	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	
 	ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_CIRCLE_INFO) ||
@@ -1523,6 +1546,8 @@ void PopupUI()
 	messageBox.Draw();
 
 	classWizard.Draw();
+
+	settingsDlg.Draw();
 
 	aboutDlg.Draw();
 
@@ -1857,8 +1882,8 @@ void AddINIHandler()
 		{
 			if (programState != Init)
 				return;
+			char buf[1000];
 			if (!strcmp((const char*)entry, "Recent")) {
-				char buf[1000];
 				int i;
 				if (sscanf(line, "File%d=%s", &i, buf) == 2) {
 					if (i == 1) {
@@ -1871,15 +1896,26 @@ void AddINIHandler()
 					ActivateTab(i);
 				}
 			}
+			else if (!strcmp((const char*)entry, "UI")) {
+				if (!strncmp(line, "FontName=", 9))
+					fontName = line + 9;
+				else if (!strncmp(line, "FontSize=", 9))
+					fontSize = (float)std::atof(line + 9);
+			}
 		};
 	ini_handler.ApplyAllFn = nullptr; 
 	ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) 
 		{
-			buf->appendf("[ImRAD][%s]\n", "Recent");
+			buf->append("[ImRAD][Recent]\n");
 			for (int i = 0; i < fileTabs.size(); ++i) {
 				buf->appendf("File%d=%s\n", i+1, fileTabs[i].fname.c_str());
 			}
 			buf->appendf("ActiveTab=%d\n", activeTab);
+			buf->append("\n");
+
+			buf->append("[ImRAD][UI]\n");
+			buf->appendf("FontName=%s\n", fontName.c_str());
+			buf->appendf("FontSize=%f\n", fontSize);
 			buf->append("\n");
 		};
 	ImGui::GetCurrentContext()->SettingsHandlers.push_back(ini_handler);

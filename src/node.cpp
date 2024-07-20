@@ -656,11 +656,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	os << ctx.ind << "/// @begin TopWindow\n";
 	os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
 
-	if (ctx.unit == "fs")
-	{
-		os << ctx.ind << "const float fs = ImGui::GetFontSize();\n";
-	}
-	else if (ctx.unit == "dp")
+	if (ctx.unit == "dp")
 	{
 		os << ctx.ind << "const float dp = ioUserData->dpiScale;\n";
 	}
@@ -858,7 +854,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		else
 			os << size_y.to_arg(ctx.unit);
 			
-		os << " });";
+		os << " }";
+		if (!autoSize && placement != Left && placement != Right && placement != Top && placement != Bottom)
+			os << ", ImGuiCond_FirstUseEver";
+		os << ");";
 		//signal designed size
 		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
 
