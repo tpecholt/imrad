@@ -435,6 +435,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.isAutoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
 	ctx.prevLayoutHash = ctx.layoutHash;
 	ctx.layoutHash = ctx.isAutoSize;
+	bool dimAll = ctx.activePopups.size();
 	ctx.activePopups.clear();
 	ctx.parents = { this };
 	ctx.hovered = nullptr;
@@ -459,8 +460,8 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
 	if (style_spacing.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing.eval_px(ctx));
-	if (style_border.has_value())
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_border.eval_px(ctx));
+	if (style_borderSize.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_borderSize.eval_px(ctx));
 	if (style_rounding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, style_rounding.eval_px(ctx));
 	if (style_scrollbarSize.has_value())
@@ -523,13 +524,17 @@ void TopWindow::Draw(UIContext& ctx)
 
 	ImGui::GetCurrentContext()->NavDisableMouseHover = true;
 	ImGui::GetCurrentContext()->NavDisableHighlight = true;
+	if (dimAll)
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.3f);
+
 	for (size_t i = 0; i < children.size(); ++i)
-	{
 		children[i]->Draw(ctx);
-	}
+	
+	if (dimAll)
+		ImGui::PopStyleVar();
 	ImGui::GetCurrentContext()->NavDisableHighlight = false;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
-
+	
 	//use all client area to allow snapping close to the border
 	auto pad = ImGui::GetStyle().WindowPadding - ImVec2(3+1, 3);
 	auto mi = ImGui::GetWindowContentRegionMin() - pad;
@@ -621,7 +626,7 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PopStyleVar();
 	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
-	if (style_border.has_value())
+	if (style_borderSize.has_value())
 		ImGui::PopStyleVar();
 	if (style_spacing.has_value())
 		ImGui::PopStyleVar();
@@ -704,11 +709,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << (kind == Popup ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
 		os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
 	}
-	if (style_border.has_value() && kind != Activity && kind != MainWindow)
+	if (style_borderSize.has_value() && kind != Activity && kind != MainWindow)
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(";
 		os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
-		os << ", " << style_border.to_arg(ctx.unit) << ");\n";
+		os << ", " << style_borderSize.to_arg(ctx.unit) << ");\n";
 	}
 	if (style_scrollbarSize.has_value())
 	{
@@ -986,7 +991,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 	if (style_scrollbarSize.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
-	if (style_border.has_value() || kind == Activity || kind == MainWindow)
+	if (style_borderSize.has_value() || kind == Activity || kind == MainWindow)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -1111,7 +1116,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			else if (sit->params[0] == "ImGuiStyleVar_WindowRounding" || sit->params[0] == "ImGuiStyleVar_PopupRounding")
 				style_rounding.set_from_arg(sit->params[1]);
 			else if (sit->params[0] == "ImGuiStyleVar_WindowBorderSize" || sit->params[0] == "ImGuiStyleVar_PopupBorderSize")
-				style_border.set_from_arg(sit->params[1]);
+				style_borderSize.set_from_arg(sit->params[1]);
 			else if (sit->params[0] == "ImGuiStyleVar_ScrollbarSize")
 				style_scrollbarSize.set_from_arg(sit->params[1]);
 		}
@@ -1305,7 +1310,7 @@ TopWindow::Properties()
 		{ "top.@style.menuBg", &style_menuBg },
 		{ "top.@style.padding", &style_padding },
 		{ "top.@style.rounding", &style_rounding },
-		{ "top.@style.border", &style_border },
+		{ "top.@style.borderSize", &style_borderSize },
 		{ "top.@style.scrollbarSize", &style_scrollbarSize },
 		{ "top.@style.spacing", &style_spacing },
 		{ "top.@style.font", &style_font },
@@ -1374,10 +1379,10 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	}
 	case 5:
 	{
-		ImGui::Text("border");
+		ImGui::Text("borderSize");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##style_border", &style_border, ctx);
+		changed = InputDirectVal("##style_border", &style_borderSize, ctx);
 		break;
 	}
 	case 6:
@@ -1733,8 +1738,12 @@ void Widget::Draw(UIContext& ctx)
 		ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
 	if (!style_text.empty())
 		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ctx));
+	if (!style_border.empty())
+		ImGui::PushStyleColor(ImGuiCol_Border, style_border.eval(ctx)); 
 	if (!style_frameBg.empty())
 		ImGui::PushStyleColor(ImGuiCol_FrameBg, style_frameBg.eval(ctx));
+	if (!style_frameBorderSize.empty())
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, style_frameBorderSize);
 	if (!style_frameRounding.empty())
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, style_frameRounding);
 	if (!style_framePadding.empty())
@@ -1747,8 +1756,12 @@ void Widget::Draw(UIContext& ctx)
 	
 	if (!style_text.empty())
 		ImGui::PopStyleColor();
+	if (!style_border.empty())
+		ImGui::PopStyleColor();
 	if (!style_frameBg.empty())
 		ImGui::PopStyleColor();
+	if (!style_frameBorderSize.empty())
+		ImGui::PopStyleVar();
 	if (!style_frameRounding.empty())
 		ImGui::PopStyleVar();
 	if (!style_framePadding.empty())
@@ -2147,9 +2160,17 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Text, " << style_text.to_arg() << ");\n";
 	}
+	if (!style_border.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Border, " << style_border.to_arg() << ");\n";
+	}
 	if (!style_frameBg.empty())
 	{
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_FrameBg, " << style_frameBg.to_arg() << ");\n";
+	}
+	if (!style_frameBorderSize.empty())
+	{
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, " << style_frameBorderSize.to_arg(ctx.unit) << ");\n";
 	}
 	if (!style_frameRounding.empty())
 	{
@@ -2189,6 +2210,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << hbName << ".AddSize(" << sp << ", " << sizeX << ");\n";
 	}
 
+	if (!style_frameBorderSize.empty())
+	{
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	}
 	if (!style_framePadding.empty())
 	{
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
@@ -2202,6 +2227,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	}
 	if (!style_text.empty())
+	{
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	}
+	if (!style_border.empty())
 	{
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	}
@@ -2458,6 +2487,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_Text")
 				style_text.set_from_arg(sit->params[1]);
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_Border")
+				style_border.set_from_arg(sit->params[1]);
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_FrameBg")
 				style_frameBg.set_from_arg(sit->params[1]);
 			else
@@ -2465,7 +2496,9 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 		{
-			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
+			if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FrameBorderSize")
+				style_frameBorderSize.set_from_arg(sit->params[1]);
+			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FrameRounding")
 				style_frameRounding.set_from_arg(sit->params[1]);
 			else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_FramePadding")
 				style_framePadding.set_from_arg(sit->params[1]);
@@ -3351,6 +3384,9 @@ void Selectable::DoDraw(UIContext& ctx)
 		alignment.y = 1.f;
 	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, alignment);
 
+	if (!style_header.empty())
+		ImGui::PushStyleColor(ImGuiCol_Header, style_header.eval(ctx));
+	
 	if (readOnly)
 		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); //won't affect text color
 
@@ -3360,11 +3396,14 @@ void Selectable::DoDraw(UIContext& ctx)
 	ImVec2 size;
 	size.x = size_x.eval_px(ImGuiAxis_X, ctx);
 	size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
-	bool selected = fieldName.empty()? value.eval(ctx) : fieldName.eval(ctx);
-	ImRad::Selectable(DRAW_STR(label), selected, flags, size);
+	bool sel = fieldName.empty() ? selected.eval(ctx) : fieldName.eval(ctx);
+	ImRad::Selectable(DRAW_STR(label), sel, flags, size);
 
 	if (readOnly)
 		ImGui::PopItemFlag();
+
+	if (!style_header.empty())
+		ImGui::PopStyleColor();
 
 	ImGui::PopStyleVar();
 }
@@ -3394,7 +3433,10 @@ void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 		//ItemRect has ItemSpacing padding by default. Adjust pos to make
 		//the rectangle look centered
 		cached_pos.x -= ImGui::GetStyle().ItemSpacing.x / 2; 
-		cached_pos.y -= ImGui::GetStyle().ItemSpacing.y / 2;
+		//cached_pos.y -= ImGui::GetStyle().ItemSpacing.y / 2;
+	}
+	else {
+		cached_pos.y += ImGui::GetStyle().ItemSpacing.y / 2;
 	}
 }
 
@@ -3405,6 +3447,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 		<< ", "
 		<< (vertAlignment == ImRad::AlignTop ? "0" : vertAlignment == ImRad::AlignVCenter ? "0.5f" : "1.f")
 		<< " });\n";
+
+	if (!style_header.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Header, " << style_header.to_arg() << ");\n";
 
 	if (readOnly)
 		os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);\n";
@@ -3420,7 +3465,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 	if (!fieldName.empty())
 		os << "&" << fieldName.to_arg();
 	else
-		os << value.to_arg();
+		os << selected.to_arg();
 	
 	os << ", " << flags.to_arg() << ", { "
 		<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
@@ -3439,6 +3484,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (readOnly)
 		os << ctx.ind << "ImGui::PopItemFlag();\n";
+
+	if (!style_header.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 
 	os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
@@ -3459,7 +3507,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			if (!sit->params[1].compare(0, 1, "&"))
 				fieldName.set_from_arg(sit->params[1].substr(1));
 			else
-				value.set_from_arg(sit->params[1]);
+				selected.set_from_arg(sit->params[1]);
 		}
 		if (sit->params.size() >= 3)
 			flags.set_from_arg(sit->params[2]);
@@ -3488,6 +3536,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				vertAlignment = ImRad::AlignBottom;
 		}
 	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Header")
+			style_header.set_from_arg(sit->params[1]);
+	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushItemFlag")
 	{
 		if (sit->params.size() && sit->params[0] == "ImGuiItemFlags_Disabled")
@@ -3504,6 +3557,7 @@ Selectable::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.header", &style_header },
 		{ "@style.color", &style_text },
 		{ "@style.font", &style_font },
 		{ "selectable.flags", &flags },
@@ -3512,8 +3566,8 @@ Selectable::Properties()
 		{ "horizAlignment", &horizAlignment },
 		{ "vertAlignment", &vertAlignment },
 		{ "alignToFrame", &alignToFrame },
-		{ "selectable.value", &value },
 		{ "selectable.fieldName", &fieldName },
+		{ "selectable.selected", &selected },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y }
 		});
@@ -3526,6 +3580,14 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("header");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##header", &style_header, ImGuiCol_Header, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("header", &style_header, ctx);
+		break;
+	case 1:
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3533,7 +3595,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("color", &style_text, ctx);
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3541,14 +3603,14 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 2:
+	case 3:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3556,12 +3618,12 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("label", &label, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("readOnly");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##ronly", &readOnly, ctx);
 		break;
-	case 5:
+	case 6:
 		ImGui::Text("horizAlignment");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3575,7 +3637,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 6:
+	case 7:
 		ImGui::BeginDisabled(size_y.has_value() && !size_y.eval_px(ImGuiAxis_Y, ctx));
 		ImGui::Text("vertAlignment");
 		ImGui::TableNextColumn();
@@ -3591,20 +3653,10 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 		ImGui::Text("alignToFramePadding");
 		ImGui::TableNextColumn();
 		changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
-		break;
-	case 8:
-		ImGui::Text("value");
-		ImGui::TableNextColumn();
-		ImGui::BeginDisabled(!fieldName.empty());
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##value", &value, false, ctx);
-		ImGui::SameLine(0, 0);
-		changed |= BindingButton("value", &value, ctx);
-		ImGui::EndDisabled();
 		break;
 	case 9:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -3614,6 +3666,16 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##fieldName", &fieldName, true, ctx);
 		break;
 	case 10:
+		ImGui::Text("selected");
+		ImGui::TableNextColumn();
+		ImGui::BeginDisabled(!fieldName.empty());
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##value", &selected, false, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("value", &selected, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 11:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3621,7 +3683,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3630,7 +3692,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 12, ctx);
+		return Widget::PropertyUI(i - 13, ctx);
 	}
 	return changed;
 }
@@ -3817,7 +3879,9 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_button.to_arg() << ");\n";
 	if (!style_hovered.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonHovered, " << style_hovered.to_arg() << ");\n";
-	
+	if (!style_active.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonActive, " << style_active.to_arg() << ");\n";
+
 	bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
 	os << ctx.ind;
 	if (!onChange.empty() || closePopup || dropDownMenu != "")
@@ -3870,6 +3934,8 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_hovered.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_active.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3880,6 +3946,8 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			style_button.set_from_arg(sit->params[1]);
 		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ButtonHovered")
 			style_hovered.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ButtonActive")
+			style_active.set_from_arg(sit->params[1]);
 	}
 	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::Button")
@@ -3931,8 +3999,11 @@ Button::Properties()
 		{ "@style.text", &style_text },
 		{ "@style.button", &style_button },
 		{ "@style.hovered", &style_hovered },
+		{ "@style.active", &style_active },
+		{ "@style.border", &style_border },
 		{ "@style.padding", &style_framePadding },
 		{ "@style.rounding", &style_frameRounding },
+		{ "@style.borderSize", &style_frameBorderSize },
 		{ "@style.font", &style_font },
 		{ "button.arrowDir", &arrowDir },
 		{ "label", &label, true },
@@ -3976,18 +4047,40 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("hovered", &style_hovered, ctx);
 		break;
 	case 3:
+		ImGui::Text("active");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##active", &style_active, ImGuiCol_ButtonActive, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("active", &style_active, ctx);
+		break;
+	case 4:
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("border", &style_border, ctx);
+		break;
+	case 5:
 		ImGui::Text("padding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##padding", &style_framePadding, ctx);
 		break;
-	case 4:
+	case 6:
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##rounding", &style_frameRounding, ctx);
 		break;
-	case 5:
+	case 7:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 8:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3995,7 +4088,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 6:
+	case 9:
 	{
 		ImGui::Text("arrowDir");
 		ImGui::TableNextColumn();
@@ -4012,7 +4105,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		}
 		break;
 	}
-	case 7:
+	case 10:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
@@ -4022,13 +4115,13 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("label", &label, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 8:
+	case 11:
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##shortcut", &shortcut, ctx);
 		break;
-	case 9:
+	case 12:
 	{
 		ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
 		ImGui::Text("modalResult");
@@ -4050,7 +4143,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	}
-	case 10:
+	case 13:
 		ImGui::Text("dropDownMenu");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4072,14 +4165,14 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 11:
+	case 14:
 		ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
 		ImGui::Text("small");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##small", &small, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 12:
+	case 15:
 		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
@@ -4089,7 +4182,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 13:
+	case 16:
 		ImGui::BeginDisabled(small || arrowDir != ImGuiDir_None);
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -4100,7 +4193,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 14, ctx);
+		return Widget::PropertyUI(i - 17, ctx);
 	}
 	return changed;
 }
@@ -4151,15 +4244,21 @@ std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
 
 void CheckBox::DoDraw(UIContext& ctx)
 {
-	bool dummy;
-	const auto* var = ctx.codeGen->GetVar(fieldName.c_str());
-	if (var)
-		dummy = var->init == "true";
-	ImGui::Checkbox(DRAW_STR(label), &dummy);
+	if (!style_check.empty())
+		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ctx));
+
+	bool val = fieldName.eval(ctx);
+	ImGui::Checkbox(DRAW_STR(label), &val);
+
+	if (!style_check.empty())
+		ImGui::PopStyleColor();
 }
 
 void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 {
+	if (!style_check.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_CheckMark, " << style_check.to_arg() << ");\n";
+
 	os << ctx.ind;
 	if (!onChange.empty())
 		os << "if (";
@@ -4178,11 +4277,19 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 	else {
 		os << ";\n";
 	}
+
+	if (!style_check.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::Checkbox") ||
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() >= 2)
+			style_check.set_from_arg(sit->params[1]);
+	}
+	else if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::Checkbox") ||
 		(sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::Checkbox"))
 	{
 		if (sit->params.size())
@@ -4207,8 +4314,10 @@ CheckBox::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "check.@style.color", &style_text },
-		{ "check.@style.font", &style_font },
+		{ "@style.color", &style_text },
+		{ "@style.check", &style_check }, 
+		{ "@style.borderSize", &style_frameBorderSize },
+		{ "@style.font", &style_font },
 		{ "label", &label, true },
 		{ "check.field_name", &fieldName },
 		});
@@ -4229,6 +4338,20 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
+		ImGui::Text("check");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##check", &style_check, ImGuiCol_CheckMark, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("check", &style_check, ctx);
+		break;
+	case 2:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 3:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4236,7 +4359,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 2:
+	case 4:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4244,7 +4367,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("label", &label, ctx);
 		break;
-	case 3:
+	case 5:
 	{
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
@@ -4254,7 +4377,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
 		break;
 	}
 	default:
-		return Widget::PropertyUI(i - 4, ctx);
+		return Widget::PropertyUI(i - 6, ctx);
 	}
 	return changed;
 }
@@ -4302,7 +4425,13 @@ std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 
 void RadioButton::DoDraw(UIContext& ctx)
 {
+	if (!style_check.empty())
+		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ctx));
+	
 	ImGui::RadioButton(DRAW_STR(label), valueID==0);
+
+	if (!style_check.empty())
+		ImGui::PopStyleColor();
 }
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
@@ -4310,15 +4439,41 @@ void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 	if (!ctx.codeGen->GetVar(fieldName.c_str()))
 		ctx.errors.push_back("RadioButon: field_name variable doesn't exist");
 
-	os << ctx.ind << "ImGui::RadioButton("
+	if (!style_check.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_CheckMark, " << style_check.to_arg() << ");\n";
+	
+	os << ctx.ind;
+	if (!onChange.empty())
+		os << "if (";
+
+	os << "ImGui::RadioButton("
 		<< label.to_arg() << ", "
 		<< "&" << fieldName.c_str() << ", "
-		<< valueID << ");\n";
+		<< valueID << ")";
+
+	if (!onChange.empty()) {
+		os << ")\n";
+		ctx.ind_up();
+		os << ctx.ind << onChange.to_arg() << "();\n";
+		ctx.ind_down();
+	}
+	else {
+		os << ";\n";
+	}
+
+	if (!style_check.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::RadioButton")
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() >= 2)
+			style_check.set_from_arg(sit->params[1]);
+	}
+	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) && 
+		sit->callee == "ImGui::RadioButton")
 	{
 		if (sit->params.size())
 			label.set_from_arg(sit->params[0]);
@@ -4327,6 +4482,9 @@ void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		{
 			fieldName.set_from_arg(sit->params[1].substr(1));
 		}
+
+		if (sit->kind == cpp::IfCallThenCall)
+			onChange.set_from_arg(sit->callee2);
 	}
 }
 
@@ -4336,6 +4494,8 @@ RadioButton::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "@style.color", &style_text },
+		{ "@style.check", &style_check },
+		{ "@style.borderSize", &style_frameBorderSize },
 		{ "@style.font", &style_font },
 		{ "label", &label, true },
 		{ "radio.valueID", &valueID },
@@ -4358,6 +4518,20 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("color", &style_text, ctx);
 		break;
 	case 1:
+		ImGui::Text("check");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##check", &style_check, ImGuiCol_CheckMark, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("check", &style_check, ctx);
+		break;
+	case 2:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 3:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4365,7 +4539,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 2:
+	case 4:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4373,13 +4547,13 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("label", &label, ctx);
 		break;
-	case 3:
+	case 5:
 		ImGui::Text("valueID");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputInt("##valueID", valueID.access());
 		break;
-	case 4:
+	case 6:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
@@ -4387,7 +4561,34 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##fieldName", &fieldName, false, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 5, ctx);
+		return Widget::PropertyUI(i - 7, ctx);
+	}
+	return changed;
+}
+
+std::vector<UINode::Prop>
+RadioButton::Events()
+{
+	auto props = Widget::Events();
+	props.insert(props.begin(), {
+		{ "onChange", &onChange }
+		});
+	return props;
+}
+
+bool RadioButton::EventUI(int i, UIContext& ctx)
+{
+	bool changed = false;
+	switch (i)
+	{
+	case 0:
+		ImGui::Text("OnChange");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-1);
+		changed = InputEvent("##onChange", &onChange, ctx);
+		break;
+	default:
+		return Widget::EventUI(i - 1, ctx);
 	}
 	return changed;
 }
@@ -4835,6 +5036,8 @@ Input::Properties()
 	props.insert(props.begin(), {
 		{ "@style.text", &style_text },
 		{ "@style.frameBg", &style_frameBg },
+		{ "@style.border", &style_border },
+		{ "@style.borderSize", &style_frameBorderSize },
 		{ "@style.font", &style_font },
 		{ "input.flags", &flags },
 		{ "label", &label, true },
@@ -4888,6 +5091,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("frameBg", &style_frameBg, ctx);
 		break;
 	case 2:
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("border", &style_border, ctx);
+		break;
+	case 3:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 4:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4895,20 +5112,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 3:
+	case 5:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 4:
+	case 6:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##label", &label, ctx);
 		break;
-	case 5:
+	case 7:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4925,14 +5142,14 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 6:
+	case 8:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 7:
+	case 9:
 		ImGui::BeginDisabled(type != "std::string" && type != "ImGuiTextFilter");
 		ImGui::Text("hint");
 		ImGui::TableNextColumn();
@@ -4942,7 +5159,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("hint", &hint, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 8:
+	case 10:
 	{
 		int type = imeType & 0xff;
 		int action = imeType & (~0xff);
@@ -4963,7 +5180,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 			});
 		break;
 	}
-	case 9:
+	case 11:
 		ImGui::BeginDisabled(type != "int" && type != "float");
 		ImGui::Text("step");
 		ImGui::TableNextColumn();
@@ -4978,7 +5195,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 10:
+	case 12:
 		ImGui::BeginDisabled(type.access()->compare(0, 5, "float"));
 		ImGui::Text("format");
 		ImGui::TableNextColumn();
@@ -4986,20 +5203,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputText("##format", format.access());
 		ImGui::EndDisabled();
 		break;
-	case 11:
+	case 13:
 		ImGui::Text("initialFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Checkbox("##kbf", initialFocus.access());
 		break;
-	case 12:
+	case 14:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("forceFocus");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##forceFocus", &forceFocus, true, ctx);
 		break;
-	case 13:
+	case 15:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5007,7 +5224,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 14:
+	case 16:
 		ImGui::BeginDisabled(type != "std::string" || !(flags & ImGuiInputTextFlags_Multiline));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
@@ -5018,7 +5235,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 15, ctx);
+		return Widget::PropertyUI(i - 17, ctx);
 	}
 	return changed;
 }
@@ -5064,7 +5281,16 @@ Combo::Combo(UIContext& ctx)
 	size_x = 200;
 
 	if (ctx.createVars)
-		fieldName.set_from_arg(ctx.codeGen->CreateVar("int", "-1", CppGen::Var::Interface));
+		fieldName.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
+
+	flags.prefix("ImGuiComboFlags_");
+	flags.add$(ImGuiComboFlags_PopupAlignLeft);
+	flags.add$(ImGuiComboFlags_HeightSmall);
+	flags.add$(ImGuiComboFlags_HeightRegular);
+	flags.add$(ImGuiComboFlags_HeightLarge);
+	flags.add$(ImGuiComboFlags_HeightLargest);
+	flags.add$(ImGuiComboFlags_NoArrowButton);
+	flags.add$(ImGuiComboFlags_NoPreview);
 }
 
 std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
@@ -5078,7 +5304,6 @@ std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
 
 void Combo::DoDraw(UIContext& ctx)
 {
-	int zero = 0;
 	float w = size_x.eval_px(ImGuiAxis_X, ctx);
 	if (w)
 		ImGui::SetNextItemWidth(w);
@@ -5088,12 +5313,13 @@ void Combo::DoDraw(UIContext& ctx)
 	auto vars = items.used_variables();
 	if (vars.empty())
 	{
-		ImGui::Combo(id.c_str(), &zero, items.c_str());
+		std::string tmp = items.c_str();
+		ImRad::Combo(id.c_str(), &tmp, items.c_str(), flags);
 	}
 	else
 	{
 		std::string tmp = '{' + vars[0] + "}\0";
-		ImGui::Combo(id.c_str(), &zero, tmp.c_str());
+		ImRad::Combo(id.c_str(), &tmp, "\0", flags);
 	}
 }
 
@@ -5111,7 +5337,7 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 		id = std::string("\"##") + fieldName.c_str() + "\"";
 	
 	os << "ImRad::Combo(" << id << ", &" << fieldName.to_arg() 
-		<< ", " << items.to_arg() << ")";
+		<< ", " << items.to_arg() << ", " << flags.to_arg() << ")";
 
 	if (!onChange.empty()) {
 		os << ")\n";
@@ -5146,6 +5372,10 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			items.set_from_arg(sit->params[2]);
 		}
 
+		if (sit->params.size() >= 4) {
+			flags.set_from_arg(sit->params[3]);
+		}
+
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee2);
 	}
@@ -5162,6 +5392,8 @@ Combo::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.borderSize", &style_frameBorderSize },
+		{ "combo.flags", &flags },
 		{ "label", &label, true },
 		{ "combo.field_name", &fieldName },
 		{ "combo.items", &items },
@@ -5176,19 +5408,32 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 1:
+		TreeNodeProp("flags", "...", [&] {
+			ImGui::TableNextColumn();
+			ImGui::Spacing();
+			changed = CheckBoxFlags(&flags);
+			});
+		break;
+	case 2:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##label", &label, ctx);
 		break;
-	case 1:
+	case 3:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, false, ctx);
 		break;
-	case 2:
+	case 4:
 		ImGui::Text("items");
 		ImGui::TableNextColumn();
 		//ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5210,7 +5455,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("items", &items, ctx);
 		break;
-	case 3:
+	case 5:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5219,7 +5464,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 4, ctx);
+		return Widget::PropertyUI(i - 6, ctx);
 	}
 	return changed;
 }
@@ -5595,6 +5840,7 @@ ProgressBar::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "@style.color", &style_color },
+		{ "@style.borderSize", &style_frameBorderSize },
 		{ "progress.field_name", &fieldName },
 		{ "progress.indicator", &indicator },
 		{ "size_x", &size_x },
@@ -5615,13 +5861,19 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		changed = InputBindable("##color", &style_color, ImGuiCol_PlotHistogram, ctx);
 		break;
 	case 1:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, "float", false, ctx);
 		break;
-	case 2:
+	case 3:
 	{
 		ImGui::Text("indicator");
 		ImGui::TableNextColumn();
@@ -5631,7 +5883,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 			indicator = ind;
 		break;
 	}
-	case 3:
+	case 4:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5639,7 +5891,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5648,7 +5900,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 5, ctx);
+		return Widget::PropertyUI(i - 6, ctx);
 	}
 	return changed;
 }
@@ -5774,6 +6026,7 @@ ColorEdit::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.borderSize", &style_frameBorderSize },
 		{ "color.flags", &flags },
 		{ "label", &label, true },
 		{ "color.type", &type },
@@ -5794,19 +6047,25 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 1:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 1:
+	case 2:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##label", &label, ctx);
 		break;
-	case 2:
+	case 3:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5823,14 +6082,14 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 3:
+	case 4:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5839,7 +6098,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 5, ctx);
+		return Widget::PropertyUI(i - 6, ctx);
 	}
 	return changed;
 }
@@ -6302,11 +6561,11 @@ Table::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "@style.cellPadding", &style_cellPadding },
 		{ "@style.headerBg", &style_headerBg },
 		{ "@style.rowBg", &style_rowBg },
 		{ "@style.rowBgAlt", &style_rowBgAlt },
-		{ "@style.bg", &style_childBg },
+		{ "@style.childBg", &style_childBg },
+		{ "@style.cellPadding", &style_cellPadding },
 		{ "table.flags", &flags },
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
@@ -6326,34 +6585,34 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
-		ImGui::Text("cellPadding");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##style_cellPadding", &style_cellPadding, ctx);
-		break;
-	case 1:
 		ImGui::Text("headerBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##headerbg", &style_headerBg, ImGuiCol_TableHeaderBg, ctx);
 		break;
-	case 2:
+	case 1:
 		ImGui::Text("rowBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##rowbg", &style_rowBg, ImGuiCol_TableRowBg, ctx);
 		break;
-	case 3:
+	case 2:
 		ImGui::Text("rowBgAlt");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx);
 		break;
-	case 4:
+	case 3:
 		ImGui::Text("childBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##bg", &style_childBg, ImGuiCol_ChildBg, ctx);
+		break;
+	case 4:
+		ImGui::Text("cellPadding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##style_cellPadding", &style_cellPadding, ctx);
 		break;
 	case 5:
 		TreeNodeProp("flags", "...", [&] {
@@ -6791,8 +7050,6 @@ void Child::DoDraw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, style_rounding);
 	if (!style_bg.empty())
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
-	if (!style_border.empty())
-		ImGui::PushStyleColor(ImGuiCol_Border, style_border.eval(ctx));
 
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
@@ -6819,8 +7076,6 @@ void Child::DoDraw(UIContext& ctx)
 	
 	ImGui::EndChild();
 
-	if (!style_border.empty())
-		ImGui::PopStyleColor();
 	if (!style_bg.empty())
 		ImGui::PopStyleColor();
 	if (style_rounding.has_value())
@@ -6845,9 +7100,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
-	if (!style_border.empty())
-		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Border, " << style_border.to_arg() << ");\n";
-
+	
 	if (!style_outer_padding)
 	{
 		std::string rvar = "r" + std::to_string(ctx.varCounter);
@@ -6936,8 +7189,6 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!style_outer_padding)
 		os << ctx.ind << "ImGui::PopClipRect();\n";
-	if (!style_border.empty())
-		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (style_rounding.has_value())
@@ -6952,8 +7203,6 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_ChildBg")
 			style_bg.set_from_arg(sit->params[1]);
-		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiCol_Border")
-			style_border.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
 	{
@@ -8117,6 +8366,8 @@ std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
 
 void MenuIt::DoDraw(UIContext& ctx)
 {
+	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
+	
 	if (separator)
 		ImGui::Separator();
 	
@@ -8129,16 +8380,21 @@ void MenuIt::DoDraw(UIContext& ctx)
 			ImGui::SetNextWindowPos(cached_pos);
 			if (style_padding.has_value())
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding);
-			if (style_rounding.has_value())
-				ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, style_rounding);
 			if (style_spacing.has_value())
 				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 
+				style_rounding.empty() ? ImGui::GetStyle().PopupRounding : style_rounding);
 
 			std::string id = label + "##" + std::to_string((uintptr_t)this);
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
+			bool sel = stx::count(ctx.selected, this);
+			if (sel)
+				ImGui::PushStyleColor(ImGuiCol_Border, ctx.colors[UIContext::Selected]);
 			ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings);
 			{
-				ctx.activePopups.push_back(ImGui::GetCurrentWindow());				
+				if (sel)
+					ImGui::PopStyleColor(); 
+				ctx.activePopups.push_back(ImGui::GetCurrentWindow());
 				//for (const auto& child : children) defend against insertions within the loop
 				for (size_t i = 0; i < children.size(); ++i)
 					children[i]->Draw(ctx);
@@ -8147,9 +8403,8 @@ void MenuIt::DoDraw(UIContext& ctx)
 			}
 			ImGui::PopStyleVar();
 
+			ImGui::PopStyleVar();
 			if (style_spacing.has_value())
-				ImGui::PopStyleVar();
-			if (style_rounding.has_value())
 				ImGui::PopStyleVar();
 			if (style_padding.has_value())
 				ImGui::PopStyleVar();
@@ -8212,6 +8467,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 		bool check = !checked.empty();
 		ImGui::MenuItem(DRAW_STR(label), DRAW_STR(shortcut), check);
 	}
+	ImGui::PopStyleVar();
 }
 
 void MenuIt::DrawExtra(UIContext& ctx)
@@ -8232,6 +8488,7 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 	ImGui::PushFont(nullptr);
+	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
 
 	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 	const ImVec2 bsize{ 30, 30 };
@@ -8277,6 +8534,7 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	ImGui::EndDisabled();
 
 	ImGui::End();
+	ImGui::PopStyleVar();
 	ImGui::PopFont();
 	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
 }
@@ -8324,7 +8582,7 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
 		if (style_spacing.has_value())
 			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
-
+		
 		os << ctx.ind << "if (ImGui::BeginPopup(" << label.to_arg() << ", "
 			<< "ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings"
 			<< "))\n";

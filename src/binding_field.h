@@ -13,7 +13,7 @@ T field_ref<T>::eval(const UIContext &ctx) const
 		return {};
 	T val;
 	std::istringstream is(var->init);
-	if (is >> val)
+	if (is >> std::boolalpha >> val)
 		return val;
 	return {};
 }

@@ -335,7 +335,7 @@ struct direct_val<dimension> : property_base
 		is >> val;
 		//strip unit calculation
 		std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
-		if (factor == "*fs" || factor == "*dp")
+		if (factor == "*dp")
 		{
 			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
 			dimension v;
@@ -394,7 +394,7 @@ struct direct_val<pzdimension> : property_base
 		is >> val;
 		//strip unit calculation
 		std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
-		if (factor == "*fs" || factor == "*dp")
+		if (factor == "*dp")
 		{
 			std::istringstream is(std::string(s.substr(0, s.size() - 3)));
 			dimension v;

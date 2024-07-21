@@ -120,8 +120,10 @@ void SettingsDlg::Draw()
 
             /// @begin Combo
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
             ImGui::SetNextItemWidth(200);
-            ImRad::Combo("##fontName", &fontName, fontNames);
+            ImRad::Combo("##fontName", &fontName, fontNames, ImGuiComboFlags_None);
+            ImGui::PopStyleVar();
             /// @end Combo
 
             /// @begin Text
@@ -131,8 +133,10 @@ void SettingsDlg::Draw()
 
             /// @begin Combo
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
             ImGui::SetNextItemWidth(100);
-            ImRad::Combo("##fontSize", &fontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\000");
+            ImRad::Combo("##fontSize", &fontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\000", ImGuiComboFlags_None);
+            ImGui::PopStyleVar();
             /// @end Combo
 
             /// @separator

@@ -79,8 +79,10 @@ struct Widget : UINode
 	bindable<font_name> style_font;
 	bindable<color32> style_text;
 	bindable<color32> style_frameBg;
+	bindable<color32> style_border;
 	direct_val<pzdimension> style_frameRounding;
 	direct_val<pzdimension2> style_framePadding;
+	direct_val<pzdimension> style_frameBorderSize;
 	direct_val<std::string> contextMenu = "";
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
@@ -177,7 +179,8 @@ struct Selectable : Widget
 	direct_val<bool> alignToFrame = false;
 	direct_val<bool> readOnly = false;
 	field_ref<bool> fieldName;
-	bindable<bool> value;
+	bindable<bool> selected = false;
+	bindable<color32> style_header;
 	event<> onChange;
 
 	Selectable(UIContext& ctx);
@@ -204,6 +207,7 @@ struct Button : Widget
 	direct_val<std::string> dropDownMenu = "";
 	bindable<color32> style_button;
 	bindable<color32> style_hovered;
+	bindable<color32> style_active;
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -223,6 +227,7 @@ struct CheckBox : Widget
 {
 	bindable<std::string> label = "label";
 	field_ref<bool> fieldName;
+	bindable<color32> style_check;
 	event<> onChange;
 
 	CheckBox(UIContext& ctx);
@@ -241,13 +246,17 @@ struct RadioButton : Widget
 {
 	bindable<std::string> label = "label";
 	direct_val<int> valueID = 0;
+	bindable<color32> style_check;
 	field_ref<int> fieldName;
+	event<> onChange;
 
 	RadioButton(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	void DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
+	auto Events()->std::vector<Prop>;
+	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_CIRCLE_DOT; }
@@ -288,6 +297,7 @@ struct Combo : Widget
 	direct_val<std::string> label = "";
 	field_ref<std::string> fieldName;
 	bindable<std::vector<std::string>> items;
+	flags_helper flags = ImGuiComboFlags_None;
 	event<> onChange;
 
 	Combo(UIContext& ctx);
@@ -452,8 +462,7 @@ struct Child : Widget
 	direct_val<bool> style_outer_padding = true;
 	direct_val<pzdimension> style_rounding;
 	bindable<color32> style_bg;
-	bindable<color32> style_border;
-
+	
 	Child(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior();
@@ -550,6 +559,7 @@ struct MenuBar : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_ELLIPSIS; }
 };
 
 struct MenuIt : Widget
@@ -578,7 +588,7 @@ struct MenuIt : Widget
 	void ExportShortcut(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
-	const char* GetIcon() const { return ICON_FA_LIST; }
+	const char* GetIcon() const { return contextMenu ? ICON_FA_MESSAGE : ICON_FA_BARS; }
 };
 
 struct Splitter : Widget
@@ -614,7 +624,7 @@ struct TopWindow : UINode
 	bindable<font_name> style_font;
 	direct_val<pzdimension2> style_padding;
 	direct_val<pzdimension2> style_spacing;
-	direct_val<pzdimension> style_border;
+	direct_val<pzdimension> style_borderSize;
 	direct_val<pzdimension> style_rounding;
 	direct_val<pzdimension> style_scrollbarSize;
 	bindable<color32> style_bg;

@@ -161,11 +161,16 @@ void BindingDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
+			bool exprValid = true;
+			if (type == "bool" || type == "float" || type == "int")
+				exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
+			ImGui::BeginDisabled(!exprValid);
             if (ImGui::Button("OK", { 90, 30 }))
             {
                 ClosePopup();
                 callback(ImRad::Ok);
             }
+			ImGui::EndDisabled();
             /// @end Button
 
             /// @begin Button
