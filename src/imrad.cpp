@@ -66,7 +66,7 @@ enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
 std::string rootPath;
 std::string initErrors, showError;
-std::string fontName = "Roboto-Medium.ttf";
+std::string fontName = "Roboto-Regular.ttf";
 float fontSize = 20;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
