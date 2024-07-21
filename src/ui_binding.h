@@ -20,6 +20,7 @@ public:
     std::string expr;
     std::string type;
     CppGen* codeGen;
+	ImFont* font = nullptr;
     bool showAll;
 
 private:

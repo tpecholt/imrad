@@ -30,7 +30,7 @@ void BindingDlg::Draw()
     /// @begin TopWindow
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
-    ImGui::SetNextWindowSize({ 480, 480 }, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver);
     if (requestOpen) {
         requestOpen = false;
         ImGui::OpenPopup("Binding");
@@ -60,11 +60,13 @@ void BindingDlg::Draw()
         /// @end Selectable
 
         /// @begin Input
-        if (ImGui::IsWindowAppearing())
+		ImGui::PushFont(font);
+		if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-        ImGui::SetNextItemWidth(-1);
+		ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_None);
-        /// @end Input
+		ImGui::PopFont();
+		/// @end Input
 
         /// @begin Table
         ImGui::Spacing();

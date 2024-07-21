@@ -83,6 +83,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
 	ImGui::PopStyleColor();
 	if (pushed)
 	{
+		bindingDlg.font = ctx.defaultFont;
 		bindingDlg.codeGen = ctx.codeGen;
 		bindingDlg.name = label;
 		bindingDlg.expr = val->c_str();

@@ -296,6 +296,7 @@ void ClassWizard::Draw()
 
 		/// @begin Button
 		ImGui::Spacing();
+		ImGui::Spacing();
 		ImGui::BeginDisabled(stypeIdx);
 		if (ImGui::Button("Remove Unused", { BWIDTH, 0 }))
 		{
