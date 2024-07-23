@@ -520,12 +520,12 @@ private:
 template <>
 struct direct_val<shortcut_> : property_base
 {
-	direct_val(const std::string& v, bool g = false) 
+	direct_val(const char* v, bool g = false) 
 		: sh(v), global(g) 
 	{}
-	direct_val& operator= (const std::string& v) { 
-		sh = v; return *this; 
-	}
+	direct_val(const std::string& v, bool g = false)
+		: sh(v), global(g)
+	{}
 
 	bool is_global() const { return global; }
 	void set_global(bool g) { global = g; }

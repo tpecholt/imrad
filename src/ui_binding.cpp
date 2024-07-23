@@ -108,7 +108,7 @@ void BindingDlg::Draw()
         /// @end Table
 
         /// @begin Table
-        if (ImGui::BeginTable("table2201201801200", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 0, -48 }))
+        if (ImGui::BeginTable("table2201201801200", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 0, -48 }))
         {
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);

@@ -8339,6 +8339,7 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 MenuIt::MenuIt(UIContext& ctx)
 {
+	shortcut.set_global(true);
 }
 
 std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
@@ -8654,7 +8655,7 @@ void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
 	if (!disabled.has_value() || disabled.value())
 		os << "!(" << disabled.to_arg() << ") && ";
 	//force RouteGlobal otherwise it won't get fired when menu popup is open
-	os << "ImGui::Shortcut(" << shortcut.to_arg() << ", ImGuiInputFlags_RouteGlobal))\n";
+	os << "ImGui::Shortcut(" << shortcut.to_arg() << "))\n";
 	ctx.ind_up();
 	if (!onChange.empty())
 		os << ctx.ind << onChange.to_arg() << "();\n";
