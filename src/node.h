@@ -203,7 +203,7 @@ struct Button : Widget
 	direct_val<ImGuiDir> arrowDir = ImGuiDir_None;
 	direct_val<bool> small = false;
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
-	direct_val<std::string> shortcut = "";
+	direct_val<shortcut_> shortcut = "";
 	direct_val<std::string> dropDownMenu = "";
 	bindable<color32> style_button;
 	bindable<color32> style_hovered;
@@ -567,7 +567,7 @@ struct MenuIt : Widget
 	bool contextMenu = false;
 	direct_val<bool> ownerDraw = false;
 	direct_val<std::string> label = "Item";
-	direct_val<std::string> shortcut = "";
+	direct_val<shortcut_> shortcut = "";
 	direct_val<bool> separator = false;
 	field_ref<bool> checked;
 	direct_val<pzdimension2> style_padding;
@@ -586,6 +586,7 @@ struct MenuIt : Widget
 	bool EventUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void ExportShortcut(std::ostream& os, UIContext& ctx);
+	void ExportAllShortcuts(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	const char* GetIcon() const { return contextMenu ? ICON_FA_MESSAGE : ICON_FA_BARS; }
@@ -630,6 +631,7 @@ struct TopWindow : UINode
 	bindable<color32> style_bg;
 	bindable<color32> style_menuBg;
 	direct_val<Placement> placement = None;
+	direct_val<bool> closeOnEscape = false;
 	direct_val<bool> animate = false;
 
 	event<> onBackButton;

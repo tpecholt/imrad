@@ -114,8 +114,7 @@ void NewFieldPopup::Draw()
 
 		ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 2 * 100));
 		ImGui::BeginDisabled(hint != "");
-		if (ImGui::Button("OK", { 100, 30 }) ||
-			(hint == "" && ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
+		if (ImGui::Button("OK", { 100, 30 }))
 		{
 			CheckVarName();
 			
@@ -160,7 +159,7 @@ void NewFieldPopup::Draw()
 		ImGui::SetItemDefaultFocus();
 
 		ImGui::SameLine();
-		if (ImGui::Button("Cancel", { 100, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape))
+		if (ImGui::Button("Cancel", { 100, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
 		{
 			const auto& g = ImGui::GetCurrentContext();
 			ClosePopup();

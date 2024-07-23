@@ -24,7 +24,6 @@ private:
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
-
     /// @end impl
 };
 

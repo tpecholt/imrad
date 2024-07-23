@@ -166,8 +166,7 @@ void AboutDlg::Draw()
 
             /// @begin Button
             ImRad::TableNextColumn(1);
-            if (ImGui::Button("OK", { 100, 30 }) ||
-                (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
+            if (ImGui::Button("OK", { 100, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
             {
                 ClosePopup(ImRad::Ok);
             }

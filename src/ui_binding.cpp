@@ -161,11 +161,11 @@ void BindingDlg::Draw()
             }
             /// @end Button
 
-            /// @begin Button
-            ImGui::TableNextColumn();
 			bool exprValid = true;
 			if (type == "bool" || type == "float" || type == "int")
 				exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
+			/// @begin Button
+            ImGui::TableNextColumn();
 			ImGui::BeginDisabled(!exprValid);
             if (ImGui::Button("OK", { 90, 30 }))
             {
@@ -177,8 +177,7 @@ void BindingDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
-            if (ImGui::Button("Cancel", { 90, 30 }) ||
-                (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
+            if (ImGui::Button("Cancel", { 90, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
             {
                 ClosePopup();
             }

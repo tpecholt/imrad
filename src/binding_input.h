@@ -138,6 +138,31 @@ inline bool InputDirectVal(const char* label, direct_val<std::string>* val, UICo
 	return ch;
 }
 
+inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool button, UIContext& ctx)
+{
+	if (button) {
+		const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
+		bool hasWidth = nextItemData.Flags & ImGuiNextItemDataFlags_HasWidth;
+		ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
+	}
+
+	bool changed = ImGui::InputText(label, val->access());
+
+	if (button) {
+		ImGui::SameLine(0, 0);
+		bool global = val->is_global();
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[global ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+		if (ImGui::Button((std::string("G##") + label).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		{
+			changed = true;
+			val->set_global(!global);
+		};
+		ImGui::PopStyleColor();
+	}
+
+	return changed;
+}
+
 inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, UIContext& ctx)
 {
 	bool changed = false;

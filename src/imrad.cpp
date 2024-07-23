@@ -924,8 +924,14 @@ void DoCloneStyle(const std::string& name)
 		fileTabs[activeTab].styleName = name;
 		if (!stx::count_if(styleNames, [&](const auto& s) { return s.first == name; }))
 			styleNames.push_back({ name, path });
+
+		messageBox.title = "Style saved";
+		messageBox.message = "New style was saved as '" + path + "'";
+		messageBox.buttons = ImRad::Ok;
+		messageBox.OpenPopup();
 	}
-	catch (std::exception& e) {
+	catch (std::exception& e) 
+	{
 		messageBox.title = "error";
 		messageBox.message = e.what();
 		messageBox.buttons = ImRad::Ok;
@@ -1040,7 +1046,7 @@ void ToolbarUI()
 	const float BTN_SIZE = 30;
 	const auto& io = ImGui::GetIO();
 	if (ImGui::Button(ICON_FA_FILE " " ICON_FA_CARET_DOWN) ||
-		(ImGui::IsKeyPressed(ImGuiKey_N, false) && io.KeyCtrl))
+		ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, ImGuiInputFlags_RouteGlobal))
 		ImGui::OpenPopup("NewMenu");
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("New File (Ctrl+N)");
@@ -1075,7 +1081,7 @@ void ToolbarUI()
 
 	ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
-		(ImGui::IsKeyPressed(ImGuiKey_O, false) && io.KeyCtrl))
+		ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, ImGuiInputFlags_RouteGlobal))
 		OpenFile();
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Open File (Ctrl+O)");
@@ -1085,7 +1091,7 @@ void ToolbarUI()
 	ImGui::SameLine();
 	float cx = ImGui::GetCursorPosX();
 	if (ImGui::Button(ICON_FA_FLOPPY_DISK) ||
-		(ImGui::IsKeyPressed(ImGuiKey_S, false) && io.KeyMods == ImGuiMod_Ctrl))
+		ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
 		SaveFile(false);
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Save File (Ctrl+S)");
@@ -1106,7 +1112,7 @@ void ToolbarUI()
 			SaveAll();
 		ImGui::EndPopup();
 	}
-	if (io.KeyMods == (ImGuiMod_Ctrl | ImGuiMod_Shift) && ImGui::IsKeyPressed(ImGuiKey_S))
+	if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
 		SaveAll();
 
 	ImGui::SameLine();
@@ -1178,7 +1184,7 @@ void ToolbarUI()
 	ImGui::SameLine();
 	ImGui::BeginDisabled(activeTab < 0);
 	if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
-		(ImGui::IsKeyPressed(ImGuiKey_P, false) && io.KeyCtrl)) 
+		ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, ImGuiInputFlags_RouteGlobal))
 		ShowCode();
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 		ImGui::SetTooltip("Preview Code (Ctrl+P)");
@@ -1226,7 +1232,7 @@ void ToolbarUI()
 	
 	ImGui::SameLine();
 	if (ImGui::Button(ICON_FA_CIRCLE_INFO) ||
-		(ImGui::IsKeyPressed(ImGuiKey_F1, false)))
+		ImGui::Shortcut(ImGuiKey_F1, ImGuiInputFlags_RouteGlobal))
 	{
 		aboutDlg.OpenPopup();
 	}
@@ -1551,10 +1557,8 @@ void PopupUI()
 
 	aboutDlg.Draw();
 
-	ImGui::PushFont(ctx.defaultFont);
 	bindingDlg.Draw();
-	ImGui::PopFont();
-
+	
 	horizLayout.Draw();
 
 	inputName.Draw();
@@ -1835,8 +1839,7 @@ void Work()
 		{
 			RemoveSelected();
 		}
-		if (ImGui::IsKeyPressed(ImGuiKey_C) &&
-			ImGui::GetIO().KeyMods == ImGuiMod_Ctrl &&
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_C, ImGuiInputFlags_RouteGlobal) &&
 			!ctx.selected.empty() &&
 			ctx.selected[0] != fileTabs[activeTab].rootNode.get())
 		{
@@ -1850,15 +1853,13 @@ void Work()
 			}
 			ctx.createVars = true;
 		}
-		if (ImGui::IsKeyPressed(ImGuiKey_X) &&
-			ImGui::GetIO().KeyMods == ImGuiMod_Ctrl &&
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_X, ImGuiInputFlags_RouteGlobal) &&
 			!ctx.selected.empty() &&
 			ctx.selected[0] != fileTabs[activeTab].rootNode.get())
 		{
 			clipboard = RemoveSelected();
 		}
-		if (ImGui::IsKeyPressed(ImGuiKey_V) &&
-			ImGui::GetIO().KeyMods == ImGuiMod_Ctrl &&
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_V, ImGuiInputFlags_RouteGlobal) &&
 			clipboard.size())
 		{
 			activeButton = "";

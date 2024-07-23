@@ -85,7 +85,8 @@ void ClassWizard::Draw()
 	bool tmpOpen = true;
 	if (ImGui::BeginPopupModal("Class Wizard", &tmpOpen, ImGuiWindowFlags_None))
 	{
-		if (requestClose) ImGui::CloseCurrentPopup();
+		if (requestClose)
+			ImGui::CloseCurrentPopup();
 		/// @separator
 
 		newFieldPopup.Draw();
@@ -322,8 +323,7 @@ void ClassWizard::Draw()
 
 		/// @begin Button
 		ImGui::SameLine();
-		if (ImGui::Button("OK", { 100, 35 }) ||
-			ImGui::IsKeyPressed(ImGuiKey_Escape))
+		if (ImGui::Button("OK", { 100, 35 }) || ImGui::Shortcut(ImGuiKey_Escape))
 		{
 			ClosePopup();
 		}

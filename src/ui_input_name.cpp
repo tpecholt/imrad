@@ -32,12 +32,12 @@ void InputName::Init()
 
 void InputName::Draw()
 {
-    /// @style Dark
+    /// @style imrad
     /// @unit px
     /// @begin TopWindow
     auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###InputName");
-    ImGui::SetNextWindowSize({ 250, 120 }); //{ 250, 120 }
+    ImGui::SetNextWindowSize({ 250, 120 }, ImGuiCond_FirstUseEver); //{ 250, 120 }
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal(ImRad::Format("{}###InputName", title).c_str(), &tmpOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
     {
@@ -49,6 +49,8 @@ void InputName::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        if (ImGui::Shortcut(ImGuiKey_Escape))
+            ClosePopup();
         /// @separator
 
         // TODO: Add Draw calls of dependent popup windows here
@@ -77,13 +79,10 @@ void InputName::Draw()
             /// @begin Button
             ImRad::TableNextColumn(1);
             ImGui::BeginDisabled(name==""||name=="Classic"||name=="Dark"||name=="Light");
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-            if (ImGui::Button("OK", { 100, 30 }) ||
-                (!ImRad::IsItemDisabled() && ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
+            if (ImGui::Button("OK", { 100, 30 }))
             {
                 ClosePopup(ImRad::Ok);
             }
-            ImGui::PopStyleColor();
             ImGui::EndDisabled();
             /// @end Button
 

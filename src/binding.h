@@ -11,6 +11,9 @@
 
 struct UIContext;
 
+std::string CodeShortcut(std::string_view sh);
+std::string ParseShortcut(std::string_view line);
+
 //negative values allowed
 struct dimension
 {
@@ -72,6 +75,13 @@ struct font_name
 		value.pop_back();
 		return is;
 	}*/
+};
+
+struct shortcut_
+{
+	std::string value;
+	shortcut_(const std::string& v = {}) : value(v) {}
+	operator const std::string& () { return value; }
 };
 
 struct color32
@@ -505,6 +515,44 @@ struct direct_val<std::string> : property_base
 	}
 private:
 	std::string val;
+};
+
+template <>
+struct direct_val<shortcut_> : property_base
+{
+	direct_val(const std::string& v, bool g = false) 
+		: sh(v), global(g) 
+	{}
+	direct_val& operator= (const std::string& v) { 
+		sh = v; return *this; 
+	}
+
+	bool is_global() const { return global; }
+	void set_global(bool g) { global = g; }
+	//const std::string& value() const { return val; }
+
+	void set_from_arg(std::string_view s) {
+		sh = ParseShortcut(s);
+		global = s.find("ImGuiInputFlags_RouteGlobal") != std::string::npos;
+	}
+	std::string to_arg(std::string_view = "", std::string_view = "") const {
+		std::ostringstream os;
+		os << CodeShortcut(sh.value);
+		if (global)
+			os << ", ImGuiInputFlags_RouteGlobal";
+		return os.str();
+	}
+	std::vector<std::string> used_variables() const {
+		return {};
+	}
+	void rename_variable(const std::string& oldn, const std::string& newn)
+	{}
+	std::string* access() { return &sh.value; }
+	const char* c_str() const { return sh.value.c_str(); }
+	bool empty() const { return sh.value.empty(); }
+private:
+	shortcut_ sh;
+	bool global;
 };
 
 #define add$(f) add(#f, f)

@@ -56,6 +56,8 @@ void SettingsDlg::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        if (ImGui::Shortcut(ImGuiKey_Escape))
+            ClosePopup();
         /// @separator
 
         // TODO: Add Draw calls of dependent popup windows here

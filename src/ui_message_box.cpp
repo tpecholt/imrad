@@ -52,6 +52,7 @@ void MessageBox::Draw()
 	//todo: ImGuiCond_Appearing won't center
 	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 	bool open = true;
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
 	if (ImGui::BeginPopupModal((title + "###MessageBox").c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		wasOpen = ID;
@@ -81,8 +82,9 @@ void MessageBox::Draw()
 		ImGui::Spacing();
 		ImGui::Spacing();
 
+		const float BWIDTH = 90;
 		int n = (bool)(buttons & ImRad::Ok) + (bool)(buttons & ImRad::Cancel) + (bool)(buttons & ImRad::Yes) + (bool)(buttons & ImRad::No);
-		float w = (n * 80) + (n - 1) * ImGui::GetStyle().ItemSpacing.x;
+		float w = (n * BWIDTH) + (n - 1) * ImGui::GetStyle().ItemSpacing.x;
 		float x = (ImGui::GetContentRegionAvail().x + ImGui::GetStyle().FramePadding.x - w) / 2.f;
 		x += ImGui::GetStyle().WindowPadding.x;
 		float y = ImGui::GetCursorPosY();
@@ -91,41 +93,40 @@ void MessageBox::Draw()
 			if (ImGui::IsWindowAppearing())
 				ImGui::SetKeyboardFocusHere();
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("OK", { 80, 30 }) ||
-				(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)) ||
+			if (ImGui::Button("OK", { BWIDTH, 30 }) ||
 				(buttons == ImRad::Ok && ImGui::IsKeyPressed(ImGuiKey_Escape)))
 			{
 				ImGui::CloseCurrentPopup();
 				callback(ImRad::Ok);
 			}
-			x += 80 + ImGui::GetStyle().ItemSpacing.x;
+			x += BWIDTH + ImGui::GetStyle().ItemSpacing.x;
 		}
 		if (buttons & ImRad::Yes)
 		{
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("Yes", { 80, 30 })) {
+			if (ImGui::Button("Yes", { BWIDTH, 30 })) {
 				ImGui::CloseCurrentPopup();
 				callback(ImRad::Yes);
 			}
-			x += 80 + ImGui::GetStyle().ItemSpacing.x;
+			x += BWIDTH + ImGui::GetStyle().ItemSpacing.x;
 		}
 		if (buttons & ImRad::No)
 		{
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("No", { 80, 30 })) {
+			if (ImGui::Button("No", { BWIDTH, 30 })) {
 				ImGui::CloseCurrentPopup();
 				callback(ImRad::No);
 			}
-			x += 80 + ImGui::GetStyle().ItemSpacing.x;
+			x += BWIDTH + ImGui::GetStyle().ItemSpacing.x;
 		}
 		if (buttons & ImRad::Cancel)
 		{
 			ImGui::SetCursorPos({ x, y });
-			if (ImGui::Button("Cancel", { 80, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			if (ImGui::Button("Cancel", { BWIDTH, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
 				ImGui::CloseCurrentPopup();
 				callback(ImRad::Cancel); //currently used in Save File Confirmation upon Exit
 			}
-			x += 80 + ImGui::GetStyle().ItemSpacing.x;
+			x += BWIDTH + ImGui::GetStyle().ItemSpacing.x;
 		}
 
 		ImGui::EndPopup();
@@ -139,4 +140,5 @@ void MessageBox::Draw()
 		message = "";
 		buttons = ImRad::Ok;
 	}
+	ImGui::PopStyleVar();
 }

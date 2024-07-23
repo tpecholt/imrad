@@ -93,6 +93,42 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 	return changed;
 }
 
+// for compatibility with ImRAD 0.7
+std::string ParseShortcutOld(const std::string& line)
+{
+	std::string sh;
+	size_t i = -1;
+	while (true)
+	{
+		size_t j1 = line.find("ImGui::IsKeyPressed(ImGuiKey_", i + 1);
+		size_t j2 = line.find("ImGuiMod_", i + 1);
+		if (j1 == std::string::npos && j2 == std::string::npos)
+			break;
+		if (j1 < j2) {
+			j1 += 29;
+			size_t e = line.find_first_of(",)", j1);
+			if (e == std::string::npos)
+				break;
+			sh += "+";
+			sh += line.substr(j1, e - j1);
+			i = j1;
+		}
+		else
+		{
+			j2 += 9;
+			sh += "+";
+			size_t end = std::find_if(line.begin() + j2, line.end(), [](char c) {
+				return !std::isalpha(c);
+				}) - line.begin();
+				sh += line.substr(j2, end - j2);
+				i = j2;
+		}
+	}
+	if (sh.size())
+		sh.erase(sh.begin());
+	return sh;
+}
+
 //----------------------------------------------------
 
 void UINode::CloneChildrenFrom(const UINode& node, UIContext& ctx)
@@ -813,7 +849,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Popup || kind == ModalPopup)
 	{
-		if (placement == Left || placement == Top) 
+		if (placement == Left || placement == Top)
 		{
 			os << ctx.ind << "ImGui::SetNextWindowPos(";
 			if (animate)
@@ -822,7 +858,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				os << "ioUserData->WorkRect().Min";
 			os << "); " << (placement == Left ? " //Left\n" : " //Top\n");
 		}
-		else if (placement == Right || placement == Bottom) 
+		else if (placement == Right || placement == Bottom)
 		{
 			os << ctx.ind << "ImGui::SetNextWindowPos(";
 			if (animate)
@@ -831,7 +867,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				os << "ioUserData->WorkRect().Max, 0, { 1, 1 }";
 			os << "); " << (placement == Right ? " //Right\n" : " //Bottom\n");
 		}
-		else if (placement == Center) 
+		else if (placement == Center)
 		{
 			os << ctx.ind << "ImGui::SetNextWindowPos(";
 			if (animate)
@@ -843,7 +879,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
 		//size
 		os << ctx.ind << "ImGui::SetNextWindowSize({ ";
-			
+
 		if (placement == Top || placement == Bottom)
 			os << "ioUserData->WorkRect().GetWidth()";
 		else if (autoSize)
@@ -859,7 +895,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			os << "0";
 		else
 			os << size_y.to_arg(ctx.unit);
-			
+
 		os << " }";
 		if (!autoSize && placement != Left && placement != Right && placement != Top && placement != Bottom)
 			os << ", ImGuiCond_FirstUseEver";
@@ -879,7 +915,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		}
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
-		
+
 		//animation
 		if (animate)
 		{
@@ -919,7 +955,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 			os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
 			ctx.ind_down();
 		}
-		if (style_rounding && 
+		if (style_rounding &&
 			(placement == Left || placement == Right || placement == Top || placement == Bottom))
 		{
 			os << ctx.ind << "ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCorners";
@@ -953,6 +989,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		}
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
+
+		if (closeOnEscape)
+		{
+			os << ctx.ind << "if (ImGui::Shortcut(ImGuiKey_Escape))\n";
+			ctx.ind_up();
+			os << ctx.ind << "ClosePopup();\n";
+			ctx.ind_down();
+		}
 	}
 	
 	if (!onWindowAppearing.empty())
@@ -1023,7 +1067,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 	ctx.parents = { this };
 	ctx.kind = kind = Window;
 	bool hasGlfw = false;
-	bool windowAppearing = false;
+	bool windowAppearingBlock = false;
 	
 	while (sit != cpp::stmt_iterator())
 	{
@@ -1088,12 +1132,12 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		}
 		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::IsWindowAppearing")
 		{
-			windowAppearing = true;
+			windowAppearingBlock = true;
 		}
 		else if (sit->kind == cpp::Other && sit->line == "else" && 
 			sit->level == ctx.importLevel + 1)
 		{
-			windowAppearing = false;
+			windowAppearingBlock = false;
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
@@ -1142,7 +1186,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				title.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSize" && 
-			windowAppearing)
+			windowAppearingBlock)
 		{
 			hasGlfw = true;
 			if (sit->params.size() >= 3) {
@@ -1173,6 +1217,11 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::IsKeyPressed(ImGuiKey_AppBack)")
 		{
 			onBackButton.set_from_arg(sit->callee2);
+		}
+		else if (sit->kind == cpp::IfCallThenCall && sit->cond == "ImGui::Shortcut(ImGuiKey_Escape)" &&
+			sit->callee2 == "ClosePopup")
+		{
+			closeOnEscape = true;
 		}
 		else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsWindowAppearing")
 		{
@@ -1316,6 +1365,7 @@ TopWindow::Properties()
 		{ "top.@style.font", &style_font },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
+		{ "closeOnEscape", &closeOnEscape },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		{ "placement", &placement },
@@ -1432,6 +1482,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("title", &title, ctx);
 		break;
 	case 11:
+		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
+		ImGui::Text("closeOnEscape");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##cesc", &closeOnEscape, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 12:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1441,7 +1499,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 12:
+	case 13:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1451,7 +1509,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 13:
+	case 14:
 	{
 		ImGui::Text("placement");
 		ImGui::TableNextColumn();
@@ -1480,7 +1538,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = placement != tmp;
 		break;
 	}
-	case 14:
+	case 15:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
 		ImGui::TableNextColumn();
@@ -3778,101 +3836,6 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 }
 
-std::string CodeShortcut(const std::string& sh, const std::string& disabled)
-{
-	if (sh.empty())
-		return "";
-	size_t i = -1;
-	std::vector<std::string> cond;
-	std::string mod;
-	while (true) 
-	{
-		size_t j = sh.find_first_of("+-", i + 1);
-		if (j == std::string::npos)
-			j = sh.size();
-		std::string key = sh.substr(i + 1, j - i - 1);
-		if (key.empty() && j < sh.size()) //like in ctrl-+
-			key = sh[j];
-		if (key.empty())
-			break;
-		std::string lk = key;
-		stx::for_each(lk, [](char& c) { c = std::tolower(c); });
-		//todo
-		if (lk == "ctrl")
-			mod += "ImGuiMod_Ctrl|";
-		else if (lk == "alt")
-			mod += "ImGuiMod_Alt|";
-		else if (lk == "shift")
-			mod += "ImGuiMod_Shift|";
-		else if (key == "+")
-			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Equal, false)");
-		else if (key == "-")
-			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Minus, false)");
-		else if (key == ".")
-			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Period, false)");
-		else if (key == ",")
-			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Comma, false)");
-		else if (key == "/")
-			cond.push_back("ImGui::IsKeyPressed(ImGuiKey_Slash, false)");
-		else
-			cond.push_back(std::string("ImGui::IsKeyPressed(ImGuiKey_")  
-				+ (char)std::toupper(key[0])
-				+ key.substr(1) + ", false)");
-		i = j;
-		if (j == sh.size())
-			break;
-	}
-	if (mod != "") {
-		mod.pop_back();
-		if (stx::count(mod, '|'))
-			mod = "(" + mod + ")";
-		cond.insert(cond.begin(), "ImGui::GetIO().KeyMods == " + mod);
-	}
-	if (disabled != "")
-		cond.insert(cond.begin(), "!" + disabled);
-
-	std::string code;
-	code += "(";
-	code += stx::join(cond, " && ");
-	code += ")";
-	return code;
-}
-
-std::string ParseShortcut(const std::string& line)
-{
-	std::string sh;
-	size_t i = -1;
-	while (true)
-	{
-		size_t j1 = line.find("ImGui::IsKeyPressed(ImGuiKey_", i + 1);
-		size_t j2 = line.find("ImGuiMod_", i + 1);
-		if (j1 == std::string::npos && j2 == std::string::npos)
-			break;
-		if (j1 < j2) {
-			j1 += 29;
-			size_t e = line.find_first_of(",)", j1);
-			if (e == std::string::npos)
-				break;
-			sh += "+";
-			sh += line.substr(j1, e - j1);
-			i = j1;
-		}
-		else
-		{
-			j2 += 9;
-			sh += "+";
-			size_t end = std::find_if(line.begin() + j2, line.end(), [](char c) {
-				return !std::isalpha(c);
-				}) - line.begin();
-			sh += line.substr(j2, end - j2);
-			i = j2;
-		}
-	}
-	if (sh.size())
-		sh.erase(sh.begin());
-	return sh;
-}
-
 void Button::DoExport(std::ostream& os, UIContext& ctx)
 {
 	if (!style_button.empty())
@@ -3903,10 +3866,10 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 			<< " })";
 	}
 
-	if (shortcut != "") {
+	if (!shortcut.empty()) {
 		os << " ||\n";
 		ctx.ind_up();
-		os << ctx.ind << CodeShortcut(shortcut, "ImRad::IsItemDisabled()");
+		os << ctx.ind << "ImGui::Shortcut(" << shortcut.to_arg() << ")";
 		ctx.ind_down();
 	}
 
@@ -3961,7 +3924,15 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			size_y.set_from_arg(size.second);
 		}
 
-		shortcut = ParseShortcut(sit->line);
+		size_t i = sit->line.find("ImGui::Shortcut(");
+		if (i != std::string::npos) {
+			size_t j = sit->line.find(')', i);
+			if (j != std::string::npos)
+				shortcut.set_from_arg(sit->line.substr(i + 16, j - i - 16));
+		}
+		else {
+			shortcut = ParseShortcutOld(sit->line);
+		}
 	}
 	else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
 		sit->callee == "ImGui::SmallButton")
@@ -4119,7 +4090,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##shortcut", &shortcut, ctx);
+		changed = InputDirectVal("##shortcut", &shortcut, true, ctx);
 		break;
 	case 12:
 	{
@@ -5455,7 +5426,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("items");
 		ImGui::TableNextColumn();
 		//ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		if (ImGui::Selectable("[...]", false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			std::string tmp = *items.access(); //preserve embeded nulls
@@ -6464,6 +6435,9 @@ Table::ColumnData::ColumnData()
 	flags.add$(ImGuiTableColumnFlags_WidthFixed);
 	flags.add$(ImGuiTableColumnFlags_NoResize);
 	flags.add$(ImGuiTableColumnFlags_NoHide);
+	flags.add$(ImGuiTableColumnFlags_NoSort);
+	flags.add$(ImGuiTableColumnFlags_NoHeaderWidth);
+	flags.add$(ImGuiTableColumnFlags_AngledHeader);
 }
 
 Table::Table(UIContext& ctx)
@@ -6475,6 +6449,7 @@ Table::Table(UIContext& ctx)
 	flags.add$(ImGuiTableFlags_Resizable);
 	flags.add$(ImGuiTableFlags_Reorderable);
 	flags.add$(ImGuiTableFlags_Hideable);
+	flags.add$(ImGuiTableFlags_Sortable);
 	flags.add$(ImGuiTableFlags_ContextMenuInBody);
 	flags.separator();
 	flags.add$(ImGuiTableFlags_RowBg);
@@ -6495,6 +6470,7 @@ Table::Table(UIContext& ctx)
 	flags.add$(ImGuiTableFlags_NoPadInnerX);
 	flags.add$(ImGuiTableFlags_ScrollX);
 	flags.add$(ImGuiTableFlags_ScrollY);
+	flags.add$(ImGuiTableFlags_HighlightHoveredColumn);
 
 	columnData.resize(3);
 	for (size_t i = 0; i < columnData.size(); ++i)
@@ -6643,7 +6619,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 	{
 		ImGui::Text("columns");
 		ImGui::TableNextColumn();
-		if (ImGui::Selectable("[...]", false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+		if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
 		{
 			changed = true;
 			tableColumns.columnData = columnData;
@@ -8330,23 +8306,16 @@ void MenuBar::CalcSizeEx(ImVec2 x1, UIContext& ctx)
 	cached_size = ImGui::GetCurrentWindow()->MenuBarRect().GetSize();
 }
 
-void ExportShortcuts(Widget* item, std::ostream& os, UIContext& ctx)
-{
-	for (const auto& ch : item->children) 
-	{
-		MenuIt* chm = dynamic_cast<MenuIt*>(ch.get());
-		if (chm) chm->ExportShortcut(os, ctx);
-		ExportShortcuts(ch.get(), os, ctx);
-	}
-}
-
 void MenuBar::DoExport(std::ostream& os, UIContext& ctx)
 {
 	os << ctx.ind << "if (ImGui::BeginMenuBar())\n";
 	os << ctx.ind << "{\n";
 	ctx.ind_up();
 	
-	ExportShortcuts(this, os, ctx);
+	for (const auto& child : children) {
+		MenuIt* it = dynamic_cast<MenuIt*>(child.get());
+		if (it) it->ExportAllShortcuts(os, ctx);
+	}
 
 	os << ctx.ind << "/// @separator\n\n";
 
@@ -8483,7 +8452,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 	else //menuItem
 	{
 		bool check = !checked.empty();
-		ImGui::MenuItem(DRAW_STR(label), DRAW_STR(shortcut), check);
+		ImGui::MenuItem(DRAW_STR(label), shortcut.c_str(), check);
 	}
 	ImGui::PopStyleVar();
 }
@@ -8594,6 +8563,8 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (contextMenu)
 	{
+		ExportAllShortcuts(os, ctx);
+
 		if (style_padding.has_value())
 			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, " << style_padding.to_arg(ctx.unit) << ");\n";
 		if (style_rounding.has_value())
@@ -8652,13 +8623,14 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 		if (ifstmt)
 			os << "if (";
 
-		os << "ImGui::MenuItem(" << label.to_arg() << ", "
-			<< shortcut.to_arg() << ", ";
+		os << "ImGui::MenuItem(" << label.to_arg() << ", \""
+			<< shortcut.c_str() << "\", ";
 		if (checked.empty())
 			os << "false";
 		else
 			os << "&" << checked.to_arg();
 		os << ")";
+		//ImGui::Shortcut is exported in ExportShortcut pass
 
 		if (ifstmt) {
 			os << ")\n";
@@ -8671,18 +8643,35 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 	}
 }
 
+//As of now ImGui still doesn't process shortcuts in unopened menus so
+//separate Shortcut pass is needed
 void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
 {
 	if (shortcut.empty() || ownerDraw)
 		return;
 
-	os << ctx.ind << "if " << CodeShortcut(shortcut, disabled.to_arg()) << "\n";
+	os << ctx.ind << "if (";
+	if (!disabled.has_value() || disabled.value())
+		os << "!(" << disabled.to_arg() << ") && ";
+	//force RouteGlobal otherwise it won't get fired when menu popup is open
+	os << "ImGui::Shortcut(" << shortcut.to_arg() << ", ImGuiInputFlags_RouteGlobal))\n";
 	ctx.ind_up();
 	if (!onChange.empty())
 		os << ctx.ind << onChange.to_arg() << "();\n";
 	else
 		os << ctx.ind << ";\n";
 	ctx.ind_down();
+}
+
+void MenuIt::ExportAllShortcuts(std::ostream& os, UIContext& ctx)
+{
+	ExportShortcut(os, ctx);
+	
+	for (const auto& child : children) 
+	{
+		auto* it = dynamic_cast<MenuIt*>(child.get());
+		if (it)	it->ExportAllShortcuts(os, ctx);
+	}
 }
 
 void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -8692,8 +8681,8 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		if (sit->params.size())
 			label.set_from_arg(sit->params[0]);
-		if (sit->params.size() >= 2)
-			shortcut.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && cpp::is_cstr(sit->params[1]))
+			*shortcut.access() = sit->params[1].substr(1, sit->params[1].size() - 2);
 		if (sit->params.size() >= 3 && !sit->params[2].compare(0, 1, "&"))
 			checked.set_from_arg(sit->params[2].substr(1));
 
@@ -8798,7 +8787,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("shortcut");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = ImGui::InputText("##shortcut", shortcut.access());
+		changed = InputDirectVal("##shortcut", &shortcut, false, ctx);
 		ImGui::EndDisabled();
 		break;
 	case 6:
