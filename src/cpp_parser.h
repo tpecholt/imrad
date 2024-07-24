@@ -108,10 +108,10 @@ namespace cpp
 				{
 					if (line_mode) //receive verbatim
 						tok += c;
-					else if (tok.empty()) //skip initial ws
-						continue;
 					else if (in_comment || in_string || in_pre)
 						tok += c;
+					else if (tok.empty()) //skip initial ws
+						continue;
 					else {
 						in->putback(c);
 						break;

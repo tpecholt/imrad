@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.1
+// Generated with ImRAD 0.8
 // github.com/xyz
 
 #include "ui_binding.h"
@@ -9,39 +9,42 @@ BindingDlg bindingDlg;
 
 void BindingDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
-	callback = clb;
-	requestOpen = true;
-	requestClose = false;
-	ImGui::OpenPopup(ID);
-
-	// Add your init code here
-	showAll = type == "std::string";
-	Refresh();
+    callback = clb;
+    modalResult = ImRad::None;
+    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
+    ioUserData->dimBgRatio = 1.f;
+    ImGui::OpenPopup(ID);
+    Init();
 }
 
-void BindingDlg::ClosePopup()
+void BindingDlg::ClosePopup(ImRad::ModalResult mr)
 {
-	requestClose = true;
+    modalResult = mr;
+    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
+    ioUserData->dimBgRatio = 0.f;
 }
 
 void BindingDlg::Draw()
 {
     /// @style Dark
+    /// @unit px
     /// @begin TopWindow
+    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
+    ID = ImGui::GetID("###BindingDlg");
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
-    ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver);
-    if (requestOpen) {
-        requestOpen = false;
-        ImGui::OpenPopup("Binding");
-    }
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
+    ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver); //{ 600, 480 }
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("Binding", &tmpOpen, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal("Binding###BindingDlg", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
-        if (requestClose)
+        if (ioUserData->activeActivity != "")
+            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (modalResult != ImRad::None)
+        {
             ImGui::CloseCurrentPopup();
+            if (modalResult != ImRad::Cancel)
+                callback(modalResult);
+        }
         /// @separator
 
 		newFieldPopup.Draw();
@@ -54,28 +57,36 @@ void BindingDlg::Draw()
 
         /// @begin Selectable
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::BeginDisabled(true);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
-		ImGui::Selectable(ImRad::Format("{}", type).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_Disabled, { 0, 0 });
-		ImGui::PopStyleVar();
+        ImRad::Selectable(ImRad::Format("{}", type).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
+        ImGui::PopStyleVar();
+        ImGui::EndDisabled();
         /// @end Selectable
 
         /// @begin Input
-		ImGui::PushFont(font);
-		if (ImGui::IsWindowAppearing())
+        ImGui::PushFont(font);
+        if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-		ImGui::SetNextItemWidth(-1);
+        if (focusExpr)
+        {
+            focusExpr = false;
+            ImGui::SetKeyboardFocusHere();
+        }
+        ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_None);
-		ImGui::PopFont();
-		/// @end Input
+        if (ImGui::IsItemActive())
+            ioUserData->imeType = ImRad::ImeText;
+        ImGui::PopFont();
+        /// @end Input
 
         /// @begin Table
-        ImGui::Spacing();
-        if (ImGui::BeginTable("table2201201799584", 3, ImGuiTableFlags_None, { 0, 0 }))
+        if (ImGui::BeginTable("table1", 3, ImGuiTableFlags_None, { 0, 0 }))
         {
             ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableNextRow();
+            ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
 
@@ -85,8 +96,8 @@ void BindingDlg::Draw()
             /// @end Text
 
             /// @begin Child
-            ImGui::TableNextColumn();
-            ImGui::BeginChild("child2201294508848", { 0, 20 });
+            ImRad::TableNextColumn(1);
+            ImGui::BeginChild("child1", { 0, 20 }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
             {
                 /// @separator
 
@@ -96,7 +107,7 @@ void BindingDlg::Draw()
             /// @end Child
 
             /// @begin CheckBox
-            ImGui::TableNextColumn();
+            ImRad::TableNextColumn(1);
             if (ImGui::Checkbox("show all", &showAll))
                 Refresh();
             /// @end CheckBox
@@ -108,30 +119,30 @@ void BindingDlg::Draw()
         /// @end Table
 
         /// @begin Table
-        if (ImGui::BeginTable("table2201201801200", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 0, -48 }))
+        if (ImGui::BeginTable("table3", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 0, -48 }))
         {
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);
             ImGui::TableHeadersRow();
 
-            for (size_t i = 0; i < vars.size(); ++i)
+            for (int i = 0; i < vars.size(); ++i)
             {
-                ImGui::TableNextRow();
+                ImGui::PushID(i);
+                ImGui::TableNextRow(0, 0);
                 ImGui::TableSetColumnIndex(0);
-                ImGui::PushID((int)i);
                 /// @separator
 
                 /// @begin Selectable
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                if (ImGui::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
-					OnVarClicked();
-				ImGui::PopStyleVar();
+                if (ImRad::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                    OnVarClicked();
+                ImGui::PopStyleVar();
                 /// @end Selectable
 
                 /// @begin Selectable
-                ImGui::TableNextColumn();
+                ImRad::TableNextColumn(1);
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                ImGui::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
+                ImRad::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
                 ImGui::PopStyleVar();
                 /// @end Selectable
 
@@ -144,13 +155,13 @@ void BindingDlg::Draw()
         /// @end Table
 
         /// @begin Table
-        ImGui::Spacing();
-        if (ImGui::BeginTable("table2201201806048", 3, ImGuiTableFlags_None, { 0, -1 }))
+        ImRad::Spacing(1);
+        if (ImGui::BeginTable("table4", 3, ImGuiTableFlags_None, { 0, -1 }))
         {
             ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthFixed, 0);
             ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableNextRow();
+            ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
 
@@ -164,22 +175,22 @@ void BindingDlg::Draw()
 			bool exprValid = true;
 			if (type == "bool" || type == "float" || type == "int")
 				exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
-			/// @begin Button
-            ImGui::TableNextColumn();
-			ImGui::BeginDisabled(!exprValid);
+            /// @begin Button
+            ImRad::TableNextColumn(1);
+            ImGui::BeginDisabled(!exprValid);
             if (ImGui::Button("OK", { 90, 30 }))
             {
-                ClosePopup();
-                callback(ImRad::Ok);
+                ClosePopup(ImRad::Ok);
             }
-			ImGui::EndDisabled();
+            ImGui::EndDisabled();
             /// @end Button
 
             /// @begin Button
-            ImGui::TableNextColumn();
-            if (ImGui::Button("Cancel", { 90, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
+            ImRad::TableNextColumn(1);
+            if (ImGui::Button("Cancel", { 90, 30 }) ||
+                ImGui::Shortcut(ImGuiKey_Escape))
             {
-                ClosePopup();
+                ClosePopup(ImRad::Cancel);
             }
             /// @end Button
 
@@ -220,4 +231,11 @@ void BindingDlg::OnVarClicked()
 		expr += "{" + vars[idx].first + "}";
 	else
 		expr = vars[idx].first;
+	focusExpr = true;
+}
+
+void BindingDlg::Init()
+{
+	showAll = type == "std::string";
+	Refresh();
 }

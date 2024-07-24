@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.7
+// Generated with ImRAD 0.8
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_input_name.h"

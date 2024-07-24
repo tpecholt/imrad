@@ -170,23 +170,29 @@ CppGen::ExportH(
 {
 	int level = 0;
 	bool in_class = false;
+	bool preamble = true;
 	int skip_to_level = -1;
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
-	bool ignore_section = false;
+	std::string ignore_section = "";
 	std::string className;
 	std::string origName, origVName;
 	std::stringstream out;
 	bool hasLayout = GetLayoutVars().size();
 
-	auto copy_content = [&] {
+	//xpos == 0 => copy until current position
+	//xpos > 0 => copy until xpos
+	//xpos < 0 => copy except last xpos characters
+	auto copy_content = [&](int xpos = 0) {
+		int pos = (int)fprev.tellg();
+		int ignore_last = xpos < 0 ? -xpos : xpos > 0 ? pos - xpos : 0;
 		std::string buf;
-		auto n = fprev.tellg() - fpos;
 		fprev.seekg(fpos);
-		buf.resize(n);
-		fprev.read(buf.data(), n);
-		out.write(buf.data(), n);
-		fpos += n;
+		buf.resize(pos - fpos - ignore_last);
+		fprev.read(buf.data(), buf.size());
+		out.write(buf.data(), buf.size());
+		fprev.ignore(ignore_last);
+		fpos = pos;
 	};
 	
 	for (cpp::token_iterator iter(fprev); iter != cpp::token_iterator(); ++iter)
@@ -197,9 +203,9 @@ CppGen::ExportH(
 			if (tok == "/// @interface" || tok == "/// @begin interface")
 			{
 				origName = className;
-				ignore_section = true;
-				copy_content();
-				out << "\n";
+				ignore_section = "interface";
+				copy_content(-(int)tok.size());
+				out << "/// @begin interface\n";
 
 				//write special members
 				if (node->kind == TopWindow::ModalPopup)
@@ -257,30 +263,41 @@ CppGen::ExportH(
 				if (found)
 					out << "\n";
 
+				//write events
+				found = false;
+				for (const auto& var : m_fields[""])
+				{
+					if ((var.flags & Var::UserCode) || !(var.flags & Var::Interface))
+						continue;
+					if (var.type.compare(0, 5, "void("))
+						continue;
+					if (stx::count(SPEC_FUN, var.name))
+						continue;
+					found = true;
+					out << INDENT << "void " << var.name << "();\n";
+				}
+				if (found)
+					out << "\n";
+
 				//write fields
 				for (const auto& var : m_fields[""])
 				{
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Interface))
 						continue;
-					if (!var.type.compare(0, 5, "void(")) {
-						if (stx::count(SPEC_FUN, var.name))
-							continue;
-						out << INDENT << "void " << var.name << "();\n";
-					}
-					else {
-						out << INDENT << var.type << " " << var.name;
-						if (var.init != "")
-							out << " = " << var.init;
-						out << ";\n";
-					}
+					if (!var.type.compare(0, 5, "void("))
+						continue;
+					out << INDENT << var.type << " " << var.name;
+					if (var.init != "")
+						out << " = " << var.init;
+					out << ";\n";
 				}
 			}
 			else if (tok == "/// @impl" || tok == "/// @begin impl")
 			{
 				origName = className;
-				ignore_section = true;
-				copy_content();
-				out << "\n";
+				ignore_section = "impl";
+				copy_content(-(int)tok.size());
+				out << "/// @begin impl\n";
 				
 				//write special members
 				bool delim = false;
@@ -357,7 +374,7 @@ CppGen::ExportH(
 			}
 			else if (tok == "/// @end interface" || tok == "/// @end impl")
 			{
-				ignore_section = false;
+				ignore_section = "";
 				fpos = fprev.tellg();
 				out << INDENT << tok;
 			}
@@ -374,19 +391,22 @@ CppGen::ExportH(
 				--level;
 				if (in_class && !level) {
 					in_class = false;
-					if (ignore_section) {
+					if (ignore_section != "") {
 						fpos = fprev.tellg();
-						out << tok;
+						out << INDENT << "/// @end " << ignore_section;
+						out << "\n" << tok;
+						ignore_section = "";
 					}
 				}
 				line.clear();
 			}
 			if (tok == "public" || tok == "private" || tok == "protected")
 			{
-				if (ignore_section) {
-					ignore_section = false;
+				if (ignore_section != "") {
 					fpos = fprev.tellg();
-					out << "\n" << tok;
+					out << INDENT << "/// @end " << ignore_section;
+					out << "\n\n" << tok;
+					ignore_section = "";
 				}
 			}
 			else if (tok == ":")
@@ -411,16 +431,25 @@ CppGen::ExportH(
 			}
 			line.clear();
 		}
-		else if (!tok.compare(0, 1, "#") || !tok.compare(0, 2, "//"))
-		;
+		else if (!tok.compare(0, 2, "//")) {
+			if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
+				copy_content(-(int)tok.size());
+				out << "// " << GENERATED_WITH << VER_STR;
+			}
+		}
+		else if (!tok.compare(0, 1, "#")) {
+			preamble = false;
+		}
 		else if (tok == ";") {
 			if (line.size() == 3 && line[0] == "extern" && line[1] == origName) {
 				origVName = line[2];
 			}
 			line.clear();
 		}
-		else
+		else {
+			preamble = false;
 			line.push_back(tok);
+		}
 	}
 	
 	//copy remaining code
@@ -452,6 +481,7 @@ CppGen::ExportCpp(
 	int level = 0;
 	int skip_to_level = -1;
 	int comment_to_level = -1;
+	bool preamble = true;
 	std::vector<std::string> line;
 	std::streampos fpos = 0;
 	std::set<std::string> funs;
@@ -484,8 +514,15 @@ CppGen::ExportCpp(
 				copy_content(-(int)tok.size());
 				fout << "#include \"" << m_hname << "\"";
 			}
-			else if (!tok.compare(0, 2, "//") || !tok.compare(0, 1, "#"))
-				;
+			else if (!tok.compare(0, 2, "//")) {
+				if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
+					copy_content(-(int)tok.size());
+					fout << "// " << GENERATED_WITH << VER_STR;
+				}
+			}
+			else if (!tok.compare(0, 1, "#")) {
+				preamble = false;
+			}
 			else if (tok == ";") {
 				line.clear();
 			}
@@ -547,6 +584,7 @@ CppGen::ExportCpp(
 					copy_content(-(int)origNames[1].size());
 					fout << m_vname;
 				}
+				preamble = false;
 				line.push_back(tok);
 			}
 		}
@@ -806,6 +844,7 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
 	bool in_interface = false;
 	bool in_impl = false;
 	bool in_fun = false;
+	bool preamble = true;
 	std::vector<std::string> scope; //contains struct/class/empty names for each nested block
 	std::vector<std::string> line;
 	while (iter != cpp::token_iterator())
@@ -860,8 +899,9 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
 		}
 		else if (!tok.compare(0, 2, "//")) 
 		{
-			if (!tok.compare(2, GENERATED_WITH.size(), GENERATED_WITH)) {
-				std::string ver = tok.substr(2 + GENERATED_WITH.size());
+			size_t i;
+			if (preamble && (i = tok.find(GENERATED_WITH)) != std::string::npos) {
+				std::string ver = tok.substr(i + GENERATED_WITH.size());
 				if (ver != VER_STR)
 					m_error += "'" + fname + "' was saved in different version [" 
 						+ ver + "]. Full compatibility is not guaranteed.\n";
@@ -882,8 +922,10 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
 			}
 			line.clear();
 		}
-		else
-			line.push_back(tok); 
+		else {
+			preamble = false;
+			line.push_back(tok);
+		}
 
 		++iter;
 	}

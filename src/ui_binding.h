@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.1
+// Generated with ImRAD 0.8
 // github.com/xyz
 
 #pragma once
@@ -11,30 +11,33 @@
 class BindingDlg
 {
 public:
-    /// @interface
+    /// @begin interface
     void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});
-    void ClosePopup();
+    void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);
     void Draw();
+
+    void OnNewField();
+    void OnVarClicked();
+    void Refresh();
 
     std::string name;
     std::string expr;
     std::string type;
-    CppGen* codeGen;
-	ImFont* font = nullptr;
+    CppGen * codeGen;
+    ImFont * font = nullptr;
     bool showAll;
+    std::vector<std::pair<std::string , std::string >> vars;
+    bool focusExpr = false;
+    /// @end interface
 
 private:
-    /// @impl
-    std::vector<std::pair<std::string , std::string >> vars;
-    void OnNewField();
-    void OnVarClicked();
-    void Refresh();
-    ImGuiID ID;
+    /// @begin impl
+    void Init();
 
-    bool requestOpen = false;
-    bool requestClose = false;
+    ImGuiID ID = 0;
+    ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
-
+    /// @end impl
 };
 
 extern BindingDlg bindingDlg;

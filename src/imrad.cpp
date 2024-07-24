@@ -72,7 +72,6 @@ UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
-bool pgFocused;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 bool reloadStyle = true;
 GLFWwindow* window = nullptr;
@@ -1514,8 +1513,6 @@ void PropertyRowsUI(bool pr)
 
 void PropertyUI()
 {
-	bool tmp = false;
-	//ImGui::PushFont(ctx.defaultFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	
 	ImGui::Begin("Events");
@@ -1523,8 +1520,6 @@ void PropertyUI()
 	{
 		PropertyRowsUI(0);
 	}
-	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		tmp = true;
 	ImGui::End();
 
 	ImGui::Begin("Properties");
@@ -1532,13 +1527,9 @@ void PropertyUI()
 	{
 		PropertyRowsUI(1);
 	}
-	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
-		tmp = true;
 	ImGui::End();
 	
 	ImGui::PopStyleVar();
-	//ImGui::PopFont();
-	pgFocused = tmp;
 }
 
 void PopupUI()
@@ -1825,7 +1816,7 @@ void Work()
 			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		}
 	}
-	else if (!pgFocused)
+	else 
 	{
 		//don't IsMouseReleased otherwise closing modal popup will fire here too
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
@@ -1835,36 +1826,49 @@ void Work()
 		{
 			ctx.selected = { ctx.root };
 		}
-		if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal) ||
+			ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal))
 		{
-			RemoveSelected();
+			ctx.zoomFactor *= 1.2f;
 		}
-		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_C, ImGuiInputFlags_RouteGlobal) &&
-			!ctx.selected.empty() &&
-			ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, ImGuiInputFlags_RouteGlobal) ||
+			ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, ImGuiInputFlags_RouteGlobal))
 		{
-			clipboard.clear();
-			ctx.createVars = false;
-			auto sortedSel = SortSelection(ctx.selected);
-			for (UINode* node : sortedSel)
+			ctx.zoomFactor /= 1.2f;
+		}
+		if (!ImGui::GetIO().WantTextInput)
+		{
+			if (ImGui::IsKeyPressed(ImGuiKey_Delete))
 			{
-				auto* wdg = dynamic_cast<Widget*>(node);
-				clipboard.push_back(wdg->Clone(ctx));
+				RemoveSelected();
 			}
-			ctx.createVars = true;
-		}
-		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_X, ImGuiInputFlags_RouteGlobal) &&
-			!ctx.selected.empty() &&
-			ctx.selected[0] != fileTabs[activeTab].rootNode.get())
-		{
-			clipboard = RemoveSelected();
-		}
-		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_V, ImGuiInputFlags_RouteGlobal) &&
-			clipboard.size())
-		{
-			activeButton = "";
-			ctx.mode = UIContext::Snap;
-			ctx.selected = {};
+			if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_C, ImGuiInputFlags_RouteGlobal) &&
+				!ctx.selected.empty() &&
+				ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+			{
+				clipboard.clear();
+				ctx.createVars = false;
+				auto sortedSel = SortSelection(ctx.selected);
+				for (UINode* node : sortedSel)
+				{
+					auto* wdg = dynamic_cast<Widget*>(node);
+					clipboard.push_back(wdg->Clone(ctx));
+				}
+				ctx.createVars = true;
+			}
+			if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_X, ImGuiInputFlags_RouteGlobal) &&
+				!ctx.selected.empty() &&
+				ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+			{
+				clipboard = RemoveSelected();
+			}
+			if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_V, ImGuiInputFlags_RouteGlobal) &&
+				clipboard.size())
+			{
+				activeButton = "";
+				ctx.mode = UIContext::Snap;
+				ctx.selected = {};
+			}
 		}
 	}
 }
