@@ -94,6 +94,7 @@ struct Widget : UINode
 	event<> onItemDeactivatedAfterEdit;
 	event<> onItemContextMenuClicked;
 	std::string userCodeBefore, userCodeAfter;
+	ImDrawList* drawList;
 
 	struct Layout 
 	{

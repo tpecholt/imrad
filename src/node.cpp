@@ -400,6 +400,20 @@ UINode::GetAllChildren()
 	return chs;
 }
 
+std::string UINode::GetParentId(UIContext& ctx)
+{
+	std::string id;
+	UINode* node = ctx.parents.back();
+	for (auto it = ++ctx.parents.rbegin(); it != ctx.parents.rend(); ++it) {
+		size_t i = stx::find_if((*it)->children, [=](const auto& ch) {
+			return ch.get() == node;
+			}) - (*it)->children.begin();
+			id = std::to_string(i) + id;
+			node = *it;
+	}
+	return id;
+}
+
 void UINode::ResetLayout()
 {
 	hbox.clear();
@@ -1715,6 +1729,7 @@ void Widget::Draw(UIContext& ctx)
 {
 	UINode* parent = ctx.parents.back();
 	Layout l = GetLayout(parent);
+	drawList = ImGui::GetWindowDrawList();
 	const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
 	ctx.stretchSize = { 0, 0 };
 
@@ -2010,17 +2025,16 @@ void Widget::Draw(UIContext& ctx)
 	
 	if (hasPos)
 	{
-		ImDrawList* dl = ImGui::GetWindowDrawList();
 		ImU32 clr = ctx.colors[UIContext::Selected];
 		float d = 10;
 		if (pos_x >= 0 && pos_y >= 0)
-			dl->AddTriangleFilled(cached_pos, cached_pos + ImVec2(d, 0), cached_pos + ImVec2(0, d), clr);
+			drawList->AddTriangleFilled(cached_pos, cached_pos + ImVec2(d, 0), cached_pos + ImVec2(0, d), clr);
 		else if (pos_x < 0 && pos_y >= 0)
-			dl->AddTriangleFilled(cached_pos + ImVec2(cached_size.x, 0), cached_pos + ImVec2(cached_size.x, d), cached_pos + ImVec2(cached_size.x - d, 0), clr);
+			drawList->AddTriangleFilled(cached_pos + ImVec2(cached_size.x, 0), cached_pos + ImVec2(cached_size.x, d), cached_pos + ImVec2(cached_size.x - d, 0), clr);
 		else if (pos_x >= 0 && pos_y < 0)
-			dl->AddTriangleFilled(cached_pos + ImVec2(d, cached_size.y), cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(0, cached_size.y - d), clr);
+			drawList->AddTriangleFilled(cached_pos + ImVec2(d, cached_size.y), cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(0, cached_size.y - d), clr);
 		else if (pos_x < 0 && pos_y < 0)
-			dl->AddTriangleFilled(cached_pos + cached_size, cached_pos + ImVec2(cached_size.x - d, cached_size.y), cached_pos + ImVec2(cached_size.x, cached_size.y - d), clr);
+			drawList->AddTriangleFilled(cached_pos + cached_size, cached_pos + ImVec2(cached_size.x - d, cached_size.y), cached_pos + ImVec2(cached_size.x, cached_size.y - d), clr);
 	}
 	/*if (ctx.mode == UIContext::ItemSizingX &&
 		ctx.dragged == this)
@@ -2053,10 +2067,12 @@ void Widget::Draw(UIContext& ctx)
 		ctx.mode != UIContext::ItemDragging &&
 		(ctx.mode < UIContext::ItemSizingX || ctx.mode > UIContext::ItemSizingXY))
 	{
-		ImDrawList* dl = ImGui::GetWindowDrawList();
-		dl->AddRect(cached_pos, cached_pos + cached_size,
+		//dl->PushClipRectFullScreen();
+		drawList->AddRect(
+			cached_pos - ImVec2(1, 1), cached_pos + cached_size,
 			selected ? ctx.colors[UIContext::Selected] : ctx.colors[UIContext::Hovered],
 			0, 0, selected ? 2.f : 1.f);
+		//dl->PopClipRect();
 	}
 	if (selected)
 	{
@@ -2079,20 +2095,6 @@ void Widget::Draw(UIContext& ctx)
 void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
 	cached_size = ImGui::GetItemRectSize();
-}
-
-std::string UINode::GetParentId(UIContext& ctx)
-{
-	std::string id;
-	UINode* node = ctx.parents.back();
-	for (auto it = ++ctx.parents.rbegin(); it != ctx.parents.rend(); ++it) {
-		size_t i = stx::find_if((*it)->children, [=](const auto& ch) {
-			return ch.get() == node; 
-			}) - (*it)->children.begin();
-		id = std::to_string(i) + id;
-		node = *it;
-	}
-	return id;
 }
 
 void Widget::Export(std::ostream& os, UIContext& ctx)
@@ -6529,6 +6531,9 @@ void Table::DoDraw(UIContext& ctx)
 	std::string name = "table" + std::to_string((uint64_t)this);
 	if (ImGui::BeginTable(name.c_str(), n, fl, size))
 	{
+		//need to override drawList because when table is in a Child mode its drawList will be drawn on top
+		drawList = ImGui::GetWindowDrawList();
+
 		for (size_t i = 0; i < (int)columnData.size(); ++i)
 			ImGui::TableSetupColumn(columnData[i].label.c_str(), columnData[i].flags, columnData[i].width);
 		if (header)

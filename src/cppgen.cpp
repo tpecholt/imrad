@@ -212,33 +212,34 @@ CppGen::ExportH(
 				{
 					out << INDENT << "void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});\n";
 					out << INDENT << "void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);\n";
-					out << INDENT << "void Draw();\n\n";
+					out << INDENT << "void Draw();\n";
 				}
 				else if (node->kind == TopWindow::Popup)
 				{
 					out << INDENT << "void OpenPopup();\n";
 					out << INDENT << "void ClosePopup();\n";
-					out << INDENT << "void Draw();\n\n";
+					out << INDENT << "void Draw();\n";
 				}
 				else if (node->kind == TopWindow::Window)
 				{
 					out << INDENT << "void Open();\n";
 					out << INDENT << "void Close();\n";
-					out << INDENT << "void Draw();\n\n";
+					out << INDENT << "void Draw();\n";
 				}
 				else if (node->kind == TopWindow::MainWindow)
 				{
-					out << INDENT << "void Draw(GLFWwindow* window);\n\n";
+					out << INDENT << "void Draw(GLFWwindow* window);\n";
 				}
 				else if (node->kind == TopWindow::Activity)
 				{
 					out << INDENT << "void Open();\n";
-					out << INDENT << "void Draw();\n\n";
+					out << INDENT << "void Draw();\n";
 				}
 				else
 				{
 					assert(false);
 				}
+				out << "\n";
 
 				//write stuctures
 				bool found = false;
@@ -300,24 +301,24 @@ CppGen::ExportH(
 				out << "/// @begin impl\n";
 				
 				//write special members
-				bool delim = false;
+				bool found = false;
 				if (hasLayout)
 				{
+					found = true; 
 					out << INDENT << "void ResetLayout();\n";
-					delim = true;
 				}
-
 				if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
 					node->kind == TopWindow::Activity)
 				{
+					found = true;
 					out << INDENT << "void Init();\n";
-					delim = true;
 				}
 
-				if (delim)
+				if (found)
 					out << "\n";
 
 				//write events
+				found = false;
 				for (const auto& var : m_fields[""])
 				{
 					if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
@@ -325,6 +326,7 @@ CppGen::ExportH(
 					if ((var.type.size() >= 5 && !var.type.compare(0, 5, "void(")) &&
 						!stx::count(SPEC_FUN, var.name))
 					{
+						found = true;
 						out << INDENT << "void " << var.name << "(";
 						std::string arg = var.type.substr(5, var.type.size() - 6);
 						if (arg.size())
@@ -332,6 +334,8 @@ CppGen::ExportH(
 						out << ");\n";
 					}
 				}
+				if (found)
+					out << "\n";
 
 				//special fields
 				if (node->kind == TopWindow::ModalPopup)

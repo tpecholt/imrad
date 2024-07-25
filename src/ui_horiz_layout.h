@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.5
+// Generated with ImRAD 0.8
 // visit github.com/tpecholt/imrad
 
 #pragma once
@@ -10,7 +10,7 @@ class HorizLayout
 public:
     /// @begin interface
     void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});
-    void ClosePopup();
+    void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);
     void Draw();
 
     int spacing = 1;
@@ -19,19 +19,20 @@ public:
     std::vector<UINode *> selected;
     UINode * root;
     UIContext * ctx;
-	/// @end interface
+    /// @end interface
 
 	static void ExpandSelection(std::vector<UINode*>& selected, UINode* root);
 
 private:
     /// @begin impl
+    void Init();
+
     void OnAlignment();
     void Work();
 
-    bool requestOpen = false;
-    bool requestClose = false;
+    ImGuiID ID = 0;
+    ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
-
     /// @end impl
 };
 

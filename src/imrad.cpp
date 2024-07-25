@@ -67,7 +67,7 @@ ProgramState programState;
 std::string rootPath;
 std::string initErrors, showError;
 std::string fontName = "Roboto-Regular.ttf";
-float fontSize = 20;
+float fontSize = 19;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -1829,12 +1829,12 @@ void Work()
 		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal) ||
 			ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal))
 		{
-			ctx.zoomFactor *= 1.2f;
+			ctx.zoomFactor = std::round(100 * ctx.zoomFactor * 1.2f) / 100.f;
 		}
 		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, ImGuiInputFlags_RouteGlobal) ||
 			ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, ImGuiInputFlags_RouteGlobal))
 		{
-			ctx.zoomFactor /= 1.2f;
+			ctx.zoomFactor = std::round(100 * ctx.zoomFactor / 1.2f) / 100.f;
 		}
 		if (!ImGui::GetIO().WantTextInput)
 		{
