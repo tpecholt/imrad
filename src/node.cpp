@@ -2210,6 +2210,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "ImGui::BeginDisabled(" << disabled.c_str() << ");\n";
 	}
+	if (!tabStop)
+	{
+		os << ctx.ind << "ImGui::PushTabStop(false);\n";
+	}
 	if (!style_font.empty())
 	{
 		os << ctx.ind << "ImGui::PushFont(" << style_font.to_arg() << ");\n";
@@ -2295,6 +2299,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	if (!style_font.empty())
 	{
 		os << ctx.ind << "ImGui::PopFont();\n";
+	}
+	if (!tabStop)
+	{
+		os << ctx.ind << "ImGui::PopTabStop();\n";
 	}
 	if (!disabled.has_value() || disabled.value())
 	{
@@ -2536,6 +2544,11 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->params.size())
 				disabled.set_from_arg(sit->params[0]);
 		}
+		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushTabStop")
+		{
+			if (sit->params.size())
+				tabStop.set_from_arg(sit->params[0]);
+		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
 		{
 			if (sit->params.size())
@@ -2655,10 +2668,11 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 std::vector<UINode::Prop>
 Widget::Properties()
 {
-	//leave font up to the subclass
+	//some properties are left up to the subclass
 	std::vector<UINode::Prop> props{
 		{ "visible", &visible },
 		{ "tooltip", &tooltip },
+		{ "tabStop", &tabStop },
 		{ "contextMenu", &contextMenu },
 		{ "cursor", &cursor },
 		{ "disabled", &disabled },
@@ -2691,7 +2705,7 @@ Widget::Properties()
 bool Widget::PropertyUI(int i, UIContext& ctx)
 {
 	int sat = (i & 1) ? 202 : 164;
-	if (i <= 4)
+	if (i <= 5)
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(sat, 255, sat, 255));
 	else
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
@@ -2717,6 +2731,12 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("tooltip", &tooltip, ctx);
 		break;
 	case 2:
+		ImGui::Text("tabStop");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##tabStop", &tabStop, ctx);
+		break;
+	case 3:
 	{
 		ImGui::BeginDisabled(Behavior() & NoContextMenu);
 		ImGui::Text("contextMenu");
@@ -2742,13 +2762,13 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	}
-	case 3:
+	case 4:
 		ImGui::Text("cursor");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::Combo("##cursor", cursor.access(), "Arrow\0TextInput\0ResizeAll\0ResizeNS\0ResizeEW\0ResizeNESW\0ResizeNWSE\0Hand\0NotAllowed\0\0");
 		break;
-	case 4:
+	case 5:
 		ImGui::Text("disabled");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2756,7 +2776,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("disabled", &disabled, ctx);
 		break;
-	case 5:
+	case 6:
 		ImGui::BeginDisabled(Behavior() & NoOverlayPos);
 		ImGui::Text("hasPos");
 		ImGui::TableNextColumn();
@@ -2764,7 +2784,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##hasPos", hasPos.access());
 		ImGui::EndDisabled();
 		break;
-	case 6:
+	case 7:
 		ImGui::BeginDisabled(!hasPos);
 		ImGui::Text("pos_x");
 		ImGui::TableNextColumn();
@@ -2772,7 +2792,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputFloat("##pos_x", pos_x.access(), 0, 0, "%.0f");
 		ImGui::EndDisabled();
 		break;
-	case 7:
+	case 8:
 		ImGui::BeginDisabled(!hasPos);
 		ImGui::Text("pos_y");
 		ImGui::TableNextColumn();
@@ -2780,7 +2800,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::InputFloat("##pos_y", pos_y.access(), 0, 0, "%.0f");
 		ImGui::EndDisabled();
 		break;
-	case 8: 
+	case 9: 
 		ImGui::BeginDisabled(!snapSides || sameLine);
 		ImGui::Text("indent");
 		ImGui::TableNextColumn();
@@ -2794,7 +2814,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}*/
 		ImGui::EndDisabled();
 		break;
-	case 9:
+	case 10:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text(sameLine && !nextColumn ? "spacing_x" : "spacing_y");
 		ImGui::TableNextColumn();
@@ -2807,7 +2827,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 10:
+	case 11:
 		ImGui::BeginDisabled(!snapSides || nextColumn);
 		ImGui::Text("sameLine");
 		ImGui::TableNextColumn();
@@ -2818,7 +2838,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 11:
+	case 12:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("nextColumn");
 		ImGui::TableNextColumn();
@@ -2832,7 +2852,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		}
 		ImGui::EndDisabled();
 		break;
-	case 12:
+	case 13:
 		ImGui::BeginDisabled(!snapSides);
 		ImGui::Text("allowOverlap");
 		ImGui::TableNextColumn();

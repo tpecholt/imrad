@@ -72,9 +72,11 @@ struct Widget : UINode
 	direct_val<bool> allowOverlap = false;
 	bindable<bool> visible = true;
 	bindable<bool> disabled = false;
+	direct_val<bool> tabStop = true;
 	direct_val<int> indent = 0;
 	direct_val<int> spacing = 0;
 	bindable<std::string> tooltip = "";
+	direct_val<std::string> contextMenu = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
 	bindable<font_name> style_font;
 	bindable<color32> style_text;
@@ -83,7 +85,6 @@ struct Widget : UINode
 	direct_val<pzdimension> style_frameRounding;
 	direct_val<pzdimension2> style_framePadding;
 	direct_val<pzdimension> style_frameBorderSize;
-	direct_val<std::string> contextMenu = "";
 	event<> onItemClicked;
 	event<> onItemDoubleClicked;
 	event<> onItemHovered;
