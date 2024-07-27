@@ -521,6 +521,7 @@ void TopWindow::Draw(UIContext& ctx)
 	if (!style_menuBg.empty())
 		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, style_menuBg.eval(ctx));
 
+	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
 	ImGui::SetNextWindowPos(ctx.designAreaMin + ImVec2{ 20, 20 }); // , ImGuiCond_Always, { 0.5, 0.5 });
 	
 	if (kind == MainWindow && placement == Maximize) 
@@ -542,10 +543,16 @@ void TopWindow::Draw(UIContext& ctx)
 			h = 480;
 		ImGui::SetNextWindowSize({ w, h });
 	}
-
+	
+	if (style_titlePadding.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_titlePadding.eval_px(ctx));
+	
 	bool tmp;
-	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
 	ImGui::Begin(cap.c_str(), &tmp, fl);
+	
+	if (style_titlePadding.has_value())
+		ImGui::PopStyleVar();
+	
 	ImGui::SetWindowFontScale(ctx.zoomFactor);
 
 	ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
@@ -857,9 +864,19 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 				<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
 				<< "ImGuiCond_FirstUseEver);\n";
 		}
+		if (style_titlePadding.has_value())
+		{
+			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " <<
+				style_titlePadding.to_arg(ctx.unit) << ");\n";
+		}
 		os << ctx.ind << "if (isOpen && ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
+		if (style_titlePadding.has_value())
+		{
+			os << ctx.ind << "ImGui::PopStyleVar();\n";
+			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImGui::GetStyle().FramePadding);\n";
+		}
 	}
 	else if (kind == Popup || kind == ModalPopup)
 	{
@@ -920,16 +937,28 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		//begin
 		if (kind == ModalPopup)
 		{
+			if (style_titlePadding.has_value())
+			{
+				os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " <<
+					style_titlePadding.to_arg(ctx.unit) << ");\n";
+			}
 			os << ctx.ind << "bool tmpOpen = true;\n";
 			os << ctx.ind << "if (ImGui::BeginPopupModal(" << tit << ", &tmpOpen, " << flags.to_arg() << "))\n";
+			os << ctx.ind << "{\n";
+			ctx.ind_up();
+			if (style_titlePadding.has_value())
+			{
+				os << ctx.ind << "ImGui::PopStyleVar();\n";
+				os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImGui::GetStyle().FramePadding);\n";
+			}
 		}
 		else
 		{
 			os << ctx.ind << "if (ImGui::BeginPopup(" << tit << ", " << flags.to_arg() << "))\n";
+			os << ctx.ind << "{\n";
+			ctx.ind_up();
 		}
-		os << ctx.ind << "{\n";
-		ctx.ind_up();
-
+		
 		//animation
 		if (animate)
 		{
@@ -1047,6 +1076,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "}\n";
 	}
 
+	if (style_titlePadding.has_value() && (kind == Window || kind == ModalPopup))
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_scrollbarSize.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_borderSize.has_value() || kind == Activity || kind == MainWindow)
@@ -1177,6 +1208,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				style_borderSize.set_from_arg(sit->params[1]);
 			else if (sit->params[0] == "ImGuiStyleVar_ScrollbarSize")
 				style_scrollbarSize.set_from_arg(sit->params[1]);
+			else if (sit->params[0] == "ImGuiStyleVar_FramePadding" && style_titlePadding.empty())
+				style_titlePadding.set_from_arg(sit->params[1]);
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
 		{
@@ -1372,6 +1405,7 @@ TopWindow::Properties()
 		{ "top.@style.bg", &style_bg },
 		{ "top.@style.menuBg", &style_menuBg },
 		{ "top.@style.padding", &style_padding },
+		{ "top.@style.titlePadding", &style_titlePadding },
 		{ "top.@style.rounding", &style_rounding },
 		{ "top.@style.borderSize", &style_borderSize },
 		{ "top.@style.scrollbarSize", &style_scrollbarSize },
@@ -1435,13 +1469,21 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 	}
 	case 4:
 	{
+		ImGui::Text("titlePadding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##style_titlePadding", &style_titlePadding, ctx);
+		break;
+	}
+	case 5:
+	{
 		ImGui::Text("rounding");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##style_rounding", &style_rounding, ctx);
 		break;
 	}
-	case 5:
+	case 6:
 	{
 		ImGui::Text("borderSize");
 		ImGui::TableNextColumn();
@@ -1449,7 +1491,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputDirectVal("##style_border", &style_borderSize, ctx);
 		break;
 	}
-	case 6:
+	case 7:
 	{
 		ImGui::Text("scrollbarSize");
 		ImGui::TableNextColumn();
@@ -1457,7 +1499,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputDirectVal("##style_scrbs", &style_scrollbarSize, ctx);
 		break;
 	}
-	case 7:
+	case 8:
 	{
 		ImGui::Text("spacing");
 		ImGui::TableNextColumn();
@@ -1465,7 +1507,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputDirectVal("##style_spacing", &style_spacing, ctx);
 		break;
 	}
-	case 8:
+	case 9:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1473,7 +1515,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 9:
+	case 10:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
@@ -1487,7 +1529,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 				children.erase(children.begin());
 			});
 		break;
-	case 10:
+	case 11:
 		ImGui::Text("title");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1495,7 +1537,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("title", &title, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("closeOnEscape");
 		ImGui::TableNextColumn();
@@ -1503,7 +1545,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = InputDirectVal("##cesc", &closeOnEscape, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 12:
+	case 13:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1513,7 +1555,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 13:
+	case 14:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
@@ -1523,7 +1565,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 14:
+	case 15:
 	{
 		ImGui::Text("placement");
 		ImGui::TableNextColumn();
@@ -1552,7 +1594,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed = placement != tmp;
 		break;
 	}
-	case 15:
+	case 16:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
 		ImGui::TableNextColumn();
@@ -2673,8 +2715,8 @@ Widget::Properties()
 	//some properties are left up to the subclass
 	std::vector<UINode::Prop> props{
 		{ "visible", &visible },
-		{ "tooltip", &tooltip },
 		{ "tabStop", &tabStop },
+		{ "tooltip", &tooltip },
 		{ "contextMenu", &contextMenu },
 		{ "cursor", &cursor },
 		{ "disabled", &disabled },
@@ -2725,18 +2767,18 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("visible", &visible, ctx);
 		break;
 	case 1:
+		ImGui::Text("tabStop");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##tabStop", &tabStop, ctx);
+		break;
+	case 2:
 		ImGui::Text("tooltip");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##tooltip", &tooltip, ctx);
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("tooltip", &tooltip, ctx);
-		break;
-	case 2:
-		ImGui::Text("tabStop");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##tabStop", &tabStop, ctx);
 		break;
 	case 3:
 	{
@@ -7037,6 +7079,15 @@ void Child::DoDraw(UIContext& ctx)
 		ImRad::HashCombine(ctx.layoutHash, true);
 	}
 
+	if (style_padding.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
+	if (style_rounding.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, style_rounding.eval_px(ctx));
+	if (style_borderSize.has_value())
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, style_borderSize.eval_px(ctx));
+	if (!style_bg.empty())
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
+	
 	ImVec2 sz;
 	sz.x = size_x.eval_px(ImGuiAxis_X, ctx);
 	sz.y = size_y.eval_px(ImGuiAxis_Y, ctx);
@@ -7063,12 +7114,6 @@ void Child::DoDraw(UIContext& ctx)
 		if (sz.y < 0)
 			sz.y = r.Max.y + sz.y + 1 - pos.y;
 	}
-	if (style_padding.has_value())
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
-	if (style_rounding.has_value())
-		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, style_rounding.eval_px(ctx));
-	if (!style_bg.empty())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
 
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
@@ -7081,9 +7126,7 @@ void Child::DoDraw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
 	
 	if (columnCount.has_value() && columnCount.value() >= 2)
-	{
 		ImGui::Columns(columnCount.value(), "columns", columnBorder);
-	}
 
 	for (size_t i = 0; i < children.size(); ++i)
 	{
@@ -7103,6 +7146,8 @@ void Child::DoDraw(UIContext& ctx)
 		ImGui::PopStyleVar();
 	if (!style_outer_padding)
 		ImGui::PopClipRect();
+	if (style_borderSize.has_value())
+		ImGui::PopStyleVar();
 }
 
 void Child::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -7117,6 +7162,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, " << style_padding.to_arg(ctx.unit) << ");\n";
 	if (style_rounding.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, " << style_rounding.to_arg(ctx.unit) << ");\n";
+	if (style_borderSize.has_value())
+		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, " << style_borderSize.to_arg(ctx.unit) << ");\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 	
@@ -7179,8 +7226,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 			//os << ctx.ind << "ImGui::SetColumnWidth(" << i << ", " << columnsWidths[i].c_str() << ");\n";
 	}
 
-	if (!itemCount.empty())
-	{
+	if (!itemCount.empty()) {
 		os << ctx.ind << itemCount.to_arg(ctx.forVarName) << "\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
@@ -7214,6 +7260,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_padding.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
+	if (style_borderSize.has_value())
+		os << ctx.ind << "ImGui::PopStyleVar();\n";
 }
 
 void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -7231,6 +7279,8 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			style_spacing.set_from_arg(sit->params[1]);
 		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ChildRounding")
 			style_rounding.set_from_arg(sit->params[1]);
+		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ChildBorderSize")
+			style_borderSize.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::Other && !sit->line.compare(0, 9, "ImVec2 sz"))
 	{
@@ -7284,6 +7334,7 @@ Child::Properties()
 		{ "@style.padding", &style_padding },
 		{ "@style.spacing", &style_spacing },
 		{ "@style.rounding", &style_rounding },
+		{ "@style.borderSize", &style_borderSize },
 		{ "@style.outer_padding", &style_outer_padding },
 		{ "child.flags", &flags },
 		{ "child.wflags", &wflags },
@@ -7337,11 +7388,17 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed = InputDirectVal("##rounding", &style_rounding, ctx);
 		break;
 	case 5:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_borderSize, ctx);
+		break;
+	case 6:
 		ImGui::Text("outerPadding");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##outerPadding", &style_outer_padding, ctx);
 		break;
-	case 6:
+	case 7:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
@@ -7371,14 +7428,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 			}
 			});
 		break;
-	case 7:
+	case 8:
 		TreeNodeProp("windowFlags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&wflags);
 			});
 		break;
-	case 8:
+	case 9:
 		ImGui::Text("columnCount");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -7386,21 +7443,21 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("columnCount", &columnCount, ctx);
 		break;
-	case 9:
+	case 10:
 		ImGui::Text("columnBorder");
 		ImGui::TableNextColumn();
 		changed = InputDirectVal("##columnBorder", &columnBorder, ctx);
 		break;
-	case 10:
+	case 11:
 		changed = DataLoopProp("itemCount", &itemCount, ctx);
 		break;
-	case 11:
+	case 12:
 		ImGui::Text("scrollWhenDragging");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##swd", &scrollWhenDragging, ctx);
 		break;
-	case 12:
+	case 13:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -7410,7 +7467,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		ImGui::EndDisabled();
 		break;
-	case 13:
+	case 14:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -7421,7 +7478,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	default:
-		return Widget::PropertyUI(i - 14, ctx);
+		return Widget::PropertyUI(i - 15, ctx);
 	}
 	return changed;
 }

@@ -463,6 +463,7 @@ struct Child : Widget
 	direct_val<pzdimension2> style_spacing;
 	direct_val<bool> style_outer_padding = true;
 	direct_val<pzdimension> style_rounding;
+	direct_val<pzdimension> style_borderSize;
 	bindable<color32> style_bg;
 	
 	Child(UIContext& ctx);
@@ -630,6 +631,7 @@ struct TopWindow : UINode
 	direct_val<pzdimension> style_borderSize;
 	direct_val<pzdimension> style_rounding;
 	direct_val<pzdimension> style_scrollbarSize;
+	direct_val<pzdimension2> style_titlePadding;
 	bindable<color32> style_bg;
 	bindable<color32> style_menuBg;
 	direct_val<Placement> placement = None;
