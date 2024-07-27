@@ -54,70 +54,60 @@ void HorizLayout::Draw()
         /// @end Text
 
         /// @begin Button
-        ImGui::PushTabStop(false);
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment==0?ImGuiCol_ButtonHovered:ImGuiCol_Button]);
         if (ImGui::Button("\xef\x80\xb6", { 0, 0 }))
         {
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        ImGui::PopTabStop();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("Align left (removes table layout)");
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushTabStop(false);
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment==1?ImGuiCol_ButtonHovered:ImGuiCol_Button]);
         if (ImGui::Button("\xef\x80\xb7", { 0, 0 }))
         {
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        ImGui::PopTabStop();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("Center");
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushTabStop(false);
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment==2?ImGuiCol_ButtonHovered:ImGuiCol_Button]);
         if (ImGui::Button("\xef\x80\xb8", { 0, 0 }))
         {
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        ImGui::PopTabStop();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("Align right");
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushTabStop(false);
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment==3?ImGuiCol_ButtonHovered:ImGuiCol_Button]);
         if (ImGui::Button("\xef\x80\xb9", { 0, 0 }))
         {
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        ImGui::PopTabStop();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("Align left and right");
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushTabStop(false);
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[alignment==4?ImGuiCol_ButtonHovered:ImGuiCol_Button]);
         if (ImGui::Button("\xef\x96\x8d", { 0, 0 }))
         {
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        ImGui::PopTabStop();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("Regular spacing");
         /// @end Button

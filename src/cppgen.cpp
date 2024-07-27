@@ -771,6 +771,7 @@ bool CppGen::WriteStub(
 	{
 		auto vars = GetLayoutVars();
 		fout << "::ResetLayout()\n{\n";
+		fout << INDENT << "// ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 2;\n";
 		for (const std::string& var : vars)
 			fout << INDENT << var << ".Reset();\n";
 		fout << "}";

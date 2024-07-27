@@ -444,6 +444,53 @@ inline void PopInvisibleScrollbar()
 	ImGui::PopStyleColor(2);
 }
 
+struct IgnoreWindowPaddingData
+{
+	ImVec2 maxPos;
+	ImVec2 workRectMax;
+	bool hasSize;
+};
+
+inline void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data)
+{
+	ImGuiWindow* wnd = ImGui::GetCurrentWindow();
+	data->hasSize = sz != nullptr;
+	data->maxPos = wnd->DC.CursorMaxPos;
+	data->workRectMax = wnd->WorkRect.Max;
+	ImRect r = wnd->InnerRect;
+	float fixbs = wnd->WindowBorderSize ? 1.f : 0; //not sure why imgui renders some additional border shadow
+	r.Min.x += fixbs;
+	r.Max.x -= fixbs;
+	ImGui::PushClipRect(r.Min, r.Max, false);
+	ImVec2 pos = ImGui::GetCursorScreenPos();
+	if (pos.x <= wnd->DC.CursorStartPos.x)
+		pos.x = r.Min.x + fixbs;
+	if (pos.y <= wnd->DC.CursorStartPos.y)
+		pos.y = r.Min.y;
+	ImGui::SetCursorScreenPos(pos);
+	wnd->WorkRect.Max.x = r.Max.x; //used by Separator
+	//+1 here is to exactly map sz=-1 to right/bottom edge
+	if (sz && sz->x < 0)
+		sz->x = r.Max.x + sz->x + 1 - pos.x;
+	if (sz && sz->y < 0)
+		sz->y = r.Max.y + sz->y + 1 - pos.y;
+}
+
+inline void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data)
+{
+	ImGuiWindow* wnd = ImGui::GetCurrentWindow();
+	wnd->WorkRect.Max = data.workRectMax;
+	if (data.hasSize) 
+	{
+		ImVec2 pad = wnd->WindowPadding;
+		if (wnd->DC.CursorMaxPos.x > data.maxPos.x)
+			wnd->DC.CursorMaxPos.x -= pad.x;
+		if (wnd->DC.CursorMaxPos.y > data.maxPos.y)
+			wnd->DC.CursorMaxPos.y -= pad.y;
+	}
+	ImGui::PopClipRect();
+}
+
 //optionally draws scrollbars so they can be kept hidden when no scrolling occurs
 //returns:
 //0 - nothing happening or scrolling continues

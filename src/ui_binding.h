@@ -32,11 +32,14 @@ public:
 
 private:
     /// @begin impl
+    void ResetLayout();
     void Init();
 
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
+    ImRad::HBox hb3;
+    ImRad::HBox hb5;
     /// @end impl
 };
 

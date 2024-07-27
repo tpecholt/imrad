@@ -1356,7 +1356,7 @@ bool BeginPropGroup(const std::string& label, const UINode::Prop& prop, bool& op
 	ImGui::AlignTextToFramePadding();
 	ImGui::Unindent();
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-	open = ImGui::TreeNode(label.c_str());
+	open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
 	ImGui::PopStyleVar();
 	bool eatProp = false;
 	if (label == "overlayPos") 

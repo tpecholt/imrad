@@ -37,7 +37,7 @@ void TreeNodeProp(const char* name, const std::string& label, F&& f)
 	ImVec2 pad = ImGui::GetStyle().FramePadding;
 	ImGui::Unindent();
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-	if (ImGui::TreeNode(name)) {
+	if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth)) {
 		ImGui::PopStyleVar();
 		ImGui::Indent();
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
@@ -63,7 +63,7 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 	ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 	ImGui::Unindent();
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-	bool open = ImGui::TreeNode(name);
+	bool open = ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth);
 	ImGui::PopStyleVar();
 	ImGui::TableNextColumn();
 	ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -667,7 +667,7 @@ void TopWindow::Draw(UIContext& ctx)
 	}
 	if (ctx.mode == UIContext::RectSelection)
 	{
-		ImDrawList* dl = ImGui::GetWindowDrawList();
+		ImDrawList* dl = ImGui::GetForegroundDrawList();
 		ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
 		ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
 		dl->AddRectFilled(a, b, ctx.colors[UIContext::Hovered]);
@@ -1717,6 +1717,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 	bool firstWidget = true;
 	bool leftmost = true;
 	bool topmost = true;
+	bool bottommost = false;
 	bool hlay = false;
 	bool vlay = false;
 	int colId = 0;
@@ -1735,6 +1736,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 			++rowId; 
 			topmost = child->nextColumn;
 			leftmost = true;
+			bottommost = false;
 			hlay = false;
 			if (child->nextColumn) 
 			{
@@ -1755,10 +1757,13 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 			l.colId = colId;
 			l.rowId = rowId;
 			l.flags |= (leftmost * Layout::Leftmost) | (topmost * Layout::Topmost);
+			bottommost = true;
 		}
 
 		firstWidget = false;
 	}
+	if (bottommost)
+		l.flags |= Layout::Bottommost;
 	if (colId == l.colId)
 		l.flags |= vlay * Layout::VLayout;
 	if (rowId == l.rowId)
@@ -1771,7 +1776,6 @@ void Widget::Draw(UIContext& ctx)
 {
 	UINode* parent = ctx.parents.back();
 	Layout l = GetLayout(parent);
-	drawList = ImGui::GetWindowDrawList();
 	const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
 	ctx.stretchSize = { 0, 0 };
 
@@ -1865,7 +1869,7 @@ void Widget::Draw(UIContext& ctx)
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_framePadding);
 
 	ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
-	DoDraw(ctx);
+	ImDrawList* drawList = DoDraw(ctx);
 	ImGui::EndDisabled();
 	CalcSizeEx(p1, ctx);
 	
@@ -1934,7 +1938,6 @@ void Widget::Draw(UIContext& ctx)
 			else
 				ctx.selected = { this };
 			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
-			ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 		}
 		bool hoverSizeX = 
 			(Behavior() & HasSizeX) &&
@@ -3075,7 +3078,7 @@ std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
 	return std::unique_ptr<Widget>(new Spacer(*this));
 }
 
-void Spacer::DoDraw(UIContext& ctx)
+ImDrawList* Spacer::DoDraw(UIContext& ctx)
 {
 	ImVec2 size { size_x.eval_px(ImGuiAxis_X, ctx),	size_y.eval_px(ImGuiAxis_Y, ctx) };
 	/*if (!size.x)
@@ -3122,6 +3125,7 @@ void Spacer::DoDraw(UIContext& ctx)
 		
 	}
 	ImRad::Dummy(r);
+	return ImGui::GetWindowDrawList();
 }
 
 void Spacer::DoExport(std::ostream& os, UIContext& ctx)
@@ -3191,16 +3195,11 @@ std::unique_ptr<Widget> Separator::Clone(UIContext& ctx)
 	return std::unique_ptr<Widget>(new Separator(*this)); 
 }
 
-void Separator::DoDraw(UIContext& ctx)
+ImDrawList* Separator::DoDraw(UIContext& ctx)
 {
-	ImVec2 wr2;
-	if (!style_outer_padding && !sameLine) {
-		ImRect r2 = ImGui::GetCurrentWindow()->InnerRect;
-		ImGui::PushClipRect(r2.Min, r2.Max, false);
-		ImGui::SetCursorScreenPos({ r2.Min.x, ImGui::GetCursorScreenPos().y });
-		wr2 = ImGui::GetCurrentWindow()->WorkRect.Max;
-		ImGui::GetCurrentWindow()->WorkRect.Max.x = r2.Max.x;
-	}
+	ImRad::IgnoreWindowPaddingData data;
+	if (!style_outer_padding && !sameLine)
+		ImRad::PushIgnoreWindowPadding(nullptr, &data);
 
 	if (!label.empty())
 		ImGui::SeparatorText(DRAW_STR(label));
@@ -3209,10 +3208,10 @@ void Separator::DoDraw(UIContext& ctx)
 	else 
 		ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
 
-	if (!style_outer_padding && !sameLine) {
-		ImGui::PopClipRect();
-		ImGui::GetCurrentWindow()->WorkRect.Max = wr2;
-	}
+	if (!style_outer_padding && !sameLine)
+		ImRad::PopIgnoreWindowPadding(data);
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -3232,17 +3231,13 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Separator::DoExport(std::ostream& os, UIContext& ctx)
 {
-	std::string r, wr;
+	std::string datavar;
 	if (!style_outer_padding && !sameLine) 
 	{
-		r = "r" + std::to_string(ctx.varCounter);
-		wr = "w" + r;
+		datavar = "_data" + std::to_string(ctx.varCounter);
 		++ctx.varCounter;
-		os << ctx.ind << "ImRect " << r << " = ImGui::GetCurrentWindow()->InnerRect;\n";
-		os << ctx.ind << "ImGui::PushClipRect(" << r << ".Min, " << r << ".Max, false);\n";
-		os << ctx.ind << "ImGui::SetCursorScreenPos({ " << r << ".Min.x, ImGui::GetCursorScreenPos().y });\n";
-		os << ctx.ind << "ImVec2 " << wr << " = ImGui::GetCurrentWindow()->WorkRect.Max;\n";
-		os << ctx.ind << "ImGui::GetCurrentWindow()->WorkRect.Max.x = " << r << ".Max.x;\n";
+		os << ctx.ind << "ImRad::IgnoreWindowPaddingData " << datavar << ";\n";
+		os << ctx.ind << "ImRad::PushIgnoreWindowPadding(nullptr, &" << datavar << ")\n";
 	}
 
 	if (label.empty()) 
@@ -3262,8 +3257,7 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!style_outer_padding && !sameLine)
 	{
-		os << ctx.ind << "ImGui::PopClipRect();\n";
-		os << ctx.ind << "ImGui::GetCurrentWindow()->WorkRect.Max = " << wr << ";\n";
+		os << ctx.ind << "ImRad::PopIgnoreWindowPadding(" << datavar << ");\n";
 	}
 }
 
@@ -3279,7 +3273,8 @@ void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() >= 2)
 			style_thickness.set_from_arg(sit->params[1]);
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushClipRect")
+	else if (sit->kind == cpp::CallExpr && 
+		(sit->callee == "ImRad::PushIgnoreWindowPadding" || sit->callee == "ImGui::PushClipRect")) //PushClipRect for compatibility
 	{
 		style_outer_padding = false;
 	}
@@ -3339,7 +3334,7 @@ std::unique_ptr<Widget> Text::Clone(UIContext& ctx)
 	return std::unique_ptr<Widget>(new Text(*this));
 }
 
-void Text::DoDraw(UIContext& ctx)
+ImDrawList* Text::DoDraw(UIContext& ctx)
 {
 	if (alignToFrame)
 		ImGui::AlignTextToFramePadding();
@@ -3360,6 +3355,8 @@ void Text::DoDraw(UIContext& ctx)
 	{
 		ImGui::TextUnformatted(DRAW_STR(text));
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -3493,7 +3490,7 @@ std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
 	return sel;
 }
 
-void Selectable::DoDraw(UIContext& ctx)
+ImDrawList* Selectable::DoDraw(UIContext& ctx)
 {
 	ImVec2 alignment(0, 0);
 	if (horizAlignment == ImRad::AlignHCenter)
@@ -3528,6 +3525,7 @@ void Selectable::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 
 	ImGui::PopStyleVar();
+	return ImGui::GetWindowDrawList();
 }
 
 void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -3872,7 +3870,7 @@ std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
 	return std::make_unique<Button>(*this);
 }
 
-void Button::DoDraw(UIContext& ctx)
+ImDrawList* Button::DoDraw(UIContext& ctx)
 {
 	if (!style_button.empty())
 		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ctx));
@@ -3898,6 +3896,8 @@ void Button::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (!style_button.empty())
 		ImGui::PopStyleColor();
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Button::DoExport(std::ostream& os, UIContext& ctx)
@@ -4277,7 +4277,7 @@ std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
 	return sel;
 }
 
-void CheckBox::DoDraw(UIContext& ctx)
+ImDrawList* CheckBox::DoDraw(UIContext& ctx)
 {
 	if (!style_check.empty())
 		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ctx));
@@ -4287,6 +4287,8 @@ void CheckBox::DoDraw(UIContext& ctx)
 
 	if (!style_check.empty())
 		ImGui::PopStyleColor();
+
+	return ImGui::GetWindowDrawList();
 }
 
 void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
@@ -4458,7 +4460,7 @@ std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 	return sel;
 }
 
-void RadioButton::DoDraw(UIContext& ctx)
+ImDrawList* RadioButton::DoDraw(UIContext& ctx)
 {
 	if (!style_check.empty())
 		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ctx));
@@ -4467,6 +4469,8 @@ void RadioButton::DoDraw(UIContext& ctx)
 
 	if (!style_check.empty())
 		ImGui::PopStyleColor();
+
+	return ImGui::GetWindowDrawList();
 }
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
@@ -4697,7 +4701,7 @@ int Input::Behavior()
 	return b;
 }
 
-void Input::DoDraw(UIContext& ctx)
+ImDrawList* Input::DoDraw(UIContext& ctx)
 {
 	float ftmp[4] = {};
 	int itmp[4] = {};
@@ -4749,6 +4753,8 @@ void Input::DoDraw(UIContext& ctx)
 		else if (type == "double")
 			ImGui::InputDouble(id.c_str(), dtmp, step, 0, format.c_str());
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Input::DoExport(std::ostream& os, UIContext& ctx)
@@ -5337,7 +5343,7 @@ std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
 	return sel;
 }
 
-void Combo::DoDraw(UIContext& ctx)
+ImDrawList* Combo::DoDraw(UIContext& ctx)
 {
 	float w = size_x.eval_px(ImGuiAxis_X, ctx);
 	if (w)
@@ -5356,6 +5362,8 @@ void Combo::DoDraw(UIContext& ctx)
 		std::string tmp = '{' + vars[0] + "}\0";
 		ImRad::Combo(id.c_str(), &tmp, "\0", flags);
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Combo::DoExport(std::ostream& os, UIContext& ctx)
@@ -5568,7 +5576,7 @@ std::unique_ptr<Widget> Slider::Clone(UIContext& ctx)
 	return sel;
 }
 
-void Slider::DoDraw(UIContext& ctx)
+ImDrawList* Slider::DoDraw(UIContext& ctx)
 {
 	float ftmp[4] = {};
 	int itmp[4] = {};
@@ -5602,6 +5610,8 @@ void Slider::DoDraw(UIContext& ctx)
 		ImGui::SliderFloat4(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
 	else if (type == "angle")
 		ImGui::SliderAngle(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Slider::DoExport(std::ostream& os, UIContext& ctx)
@@ -5829,7 +5839,7 @@ std::unique_ptr<Widget> ProgressBar::Clone(UIContext& ctx)
 	return sel;
 }
 
-void ProgressBar::DoDraw(UIContext& ctx)
+ImDrawList* ProgressBar::DoDraw(UIContext& ctx)
 {
 	if (!style_color.empty())
 		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.eval(ctx));
@@ -5844,6 +5854,8 @@ void ProgressBar::DoDraw(UIContext& ctx)
 
 	if (!style_color.empty())
 		ImGui::PopStyleColor();
+
+	return ImGui::GetWindowDrawList();
 }
 
 void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
@@ -5989,7 +6001,7 @@ std::unique_ptr<Widget> ColorEdit::Clone(UIContext& ctx)
 	return sel;
 }
 
-void ColorEdit::DoDraw(UIContext& ctx)
+ImDrawList* ColorEdit::DoDraw(UIContext& ctx)
 {
 	ImVec4 ftmp = {};
 	
@@ -6004,6 +6016,8 @@ void ColorEdit::DoDraw(UIContext& ctx)
 		ImGui::ColorEdit3(id.c_str(), (float*)&ftmp, flags);
 	else if (type == "color4")
 		ImGui::ColorEdit4(id.c_str(), (float*)&ftmp, flags);
+
+	return ImGui::GetWindowDrawList();
 }
 
 void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
@@ -6200,7 +6214,7 @@ std::unique_ptr<Widget> Image::Clone(UIContext& ctx)
 	return sel;
 }
 
-void Image::DoDraw(UIContext& ctx)
+ImDrawList* Image::DoDraw(UIContext& ctx)
 {
 	float w = 20, h = 20;
 	if (!size_x.zero())
@@ -6213,6 +6227,7 @@ void Image::DoDraw(UIContext& ctx)
 		h = (float)tex.h;
 
 	ImGui::Image(tex.id, { w, h });
+	return ImGui::GetWindowDrawList();
 }
 
 void Image::DoExport(std::ostream& os, UIContext& ctx)
@@ -6378,7 +6393,7 @@ std::unique_ptr<Widget> CustomWidget::Clone(UIContext& ctx)
 	return std::make_unique<CustomWidget>(*this);
 }
 
-void CustomWidget::DoDraw(UIContext& ctx)
+ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
 {
 	ImVec2 size;
 	size.x = size_x.eval_px(ImGuiAxis_X, ctx);
@@ -6396,6 +6411,8 @@ void CustomWidget::DoDraw(UIContext& ctx)
 	auto clr = ImGui::GetStyle().Colors[ImGuiCol_Border];
 	dl->AddLine(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr));
 	dl->AddLine(cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(cached_size.x, 0), ImGui::ColorConvertFloat4ToU32(clr));
+
+	return ImGui::GetWindowDrawList();
 }
 
 void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
@@ -6549,8 +6566,9 @@ std::unique_ptr<Widget> Table::Clone(UIContext& ctx)
 	return sel;
 }
 
-void Table::DoDraw(UIContext& ctx)
+ImDrawList* Table::DoDraw(UIContext& ctx)
 {
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	bool childPos = stx::count_if(children, [](const auto& ch) { return ch->hasPos; });
 
 	if (style_cellPadding.has_value())
@@ -6615,6 +6633,8 @@ void Table::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (style_cellPadding.has_value())
 		ImGui::PopStyleVar();
+
+	return drawList;
 }
 
 std::vector<UINode::Prop>
@@ -7059,19 +7079,7 @@ int Child::Behavior()
 	return fl;
 }
 
-bool Child::IsFirstItem(UIContext& ctx)
-{
-	const auto* parent = ctx.parents[ctx.parents.size() - 2];
-	for (const auto& child : parent->children) {
-		if (child.get() == this)
-			return true;
-		if (child->Behavior() & SnapSides)
-			return false;
-	}
-	return false;
-}
-
-void Child::DoDraw(UIContext& ctx)
+ImDrawList* Child::DoDraw(UIContext& ctx)
 {
 	if (flags & ImGuiWindowFlags_AlwaysAutoResize) 
 	{
@@ -7096,25 +7104,10 @@ void Child::DoDraw(UIContext& ctx)
 	if (!sz.y && children.empty())
 		sz.y = 30;
 	
-	if (!style_outer_padding) 
-	{
-		ImRect r = ImGui::GetCurrentWindow()->InnerRect;
-		ImGui::PushClipRect(r.Min, r.Max, false);
-		ImVec2 pos = ImGui::GetCursorScreenPos();
-		if (!sameLine && !nextColumn) {
-			pos.x = r.Min.x;
-		}
-		if (IsFirstItem(ctx)) {
-			pos.y = r.Min.y;
-		}
-		ImGui::SetNextWindowPos(pos);
-		//+1 here is to exactly map sz=-1 to right/bottom edge
-		if (sz.x < 0)
-			sz.x = r.Max.x + sz.x + 1 - pos.x;
-		if (sz.y < 0)
-			sz.y = r.Max.y + sz.y + 1 - pos.y;
-	}
-
+	ImRad::IgnoreWindowPaddingData data;
+	if (!style_outer_padding)
+		ImRad::PushIgnoreWindowPadding(&sz, &data);
+	
 	//after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
 	//only way how to disable scrollbars when using !style_outer_padding is to use
 	//ImGuiWindowFlags_NoScrollbar
@@ -7138,16 +7131,19 @@ void Child::DoDraw(UIContext& ctx)
 	
 	ImGui::EndChild();
 
+	if (!style_outer_padding) 
+		ImRad::PopIgnoreWindowPadding(data);
+
 	if (!style_bg.empty())
 		ImGui::PopStyleColor();
 	if (style_rounding.has_value())
 		ImGui::PopStyleVar();
 	if (style_padding.has_value())
 		ImGui::PopStyleVar();
-	if (!style_outer_padding)
-		ImGui::PopClipRect();
 	if (style_borderSize.has_value())
 		ImGui::PopStyleVar();
+	
+	return ImGui::GetWindowDrawList();
 }
 
 void Child::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -7158,6 +7154,18 @@ void Child::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Child::DoExport(std::ostream& os, UIContext& ctx)
 {
+	std::string datavar, szvar;
+	if (!style_outer_padding)
+	{
+		datavar = "_data" + std::to_string(ctx.varCounter);
+		szvar = "_sz" + std::to_string(ctx.varCounter);
+		os << ctx.ind << "ImVec2 " << szvar << "{ "
+			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
+			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " };\n";
+		os << ctx.ind << "ImRad::IgnoreWindowPaddingData " << datavar << ";\n";
+		os << ctx.ind << "ImRad::PushIgnoreWindowPadding(&" << szvar << ", &" << datavar << ");\n";
+	}
+
 	if (style_padding.has_value())
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, " << style_padding.to_arg(ctx.unit) << ");\n";
 	if (style_rounding.has_value())
@@ -7167,47 +7175,14 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 	
-	if (!style_outer_padding)
-	{
-		std::string rvar = "r" + std::to_string(ctx.varCounter);
-		std::string posvar = "pos" + std::to_string(ctx.varCounter);
-		std::string szvar = "sz" + std::to_string(ctx.varCounter);
-		os << ctx.ind << "ImVec2 " << szvar << "{ "
-			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
-			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " };\n";
-		os << ctx.ind << "ImRect " << rvar << " = ImGui::GetCurrentWindow()->InnerRect;\n";
-		os << ctx.ind << "ImGui::PushClipRect(" << rvar << ".Min, " << rvar << ".Max, false);\n";
-		os << ctx.ind << "ImVec2 " << posvar << "{ ";
-		if (!sameLine && !nextColumn)
-			os << rvar << ".Min.x";
-		else
-			os << "ImGui::GetCursorScreenPos().x";
-		os << ", ";
-		if (IsFirstItem(ctx))
-			os << rvar << ".Min.y";
-		else
-			os << "ImGui::GetCursorScreenPos().y";
-		os << " };\n";
-		os << ctx.ind << "ImGui::SetNextWindowPos(" << posvar << ");\n";
-		os << ctx.ind << "if (" << szvar << ".x < 0)\n";
-		ctx.ind_up();
-		os << ctx.ind << szvar << ".x = " << rvar << ".Max.x + " << szvar << ".x + 1 - " << posvar << ".x;\n";
-		ctx.ind_down();
-		os << ctx.ind << "if (" << szvar << ".y < 0)\n";
-		ctx.ind_up();
-		os << ctx.ind << szvar << ".y = " << rvar << ".Max.y + " << szvar << ".y + 1 - " << posvar << ".y;\n\n";
-		ctx.ind_down();
-		
-		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", "
-			<< szvar << ", " << flags.to_arg() << ");\n";
+	os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", ";
+	if (szvar != "")
+		os << szvar << ", ";
+	else {
+		os << "{ " << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
+			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, ";
 	}
-	else
-	{
-		os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", { "
-			<< size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
-			<< size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
-			<< flags.to_arg() << ", " << wflags.to_arg() << ");\n";
-	}
+	os << flags.to_arg() << ", " << wflags.to_arg() << ");\n";
 
 	os << ctx.ind << "{\n";
 	ctx.ind_up();
@@ -7252,8 +7227,6 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
 
-	if (!style_outer_padding)
-		os << ctx.ind << "ImGui::PopClipRect();\n";
 	if (!style_bg.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (style_rounding.has_value())
@@ -7262,6 +7235,10 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	if (style_borderSize.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
+
+	if (!style_outer_padding)
+		os << ctx.ind << "ImRad::PopIgnoreWindowPadding(" << datavar << ");\n";
+
 }
 
 void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -7282,13 +7259,16 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ChildBorderSize")
 			style_borderSize.set_from_arg(sit->params[1]);
 	}
-	else if (sit->kind == cpp::Other && !sit->line.compare(0, 9, "ImVec2 sz"))
+	else if (sit->kind == cpp::Other && 
+		(!sit->line.compare(0, 10, "ImVec2 _sz") || !sit->line.compare(0, 9, "ImVec2 sz"))) //sz for compatibility
 	{
 		style_outer_padding = false;
 		size_t i = sit->line.find('{');
-		auto size = cpp::parse_size(sit->line.substr(i));
-		size_x.set_from_arg(size.first);
-		size_y.set_from_arg(size.second);
+		if (i != std::string::npos) {
+			auto size = cpp::parse_size(sit->line.substr(i));
+			size_x.set_from_arg(size.first);
+			size_y.set_from_arg(size.second);
+		}
 	}
 	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginChild")
 	{
@@ -7503,7 +7483,7 @@ std::unique_ptr<Widget> Splitter::Clone(UIContext& ctx)
 	return sel;
 }
 
-void Splitter::DoDraw(UIContext& ctx)
+ImDrawList* Splitter::DoDraw(UIContext& ctx)
 {
 	ImVec2 size;
 	size.x = size_x.eval_px(ImGuiAxis_X, ctx);
@@ -7531,6 +7511,8 @@ void Splitter::DoDraw(UIContext& ctx)
 	ImGui::EndChild();
 	if (!style_bg.empty())
 		ImGui::PopStyleColor();
+
+	return ImGui::GetWindowDrawList();
 }
 
 void Splitter::DoExport(std::ostream& os, UIContext& ctx)
@@ -7709,7 +7691,7 @@ std::unique_ptr<Widget> CollapsingHeader::Clone(UIContext& ctx)
 	return sel;
 }
 
-void CollapsingHeader::DoDraw(UIContext& ctx)
+ImDrawList* CollapsingHeader::DoDraw(UIContext& ctx)
 {
 	//automatically expand to show selected child and collapse to save space
 	//in the window and avoid potential scrolling
@@ -7724,6 +7706,8 @@ void CollapsingHeader::DoDraw(UIContext& ctx)
 			children[i]->Draw(ctx);
 		}
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void CollapsingHeader::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -7818,10 +7802,13 @@ TreeNode::TreeNode(UIContext& ctx)
 	//flags.add$(ImGuiTreeNodeFlags_Framed);
 	flags.add$(ImGuiTreeNodeFlags_FramePadding);
 	flags.add$(ImGuiTreeNodeFlags_Leaf);
+	flags.add$(ImGuiTreeNodeFlags_Bullet);
 	flags.add$(ImGuiTreeNodeFlags_OpenOnArrow);
 	flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);
 	flags.add$(ImGuiTreeNodeFlags_SpanAvailWidth);
 	flags.add$(ImGuiTreeNodeFlags_SpanFullWidth);
+	flags.add$(ImGuiTreeNodeFlags_SpanTextWidth);
+	flags.add$(ImGuiTreeNodeFlags_SpanAllColumns);
 }
 
 std::unique_ptr<Widget> TreeNode::Clone(UIContext& ctx)
@@ -7831,7 +7818,7 @@ std::unique_ptr<Widget> TreeNode::Clone(UIContext& ctx)
 	return sel;
 }
 
-void TreeNode::DoDraw(UIContext& ctx)
+ImDrawList* TreeNode::DoDraw(UIContext& ctx)
 {
 	if (ctx.selected.size() == 1)
 	{
@@ -7848,6 +7835,8 @@ void TreeNode::DoDraw(UIContext& ctx)
 
 		ImGui::TreePop();
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void TreeNode::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -7989,7 +7978,7 @@ std::unique_ptr<Widget> TabBar::Clone(UIContext& ctx)
 	return sel;
 }
 
-void TabBar::DoDraw(UIContext& ctx)
+ImDrawList* TabBar::DoDraw(UIContext& ctx)
 {
 	std::string id = "##" + std::to_string((uintptr_t)this);
 	//add tab names in order so that when tab order changes in designer we get a 
@@ -8005,6 +7994,8 @@ void TabBar::DoDraw(UIContext& ctx)
 			
 		ImGui::EndTabBar();
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void TabBar::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -8117,7 +8108,7 @@ std::unique_ptr<Widget> TabItem::Clone(UIContext& ctx)
 	return sel;
 }
 
-void TabItem::DoDraw(UIContext& ctx)
+ImDrawList* TabItem::DoDraw(UIContext& ctx)
 {
 	bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
 	bool tmp = true;
@@ -8128,6 +8119,8 @@ void TabItem::DoDraw(UIContext& ctx)
 
 		ImGui::EndTabItem();
 	}
+
+	return ImGui::GetWindowDrawList();
 }
 
 void TabItem::DrawExtra(UIContext& ctx)
@@ -8191,7 +8184,7 @@ void TabItem::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 {
-	std::string var = "tmpOpen" + std::to_string(ctx.varCounter);
+	std::string var = "_open" + std::to_string(ctx.varCounter);
 	if (closeButton) {
 		os << ctx.ind << "bool " << var << " = true;\n";
 		++ctx.varCounter;
@@ -8370,7 +8363,7 @@ std::unique_ptr<Widget> MenuBar::Clone(UIContext& ctx)
 	return sel;
 }
 
-void MenuBar::DoDraw(UIContext& ctx)
+ImDrawList* MenuBar::DoDraw(UIContext& ctx)
 {
 	if (ImGui::BeginMenuBar())
 	{
@@ -8380,6 +8373,9 @@ void MenuBar::DoDraw(UIContext& ctx)
 
 		ImGui::EndMenuBar();
 	}
+
+	//menuBar is drawn from Begin anyways
+	return ImGui::GetWindowDrawList();
 }
 
 void MenuBar::CalcSizeEx(ImVec2 x1, UIContext& ctx)
@@ -8434,7 +8430,7 @@ std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
 	return sel;
 }
 
-void MenuIt::DoDraw(UIContext& ctx)
+ImDrawList* MenuIt::DoDraw(UIContext& ctx)
 {
 	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
 	
@@ -8538,6 +8534,7 @@ void MenuIt::DoDraw(UIContext& ctx)
 		ImGui::MenuItem(DRAW_STR(label), shortcut.c_str(), check);
 	}
 	ImGui::PopStyleVar();
+	return ImGui::GetWindowDrawList();
 }
 
 void MenuIt::DrawExtra(UIContext& ctx)

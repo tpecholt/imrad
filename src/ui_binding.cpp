@@ -80,46 +80,32 @@ void BindingDlg::Draw()
         ImGui::PopFont();
         /// @end Input
 
-        /// @begin Table
-        if (ImGui::BeginTable("table1", 3, ImGuiTableFlags_None, { 0, 0 }))
-        {
-            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthStretch, 0);
-            ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableNextRow(0, 0);
-            ImGui::TableSetColumnIndex(0);
-            /// @separator
+        /// @begin Text
+        ImRad::Spacing(1);
+        hb3.BeginLayout();
+        ImGui::SetCursorPosX(hb3);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Available fields:");
+        hb3.AddSize(0, ImRad::HBox::ItemSize);
+        /// @end Text
 
-            /// @begin Text
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Available fields:");
-            /// @end Text
+        /// @begin Spacer
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetCursorPosX(hb3);
+        ImRad::Dummy({ hb3.GetSize(), 0 });
+        hb3.AddSize(1, ImRad::HBox::Stretch);
+        /// @end Spacer
 
-            /// @begin Child
-            ImRad::TableNextColumn(1);
-            ImGui::BeginChild("child1", { 0, 20 }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
-            {
-                /// @separator
-
-                /// @separator
-                ImGui::EndChild();
-            }
-            /// @end Child
-
-            /// @begin CheckBox
-            ImRad::TableNextColumn(1);
-            if (ImGui::Checkbox("show all", &showAll))
-                Refresh();
-            /// @end CheckBox
-
-
-            /// @separator
-            ImGui::EndTable();
-        }
-        /// @end Table
+        /// @begin CheckBox
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetCursorPosX(hb3);
+        if (ImGui::Checkbox("show all", &showAll))
+            Refresh();
+        hb3.AddSize(1, ImRad::HBox::ItemSize);
+        /// @end CheckBox
 
         /// @begin Table
-        if (ImGui::BeginTable("table3", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 0, -48 }))
+        if (ImGui::BeginTable("table1", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 0, -48 }))
         {
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);
@@ -141,9 +127,11 @@ void BindingDlg::Draw()
 
                 /// @begin Selectable
                 ImRad::TableNextColumn(1);
+                ImGui::BeginDisabled(true);
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
                 ImRad::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
                 ImGui::PopStyleVar();
+                ImGui::EndDisabled();
                 /// @end Selectable
 
 
@@ -154,51 +142,49 @@ void BindingDlg::Draw()
         }
         /// @end Table
 
-        /// @begin Table
+        /// @begin Button
         ImRad::Spacing(1);
-        if (ImGui::BeginTable("table4", 3, ImGuiTableFlags_None, { 0, -1 }))
+        hb5.BeginLayout();
+        ImGui::SetCursorPosX(hb5);
+        if (ImGui::Button(" New Field... ", { 110, 30 }))
         {
-            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthStretch, 0);
-            ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableNextRow(0, 0);
-            ImGui::TableSetColumnIndex(0);
-            /// @separator
+            OnNewField();
+        }
+        hb5.AddSize(0, 110);
+        /// @end Button
 
-            /// @begin Button
-            if (ImGui::Button(" New Field... ", { 110, 30 }))
-            {
-                OnNewField();
-            }
-            /// @end Button
+        /// @begin Spacer
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetCursorPosX(hb5);
+        ImRad::Dummy({ hb5.GetSize(), 0 });
+        hb5.AddSize(1, ImRad::HBox::Stretch);
+        /// @end Spacer
 
 			bool exprValid = true;
 			if (type == "bool" || type == "float" || type == "int")
 				exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
-            /// @begin Button
-            ImRad::TableNextColumn(1);
-            ImGui::BeginDisabled(!exprValid);
-            if (ImGui::Button("OK", { 90, 30 }))
-            {
-                ClosePopup(ImRad::Ok);
-            }
-            ImGui::EndDisabled();
-            /// @end Button
-
-            /// @begin Button
-            ImRad::TableNextColumn(1);
-            if (ImGui::Button("Cancel", { 90, 30 }) ||
-                ImGui::Shortcut(ImGuiKey_Escape))
-            {
-                ClosePopup(ImRad::Cancel);
-            }
-            /// @end Button
-
-
-            /// @separator
-            ImGui::EndTable();
+        /// @begin Button
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetCursorPosX(hb5);
+        ImGui::BeginDisabled(!exprValid);
+        if (ImGui::Button("OK", { 90, 30 }))
+        {
+            ClosePopup(ImRad::Ok);
         }
-        /// @end Table
+        hb5.AddSize(1, 90);
+        ImGui::EndDisabled();
+        /// @end Button
+
+        /// @begin Button
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetCursorPosX(hb5);
+        if (ImGui::Button("Cancel", { 90, 30 }) ||
+            ImGui::Shortcut(ImGuiKey_Escape))
+        {
+            ClosePopup(ImRad::Cancel);
+        }
+        hb5.AddSize(1, 90);
+        /// @end Button
 
         /// @separator
         ImGui::EndPopup();
@@ -238,4 +224,10 @@ void BindingDlg::Init()
 {
 	showAll = type == "std::string";
 	Refresh();
+}
+
+void BindingDlg::ResetLayout()
+{
+    hb3.Reset();
+    hb5.Reset();
 }

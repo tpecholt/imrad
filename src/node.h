@@ -94,11 +94,10 @@ struct Widget : UINode
 	event<> onItemDeactivatedAfterEdit;
 	event<> onItemContextMenuClicked;
 	std::string userCodeBefore, userCodeAfter;
-	ImDrawList* drawList;
 
 	struct Layout 
 	{
-		enum { Topmost = 0x1, Leftmost = 0x2, HLayout = 0x4, VLayout = 0x8 };
+		enum { Topmost = 0x1, Leftmost = 0x2, Bottommost = 0x4, HLayout = 0x10, VLayout = 0x20 };
 		int flags = 0;
 		int colId = 0;
 		int rowId = 0;
@@ -109,7 +108,7 @@ struct Widget : UINode
 	void Draw(UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
-	auto Properties() ->std::vector<Prop>;
+	auto Properties() -> std::vector<Prop>;
 	auto Events() -> std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void TreeUI(UIContext& ctx);
@@ -117,7 +116,7 @@ struct Widget : UINode
 	int Behavior();
 	Layout GetLayout(UINode* parent);
 	virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
-	virtual void DoDraw(UIContext& ctx) = 0;
+	virtual ImDrawList* DoDraw(UIContext& ctx) = 0;
 	virtual void DrawExtra(UIContext& ctx) {}
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
 	virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
@@ -129,7 +128,7 @@ struct Spacer : Widget
 {
 	Spacer(UIContext&);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int, UIContext& ctx);
 	void DoExport(std::ostream&, UIContext& ctx);
@@ -146,7 +145,7 @@ struct Separator : Widget
 
 	Separator(UIContext&);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int, UIContext& ctx);
@@ -163,7 +162,7 @@ struct Text : Widget
 	
 	Text(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -187,7 +186,7 @@ struct Selectable : Widget
 
 	Selectable(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -214,7 +213,7 @@ struct Button : Widget
 
 	Button(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events() ->std::vector<Prop>;
@@ -234,7 +233,7 @@ struct CheckBox : Widget
 
 	CheckBox(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -254,7 +253,7 @@ struct RadioButton : Widget
 
 	RadioButton(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -283,7 +282,7 @@ struct Input : Widget
 	
 	Input(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -304,7 +303,7 @@ struct Combo : Widget
 
 	Combo(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -327,7 +326,7 @@ struct Slider : Widget
 
 	Slider(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -346,7 +345,7 @@ struct ProgressBar : Widget
 
 	ProgressBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -365,7 +364,7 @@ struct ColorEdit : Widget
 
 	ColorEdit(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -384,7 +383,7 @@ struct Image : Widget
 
 	Image(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -400,7 +399,7 @@ struct CustomWidget : Widget
 	
 	CustomWidget(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -441,7 +440,7 @@ struct Table : Widget
 	Table(UIContext&);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return Widget::Behavior() | SnapInterior | HasSizeX | HasSizeY; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -469,14 +468,13 @@ struct Child : Widget
 	Child(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior();
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_SQUARE_FULL; }
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
-	bool IsFirstItem(UIContext& ctx);
 };
 
 struct CollapsingHeader : Widget
@@ -487,7 +485,7 @@ struct CollapsingHeader : Widget
 	CollapsingHeader(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return SnapSides | SnapInterior; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -505,7 +503,7 @@ struct TabBar : Widget
 	TabBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return Widget::Behavior() | NoOverlayPos; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -522,7 +520,7 @@ struct TabItem : Widget
 	TabItem(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return Widget::Behavior() | SnapInterior | SnapGrandparentClip | NoOverlayPos; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -544,7 +542,7 @@ struct TreeNode : Widget
 	TreeNode(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return Widget::Behavior() | SnapInterior; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
@@ -558,7 +556,7 @@ struct MenuBar : Widget
 	MenuBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return NoOverlayPos; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
@@ -581,7 +579,7 @@ struct MenuIt : Widget
 	MenuIt(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return NoOverlayPos | NoContextMenu; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -606,7 +604,7 @@ struct Splitter : Widget
 	Splitter(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return Widget::Behavior() | SnapInterior | HasSizeX | HasSizeY | NoOverlayPos; }
-	void DoDraw(UIContext& ctx);
+	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	void DoExport(std::ostream& os, UIContext& ctx);
