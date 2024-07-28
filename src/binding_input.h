@@ -83,7 +83,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
 	ImGui::PopStyleColor();
 	if (pushed)
 	{
-		bindingDlg.font = ctx.defaultFont;
+		bindingDlg.font = type.find("std::string") != std::string::npos ? ctx.defaultFont : nullptr;
 		bindingDlg.codeGen = ctx.codeGen;
 		bindingDlg.name = label;
 		bindingDlg.expr = val->c_str();
@@ -211,7 +211,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 	int styleClr = val->style_color();
 	ImVec4 buttonClr = val->empty() ? 
 		ctx.style.Colors[def] : 
-		ImGui::ColorConvertU32ToFloat4(val->eval(ctx));
+		ImGui::ColorConvertU32ToFloat4(val->eval(def, ctx));
 	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 	if (ImGui::ColorButton(label, buttonClr, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview))
 	{

@@ -518,9 +518,9 @@ void TopWindow::Draw(UIContext& ctx)
 	if (style_scrollbarSize.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, style_scrollbarSize.eval_px(ctx));
 	if (!style_bg.empty())
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, style_bg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, style_bg.eval(ImGuiCol_WindowBg, ctx));
 	if (!style_menuBg.empty())
-		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, style_menuBg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, style_menuBg.eval(ImGuiCol_MenuBarBg, ctx));
 
 	ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
 	ImGui::SetNextWindowPos(ctx.designAreaMin + ImVec2{ 20, 20 }); // , ImGuiCond_Always, { 0.5, 0.5 });
@@ -622,7 +622,7 @@ void TopWindow::Draw(UIContext& ctx)
 		}
 	}
 	if (ctx.mode == UIContext::NormalSelection &&
-		ImGui::IsWindowHovered() &&
+		ImGui::IsWindowHovered() && //includes !GetTopMostVisibleModal
 		ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 	{
 		if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -630,7 +630,6 @@ void TopWindow::Draw(UIContext& ctx)
 		else
 			ctx.selected = { this };
 		ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
-		ImGui::SetKeyboardFocusHere(); //for DEL hotkey reaction
 	}
 	if (ctx.mode == UIContext::RectSelection)
 	{
@@ -1456,9 +1455,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::Text("menuBarBg");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##menubg", &style_menuBg, ImGuiCol_MenuBarBg, ctx);
+		changed = InputBindable("##menuBarBg", &style_menuBg, ImGuiCol_MenuBarBg, ctx);
 		ImGui::SameLine(0, 0);
-		changed |= BindingButton("menubg", &style_bg, ctx);
+		changed |= BindingButton("menuBarBg", &style_menuBg, ctx);
 		break;
 	case 3:
 	{
@@ -1547,9 +1546,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 13:
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, 0, ctx);
 		ImGui::SameLine(0, 0);
@@ -1557,9 +1556,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 14:
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, 0, ctx);
 		ImGui::SameLine(0, 0);
@@ -1857,11 +1856,11 @@ void Widget::Draw(UIContext& ctx)
 	if (style_font.has_value()) 
 		ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
 	if (!style_text.empty())
-		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ImGuiCol_Text, ctx));
 	if (!style_border.empty())
-		ImGui::PushStyleColor(ImGuiCol_Border, style_border.eval(ctx)); 
+		ImGui::PushStyleColor(ImGuiCol_Border, style_border.eval(ImGuiCol_Border, ctx));
 	if (!style_frameBg.empty())
-		ImGui::PushStyleColor(ImGuiCol_FrameBg, style_frameBg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_FrameBg, style_frameBg.eval(ImGuiCol_FrameBg, ctx));
 	if (!style_frameBorderSize.empty())
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, style_frameBorderSize);
 	if (!style_frameRounding.empty())
@@ -1922,16 +1921,10 @@ void Widget::Draw(UIContext& ctx)
 
 	//doesn't work for open CollapsingHeader etc:
 	//bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
-	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && 
-		(ctx.activePopups.empty() || stx::count(ctx.activePopups, ImGui::GetCurrentWindow()));
 	bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
 	if (ctx.mode == UIContext::NormalSelection &&
-		allowed && hovered)
+		hovered && !ImGui::GetTopMostAndVisiblePopupModal())
 	{
-		if (ctx.hovered == lastHovered) //e.g. child widget was not selected
-		{
-			ctx.hovered = this;
-		}
 		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
 		{
 			if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -1939,6 +1932,16 @@ void Widget::Draw(UIContext& ctx)
 			else
 				ctx.selected = { this };
 			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
+		}
+	}
+	bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() &&
+		(ctx.activePopups.empty() || stx::count(ctx.activePopups, ImGui::GetCurrentWindow()));
+	if (ctx.mode == UIContext::NormalSelection &&
+		allowed && hovered)
+	{
+		if (ctx.hovered == lastHovered) //e.g. child widget was not selected
+		{
+			ctx.hovered = this;
 		}
 		bool hoverSizeX = 
 			(Behavior() & HasSizeX) &&
@@ -1990,7 +1993,7 @@ void Widget::Draw(UIContext& ctx)
 		}
 	}
 	else if (ctx.mode == UIContext::ItemDragging && 
-			ctx.dragged == this)
+			allowed && ctx.dragged == this)
 	{
 		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
@@ -1999,8 +2002,9 @@ void Widget::Draw(UIContext& ctx)
 			if (std::signbit(pos_x + delta.x) == std::signbit(float(pos_x)) &&
 				std::signbit(pos_y + delta.y) == std::signbit(float(pos_y)))
 			{
-				pos_x += delta.x;
-				pos_y += delta.y;
+				*ctx.modified = true;
+				pos_x += delta.x / ctx.zoomFactor;
+				pos_y += delta.y / ctx.zoomFactor;
 				ImGui::ResetMouseDragDelta();
 			}
 		}
@@ -2012,7 +2016,7 @@ void Widget::Draw(UIContext& ctx)
 		}
 	}
 	else if (ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
-			ctx.dragged == this)
+			allowed && ctx.dragged == this)
 	{
 		ImGui::SetMouseCursor(
 			ctx.mode == UIContext::ItemSizingX ? ImGuiMouseCursor_ResizeEW :
@@ -2021,6 +2025,7 @@ void Widget::Draw(UIContext& ctx)
 		);
 		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
+			*ctx.modified = true;
 			ImVec2 delta = ImGui::GetMouseDragDelta();
 			ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 			if (!sp.x)
@@ -2030,7 +2035,7 @@ void Widget::Draw(UIContext& ctx)
 			ImGuiWindow* win = ImGui::GetCurrentWindow();
 			if (ctx.mode != UIContext::ItemSizingY)
 			{
-				float val = ctx.lastSize.x + delta.x;
+				float val = ctx.lastSize.x + delta.x / ctx.zoomFactor;
 				val = int(val / sp.x) * sp.x;
 				if (ctx.lastSize.x < 0 && !val)
 					val = -1; //snap to the end
@@ -2052,7 +2057,7 @@ void Widget::Draw(UIContext& ctx)
 			}
 			if (ctx.mode != UIContext::ItemSizingX)
 			{
-				float val = ctx.lastSize.y + delta.y;
+				float val = ctx.lastSize.y + delta.y / ctx.zoomFactor;
 				val = int(val / sp.y) * sp.y;
 				if (ctx.lastSize.y < 0 && !val)
 					val = -1; //snap to the end
@@ -3505,7 +3510,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
 	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, alignment);
 
 	if (!style_header.empty())
-		ImGui::PushStyleColor(ImGuiCol_Header, style_header.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_Header, style_header.eval(ImGuiCol_Header, ctx));
 	
 	if (readOnly)
 		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); //won't affect text color
@@ -3874,9 +3879,9 @@ std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
 ImDrawList* Button::DoDraw(UIContext& ctx)
 {
 	if (!style_button.empty())
-		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ImGuiCol_Button, ctx));
 	if (!style_hovered.empty())
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, style_hovered.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, style_hovered.eval(ImGuiCol_ButtonHovered, ctx));
 
 	if (arrowDir != ImGuiDir_None)
 		ImGui::ArrowButton("##", arrowDir);
@@ -4281,7 +4286,7 @@ std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
 ImDrawList* CheckBox::DoDraw(UIContext& ctx)
 {
 	if (!style_check.empty())
-		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
 
 	bool val = fieldName.eval(ctx);
 	ImGui::Checkbox(DRAW_STR(label), &val);
@@ -4464,7 +4469,7 @@ std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 ImDrawList* RadioButton::DoDraw(UIContext& ctx)
 {
 	if (!style_check.empty())
-		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
 	
 	ImGui::RadioButton(DRAW_STR(label), valueID==0);
 
@@ -5843,7 +5848,7 @@ std::unique_ptr<Widget> ProgressBar::Clone(UIContext& ctx)
 ImDrawList* ProgressBar::DoDraw(UIContext& ctx)
 {
 	if (!style_color.empty())
-		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, style_color.eval(ImGuiCol_PlotHistogram, ctx));
 
 	float w = size_x.eval_px(ImGuiAxis_X, ctx);
 	float h = size_y.eval_px(ImGuiAxis_Y, ctx);
@@ -6663,13 +6668,13 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
 	if (style_cellPadding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, style_cellPadding.eval_px(ctx));
 	if (!style_headerBg.empty())
-		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, style_headerBg.eval(ImGuiCol_TableHeaderBg, ctx));
 	if (!style_rowBg.empty())
-		ImGui::PushStyleColor(ImGuiCol_TableRowBg, style_rowBg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_TableRowBg, style_rowBg.eval(ImGuiCol_TableRowBg, ctx));
 	if (!style_rowBgAlt.empty())
-		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, style_rowBgAlt.eval(ImGuiCol_TableRowBgAlt, ctx));
 	if (!style_childBg.empty())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_childBg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_childBg.eval(ImGuiCol_ChildBg, ctx));
 
 	int n = std::max(1, (int)columnData.size());
 	ImVec2 size{ size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
@@ -7183,7 +7188,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
 	if (style_borderSize.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, style_borderSize.eval_px(ctx));
 	if (!style_bg.empty())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ImGuiCol_ChildBg, ctx));
 	
 	ImVec2 sz;
 	sz.x = size_x.eval_px(ImGuiAxis_X, ctx);
@@ -7579,7 +7584,7 @@ ImDrawList* Splitter::DoDraw(UIContext& ctx)
 	size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
 	
 	if (!style_bg.empty())
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ctx));
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ImGuiCol_ChildBg, ctx));
 	ImGui::BeginChild("splitter", size);
 	
 	ImGuiAxis axis = ImGuiAxis_X;
@@ -8645,13 +8650,14 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 	ImGui::PushFont(nullptr);
 	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
 
-	ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 	const ImVec2 bsize{ 30, 30 };
 	ImVec2 pos = cached_pos;
 	if (vertical) {
 		pos = ImGui::GetWindowPos();
-		//pos.x -= sp.x;
+		//pos.x -= ImGui::GetStyle().ItemSpacing.x;
 	}
 	ImGui::SetNextWindowPos(pos, 0, vertical ? ImVec2{ 0, 1.f } : ImVec2{ 0, 1.f });
 	ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
@@ -8690,7 +8696,7 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	ImGui::EndDisabled();
 
 	ImGui::End();
-	ImGui::PopStyleVar();
+	ImGui::PopStyleVar(3);
 	ImGui::PopFont();
 	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
 }

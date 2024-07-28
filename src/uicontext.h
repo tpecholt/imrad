@@ -32,6 +32,7 @@ struct UIContext
 	std::string setPropValue;
 	std::string forVarName;
 	ImTextureID dashTexId = 0;
+	bool* modified = nullptr;
 
 	//snap result
 	UINode* snapParent = nullptr;

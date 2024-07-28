@@ -1559,6 +1559,8 @@ void Draw()
 {
 	if (activeTab < 0 || !fileTabs[activeTab].rootNode)
 		return;
+	if (reloadStyle) //eliminates flicker
+		return;
 	
 	auto& tab = fileTabs[activeTab];
 	auto tmpStyle = ImGui::GetStyle();
@@ -1569,6 +1571,7 @@ void Draw()
 	
 	ctx.workingDir = fs::path(tab.fname).parent_path().string();
 	ctx.unit = tab.unit;
+	ctx.modified = &tab.modified;
 	tab.rootNode->Draw(ctx);
 	
 	if (ctx.isAutoSize && ctx.layoutHash != ctx.prevLayoutHash)
@@ -1715,13 +1718,13 @@ void Work()
 			newNode->hasPos = true;
 			ImVec2 pos = ImGui::GetMousePos() - ctx.snapParent->cached_pos; //win->InnerRect.Min;
 			if (pos.x < ctx.snapParent->cached_size.x / 2)
-				newNode->pos_x = pos.x;
+				newNode->pos_x = pos.x / ctx.zoomFactor;
 			else
-				newNode->pos_x = pos.x - ctx.snapParent->cached_size.x;
+				newNode->pos_x = (pos.x - ctx.snapParent->cached_size.x) / ctx.zoomFactor;
 			if (pos.y < ctx.snapParent->cached_size.y / 2)
-				newNode->pos_y = pos.y;
+				newNode->pos_y = pos.y / ctx.zoomFactor;
 			else
-				newNode->pos_y = pos.y - ctx.snapParent->cached_size.y;
+				newNode->pos_y = (pos.y - ctx.snapParent->cached_size.y) / ctx.zoomFactor;
 
 			ctx.selected = { newNode.get() };
 			ctx.snapParent->children.push_back(std::move(newNode));

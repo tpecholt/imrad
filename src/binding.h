@@ -1076,7 +1076,7 @@ struct bindable<color32> : property_base
 			return true;
 		return is.tellg() == str.size();
 	}*/
-	color32 eval(const UIContext& ctx) const;
+	color32 eval(int col, const UIContext& ctx) const;
 
 	bool has_style_color() const {
 		if (!str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_") && str.back() == ']')
