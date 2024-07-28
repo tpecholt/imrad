@@ -379,7 +379,8 @@ struct Image : Widget
 {
 	bindable<std::string> fileName = "";
 	field_ref<ImRad::Texture> fieldName;
-	direct_val<bool> stretch = true;
+	enum StretchPolicy { None, Scale, FitIn, FitOut };
+	direct_val<StretchPolicy> stretchPolicy = Scale;
 	
 	ImRad::Texture tex;
 

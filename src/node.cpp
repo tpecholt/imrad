@@ -6229,10 +6229,17 @@ ImDrawList* Image::DoDraw(UIContext& ctx)
 
 	ImVec2 uv0(0, 0);
 	ImVec2 uv1(1, 1);
-	if (!stretch && tex.id) 
+	if (stretchPolicy != Scale && tex.id)
 	{
 		float wrel = w / tex.w;
 		float hrel = h / tex.h;
+		float scale = 1.f;
+		if (stretchPolicy == FitIn)
+			scale = std::min(wrel, hrel);
+		else if (stretchPolicy == FitOut)
+			scale = std::max(wrel, hrel);
+		wrel /= scale;
+		hrel /= scale;
 		uv0 = { -(wrel - 1) / 2, -(hrel - 1) / 2 };
 		uv1 = { 1 + (wrel - 1) / 2, 1 + (hrel - 1) / 2 };
 	}
@@ -6269,22 +6276,28 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
 
 	ImVec2 uv0(0, 0);
 	ImVec2 uv1(1, 1);
-	//todo: center with binded dimensions
-	if (!stretch && !size_x.zero() && size_x.has_value()) 
+	if (stretchPolicy != Scale && tex.id && size_x.has_value() && size_y.has_value())
 	{
-		float wrel = size_x.eval_px(ImGuiAxis_X, ctx) / tex.w;
-		uv0.x = -(wrel - 1) / 2;
-		uv1.x = 1 + (wrel - 1) / 2;
-	}
-	if (!stretch && !size_y.zero() && size_y.has_value()) 
-	{
-		float hrel = size_y.eval_px(ImGuiAxis_Y, ctx) / tex.h;
-		uv0.y = -(hrel - 1) / 2;
-		uv1.y = 1 + (hrel - 1) / 2;
+		//todo: binded dimensions
+		float wrel = size_x.zero() ? 1.f : size_x.eval_px(ImGuiAxis_X, ctx) / tex.w;
+		float hrel = size_y.zero() ? 1.f : size_y.eval_px(ImGuiAxis_Y, ctx) / tex.h;
+		float scale = 1.f;
+		if (stretchPolicy == FitIn)
+			scale = std::min(wrel, hrel);
+		else if (stretchPolicy == FitOut)
+			scale = std::max(wrel, hrel);
+		wrel /= scale;
+		hrel /= scale;
+		uv0 = { -(wrel - 1) / 2, -(hrel - 1) / 2 };
+		uv1 = { 1 + (wrel - 1) / 2, 1 + (hrel - 1) / 2 };
 	}
 	os << "{ " << uv0.x << ", " << uv0.y << " }, { " << uv1.x << ", " << uv1.y << " }";
 
-	os << ");\n";
+	std::string sp = stretchPolicy == None ? "StretchPolicy::None" :
+		stretchPolicy == Scale ? "StretchPolicy::Scale" :
+		stretchPolicy == FitIn ? "StretchPolicy::FitIn" :
+		stretchPolicy == FitOut ? "StretchPolicy::FitOut" : "";
+	os << "); //" << sp << "\n";
 }
 
 void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -6306,21 +6319,30 @@ void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				size_x.set_from_arg("0");
 			else
 				size_x.set_from_arg(size.first);
-			
+
 			if (size.second == "(float)" + fieldName.value() + ".h")
 				size_y.set_from_arg("0");
 			else
 				size_y.set_from_arg(size.second);
 		}
 
-		if (sit->params.size() >= 4) {
-			ImVec2 uv0 = cpp::parse_fsize(sit->params[2]);
-			ImVec2 uv1 = cpp::parse_fsize(sit->params[3]);
-			if (uv0.x || uv0.y || uv1.x != 1 || uv1.y != 1)
-				stretch = false;
-		}
-
 		RefreshTexture(ctx);
+	}
+	else if (sit->kind == cpp::Comment && sit->line == "//StretchPolicy::None")
+	{
+		stretchPolicy = None;
+	}
+	else if (sit->kind == cpp::Comment && sit->line == "//StretchPolicy::Scale")
+	{
+		stretchPolicy = Scale;
+	}
+	else if (sit->kind == cpp::Comment && sit->line == "//StretchPolicy::FitIn")
+	{
+		stretchPolicy = FitIn;
+	}
+	else if (sit->kind == cpp::Comment && sit->line == "//StretchPolicy::FitOut")
+	{
+		stretchPolicy = FitOut;
 	}
 }
 
@@ -6330,8 +6352,8 @@ Image::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "image.file_name", &fileName, true },
+		{ "stretchPolicy", &stretchPolicy },
 		{ "image.field_name", &fieldName },
-		{ "stretch", &stretch },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -6361,18 +6383,23 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("fileName", &fileName, ctx);
 		break;
-	case 1:
+	case 1: {
+		ImGui::Text("stretchPolicy");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		int tmp = stretchPolicy;
+		if (ImGui::Combo("##stretchPolicy", &tmp, "None\0Scale\0FitIn\0FitOut\0")) {
+			changed = true;
+			stretchPolicy = (StretchPolicy)tmp;
+		}
+		break;
+	}
+	case 2:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldn", &fieldName, false, ctx);
-		break;
-	case 2:
-		ImGui::Text("stretch");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##stretch", &stretch, ctx);
 		break;
 	case 3:
 		ImGui::Text("size_x");
