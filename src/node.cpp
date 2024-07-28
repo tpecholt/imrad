@@ -3,15 +3,16 @@
 #include "imrad.h"
 #include "cppgen.h"
 #include "binding_input.h"
+#include "binding_field.h"
 #include "ui_table_columns.h"
 #include "ui_message_box.h"
 #include "ui_combo_dlg.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <nfd.h>
 #include <IconsFontAwesome6.h>
 #include <algorithm>
-#include "binding_field.h"
 #include <array>
 
 const color32 FIELD_NAME_CLR = IM_COL32(222, 222, 255, 255);
@@ -6226,7 +6227,16 @@ ImDrawList* Image::DoDraw(UIContext& ctx)
 	else if (tex.id)
 		h = (float)tex.h;
 
-	ImGui::Image(tex.id, { w, h });
+	ImVec2 uv0(0, 0);
+	ImVec2 uv1(1, 1);
+	if (!stretch && tex.id) 
+	{
+		float wrel = w / tex.w;
+		float hrel = h / tex.h;
+		uv0 = { -(wrel - 1) / 2, -(hrel - 1) / 2 };
+		uv1 = { 1 + (wrel - 1) / 2, 1 + (hrel - 1) / 2 };
+	}
+	ImGui::Image(tex.id, { w, h }, uv0, uv1);
 	return ImGui::GetWindowDrawList();
 }
 
@@ -6255,8 +6265,26 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
 		os << "(float)" << fieldName.to_arg() << ".h";
 	else
 		os << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]);
-	
-	os << " });\n";
+	os << " }, ";
+
+	ImVec2 uv0(0, 0);
+	ImVec2 uv1(1, 1);
+	//todo: center with binded dimensions
+	if (!stretch && !size_x.zero() && size_x.has_value()) 
+	{
+		float wrel = size_x.eval_px(ImGuiAxis_X, ctx) / tex.w;
+		uv0.x = -(wrel - 1) / 2;
+		uv1.x = 1 + (wrel - 1) / 2;
+	}
+	if (!stretch && !size_y.zero() && size_y.has_value()) 
+	{
+		float hrel = size_y.eval_px(ImGuiAxis_Y, ctx) / tex.h;
+		uv0.y = -(hrel - 1) / 2;
+		uv1.y = 1 + (hrel - 1) / 2;
+	}
+	os << "{ " << uv0.x << ", " << uv0.y << " }, { " << uv1.x << ", " << uv1.y << " }";
+
+	os << ");\n";
 }
 
 void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -6285,6 +6313,13 @@ void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 				size_y.set_from_arg(size.second);
 		}
 
+		if (sit->params.size() >= 4) {
+			ImVec2 uv0 = cpp::parse_fsize(sit->params[2]);
+			ImVec2 uv1 = cpp::parse_fsize(sit->params[3]);
+			if (uv0.x || uv0.y || uv1.x != 1 || uv1.y != 1)
+				stretch = false;
+		}
+
 		RefreshTexture(ctx);
 	}
 }
@@ -6294,8 +6329,9 @@ Image::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
-		{ "file_name", &fileName, true },
-		{ "field_name", &fieldName },
+		{ "image.file_name", &fileName, true },
+		{ "image.field_name", &fieldName },
+		{ "stretch", &stretch },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		});
@@ -6310,11 +6346,18 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 	case 0:
 		ImGui::Text("fileName");
 		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
 		changed = InputBindable("##fileName", &fileName, ctx);
 		if (ImGui::IsItemDeactivatedAfterEdit() || 
 			(ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			RefreshTexture(ctx);
+		ImGui::SameLine(0, 0);
+		if (ImGui::Button("...", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }) &&
+			PickFileName(ctx)) 
+		{
+			changed = true;
+			RefreshTexture(ctx);
+		}
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("fileName", &fileName, ctx);
 		break;
@@ -6326,6 +6369,12 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##fieldn", &fieldName, false, ctx);
 		break;
 	case 2:
+		ImGui::Text("stretch");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##stretch", &stretch, ctx);
+		break;
+	case 3:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6333,7 +6382,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 3:
+	case 4:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6342,9 +6391,22 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 4, ctx);
+		return Widget::PropertyUI(i - 5, ctx);
 	}
 	return changed;
+}
+
+bool Image::PickFileName(UIContext& ctx)
+{
+	nfdchar_t *outPath = NULL;
+	nfdfilteritem_t filterItem[1] = { { "All Images", "bmp,gif,jpg,jpeg,png,tga" } };
+	nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, nullptr);
+	if (result != NFD_OKAY)
+		return false;
+
+	fileName = fs::relative(outPath, ctx.workingDir).generic_string();
+	NFD_FreePath(outPath);
+	return true;
 }
 
 void Image::RefreshTexture(UIContext& ctx)

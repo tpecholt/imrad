@@ -379,6 +379,8 @@ struct Image : Widget
 {
 	bindable<std::string> fileName = "";
 	field_ref<ImRad::Texture> fieldName;
+	direct_val<bool> stretch = true;
+	
 	ImRad::Texture tex;
 
 	Image(UIContext& ctx);
@@ -389,6 +391,7 @@ struct Image : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void RefreshTexture(UIContext& ctx);
+	bool PickFileName(UIContext& ctx);
 	int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
 	const char* GetIcon() const { return ICON_FA_IMAGE; }
 };
