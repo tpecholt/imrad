@@ -24,7 +24,7 @@ void HorizLayout::ClosePopup(ImRad::ModalResult mr)
 
 void HorizLayout::Draw()
 {
-    /// @style Dark
+    /// @style imrad
     /// @unit px
     /// @begin TopWindow
     auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;

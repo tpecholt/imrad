@@ -495,7 +495,7 @@ void TopWindow::Draw(UIContext& ctx)
 	ctx.contextMenus.clear();
 	
 	std::string cap = title.value();
-	cap += "###TopWindow"; //don't clash 
+	cap += "###TopWindow" + std::to_string((size_t)this); //don't clash 
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
 	if (kind == MainWindow)
 		fl |= ImGuiWindowFlags_NoCollapse;
@@ -670,7 +670,9 @@ void TopWindow::Draw(UIContext& ctx)
 		ImDrawList* dl = ImGui::GetForegroundDrawList();
 		ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
 		ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
+		dl->PushClipRect(ctx.designAreaMin, ctx.designAreaMax);
 		dl->AddRectFilled(a, b, ctx.colors[UIContext::Hovered]);
+		dl->PopClipRect();
 	}
 
 	ImGui::End();
@@ -858,12 +860,44 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Window)
 	{
-		if (!autoSize)
+		//pos
+		if (placement == Left || placement == Top)
 		{
-			os << ctx.ind << "ImGui::SetNextWindowSize({ "
-				<< size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }, "
-				<< "ImGuiCond_FirstUseEver);\n";
+			os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->WorkRect().Min);";
+			os << (placement == Left ? " //Left\n" : " //Top\n");
 		}
+		else if (placement == Right || placement == Bottom)
+		{
+			os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->WorkRect().Max, 0, { 1, 1 });";
+			os << (placement == Right ? " //Right\n" : " //Bottom\n");
+		}
+
+		//size
+		os << ctx.ind << "ImGui::SetNextWindowSize({ ";
+
+		if (placement == Top || placement == Bottom)
+			os << "ioUserData->WorkRect().GetWidth()";
+		else if (autoSize)
+			os << "0";
+		else
+			os << size_x.to_arg(ctx.unit);
+
+		os << ", ";
+
+		if (placement == Left || placement == Right)
+			os << "ioUserData->WorkRect().GetHeight()";
+		else if (autoSize)
+			os << "0";
+		else
+			os << size_y.to_arg(ctx.unit);
+
+		os << " }";
+		if (!autoSize && placement != Left && placement != Right && placement != Top && placement != Bottom)
+			os << ", ImGuiCond_FirstUseEver";
+		os << ");";
+		//signal designed size
+		os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+		
 		if (style_titlePadding.has_value())
 		{
 			os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " <<
@@ -1546,9 +1580,10 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 13:
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
+		//sometimes too many props are disabled so disable only value here to make it look better
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_x", &size_x, {}, 0, ctx);
 		ImGui::SameLine(0, 0);
@@ -1556,9 +1591,10 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 14:
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
+		//sometimes too many props are disabled so disable only value here to make it look better
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##size_y", &size_y, {}, 0, ctx);
 		ImGui::SameLine(0, 0);
@@ -1567,22 +1603,24 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		break;
 	case 15:
 	{
+		ImGui::BeginDisabled(kind == Activity);
 		ImGui::Text("placement");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		auto tmp = placement;
 		bool isPopup = kind == Popup || kind == ModalPopup;
+		bool isPopupOrWindow = isPopup || kind == Window;
 		if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
 		{
 			if (ImGui::Selectable("None", placement == None))
 				placement = None;
-			if (isPopup && ImGui::Selectable("Left", placement == Left))
+			if (isPopupOrWindow && ImGui::Selectable("Left", placement == Left))
 				placement = Left;
-			if (isPopup && ImGui::Selectable("Right", placement == Right))
+			if (isPopupOrWindow && ImGui::Selectable("Right", placement == Right))
 				placement = Right;
-			if (isPopup && ImGui::Selectable("Top", placement == Top))
+			if (isPopupOrWindow && ImGui::Selectable("Top", placement == Top))
 				placement = Top;
-			if (isPopup && ImGui::Selectable("Bottom", placement == Bottom))
+			if (isPopupOrWindow && ImGui::Selectable("Bottom", placement == Bottom))
 				placement = Bottom;
 			if (isPopup && ImGui::Selectable("Center", placement == Center))
 				placement = Center;
@@ -1592,6 +1630,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		changed = placement != tmp;
+		ImGui::EndDisabled();
 		break;
 	}
 	case 16:
@@ -3097,12 +3136,12 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
 	{
 		auto* dl = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
-		ImU32 clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_Border));
+		ImU32 clr = 0x607f7f7f; //reduces contrast, adds alpha 
 		//dl->AddRect(p, p + size, clr);
 		
 		float th = 2;
-		ImVec2 xuv{ std::round(r.x / 5), 0 };
-		ImVec2 yuv{ 0, std::round(r.y / 5) };
+		ImVec2 xuv{ std::round(r.x / 5 / ctx.zoomFactor), 0 };
+		ImVec2 yuv{ 0, std::round(r.y / 5 / ctx.zoomFactor) };
 		
 		dl->PushTextureID(ctx.dashTexId);
 		dl->PrimReserve(4*6, 4*4);
@@ -3111,24 +3150,6 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
 		dl->PrimRectUV(p, { p.x + th, p.y + r.y }, { 0, 0 }, yuv, clr);
 		dl->PrimRectUV({ p.x + r.x - th, p.y }, p + r, { 0, 0 }, yuv, clr);
 		dl->PopTextureID();
-
-		/*if (!size.y) {
-			dl->PushTextureID(ctx.dashTexId);
-			dl->PrimReserve(6, 4);
-			dl->PrimRectUV({ p.x, p.y + (r.y - th) / 2 }, { p.x + r.x, p.y + (r.y - th) / 2 + th }, { 0, 0 }, xuv, clr);
-			dl->PopTextureID(); 
-			dl->AddLine(p, { p.x, p.y + r.y }, clr, th);
-			dl->AddLine({ p.x + r.x, p.y }, p + r, clr, th);
-		}
-		else if (!size.x) {
-			dl->PushTextureID(ctx.dashTexId);
-			dl->PrimReserve(6, 4);
-			dl->PrimRectUV({ p.x + (r.x - th) / 2, p.y }, { p.x + (r.x - th) / 2 + th, p.y + r.y }, { 0, 0 }, yuv, clr);
-			dl->PopTextureID(); 
-			dl->AddLine(p, { p.x + r.x, p.y }, clr, th);
-			dl->AddLine({ p.x, p.y + r.y }, p + r, clr, th);
-		}*/
-		
 	}
 	ImRad::Dummy(r);
 	return ImGui::GetWindowDrawList();
@@ -5357,6 +5378,12 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
 	std::string id = label;
 	if (id.empty())
 		id = std::string("##") + fieldName.c_str();
+	
+	if (!style_button.empty())
+		ImGui::PushStyleColor(ImGuiCol_Button, style_button.eval(ImGuiCol_Button, ctx));
+	if (!style_hovered.empty())
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, style_hovered.eval(ImGuiCol_ButtonHovered, ctx));
+
 	auto vars = items.used_variables();
 	if (vars.empty())
 	{
@@ -5369,11 +5396,23 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
 		ImRad::Combo(id.c_str(), &tmp, "\0", flags);
 	}
 
+	if (!style_button.empty())
+		ImGui::PopStyleColor();
+	if (!style_hovered.empty())
+		ImGui::PopStyleColor();
+
 	return ImGui::GetWindowDrawList();
 }
 
 void Combo::DoExport(std::ostream& os, UIContext& ctx)
 {
+	if (!style_button.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Button, " << style_button.to_arg() << ");\n";
+	if (!style_hovered.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonHovered, " << style_hovered.to_arg() << ");\n";
+	if (!style_active.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ButtonActive, " << style_active.to_arg() << ");\n";
+	
 	if (!size_x.empty())
 		os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
@@ -5397,11 +5436,33 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 	else {
 		os << ";\n";
 	}
+
+	if (!style_button.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_hovered.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_active.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	if ((sit->kind == cpp::CallExpr && (sit->callee == "ImGui::Combo" || sit->callee == "ImRad::Combo")) ||
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+	{
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_Button")
+			style_button.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ButtonHovered")
+			style_hovered.set_from_arg(sit->params[1]);
+		if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_ButtonActive")
+			style_active.set_from_arg(sit->params[1]);
+	}
+	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
+	{
+		if (sit->params.size()) {
+			size_x.set_from_arg(sit->params[0]);
+		}
+	}
+	else if ((sit->kind == cpp::CallExpr && (sit->callee == "ImGui::Combo" || sit->callee == "ImRad::Combo")) ||
 		(sit->kind == cpp::IfCallThenCall && (sit->callee == "ImGui::Combo" || sit->callee == "ImRad::Combo")))
 	{
 		if (sit->params.size()) {
@@ -5428,12 +5489,6 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->kind == cpp::IfCallThenCall)
 			onChange.set_from_arg(sit->callee2);
 	}
-	else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
-	{
-		if (sit->params.size()) {
-			size_x.set_from_arg(sit->params[0]);
-		}
-	}
 }
 
 std::vector<UINode::Prop>
@@ -5442,6 +5497,9 @@ Combo::Properties()
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
 		{ "@style.text", &style_text },
+		{ "@style.button", &style_button },
+		{ "@style.hovered", &style_hovered },
+		{ "@style.active", &style_active },
 		{ "@style.borderSize", &style_frameBorderSize },
 		{ "@style.font", &style_font },
 		{ "combo.flags", &flags },
@@ -5467,12 +5525,36 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("text", &style_text, ctx);
 		break;
 	case 1:
+		ImGui::Text("button");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##bg", &style_button, ImGuiCol_Button, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("bg", &style_button, ctx);
+		break;
+	case 2:
+		ImGui::Text("hovered");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##hovered", &style_hovered, ImGuiCol_ButtonHovered, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("hovered", &style_hovered, ctx);
+		break;
+	case 3:
+		ImGui::Text("active");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##active", &style_active, ImGuiCol_ButtonActive, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("active", &style_active, ctx);
+		break;
+	case 4:
 		ImGui::Text("borderSize");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
 		break;
-	case 2:
+	case 5:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5480,27 +5562,27 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 3:
+	case 6:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 4:
+	case 7:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##label", &label, ctx);
 		break;
-	case 5:
+	case 8:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, false, ctx);
 		break;
-	case 6:
+	case 9:
 		ImGui::Text("items");
 		ImGui::TableNextColumn();
 		//ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5522,7 +5604,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("items", &items, ctx);
 		break;
-	case 7:
+	case 10:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5531,7 +5613,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 8, ctx);
+		return Widget::PropertyUI(i - 11, ctx);
 	}
 	return changed;
 }

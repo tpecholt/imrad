@@ -299,6 +299,9 @@ struct Combo : Widget
 	field_ref<std::string> fieldName;
 	bindable<std::vector<std::string>> items;
 	flags_helper flags = ImGuiComboFlags_None;
+	bindable<color32> style_button;
+	bindable<color32> style_hovered;
+	bindable<color32> style_active;
 	event<> onChange;
 
 	Combo(UIContext& ctx);
