@@ -232,6 +232,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 	std::string clrName = styleClr >= 0 ? ImGui::GetStyleColorName(styleClr) : 
 		val->empty() ? ImGui::GetStyleColorName(def) :
 		val->c_str();
+	clrName += label;
 	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text]);
 	if (ImGui::Selectable(clrName.c_str(), false, 0, sz))
 	{

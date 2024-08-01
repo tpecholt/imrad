@@ -82,6 +82,9 @@ struct Widget : UINode
 	bindable<color32> style_text;
 	bindable<color32> style_frameBg;
 	bindable<color32> style_border;
+	bindable<color32> style_button;
+	bindable<color32> style_buttonHovered;
+	bindable<color32> style_buttonActive;
 	direct_val<pzdimension> style_frameRounding;
 	direct_val<pzdimension2> style_framePadding;
 	direct_val<pzdimension> style_frameBorderSize;
@@ -206,9 +209,6 @@ struct Button : Widget
 	direct_val<ImRad::ModalResult> modalResult = ImRad::None;
 	direct_val<shortcut_> shortcut = "";
 	direct_val<std::string> dropDownMenu = "";
-	bindable<color32> style_button;
-	bindable<color32> style_hovered;
-	bindable<color32> style_active;
 	event<> onChange;
 
 	Button(UIContext& ctx);
@@ -299,9 +299,6 @@ struct Combo : Widget
 	field_ref<std::string> fieldName;
 	bindable<std::vector<std::string>> items;
 	flags_helper flags = ImGuiComboFlags_None;
-	bindable<color32> style_button;
-	bindable<color32> style_hovered;
-	bindable<color32> style_active;
 	event<> onChange;
 
 	Combo(UIContext& ctx);
@@ -488,7 +485,10 @@ struct CollapsingHeader : Widget
 {
 	bindable<std::string> label = "label";
 	bindable<bool> open = true;
-	
+	bindable<color32> style_header;
+	bindable<color32> style_hovered;
+	bindable<color32> style_active;
+
 	CollapsingHeader(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return SnapSides | SnapInterior; }
@@ -506,6 +506,11 @@ struct TabBar : Widget
 	flags_helper flags = 0;
 	data_loop tabCount;
 	field_ref<int> activeTab;
+	bindable<color32> style_tab;
+	bindable<color32> style_tabDimmed;
+	bindable<color32> style_hovered;
+	bindable<color32> style_selected;
+	bindable<color32> style_dimmedSelected;
 
 	TabBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -516,6 +521,7 @@ struct TabBar : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+	const char* GetIcon() const { return ICON_FA_FOLDER_CLOSED; }
 };
 
 struct TabItem : Widget
