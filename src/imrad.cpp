@@ -5,6 +5,9 @@
 #undef max
 #undef MessageBox
 #endif
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
@@ -1940,6 +1943,14 @@ std::string GetRootPath()
 	wchar_t tmp[1024];
 	int n = GetModuleFileNameW(NULL, tmp, sizeof(tmp));
 	return fs::path(tmp).parent_path().generic_string(); //need generic for CMake path output
+#elif __APPLE__
+	char executablePath[PATH_MAX];
+	uint32_t len;
+	if (_NSGetExecutablePath(executablePath, &len) != 0) {
+		IM_ASSERT_USER_ERROR(0, "Could not get root path!");
+	}
+	fs::path pexe = fs::canonical(executablePath);
+	return pexe.parent_path().string();
 #else
 	fs::path pexe = fs::canonical("/proc/self/exe");
 	return pexe.parent_path().string();
