@@ -3,11 +3,11 @@
 
 void UIContext::ind_up()
 {
-	ind += codeGen->INDENT;
+	ind += codeGen->GetIndent();
 }
 
 void UIContext::ind_down()
 {
-	if (ind.size() >= codeGen->INDENT.size())
-		ind.resize(ind.size() - codeGen->INDENT.size());
+	if (ind.size() >= codeGen->GetIndent().size())
+		ind.resize(ind.size() - codeGen->GetIndent().size());
 }

@@ -7,8 +7,8 @@
 #include <set>
 
 const std::string GENERATED_WITH = "Generated with ";
-const std::string CppGen::INDENT = "    ";
-const std::string CppGen::FOR_VAR = "i";
+const std::string INDENT = "    ";
+const std::string FOR_VAR = "i";
 
 const std::string SPEC_FUN[] = {
 	"Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw",
@@ -50,6 +50,16 @@ std::string CppGen::AltFName(const std::string& path)
 	return "";
 }
 
+std::string CppGen::GetIndent()
+{
+	return INDENT;
+}
+
+std::string CppGen::DefaultForVarName()
+{
+	return FOR_VAR;
+}
+
 bool CppGen::ExportUpdate(
 	const std::string& fname, 
 	TopWindow* node, 
@@ -72,7 +82,6 @@ bool CppGen::ExportUpdate(
 	UIContext ctx;
 	ctx.codeGen = this;
 	ctx.ind = INDENT;
-	ctx.forVarName = FOR_VAR;
 	auto uit = params.find("unit");
 	if (uit != params.end())
 		ctx.unit = uit->second;

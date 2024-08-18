@@ -787,9 +787,6 @@ void LoadStyle()
 	auto& io = ImGui::GetIO();
 	io.Fonts->Clear();
 
-	ctx.dashTexId = ImRad::LoadTextureFromFile(
-		(rootPath + "/style/dash.png").c_str(), GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT).id;
-	
 	//reload ImRAD UI first
 	StyleColors();
 	io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
@@ -2035,6 +2032,8 @@ int main(int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 	const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	ctx.dashTexId = ImRad::LoadTextureFromFile(
+		(rootPath + "/style/dash.png").c_str(), GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT).id;
 	
 	GetStyles();
 	programState = (ProgramState)-1;

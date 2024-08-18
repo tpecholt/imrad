@@ -30,7 +30,6 @@ struct UIContext
 	ImGuiStyle style;
 	const property_base* setProp = nullptr;
 	std::string setPropValue;
-	std::string forVarName;
 	ImTextureID dashTexId = 0;
 	bool* modified = nullptr;
 

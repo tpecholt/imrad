@@ -731,6 +731,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 	}
 	else if (kind == Activity)
 	{
+		if (initialActivity) 
+		{
+			os << ctx.ind << "if (ioUserData->activeActivity == \"\")\n";
+			ctx.ind_up();
+			os << ctx.ind << "Open();\n";
+			ctx.ind_down();
+		}
 		os << ctx.ind << "if (ioUserData->activeActivity != \"" << ctx.codeGen->GetName() << "\")\n";
 		ctx.ind_up();
 		os << ctx.ind << "return;\n";
@@ -1209,6 +1216,10 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 				ctx.userCode += "\n";
 			ctx.userCode += sit->line;
 		}
+		else if (sit->kind == cpp::IfStmt && sit->cond == "ioUserData->activeActivity==\"\"")
+		{
+			initialActivity = true;
+		}
 		else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::IsWindowAppearing")
 		{
 			windowAppearingBlock = true;
@@ -1451,6 +1462,7 @@ TopWindow::Properties()
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
 		{ "closeOnEscape", &closeOnEscape },
+		{ "initialActivity", &initialActivity },
 		{ "animate", &animate },
 	};
 }
@@ -1634,6 +1646,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	case 16:
+		ImGui::BeginDisabled(kind != Activity);
+		ImGui::Text("initialActivity");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##initact", &initialActivity, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 17:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
 		ImGui::TableNextColumn();
@@ -7021,7 +7041,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!rowCount.empty())
 	{
-		os << "\n" << ctx.ind << rowCount.to_arg(ctx.forVarName) << "\n" << ctx.ind << "{\n";
+		os << "\n" << ctx.ind << rowCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 
 		if (!rowFilter.empty())
@@ -7032,7 +7052,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 			ctx.ind_down();
 		}
 		
-		os << ctx.ind << "ImGui::PushID(" << rowCount.index_name_or(CppGen::FOR_VAR) << ");\n";
+		os << ctx.ind << "ImGui::PushID(" << rowCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
 	}
 	
 	os << ctx.ind << "ImGui::TableNextRow(0, ";
@@ -7354,7 +7374,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	}
 
 	if (!itemCount.empty()) {
-		os << ctx.ind << itemCount.to_arg(ctx.forVarName) << "\n" << ctx.ind << "{\n";
+		os << ctx.ind << itemCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 	}
 	
@@ -8313,11 +8333,11 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 
 	if (!tabCount.empty())
 	{
-		os << ctx.ind << tabCount.to_arg(ctx.forVarName) << "\n";
+		os << ctx.ind << tabCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		//BeginTabBar does this
-		//os << ctx.ind << "ImGui::PushID(" << tabCount.index_name_or(CppGen::FOR_VAR) << ");\n";
+		//os << ctx.ind << "ImGui::PushID(" << tabCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
 	}
 	os << ctx.ind << "/// @separator\n\n";
 	
@@ -8608,7 +8628,7 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		if (!tb->tabCount.empty())
 		{
-			idx = tb->tabCount.index_name_or(CppGen::FOR_VAR);
+			idx = tb->tabCount.index_name_or(ctx.codeGen->DefaultForVarName());
 		}
 		else
 		{

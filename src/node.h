@@ -651,6 +651,7 @@ struct TopWindow : UINode
 	direct_val<Placement> placement = None;
 	direct_val<bool> closeOnEscape = false;
 	direct_val<bool> animate = false;
+	direct_val<bool> initialActivity = false;
 
 	event<> onBackButton;
 	event<> onWindowAppearing;

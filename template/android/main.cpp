@@ -43,8 +43,6 @@ static void UpdateScreenRect();
 void Draw()
 {
     // TODO: Call your drawing code here
-    //if (g_IOUserData.activeActivity == "")
-    //    mainActivity.Open();
     //mainActivity.Draw();
     
     bool isOpen;

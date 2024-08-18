@@ -8,13 +8,19 @@
 class CppGen
 {
 public:
-	static const std::string INDENT;
-	static const std::string FOR_VAR;
-
 	CppGen();
 	bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
 	auto Import(const std::string& path, std::map<std::string, std::string>& params, std::string& err) -> std::unique_ptr<TopWindow>;
 	static auto AltFName(const std::string& path) -> std::string;
+
+	const std::string& GetName() const { return m_name; }
+	const std::string& GetVName() const { return m_vname; }
+	//void SetName(const std::string& name) { m_name = name; }
+	//void SetVName(const std::string& name) { m_vname = name; }
+	void SetNamesFromId(const std::string& fname);
+
+	std::string GetIndent();
+	std::string DefaultForVarName();
 
 	struct Var
 	{
@@ -26,12 +32,6 @@ public:
 		Var(const std::string& n, const std::string& t, const std::string& i, int f)
 			: name(n), type(t), init(i), flags(f) {}
 	};
-
-	const std::string& GetName() const { return m_name; }
-	const std::string& GetVName() const { return m_vname; }
-	//void SetName(const std::string& name) { m_name = name; }
-	//void SetVName(const std::string& name) { m_vname = name; }
-	void SetNamesFromId(const std::string& fname);
 
 	std::string CreateVar(const std::string& type, const std::string& init, int flags, const std::string& scope = "");
 	bool CreateNamedVar(const std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope = "");
