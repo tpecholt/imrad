@@ -511,10 +511,12 @@ struct TabBar : Widget
 	bindable<color32> style_hovered;
 	bindable<color32> style_selected;
 	bindable<color32> style_dimmedSelected;
+	bindable<color32> style_overline;
+	direct_val<bool> style_regularWidth = false;
 
 	TabBar(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int Behavior() { return Widget::Behavior() | NoOverlayPos; }
+	int Behavior() { return NoOverlayPos | SnapSides; }
 	ImDrawList* DoDraw(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
@@ -522,6 +524,7 @@ struct TabBar : Widget
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	void CalcSizeEx(ImVec2 p1, UIContext& ctx);
 	const char* GetIcon() const { return ICON_FA_FOLDER_CLOSED; }
+	float CalcRegularWidth();
 };
 
 struct TabItem : Widget
@@ -532,7 +535,7 @@ struct TabItem : Widget
 
 	TabItem(UIContext& ctx);
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-	int Behavior() { return Widget::Behavior() | SnapInterior | SnapGrandparentClip | NoOverlayPos; }
+	int Behavior() { return SnapInterior | SnapGrandparentClip | NoOverlayPos; }
 	ImDrawList* DoDraw(UIContext& ctx);
 	void DrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;

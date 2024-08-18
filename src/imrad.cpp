@@ -1827,7 +1827,12 @@ void Work()
 			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
 			!ImRect(ctx.rootWin->Pos, ctx.rootWin->Pos + ctx.rootWin->SizeFull).Contains(ImGui::GetMousePos()))
 		{
-			ctx.selected = { ctx.root };
+			bool skip = false;
+			for (ImGuiWindow* popup : ctx.activePopups)
+				if (popup->Rect().Contains(ImGui::GetMousePos()))
+					skip = true;
+			if (!skip)
+				ctx.selected = { ctx.root };
 		}
 		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal) ||
 			ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal))

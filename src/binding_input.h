@@ -627,7 +627,7 @@ inline bool InputEvent(const char* label, event<Arg>* val, UIContext& ctx)
 
 	bool changed = false;
 	std::string type = "void(" + typeid_name<Arg>() + ")";
-	if (ImGui::BeginCombo(label, val->c_str()))
+	if (ImGui::BeginCombo(label, val->c_str(), ImGuiComboFlags_HeightLarge))
 	{
 		if (ImGui::Selectable("None"))
 		{

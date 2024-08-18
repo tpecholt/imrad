@@ -1447,10 +1447,10 @@ TopWindow::Properties()
 		{ "top.@style.font", &style_font },
 		{ "top.flags", nullptr },
 		{ "title", &title, true },
-		{ "closeOnEscape", &closeOnEscape },
+		{ "placement", &placement },
 		{ "size_x", &size_x },
 		{ "size_y", &size_y },
-		{ "placement", &placement },
+		{ "closeOnEscape", &closeOnEscape },
 		{ "animate", &animate },
 	};
 }
@@ -1572,36 +1572,6 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("title", &title, ctx);
 		break;
 	case 12:
-		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
-		ImGui::Text("closeOnEscape");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputDirectVal("##cesc", &closeOnEscape, ctx);
-		ImGui::EndDisabled();
-		break;
-	case 13:
-		ImGui::Text("size_x");
-		ImGui::TableNextColumn();
-		//sometimes too many props are disabled so disable only value here to make it look better
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_x", &size_x, {}, 0, ctx);
-		ImGui::SameLine(0, 0);
-		changed |= BindingButton("size_x", &size_x, ctx);
-		ImGui::EndDisabled();
-		break;
-	case 14:
-		ImGui::Text("size_y");
-		ImGui::TableNextColumn();
-		//sometimes too many props are disabled so disable only value here to make it look better
-		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
-		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-		changed = InputBindable("##size_y", &size_y, {}, 0, ctx);
-		ImGui::SameLine(0, 0);
-		changed |= BindingButton("size_y", &size_y, ctx);
-		ImGui::EndDisabled();
-		break;
-	case 15:
 	{
 		ImGui::BeginDisabled(kind == Activity);
 		ImGui::Text("placement");
@@ -1633,6 +1603,36 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 		ImGui::EndDisabled();
 		break;
 	}
+	case 13:
+		ImGui::Text("size_x");
+		ImGui::TableNextColumn();
+		//sometimes too many props are disabled so disable only value here to make it look better
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_x", &size_x, {}, 0, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("size_x", &size_x, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 14:
+		ImGui::Text("size_y");
+		ImGui::TableNextColumn();
+		//sometimes too many props are disabled so disable only value here to make it look better
+		ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##size_y", &size_y, {}, 0, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("size_y", &size_y, ctx);
+		ImGui::EndDisabled();
+		break;
+	case 15:
+		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
+		ImGui::Text("closeOnEscape");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##cesc", &closeOnEscape, ctx);
+		ImGui::EndDisabled();
+		break;
 	case 16:
 		ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
 		ImGui::Text("animate");
@@ -8242,6 +8242,10 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
 		ImGui::PushStyleColor(ImGuiCol_TabDimmed, style_tab.eval(ImGuiCol_TabDimmed, ctx));
 	if (!style_dimmedSelected.empty())
 		ImGui::PushStyleColor(ImGuiCol_TabDimmedSelected, style_dimmedSelected.eval(ImGuiCol_TabDimmedSelected, ctx));
+	if (!style_overline.empty())
+		ImGui::PushStyleColor(ImGuiCol_TabSelectedOverline, style_overline.eval(ImGuiCol_TabSelectedOverline, ctx));
+	if (!style_framePadding.empty())
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_framePadding.eval_px(ctx));
 
 	std::string id = "##" + std::to_string((uintptr_t)this);
 	//add tab names in order so that when tab order changes in designer we get a 
@@ -8258,6 +8262,8 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
 		ImGui::EndTabBar();
 	}
 
+	if (!style_framePadding.empty())
+		ImGui::PopStyleVar();
 	if (!style_tab.empty())
 		ImGui::PopStyleColor();
 	if (!style_hovered.empty())
@@ -8268,6 +8274,8 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
 		ImGui::PopStyleColor();
 	if (!style_dimmedSelected.empty())
 		ImGui::PopStyleColor();
+	if (!style_overline.empty())
+		ImGui::PopStyleColor();
 
 	return ImGui::GetWindowDrawList();
 }
@@ -8277,7 +8285,7 @@ void TabBar::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 	ImVec2 pad = ImGui::GetStyle().FramePadding;
 	cached_pos.x -= pad.x;
 	cached_size.x = ImGui::GetContentRegionAvail().x + 2 * pad.x;
-	cached_size.y = ImGui::GetCursorPosY() - p1.y - pad.y;
+	cached_size.y = ImGui::GetCursorPosY() - p1.y;
 }
 
 void TabBar::DoExport(std::ostream& os, UIContext& ctx)
@@ -8288,13 +8296,21 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_TabHovered, " << style_hovered.to_arg() << ");\n";
 	if (!style_selected.empty())
 		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_TabSelected, " << style_selected.to_arg() << ");\n";
-	
+	if (!style_overline.empty())
+		os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_TabSelectedOverline, " << style_overline.to_arg() << ");\n";
+
 	os << ctx.ind << "if (ImGui::BeginTabBar(\"tabBar" << ctx.varCounter << "\", "
 		<< flags.to_arg() << "))\n";
 	os << ctx.ind << "{\n";
 	++ctx.varCounter;
-
 	ctx.ind_up();
+
+	if (style_regularWidth)
+	{
+		os << ctx.ind << "int _nTabs = std::max(1, ImGui::GetCurrentTabBar()->ActiveTabs);\n"; //respects hidden tabs
+		os << ctx.ind << "float _tabWidth = (ImGui::GetContentRegionAvail().x - (_nTabs - 1) * ImGui::GetStyle().ItemInnerSpacing.x) / _nTabs - 1;\n";
+	}
+
 	if (!tabCount.empty())
 	{
 		os << ctx.ind << tabCount.to_arg(ctx.forVarName) << "\n";
@@ -8326,6 +8342,8 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
 	if (!style_selected.empty())
 		os << ctx.ind << "ImGui::PopStyleColor();\n";
+	if (!style_overline.empty())
+		os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
 void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -8338,6 +8356,8 @@ void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 			style_hovered.set_from_arg(sit->params[1]);
 		if (sit->params.size() == 2 && sit->params[1] == "ImGuiCol_TabSelected")
 			style_selected.set_from_arg(sit->params[1]);
+		if (sit->params.size() == 2 && sit->params[1] == "ImGuiCol_TabSelectedOverline")
+			style_overline.set_from_arg(sit->params[1]);
 	}
 	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabBar")
 	{
@@ -8361,6 +8381,9 @@ TabBar::Properties()
 		{ "@style.tab", &style_tab },
 		{ "@style.hovered", &style_hovered },
 		{ "@style.selected", &style_selected },
+		{ "@style.overline", &style_overline },
+		{ "@style.regularWidth", &style_regularWidth },
+		{ "@style.padding", &style_framePadding },
 		{ "@style.font", &style_font },
 		{ "flags", &flags },
 		{ "tabCount", &tabCount },
@@ -8407,6 +8430,26 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("selected", &style_selected, ctx);
 		break;
 	case 4:
+		ImGui::Text("overline");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##overline", &style_overline, ImGuiCol_TabSelectedOverline, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("overline", &style_overline, ctx);
+		break;
+	case 5:
+		ImGui::Text("regularWidth");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##regu", &style_regularWidth, ctx);
+		break;
+	case 6:
+		ImGui::Text("padding");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##padding", &style_framePadding, ctx);
+		break;
+	case 7:
 		ImGui::Text("font");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -8414,17 +8457,17 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("font", &style_font, ctx);
 		break;
-	case 5:
+	case 8:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 6:
+	case 9:
 		changed = DataLoopProp("tabCount", &tabCount, ctx);
 		break;
-	case 7:
+	case 10:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("activeTab");
 		ImGui::TableNextColumn();
@@ -8432,7 +8475,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 		changed = InputFieldRef("##activeTab", &activeTab, true, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 8, ctx);
+		return Widget::PropertyUI(i - 11, ctx);
 	}
 	return changed;
 }
@@ -8452,15 +8495,31 @@ std::unique_ptr<Widget> TabItem::Clone(UIContext& ctx)
 
 ImDrawList* TabItem::DoDraw(UIContext& ctx)
 {
+	auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+	float tabw = 0;
+	if (tb && tb->style_regularWidth) {
+		tabw = (ImGui::GetContentRegionAvail().x - (tb->children.size() - 1) * ImGui::GetStyle().ItemInnerSpacing.x) / tb->children.size() - 1;
+		ImGui::SetNextItemWidth(tabw);
+	}
+	//float padx = ImGui::GetCurrentTabBar()->FramePadding.x;
+	if (tabw) { 
+		float w = ImGui::CalcTextSize(DRAW_STR(label)).x;
+		//hack: ImGui::GetCurrentTabBar()->FramePadding.x = std::max(0.f, (tabw - w) / 2);
+	}
+	
 	bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
 	bool tmp = true;
 	if (ImGui::BeginTabItem(DRAW_STR(label), closeButton ? &tmp : nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
 	{
+		//ImGui::GetCurrentTabBar()->FramePadding.x = padx;
+
 		for (const auto& child : children)
 			child->Draw(ctx);
 
 		ImGui::EndTabItem();
 	}
+	/*else
+		ImGui::GetCurrentTabBar()->FramePadding.x = padx;*/
 
 	return ImGui::GetWindowDrawList();
 }
@@ -8526,6 +8585,13 @@ void TabItem::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 {
+	assert(ctx.parents.back() == this);
+	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+
+	if (tb->style_regularWidth) {
+		os << ctx.ind << "ImGui::SetNextItemWidth(_tabWidth);\n";
+	}
+	
 	std::string var = "_open" + std::to_string(ctx.varCounter);
 	if (closeButton) {
 		os << ctx.ind << "bool " << var << " = true;\n";
@@ -8538,8 +8604,6 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 	else
 		os << "nullptr, ";
 	std::string idx;
-	assert(ctx.parents.back() == this);
-	const auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
 	if (tb && !tb->activeTab.empty())
 	{
 		if (!tb->tabCount.empty())
@@ -8594,7 +8658,14 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 
 void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-	if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabItem")
+	assert(ctx.parents.back() == this);
+	auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
+	
+	if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
+	{
+		tb->style_regularWidth = true;
+	}
+	else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginTabItem")
 	{
 		if (sit->params.size() >= 1)
 			label.set_from_arg(sit->params[0]);
@@ -8602,8 +8673,6 @@ void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
 			closeButton = true;
 
-		assert(ctx.parents.back() == this);
-		auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
 		if (tb && sit->params.size() >= 3 && sit->params[2].size() > 32)
 		{
 			const auto& p = sit->params[2];
