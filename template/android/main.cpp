@@ -43,7 +43,10 @@ static void UpdateScreenRect();
 void Draw()
 {
     // TODO: Call your drawing code here
-
+    //if (g_IOUserData.activeActivity == "")
+    //    mainActivity.Open();
+    //mainActivity.Draw();
+    
     bool isOpen;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { ImGui::GetTextLineHeight()/2, ImGui::GetTextLineHeight()/2 });
@@ -280,9 +283,6 @@ void Init(struct android_app* app)
         font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size,
                                               g_IOUserData.dpiScale * 20.0f, &cfg, icons_ranges);
         IM_ASSERT(font != nullptr);*/
-
-        // TODO: Open startup activity 
-        //someActivity.Open();
     }
 }
 
@@ -323,7 +323,9 @@ void Shutdown()
     g_EglDisplay = EGL_NO_DISPLAY;
     g_EglContext = EGL_NO_CONTEXT;
     g_EglSurface = EGL_NO_SURFACE;
-    ANativeWindow_release(g_App->window);
+    
+    if (g_App->window)
+        ANativeWindow_release(g_App->window);
 
     g_Initialized = false;
 }
