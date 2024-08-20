@@ -1971,7 +1971,7 @@ void Widget::Draw(UIContext& ctx)
 		auto& vbox = parent->vbox[l.colId];
 		float sizeY = ImRad::VBox::ItemSize;
 		if (Behavior() & HasSizeY) {
-			sizeY = size_y.stretched() ? size_y.value() :
+			sizeY = size_y.stretched() ? (float)size_y.value() :
 				size_y.zero() ? ImRad::VBox::ItemSize :
 				size_y.eval_px(ImGuiAxis_Y, ctx);
 			ImRad::HashCombine(ctx.layoutHash, sizeY);
@@ -1994,7 +1994,7 @@ void Widget::Draw(UIContext& ctx)
 		auto& hbox = parent->hbox[l.rowId];
 		float sizeX = ImRad::HBox::ItemSize;
 		if (Behavior() & HasSizeX) {
-			sizeX = size_x.stretched() ? size_x.value() :
+			sizeX = size_x.stretched() ? (float)size_x.value() :
 				size_x.zero() ? ImRad::HBox::ItemSize :
 				size_x.eval_px(ImGuiAxis_X, ctx);
 			ImRad::HashCombine(ctx.layoutHash, sizeX);
