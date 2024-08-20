@@ -497,6 +497,8 @@ void TopWindow::Draw(UIContext& ctx)
 	std::string cap = title.value();
 	cap += "###TopWindow" + std::to_string((size_t)this); //don't clash 
 	int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
+	if (ctx.mode != UIContext::NormalSelection)
+		fl |= ImGuiWindowFlags_NoResize; //so that window resizing doesn't interfere with snap
 	if (kind == MainWindow)
 		fl |= ImGuiWindowFlags_NoCollapse;
 	else if (kind == Popup)
@@ -1858,41 +1860,44 @@ void Widget::Draw(UIContext& ctx)
 	}
 	else if (l.flags & (Layout::HLayout | Layout::VLayout)) 
 	{
-		if (!(l.flags & Layout::Leftmost)) {
-			//we need to provide correct spacing even though SetCursorX is called later
-			//because after hbox.Reset() hbox.GetPos() will return CursorPos with a wrong
-			//spacing and it will be used in autosized window contentSize
-			ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
-		}
+		ImRad::VBox* vbox = nullptr;
+		ImRad::HBox *hbox = nullptr;
 
 		if (l.flags & Layout::VLayout)
 		{
 			if (l.colId >= parent->vbox.size())
 				parent->vbox.resize(l.colId + 1);
-			auto& vbox = parent->vbox[l.colId];
-			
+			vbox = &parent->vbox[l.colId];
 			if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
-				vbox.BeginLayout();
-			if (l.flags & Layout::Leftmost)
-				ImGui::SetCursorPosY(vbox);
-			ctx.stretchSize.y = vbox.GetSize(!(l.flags & Layout::Leftmost));
+				vbox->BeginLayout();
+			/*if (l.flags & Layout::Leftmost)
+				ImGui::SetCursorPosY(vbox);*/
 		}
-		else if (l.flags & Layout::Leftmost)
+		if ((l.flags & Layout::Leftmost) && (spacing - defSpacing))
 		{
 			ImRad::Spacing(spacing - defSpacing);
 		}
-
 		if (l.flags & Layout::HLayout)
 		{
 			if (l.rowId >= parent->hbox.size())
 				parent->hbox.resize(l.rowId + 1);
-			auto& hbox = parent->hbox[l.rowId];
-			
+			hbox = &parent->hbox[l.rowId];
 			if (l.flags & Layout::Leftmost)
-				hbox.BeginLayout();
-			ImGui::SetCursorPosX(hbox); //currently not needed but may be useful if we upgrade layouts
-			ctx.stretchSize.x = hbox.GetSize();
+				hbox->BeginLayout();
+			//ImGui::SetCursorPosX(hbox); //currently not needed but may be useful if we upgrade layouts
 		}
+		if (!(l.flags & Layout::Leftmost)) 
+		{
+			//we need to provide correct spacing and don't use SetCursorX
+			//becausein that case after hbox.Reset() hbox.GetPos() will return CursorPos with 
+			//a wrong spacing and it will be used in autosized window contentSize
+			ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
+		}
+		//after SameLine was determined
+		if (vbox)
+			ctx.stretchSize.y = vbox->GetSize(); // !(l.flags & Layout::Leftmost));
+		if (hbox)
+			ctx.stretchSize.x = hbox->GetSize();
 	}
 	else 
 	{
@@ -1966,28 +1971,39 @@ void Widget::Draw(UIContext& ctx)
 		auto& vbox = parent->vbox[l.colId];
 		float sizeY = ImRad::VBox::ItemSize;
 		if (Behavior() & HasSizeY) {
-			sizeY = size_y.stretched() ? ImRad::VBox::Stretch :
+			sizeY = size_y.stretched() ? size_y.value() :
 				size_y.zero() ? ImRad::VBox::ItemSize :
 				size_y.eval_px(ImGuiAxis_Y, ctx);
 			ImRad::HashCombine(ctx.layoutHash, sizeY);
 		}
-		if (l.flags & Layout::Leftmost)
-			vbox.AddSize(spacing, sizeY);
-		else
-			vbox.UpdateSize(0, sizeY);
+		if (size_y.stretched()) {
+			if (l.flags & Layout::Leftmost)
+				vbox.AddSize(spacing, ImRad::VBox::Stretch(sizeY));
+			else
+				vbox.UpdateSize(0, ImRad::VBox::Stretch(sizeY));
+		}
+		else {
+			if (l.flags & Layout::Leftmost)
+				vbox.AddSize(spacing, sizeY);
+			else
+				vbox.UpdateSize(0, sizeY);
+		}
 	}
 	if (l.flags & Layout::HLayout)
 	{
 		auto& hbox = parent->hbox[l.rowId];
 		float sizeX = ImRad::HBox::ItemSize;
 		if (Behavior() & HasSizeX) {
-			sizeX = size_x.stretched() ? ImRad::HBox::Stretch :
+			sizeX = size_x.stretched() ? size_x.value() :
 				size_x.zero() ? ImRad::HBox::ItemSize :
 				size_x.eval_px(ImGuiAxis_X, ctx);
 			ImRad::HashCombine(ctx.layoutHash, sizeX);
 		}
 		int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
-		hbox.AddSize(sp, sizeX);
+		if (size_x.stretched())
+			hbox.AddSize(sp, ImRad::HBox::Stretch(sizeX));
+		else
+			hbox.AddSize(sp, sizeX);
 	}
 
 	//doesn't work for open CollapsingHeader etc:
@@ -2239,6 +2255,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		stype.erase(0, it - stype.begin());
 	os << ctx.ind << "/// @begin " << stype << "\n";
 
+	//layout commands first even when !visible
 	if (!hasPos && nextColumn)
 	{
 		bool inTable = dynamic_cast<Table*>(ctx.parents.back());
@@ -2247,6 +2264,36 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		else
 			os << ctx.ind << "ImRad::NextColumn(" << nextColumn.to_arg() << ");\n";
 	}
+	if (!hasPos && (l.flags & Layout::VLayout))
+	{
+		std::ostringstream osv;
+		osv << VBOX_NAME;
+		osv << GetParentId(ctx);
+		osv << (l.colId + 1);
+		vbName = osv.str();
+		ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
+
+		if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
+			os << ctx.ind << vbName << ".BeginLayout();\n";
+		/*if (l.flags & Layout::Leftmost)
+			os << ctx.ind << "ImGui::SetCursorPosY(" << vbName << ");\n";*/
+		ctx.stretchSizeExpr[1] = vbName + ".GetSize()";
+	}
+	if (!hasPos && (l.flags & Layout::HLayout))
+	{
+		std::ostringstream osv;
+		osv << HBOX_NAME;
+		osv << GetParentId(ctx);
+		osv << (l.rowId + 1);
+		hbName = osv.str();
+		ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
+
+		if (l.flags & Layout::Leftmost)
+			os << ctx.ind << hbName << ".BeginLayout();\n";
+		//os << ctx.ind << "ImGui::SetCursorPosX(" << hbName << ");\n";
+		ctx.stretchSizeExpr[0] = hbName + ".GetSize()";
+	}
+
 	if (!visible.has_value() || !visible.value())
 	{
 		os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
@@ -2268,46 +2315,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 			os << pos_y.to_arg(ctx.unit);
 		os << " }); //overlayPos\n";
 	}
-	else if (l.flags & (Layout::HLayout | Layout::VLayout))
-	{
-		if (!(l.flags & Layout::Leftmost))
-			os << ctx.ind << "ImGui::SameLine(0, " << spacing << " * ImGui::GetStyle().ItemSpacing.x);\n";
-		if (l.flags & Layout::VLayout)
-		{
-			std::ostringstream osv;
-			osv << VBOX_NAME;
-			osv << GetParentId(ctx);
-			osv << (l.colId + 1);
-			vbName = osv.str();
-			ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
-			
-			if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
-				os << ctx.ind << vbName << ".BeginLayout();\n";
-			if (l.flags & Layout::Leftmost)
-				os << ctx.ind << "ImGui::SetCursorPosY(" << vbName << ");\n";
-			ctx.stretchSizeExpr[1] = vbName + ".GetSize(" +
-				((l.flags & Layout::Leftmost) ? "false)" : "true)");
-		}
-		else if ((l.flags & Layout::Leftmost) && (spacing - defSpacing))
-		{
-			os << ctx.ind << "ImRad::Spacing(" << (spacing - defSpacing) << ");\n";
-		}
-
-		if (l.flags & Layout::HLayout)
-		{
-			std::ostringstream osv;
-			osv << HBOX_NAME;
-			osv << GetParentId(ctx);
-			osv << (l.rowId + 1);
-			hbName = osv.str();
-			ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
-
-			if (l.flags & Layout::Leftmost)
-				os << ctx.ind << hbName << ".BeginLayout();\n";
-			os << ctx.ind << "ImGui::SetCursorPosX(" << hbName << ");\n";
-			ctx.stretchSizeExpr[0] = hbName + ".GetSize()";
-		}
-	}
 	else
 	{
 		if (sameLine)
@@ -2320,7 +2327,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 		{
 			os << ctx.ind << "ImRad::Spacing(" << (spacing - defSpacing) << ");\n";
 		}
-		if (indent)
+		if (indent && !(l.flags & (Layout::HLayout | Layout::VLayout)))
 		{
 			os << ctx.ind << "ImGui::Indent(" << indent << " * ImGui::GetStyle().IndentSpacing / 2);\n";
 		}
@@ -2387,7 +2394,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		std::string sizeY = "ImRad::VBox::ItemSize";
 		if (Behavior() & HasSizeY) {
-			sizeY = size_y.stretched() ? "ImRad::VBox::Stretch" :
+			std::ostringstream os;
+			os << size_y.value();
+			sizeY = size_y.stretched() ? "ImRad::VBox::Stretch(" + os.str() + ")" :
 				size_y.zero() ? "ImRad::VBox::ItemSize" :
 				size_y.to_arg(ctx.unit);
 		}
@@ -2400,7 +2409,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 	{
 		std::string sizeX = "ImRad::HBox::ItemSize";
 		if (Behavior() & HasSizeX) {
-			sizeX = size_x.stretched() ? "ImRad::HBox::Stretch" :
+			std::ostringstream os;
+			os << size_x.value();
+			sizeX = size_x.stretched() ? "ImRad::HBox::Stretch(" + os.str() + ")":
 				size_x.zero() ? "ImRad::HBox::ItemSize" :
 				size_x.to_arg(ctx.unit);
 		}
@@ -2546,7 +2557,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
 	if (userCodeAfter != "")
 		os << userCodeAfter << "\n";
-
 }
 
 void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
@@ -2632,14 +2642,24 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 			if (sit->callee.find(".AddSize") != std::string::npos && sit->params.size())
 				spacing.set_from_arg(sit->params[0]);
 
-			if (sit->params.size() >= 2) 
+			if (sit->params.size() >= 2)
 			{
-				if (sit->params[1] == "ImRad::VBox::ItemSize")
+				if (sit->params[1] == "ImRad::VBox::ItemSize") {
 					size_y = 0;
-				else if (sit->params[1] == "ImRad::VBox::Stretch")
-					size_y = dimension::GROW;
-				else
+					size_y.stretch(false);
+				}
+				else if (sit->params[1] == "ImRad::VBox::Stretch") { //compatibility
+					size_y = 1.0f;
+					size_y.stretch(true);
+				}
+				else if (!sit->params[1].compare(0, 21, "ImRad::VBox::Stretch(")) {
+					size_y.set_from_arg(sit->params[1].substr(21, sit->params[1].size() - 21 - 1));
+					size_y.stretch(true);
+				}
+				else {
 					size_y.set_from_arg(sit->params[1]);
+					size_y.stretch(false);
+				}
 			}
 		}
 		else if (sit->kind == cpp::CallExpr && !sit->callee.compare(0, HBOX_NAME.size(), HBOX_NAME) &&
@@ -2650,12 +2670,22 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
 			if (sit->params.size() >= 2)
 			{
-				if (sit->params[1] == "ImRad::HBox::ItemSize")
+				if (sit->params[1] == "ImRad::HBox::ItemSize") {
 					size_x = 0;
-				else if (sit->params[1] == "ImRad::HBox::Stretch")
-					size_x = dimension::GROW;
-				else
+					size_x.stretch(false);
+				}
+				else if (sit->params[1] == "ImRad::HBox::Stretch") { //compatibility
+					size_x = 1.0f;
+					size_x.stretch(true);
+				}
+				else if (!sit->params[1].compare(0, 21, "ImRad::HBox::Stretch(")) {
+					size_x.set_from_arg(sit->params[1].substr(21, sit->params[1].size() - 21 - 1));
+					size_x.stretch(true);
+				}
+				else {
 					size_x.set_from_arg(sit->params[1]);
+					size_x.stretch(false);
+				}
 			}
 		}
 		else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SameLine")

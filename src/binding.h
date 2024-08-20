@@ -17,8 +17,6 @@ std::string ParseShortcut(std::string_view line);
 //negative values allowed
 struct dimension
 {
-	static const float GROW;
-	
 	float value;
 	dimension(float v = 0) : value(v) {}
 	dimension& operator= (float v) { value = v; return *this; }
@@ -725,7 +723,8 @@ struct bindable<dimension> : property_base
 	bindable(dimension val)
 		: bindable((float)val)
 	{}
-	bindable(float val) {
+	bindable(float val) 
+	{
 		std::ostringstream os;
 		os << val;
 		str = os.str();
@@ -741,13 +740,7 @@ struct bindable<dimension> : property_base
 		return is.eof() || is.tellg() == str.size();
 	}
 	bool stretched() const {
-		if (empty())
-			return false;
-		std::istringstream is(str);
-		dimension val;
-		if (!(is >> val) || val != dimension::GROW)
-			return false;
-		return is.eof() || is.tellg() == str.size();
+		return grow;
 	}
 	bool has_value() const {
 		if (empty())
@@ -757,6 +750,14 @@ struct bindable<dimension> : property_base
 		if (!(is >> val))
 			return false;
 		return is.eof() || is.tellg() == str.size();
+	}
+	dimension value() const {
+		if (!has_value()) 
+			return {};
+		std::istringstream is(str);
+		dimension val{};
+		is >> val;
+		return val;
 	}
 	float eval_px(int axis, const UIContext& ctx) const;
 	
@@ -777,7 +778,7 @@ struct bindable<dimension> : property_base
 		{
 			return std::string(stretchCode);
 		}
-		if (unit != "" && has_value() && 
+		if (unit != "" && !stretched() && has_value() &&
 			str != "0" && str != "-1") //don't suffix special values
 		{
 			return str + "*" + unit;
@@ -813,17 +814,25 @@ struct bindable<dimension> : property_base
 	}
 	const char* c_str() const { return str.c_str(); }
 	std::string* access() { return &str; }
-
-private:
-	dimension value() const {
-		if (!has_value()) return {};
-		std::istringstream is(str);
-		dimension val{};
-		is >> val;
-		return val;
+	
+	void stretch(bool s) { 
+		grow = s; 
+		std::ostringstream os;
+		if (grow) {
+			auto val = value();
+			os << std::fixed << std::setprecision(1) << val;
+			str = os.str();
+		}
+		else if (has_value()) {
+			auto val = value();
+			os << std::defaultfloat << val;
+			str = os.str();
+		}
 	}
 
+private:
 	std::string str;
+	bool grow = false;
 };
 
 //Hi {names[i]} you are {ages[i].exact():2} years old

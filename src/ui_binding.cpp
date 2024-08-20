@@ -93,7 +93,7 @@ void BindingDlg::Draw()
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::SetCursorPosX(hb3);
         ImRad::Dummy({ hb3.GetSize(), 0 });
-        hb3.AddSize(1, ImRad::HBox::Stretch);
+        hb3.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
         /// @begin CheckBox
@@ -157,7 +157,7 @@ void BindingDlg::Draw()
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::SetCursorPosX(hb5);
         ImRad::Dummy({ hb5.GetSize(), 0 });
-        hb5.AddSize(1, ImRad::HBox::Stretch);
+        hb5.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
 			bool exprValid = true;

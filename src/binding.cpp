@@ -2,9 +2,6 @@
 #include "cppgen.h"
 #include <imgui.h>
 
-const float dimension::GROW = 12345.0e11f;
-
-
 std::string CodeShortcut(std::string_view sh)
 {
 	if (sh.empty())

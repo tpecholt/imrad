@@ -104,7 +104,7 @@ void SettingsDlg::Draw()
             /// @separator
             ImGui::EndTable();
         }
-        vb1.AddSize(1, ImRad::VBox::Stretch);
+        vb1.AddSize(1, ImRad::VBox::Stretch(1));
         /// @end Table
 
         /// @begin Child
@@ -137,7 +137,7 @@ void SettingsDlg::Draw()
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
             ImGui::SetNextItemWidth(100);
-            ImRad::Combo("##fontSize", &fontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\000", ImGuiComboFlags_None);
+            ImRad::Combo("##fontSize", &fontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\00028\00032\00036\000", ImGuiComboFlags_None);
             ImGui::PopStyleVar();
             /// @end Combo
 
@@ -145,7 +145,7 @@ void SettingsDlg::Draw()
             ImGui::EndChild();
         }
         ImGui::PopStyleColor();
-        vb1.UpdateSize(0, ImRad::VBox::Stretch);
+        vb1.UpdateSize(0, ImRad::VBox::Stretch(1));
         /// @end Child
 
         /// @begin Spacer
@@ -153,8 +153,8 @@ void SettingsDlg::Draw()
         hb3.BeginLayout();
         ImGui::SetCursorPosX(hb3);
         ImRad::Dummy({ hb3.GetSize(), 0 });
-        vb1.AddSize(2, ImRad::VBox::ItemSize);
-        hb3.AddSize(0, ImRad::HBox::Stretch);
+		vb1.AddSize(2, ImRad::VBox::ItemSize);
+        hb3.AddSize(0, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
         /// @begin Button

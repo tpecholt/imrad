@@ -185,14 +185,11 @@ private:
 template <bool HORIZ>
 struct BoxLayout
 {
-	enum {
-		Stretch = -1,
-		ItemSize = 0
-	};
+	static constexpr float ItemSize = 0;
 
-	struct Item {
-		float spacing;
-		float size;
+	struct Stretch {
+		float value;
+		Stretch(float v) : value(v) {}
 	};
 
 	void Reset()
@@ -207,28 +204,21 @@ struct BoxLayout
 		
 		float avail = HORIZ ? ImGui::GetContentRegionAvail().x : ImGui::GetContentRegionAvail().y;
 		float total = 0;
-		int num = 0;
+		float stretchTotal = 0;
 		for (Item& it : prevItems) {
 			//it.spacing = (int)it.spacing;
 			//it.size = (int)it.size;
 			total += it.spacing;
-			if (it.size == Stretch)
-				++num;
+			if (it.stretch)
+				stretchTotal += it.size;
 			else if (it.size < 0)
-				total += avail + it.size;
+				total = avail + it.size;
 			else
 				total += it.size;
 		}
-		float stretchSize = 0, firstStretchSize = 0;
-		if (num) {
-			stretchSize = (float)(int)((avail - total) / num + 0.5);
-			firstStretchSize = avail - total - (num - 1) * stretchSize;
-		}
 		for (Item& it : prevItems) {
-			if (it.size == Stretch) {
-				it.size = firstStretchSize;
-				firstStretchSize = stretchSize;
-			}
+			if (it.stretch)
+				it.size = (float)(int)(it.size * (avail - total) / stretchTotal);
 			else if (it.size < 0)
 				it.size += avail;
 		}
@@ -239,8 +229,12 @@ struct BoxLayout
 		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
 		if (size == ItemSize)
 			size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
-		int sz = (int)size;
-		items.push_back({ spacing, size });
+		items.push_back({ spacing, size, false });
+	}
+	void AddSize(int sp, Stretch size)
+	{
+		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
+		items.push_back({ spacing, size.value, true });
 	}
 	//call after a widget call for vert layout having multiple widgets in a row
 	void UpdateSize(float sp, float size)
@@ -252,16 +246,26 @@ struct BoxLayout
 		Item& it = items.back();
 		if (spacing > it.spacing)
 			it.spacing = spacing;
-		if (size == Stretch || (it.size != Stretch && size > it.size))
+		if (!it.stretch && size > it.size)
 			it.size = size;
 	}
-	//for use in SetCursorX/Y
+	void UpdateSize(float sp, Stretch size)
+	{
+		assert(items.size());
+		float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
+		Item& it = items.back();
+		if (spacing > it.spacing)
+			it.spacing = spacing;
+		if (!it.stretch || size.value > it.size) {
+			it.stretch = true;
+			it.size = size.value;
+		}
+	}
+	//unused - for use in SetCursorX/Y
 	float GetPos()
 	{
 		if (prevItems.size() <= items.size()) //stop positioning - widgets changed
 			return HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
-		/*if (HORIZ && items.size())
-			ImGui::SameLine();*/
 		float pos = pos1;
 		for (size_t i = 0; i < items.size(); ++i) {
 			pos += prevItems[i].size + prevItems[i].spacing;
@@ -270,14 +274,15 @@ struct BoxLayout
 			pos += prevItems[items.size()].spacing;
 		return pos;
 	}
+	//deprecated
 	operator float()
 	{
 		return GetPos();
 	}
-	//for use in SetNextItemWidth/ctor
-	float GetSize(bool sameLine = false)
+	//for use in SetNextItemWidth/ctor. Call after possible SameLine
+	float GetSize(bool deprecatedSameLine = false)
 	{
-		assert(!HORIZ || !sameLine);
+		bool sameLine = !HORIZ && ImGui::GetCurrentWindow()->DC.IsSameLine;
 		size_t i = sameLine ? items.size() - 1 : items.size();
 		if (i >= prevItems.size()) //widgets changed
 			return 0;
@@ -285,6 +290,12 @@ struct BoxLayout
 	}
 
 private:
+	struct Item {
+		float spacing;
+		float size;
+		bool stretch;
+	};
+
 	std::vector<Item> items, prevItems;
 	float pos1;
 };
