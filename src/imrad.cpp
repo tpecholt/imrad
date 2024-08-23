@@ -113,7 +113,7 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 		{ ICON_FA_ARROW_DOWN_WIDE_SHORT, "CollapsingHeader" },
 		{ ICON_FA_FOLDER_CLOSED, "TabBar" },
 		{ ICON_FA_SITEMAP, "TreeNode" },
-		{ ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE, "Splitter" },
+		{ ICON_FA_TABLE_COLUMNS, "Splitter" }, //ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE
 		//{ ICON_FA_CLAPPERBOARD /*ELLIPSIS*/, "MenuBar" },
 		{ ICON_FA_MESSAGE /*RECEIPT*/, "ContextMenu" },
 	}}
@@ -752,7 +752,7 @@ GetCtxColors(const std::string& styleName)
 		IM_COL32(0, 255, 0, 255),
 	};
 	static const std::array<ImU32, UIContext::Color::COUNT> light {
-		0xb0996633,//IM_COL32(64, 64, 64, 128),
+		IM_COL32(0, 64, 0, 128), //0xb0996633
 		IM_COL32(255, 0, 0, 255),
 		IM_COL32(128, 128, 255, 255),
 		IM_COL32(255, 0, 255, 255),
@@ -1823,16 +1823,10 @@ void Work()
 	{
 		//don't IsMouseReleased otherwise closing modal popup will fire here too
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-			ctx.rootWin &&
 			ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
-			!ImRect(ctx.rootWin->Pos, ctx.rootWin->Pos + ctx.rootWin->SizeFull).Contains(ImGui::GetMousePos()))
+			!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 		{
-			bool skip = false;
-			for (ImGuiWindow* popup : ctx.activePopups)
-				if (popup->Rect().Contains(ImGui::GetMousePos()))
-					skip = true;
-			if (!skip)
-				ctx.selected = { ctx.root };
+			ctx.selected = { ctx.root };
 		}
 		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal) ||
 			ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal))

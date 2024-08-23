@@ -22,6 +22,99 @@ const std::string VBOX_NAME = "vb";
 
 #define DRAW_STR(a) cpp::to_draw_str(a.value()).c_str()
 
+//to iterate children matching a filter e.g. free-positioned or not
+struct child_iterator
+{
+	using children_type = std::vector<std::unique_ptr<Widget>>;
+	
+	struct iter {
+		iter() : children(), idx()
+		{}
+		iter(children_type& ch, bool freePos) 
+			: children(&ch), freePos(freePos), idx()
+		{
+			while (!end() && !valid())
+				++idx;
+		}
+		iter& operator++ () {
+			if (end())
+				return *this;
+			++idx;
+			while (!end() && !valid())
+				++idx;
+			return *this;
+		}
+		iter operator++ (int) {
+			iter it(*this);
+			++(*this);
+			return it;
+		}
+		bool operator== (const iter& it) const
+		{
+			if (end() != it.end())
+				return false;
+			if (!end())
+				return idx == it.idx;
+			return true;
+		}
+		bool operator!= (const iter& it) const
+		{
+			return !(*this == it);
+		}
+		children_type::value_type& operator* ()
+		{
+			static children_type::value_type dummy;
+			if (end())
+				return dummy;
+			return children->at(idx);
+		}
+		const children_type::value_type& operator* () const
+		{
+			static children_type::value_type dummy;
+			if (end())
+				return dummy;
+			return children->at(idx);
+		}
+
+	private:
+		bool end() const
+		{
+			return !children || idx >= children->size();
+		}
+		bool valid() const
+		{
+			if (end())
+				return false;
+			bool fp = children->at(idx)->hasPos;
+			return freePos == fp;
+		}
+
+		size_t idx;
+		children_type* children;
+		bool freePos;
+	};
+
+	child_iterator(children_type& children, bool freePos)
+		: children(children), freePos(freePos)
+	{}
+	iter begin() const
+	{
+		return iter(children, freePos);
+	}
+	iter end() const
+	{
+		return iter();
+	}
+	explicit operator bool() const
+	{
+		return begin() != end();
+	}
+
+private:
+	children_type& children;
+	bool freePos;
+	size_t idx;
+};
 
 void toggle(std::vector<UINode*>& c, UINode* val)
 {
@@ -594,6 +687,9 @@ void TopWindow::Draw(UIContext& ctx)
 		ImGui::PopStyleVar();
 	ImGui::GetCurrentContext()->NavDisableHighlight = false;
 	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+
+	for (size_t i = 0; i < children.size(); ++i)
+		children[i]->DrawExtra(ctx);
 	
 	//use all client area to allow snapping close to the border
 	auto pad = ImGui::GetStyle().WindowPadding - ImVec2(3+1, 3);
@@ -2212,10 +2308,6 @@ void Widget::Draw(UIContext& ctx)
 			0, 0, selected ? 2.f : 1.f);
 		//dl->PopClipRect();
 	}
-	if (selected)
-	{
-		DrawExtra(ctx);
-	}
 	if (ctx.mode == UIContext::Snap && !ctx.snapParent)
 	{
 		DrawSnap(ctx);
@@ -2228,6 +2320,21 @@ void Widget::Draw(UIContext& ctx)
 	
 	ctx.parents.pop_back();
 	ImGui::PopID();
+}
+
+void Widget::DrawExtra(UIContext& ctx)
+{
+	ctx.parents.push_back(this);
+	
+	bool selected = stx::count(ctx.selected, this);
+	if (selected)
+		DoDrawExtra(ctx);
+
+	//for (const auto& child : children) defend against insertions within the loop
+	for (size_t i = 0; i < children.size(); ++i)
+		children[i]->DrawExtra(ctx);
+	
+	ctx.parents.pop_back();
 }
 
 void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -3161,14 +3268,14 @@ void Widget::TreeUI(UIContext& ctx)
 			suff += "C";
 	}
 
-	/*float cx = ImGui::GetCursorPosX();
-	cx += 2 * ImGui::GetStyle().FramePadding.x + ImGui::GetFontSize(); //indentation used by TreeNodeEx
-	cx += ImGui::GetFontSize() * 1.3f;*/
 	bool selected = stx::count(ctx.selected, this) || ctx.snapParent == this;
+	//align icon
 	float sp = ImGui::GetFontSize() * 1.4f - ImGui::CalcTextSize(icon.c_str(), 0, true).x;
 	ImGui::Dummy({ sp, 0 });
 	ImGui::SameLine(0, 0);
 
+	ctx.parents.push_back(this);
+	
 	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 	ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	//we keep all items open, OpenOnDoubleClick is to block flickering
@@ -3193,15 +3300,50 @@ void Widget::TreeUI(UIContext& ctx)
 		ImGui::PopStyleColor();
 		ImGui::SameLine();
 		ImGui::TextDisabled("%s", suff.c_str());
-		ctx.parents.push_back(this);
-		for (const auto& ch : children)
-			ch->TreeUI(ctx);
-		ctx.parents.pop_back();
+
+		if (!itemCount.empty())
+		{
+			std::string icon = ICON_FA_RETWEET; // SHARE_NODES;
+			icon += "##IC" + std::to_string((unsigned long long)this);
+			std::string label = itemCount.index_name_or(ctx.codeGen->DefaultForVarName());
+			label += " = 0.." + itemCount.limit.to_arg();
+			float sp = ImGui::GetFontSize() * 1.4f - ImGui::CalcTextSize(icon.c_str(), 0, true).x;
+			ImGui::Dummy({ sp, 0 });
+			ImGui::SameLine(0, 0);
+			bool selected = ctx.mode == UIContext::Snap && ctx.snapParent == this;
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+			//we keep all items open, OpenOnDoubleClick is to block flickering
+			int flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+			ImGui::SetNextItemOpen(true);
+			if (ImGui::TreeNodeEx(icon.c_str(), flags))
+			{
+				ImGui::PopStyleColor();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_TextDisabled]);
+				ImGui::SameLine();
+				ImGui::Text("%s", label.c_str());
+				ImGui::PopStyleColor();
+				for (auto& child : child_iterator(children, false))
+					child->TreeUI(ctx);
+				ImGui::TreePop();
+			}
+			else {
+				ImGui::PopStyleColor();
+			}
+			for (auto& child : child_iterator(children, true))
+				child->TreeUI(ctx);
+		}
+		else
+		{
+			for (auto& child : children)
+				child->TreeUI(ctx);
+		}	
 		ImGui::TreePop();
 	}
 	else {
 		ImGui::PopStyleColor();
 	}
+
+	ctx.parents.pop_back();
 }
 
 //----------------------------------------------------
@@ -3228,7 +3370,8 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
 	{
 		auto* dl = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
-		ImU32 clr = 0x607f7f7f; //reduces contrast, adds alpha 
+		ImU32 clr = 0x007f7f7f; //reduces contrast 
+		clr |= int(0x5f * ImGui::GetStyle().Alpha) << 24;
 		//dl->AddRect(p, p + size, clr);
 		
 		float th = 2;
@@ -3937,7 +4080,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
 }
 
 std::vector<UINode::Prop>
-Selectable ::Events()
+Selectable::Events()
 {
 	auto props = Widget::Events();
 	props.insert(props.begin(), {
@@ -6771,7 +6914,6 @@ std::unique_ptr<Widget> Table::Clone(UIContext& ctx)
 ImDrawList* Table::DoDraw(UIContext& ctx)
 {
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
-	bool childPos = stx::count_if(children, [](const auto& ch) { return ch->hasPos; });
 
 	if (style_cellPadding.has_value())
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, style_cellPadding.eval_px(ctx));
@@ -6804,22 +6946,23 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
 		ImGui::TableNextRow(0, rh);
 		ImGui::TableSetColumnIndex(0);
 		
-		for (int i = 0; i < (int)children.size(); ++i)
-			if (!children[i]->hasPos)
-				children[i]->Draw(ctx);
+		for (const auto& child : child_iterator(children, false))
+			child->Draw(ctx);
 		
-		int n = rowCount.limit.value();
+		int n = itemCount.limit.value();
 		for (int r = ImGui::TableGetRowIndex() + 1; r < header + n; ++r)
 			ImGui::TableNextRow(0, rh);
 
-		if (childPos)
+		if (child_iterator(children, true))
 		{
-			ImGuiWindow* inner = ImGui::GetCurrentWindow(); // ImGui::GetCurrentTable()->InnerWindow;
-			ImGui::PushClipRect(inner->InnerRect.Min, inner->InnerClipRect.Max, false);
-			for (int i = 0; i < (int)children.size(); ++i)
-				if (children[i]->hasPos)
-					children[i]->Draw(ctx);
+			ImGuiWindow* win = ImGui::GetCurrentWindow();
+			win->SkipItems = false;
+			//auto mpos = win->DC.CursorMaxPos;
+			ImGui::PushClipRect(win->InnerRect.Min, win->InnerClipRect.Max, false);
+			for (const auto& child : child_iterator(children, true))
+				child->Draw(ctx);
 			ImGui::PopClipRect();
+			//win->DC.CursorMaxPos = mpos;
 		}
 
 		ImGui::EndTable();
@@ -6852,7 +6995,7 @@ Table::Properties()
 		{ "table.flags", &flags },
 		{ "table.columns", nullptr },
 		{ "table.header", &header },
-		{ "table.rowCount", &rowCount },
+		{ "table.rowCount", &itemCount },
 		{ "table.rowHeight", &rowHeight },
 		{ "table.rowFilter", &rowFilter },
 		{ "table.scrollWhenDragging", &scrollWhenDragging },
@@ -6924,7 +7067,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed = ImGui::Checkbox("##header", header.access());
 		break;
 	case 8:
-		changed = DataLoopProp("rowCount", &rowCount, ctx);
+		changed = DataLoopProp("rowCount", &itemCount, ctx);
 		break;
 	case 9:
 		ImGui::Text("rowHeight");
@@ -6935,7 +7078,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("rowHeight", &rowHeight, ctx);
 		break;
 	case 10:
-		ImGui::BeginDisabled(rowCount.empty());
+		ImGui::BeginDisabled(itemCount.empty());
 		ImGui::Text("rowFilter");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -7008,8 +7151,6 @@ bool Table::EventUI(int i, UIContext& ctx)
 
 void Table::DoExport(std::ostream& os, UIContext& ctx)
 {
-	bool childPos = stx::count_if(children, [](const auto& ch) { return ch->hasPos; });
-
 	if (style_cellPadding.has_value())
 	{
 		os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, "
@@ -7069,9 +7210,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 	if (header)
 		os << ctx.ind << "ImGui::TableHeadersRow();\n";
 
-	if (!rowCount.empty())
+	if (!itemCount.empty())
 	{
-		os << "\n" << ctx.ind << rowCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n" << ctx.ind << "{\n";
+		os << "\n" << ctx.ind << itemCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n" << ctx.ind << "{\n";
 		ctx.ind_up();
 
 		if (!rowFilter.empty())
@@ -7082,7 +7223,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 			ctx.ind_down();
 		}
 		
-		os << ctx.ind << "ImGui::PushID(" << rowCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
+		os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
 	}
 	
 	os << ctx.ind << "ImGui::TableNextRow(0, ";
@@ -7098,31 +7239,30 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
 	os << ctx.ind << "/// @separator\n\n";
 
-	for (auto& child : children)
-		if (!child->hasPos)
-			child->Export(os, ctx);
+	for (auto& child : child_iterator(children, false))
+		child->Export(os, ctx);
 
 	os << "\n" << ctx.ind << "/// @separator\n";
 	
 	if (!onEndRow.empty())
 		os << ctx.ind << onEndRow.to_arg() << "();\n";
 
-	if (!rowCount.empty()) {
+	if (!itemCount.empty()) {
 		os << ctx.ind << "ImGui::PopID();\n";
 		ctx.ind_down();
 		os << ctx.ind << "}\n";
 	}
 
-	if (childPos)
+	if (child_iterator(children, true))
 	{
 		//draw overlay children at the end so they are visible,
 		//inside table's child because ItemOverlap works only between items in same window
+		os << ctx.ind << "ImGui::GetCurrentWindow()->SkipItems = false;\n";
 		os << ctx.ind << "ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false);\n";
 		os << ctx.ind << "/// @separator\n\n";
 
-		for (auto& child : children)
-			if (child->hasPos)
-				child->Export(os, ctx);
+		for (auto& child : child_iterator(children, true))
+			child->Export(os, ctx);
 	
 		os << ctx.ind << "/// @separator\n";
 		os << ctx.ind << "ImGui::PopClipRect();\n";
@@ -7217,7 +7357,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::ForBlock)
 	{
-		rowCount.set_from_arg(sit->line);
+		itemCount.set_from_arg(sit->line);
 	}
 	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 &&
 		columnData.size() &&
@@ -7410,7 +7550,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	
 	os << ctx.ind << "/// @separator\n\n";
 
-	for (auto& child : children)
+	for (auto& child : child_iterator(children, false))
 		child->Export(os, ctx);
 
 	os << ctx.ind << "/// @separator\n";
@@ -7425,6 +7565,15 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 	if (style_spacing.has_value())
 		os << ctx.ind << "ImGui::PopStyleVar();\n";
 	
+	if (child_iterator(children, true)) {
+		os << ctx.ind << "/// @separator\n\n";
+
+		for (auto& child : child_iterator(children, true))
+			child->Export(os, ctx);
+
+		os << ctx.ind << "/// @separator\n";
+	}
+
 	os << ctx.ind << "ImGui::EndChild();\n";
 	ctx.ind_down();
 	os << ctx.ind << "}\n";
@@ -8272,7 +8421,7 @@ TabBar::TabBar(UIContext& ctx)
 std::unique_ptr<Widget> TabBar::Clone(UIContext& ctx)
 {
 	auto sel = std::make_unique<TabBar>(*this);
-	//tabCount can be shared
+	//itemCount can be shared
 	if (!activeTab.empty() && ctx.createVars) {
 		sel->activeTab.set_from_arg(ctx.codeGen->CreateVar("int", "", CppGen::Var::Interface));
 	}
@@ -8361,13 +8510,13 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 		os << ctx.ind << "float _tabWidth = (ImGui::GetContentRegionAvail().x - (_nTabs - 1) * ImGui::GetStyle().ItemInnerSpacing.x) / _nTabs - 1;\n";
 	}
 
-	if (!tabCount.empty())
+	if (!itemCount.empty())
 	{
-		os << ctx.ind << tabCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n";
+		os << ctx.ind << itemCount.to_arg(ctx.codeGen->DefaultForVarName()) << "\n";
 		os << ctx.ind << "{\n";
 		ctx.ind_up();
 		//BeginTabBar does this
-		//os << ctx.ind << "ImGui::PushID(" << tabCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
+		//os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
 	}
 	os << ctx.ind << "/// @separator\n\n";
 	
@@ -8375,7 +8524,7 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 		child->Export(os, ctx);
 
 	os << ctx.ind << "/// @separator\n";
-	if (!tabCount.empty())
+	if (!itemCount.empty())
 	{
 		//os << ctx.ind << "ImGui::PopID();\n"; EndTabBar does this
 		ctx.ind_down();
@@ -8418,7 +8567,7 @@ void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	}
 	else if (sit->kind == cpp::ForBlock && sit->level == ctx.importLevel + 1)
 	{
-		tabCount.set_from_arg(sit->line);
+		itemCount.set_from_arg(sit->line);
 	}
 }
 
@@ -8436,7 +8585,7 @@ TabBar::Properties()
 		{ "@style.padding", &style_framePadding },
 		{ "@style.font", &style_font },
 		{ "flags", &flags },
-		{ "tabCount", &tabCount },
+		{ "tabCount", &itemCount },
 		{ "activeTab", &activeTab },
 		});
 	return props;
@@ -8515,7 +8664,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
 			});
 		break;
 	case 9:
-		changed = DataLoopProp("tabCount", &tabCount, ctx);
+		changed = DataLoopProp("tabCount", &itemCount, ctx);
 		break;
 	case 10:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
@@ -8574,14 +8723,14 @@ ImDrawList* TabItem::DoDraw(UIContext& ctx)
 	return ImGui::GetWindowDrawList();
 }
 
-void TabItem::DrawExtra(UIContext& ctx)
+void TabItem::DoDrawExtra(UIContext& ctx)
 {
 	if (ctx.parents.empty())
 		return;
 
-	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
-	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 	ImGui::PushFont(nullptr);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
 	assert(ctx.parents.back() == this);
 	auto* parent = ctx.parents[ctx.parents.size() - 2];
 	size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
@@ -8615,7 +8764,7 @@ void TabItem::DrawExtra(UIContext& ctx)
 	ImGui::EndDisabled();
 
 	ImGui::End();
-	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
+	ImGui::PopStyleVar(2);
 	ImGui::PopFont();
 }
 
@@ -8656,9 +8805,9 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 	std::string idx;
 	if (tb && !tb->activeTab.empty())
 	{
-		if (!tb->tabCount.empty())
+		if (!tb->itemCount.empty())
 		{
-			idx = tb->tabCount.index_name_or(ctx.codeGen->DefaultForVarName());
+			idx = tb->itemCount.index_name_or(ctx.codeGen->DefaultForVarName());
 		}
 		else
 		{
@@ -8692,12 +8841,12 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
 	{
 		os << ctx.ind << "if (!" << var << ")\n";
 		ctx.ind_up();
-		/*if (idx != "") no need to activate, user can check tabCount.index 
+		/*if (idx != "") no need to activate, user can check itemCount.index 
 			os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";*/
 		os << ctx.ind << onClose.to_arg() << "();\n";
 		ctx.ind_down();
 	}
-	/*if (idx != "") user can add IsItemActivated event on his own and there is tabCount.index
+	/*if (idx != "") user can add IsItemActivated event on his own and there is itemCount.index
 	{
 		os << ctx.ind << "if (ImGui::IsItemActivated())\n";
 		ctx.ind_up();
@@ -8998,7 +9147,7 @@ ImDrawList* MenuIt::DoDraw(UIContext& ctx)
 	return ImGui::GetWindowDrawList();
 }
 
-void MenuIt::DrawExtra(UIContext& ctx)
+void MenuIt::DoDrawExtra(UIContext& ctx)
 {
 	if (ctx.parents.empty())
 		return;
@@ -9013,14 +9162,11 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	//draw toolbox
 	//currently we always sit it on top of the menu so that it doesn't overlap with submenus
 	//no WindowFlags_StayOnTop
-	bool tmp = ImGui::GetCurrentContext()->NavDisableMouseHover;
-	ImGui::GetCurrentContext()->NavDisableMouseHover = false;
 	ImGui::PushFont(nullptr);
-	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
 
-	const ImVec2 bsize{ 30, 30 };
+	const ImVec2 bsize{ 30, 0 };
 	ImVec2 pos = cached_pos;
 	if (vertical) {
 		pos = ImGui::GetWindowPos();
@@ -9063,9 +9209,8 @@ void MenuIt::DrawExtra(UIContext& ctx)
 	ImGui::EndDisabled();
 
 	ImGui::End();
-	ImGui::PopStyleVar(3);
+	ImGui::PopStyleVar(2);
 	ImGui::PopFont();
-	ImGui::GetCurrentContext()->NavDisableMouseHover = tmp;
 }
 
 void MenuIt::CalcSizeEx(ImVec2 x1, UIContext& ctx)

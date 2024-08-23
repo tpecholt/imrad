@@ -34,6 +34,7 @@ struct UINode
 	UINode(const UINode&) {} //shallow copy
 	virtual ~UINode() {}
 	virtual void Draw(UIContext& ctx) = 0;
+	virtual void DrawExtra(UIContext& ctx) = 0;
 	virtual void TreeUI(UIContext& ctx) = 0;
 	virtual auto Properties()->std::vector<Prop> = 0;
 	virtual auto Events()->std::vector<Prop> = 0;
@@ -64,20 +65,21 @@ struct Widget : UINode
 {
 	direct_val<bool> sameLine = false;
 	direct_val<int> nextColumn = 0;
-	direct_val<bool> hasPos = false;
-	direct_val<dimension> pos_x = 0;
-	direct_val<dimension> pos_y = 0;
 	bindable<dimension> size_x = 0;
 	bindable<dimension> size_y = 0;
-	direct_val<bool> allowOverlap = false;
 	bindable<bool> visible = true;
 	bindable<bool> disabled = false;
-	direct_val<bool> tabStop = true;
-	direct_val<int> indent = 0;
-	direct_val<int> spacing = 0;
 	bindable<std::string> tooltip = "";
 	direct_val<std::string> contextMenu = "";
 	direct_val<int> cursor = ImGuiMouseCursor_Arrow;
+	direct_val<bool> tabStop = true;
+	direct_val<bool> hasPos = false;
+	direct_val<dimension> pos_x = 0;
+	direct_val<dimension> pos_y = 0;
+	direct_val<int> indent = 0;
+	direct_val<int> spacing = 0;
+	direct_val<bool> allowOverlap = false;
+	data_loop itemCount;
 	bindable<font_name> style_font;
 	bindable<color32> style_text;
 	bindable<color32> style_frameBg;
@@ -109,6 +111,7 @@ struct Widget : UINode
 	static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
 	void Draw(UIContext& ctx);
+	void DrawExtra(UIContext& ctx);
 	void Export(std::ostream& os, UIContext& ctx);
 	void Import(cpp::stmt_iterator& sit, UIContext& ctx);
 	auto Properties() -> std::vector<Prop>;
@@ -120,7 +123,7 @@ struct Widget : UINode
 	Layout GetLayout(UINode* parent);
 	virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
 	virtual ImDrawList* DoDraw(UIContext& ctx) = 0;
-	virtual void DrawExtra(UIContext& ctx) {}
+	virtual void DoDrawExtra(UIContext& ctx) {}
 	virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
 	virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
 	virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);
@@ -429,7 +432,6 @@ struct Table : Widget
 	flags_helper flags = ImGuiTableFlags_Borders;
 	std::vector<ColumnData> columnData;
 	direct_val<bool> header = true;
-	data_loop rowCount;
 	bindable<bool> rowFilter;
 	bindable<dimension> rowHeight = 0;
 	direct_val<bool> scrollWhenDragging = false;
@@ -460,7 +462,6 @@ struct Child : Widget
 	flags_helper wflags = ImGuiWindowFlags_NoSavedSettings;
 	bindable<int> columnCount = 1;
 	direct_val<bool> columnBorder = true;
-	data_loop itemCount;
 	direct_val<bool> scrollWhenDragging = false;
 	direct_val<pzdimension2> style_padding;
 	direct_val<pzdimension2> style_spacing;
@@ -504,7 +505,6 @@ struct CollapsingHeader : Widget
 struct TabBar : Widget
 {
 	flags_helper flags = 0;
-	data_loop tabCount;
 	field_ref<int> activeTab;
 	bindable<color32> style_tab;
 	bindable<color32> style_tabDimmed;
@@ -537,7 +537,7 @@ struct TabItem : Widget
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return SnapInterior | SnapGrandparentClip | NoOverlayPos; }
 	ImDrawList* DoDraw(UIContext& ctx);
-	void DrawExtra(UIContext& ctx);
+	void DoDrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -596,7 +596,7 @@ struct MenuIt : Widget
 	auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
 	int Behavior() { return NoOverlayPos | NoContextMenu; }
 	ImDrawList* DoDraw(UIContext& ctx);
-	void DrawExtra(UIContext& ctx);
+	void DoDrawExtra(UIContext& ctx);
 	auto Properties()->std::vector<Prop>;
 	bool PropertyUI(int i, UIContext& ctx);
 	auto Events()->std::vector<Prop>;
@@ -660,6 +660,7 @@ struct TopWindow : UINode
 
 	TopWindow(UIContext& ctx);
 	void Draw(UIContext& ctx);
+	void DrawExtra(UIContext& ctx) {}
 	void TreeUI(UIContext& ctx);
 	bool EventUI(int, UIContext& ctx);
 	auto Properties() ->std::vector<Prop>;

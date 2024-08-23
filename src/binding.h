@@ -740,7 +740,7 @@ struct bindable<dimension> : property_base
 		return is.eof() || is.tellg() == str.size();
 	}
 	bool stretched() const {
-		return grow;
+		return grow && has_value();
 	}
 	bool has_value() const {
 		if (empty())
