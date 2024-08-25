@@ -1155,8 +1155,8 @@ struct data_loop : property_base
 	bool empty() const {
 		return limit.empty();
 	}
-	std::string index_name_or(const std::string& s) const {
-		return index.empty() ? s : index.to_arg();
+	std::string index_name_or(std::string_view s) const {
+		return index.empty() ? std::string(s) : index.to_arg();
 	}
 
 	void set_from_arg(std::string_view code) {

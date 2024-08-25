@@ -2,12 +2,17 @@
 #include <string>
 #include <vector>
 #include <map>
-#include "node.h"
+#include "node2.h"
 
 //------------------------------------------------------
 class CppGen
 {
 public:
+	static std::string_view INDENT;
+	static std::string_view FOR_VAR_NAME;
+	static std::string_view HBOX_NAME;
+	static std::string_view VBOX_NAME;
+
 	CppGen();
 	bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
 	auto Import(const std::string& path, std::map<std::string, std::string>& params, std::string& err) -> std::unique_ptr<TopWindow>;
@@ -18,9 +23,6 @@ public:
 	//void SetName(const std::string& name) { m_name = name; }
 	//void SetVName(const std::string& name) { m_vname = name; }
 	void SetNamesFromId(const std::string& fname);
-
-	std::string GetIndent();
-	std::string DefaultForVarName();
 
 	struct Var
 	{

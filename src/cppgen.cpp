@@ -7,14 +7,15 @@
 #include <set>
 
 const std::string GENERATED_WITH = "Generated with ";
-const std::string INDENT = "    ";
-const std::string FOR_VAR = "i";
 
 const std::string SPEC_FUN[] = {
 	"Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw",
 };
 
-//----------------------------------------------------------------
+std::string_view CppGen::INDENT = "    ";
+std::string_view CppGen::FOR_VAR_NAME = "i";
+std::string_view CppGen::HBOX_NAME = "hb";
+std::string_view CppGen::VBOX_NAME = "vb";
 
 CppGen::CppGen()
 	: m_name("Untitled"), m_vname("untitled")
@@ -48,16 +49,6 @@ std::string CppGen::AltFName(const std::string& path)
 	if (p.extension() == ".cpp")
 		return p.replace_extension("h").string();
 	return "";
-}
-
-std::string CppGen::GetIndent()
-{
-	return INDENT;
-}
-
-std::string CppGen::DefaultForVarName()
-{
-	return FOR_VAR;
 }
 
 bool CppGen::ExportUpdate(

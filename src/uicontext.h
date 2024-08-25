@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 struct UINode;
+struct Widget;
 class CppGen;
 struct property_base;
 struct ImGuiWindow;
