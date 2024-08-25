@@ -5946,6 +5946,11 @@ Slider::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.text", &style_text },
+		{ "@style.frameBg", &style_frameBg },
+		{ "@style.border", &style_border },
+		{ "@style.borderSize", &style_frameBorderSize },
+		{ "@style.font", &style_font },
 		{ "label", &label, true },
 		{ "slider.type", &type },
 		{ "slider.field_name", &fieldName },
@@ -5975,12 +5980,50 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("text");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##text", &style_text, ImGuiCol_Text, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("text", &style_text, ctx);
+		break;
+	case 1:
+		ImGui::Text("frameBg");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##frameBg", &style_frameBg, ImGuiCol_FrameBg, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("frameBg", &style_frameBg, ctx);
+		break;
+	case 2:
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("border", &style_border, ctx);
+		break;
+	case 3:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 4:
+		ImGui::Text("font");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("font", &style_font, ctx);
+		break;
+	case 5:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##label", &label, ctx);
 		break;
-	case 1:
+	case 6:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5997,14 +6040,14 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 2:
+	case 7:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 3:
+	case 8:
 		ImGui::Text("min");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6017,7 +6060,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 			changed = ImGui::InputFloat("##min", min.access());
 		}
 		break;
-	case 4:
+	case 9:
 		ImGui::Text("max");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6030,13 +6073,13 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 			changed = ImGui::InputFloat("##max", max.access());
 		}
 		break;
-	case 5:
+	case 10:
 		ImGui::Text("format");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = ImGui::InputText("##format", format.access());
 		break;
-	case 6:
+	case 11:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6045,7 +6088,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 7, ctx);
+		return Widget::PropertyUI(i - 12, ctx);
 	}
 	return changed;
 }
@@ -6161,8 +6204,12 @@ ProgressBar::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.text", &style_text },
+		{ "@style.frameBg", &style_frameBg },
 		{ "@style.color", &style_color },
+		{ "@style.border", &style_border },
 		{ "@style.borderSize", &style_frameBorderSize },
+		{ "@style.font", &style_font },
 		{ "progress.field_name", &fieldName },
 		{ "progress.indicator", &indicator },
 		{ "size_x", &size_x },
@@ -6177,25 +6224,63 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("text");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##text", &style_text, ImGuiCol_Text, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("text", &style_text, ctx);
+		break;
+	case 1:
+		ImGui::Text("frameBg");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##frameBg", &style_frameBg, ImGuiCol_FrameBg, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("frameBg", &style_frameBg, ctx);
+		break;
+	case 2:
 		ImGui::Text("color");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputBindable("##color", &style_color, ImGuiCol_PlotHistogram, ctx);
 		break;
-	case 1:
+	case 3:
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("border", &style_border, ctx);
+		break;
+	case 4:
 		ImGui::Text("borderSize");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
 		break;
-	case 2:
+	case 5:
+		ImGui::Text("font");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("font", &style_font, ctx);
+		break;
+	case 6:
+		ImGui::Text("borderSize");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
+		break;
+	case 7:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, "float", false, ctx);
 		break;
-	case 3:
+	case 8:
 	{
 		ImGui::Text("indicator");
 		ImGui::TableNextColumn();
@@ -6205,7 +6290,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 			indicator = ind;
 		break;
 	}
-	case 4:
+	case 9:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6213,7 +6298,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		ImGui::SameLine(0, 0);
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
-	case 5:
+	case 10:
 		ImGui::Text("size_y");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6222,7 +6307,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_y", &size_y, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 6, ctx);
+		return Widget::PropertyUI(i - 11, ctx);
 	}
 	return changed;
 }
@@ -6350,7 +6435,11 @@ ColorEdit::Properties()
 {
 	auto props = Widget::Properties();
 	props.insert(props.begin(), {
+		{ "@style.text", &style_text },
+		{ "@style.frameBg", &style_frameBg },
+		{ "@style.border", &style_border },
 		{ "@style.borderSize", &style_frameBorderSize },
+		{ "@style.font", &style_font },
 		{ "color.flags", &flags },
 		{ "label", &label, true },
 		{ "color.type", &type },
@@ -6371,25 +6460,57 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 	switch (i)
 	{
 	case 0:
+		ImGui::Text("text");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##text", &style_text, ImGuiCol_Text, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("text", &style_text, ctx);
+		break;
+	case 1:
+		ImGui::Text("frameBg");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##frameBg", &style_frameBg, ImGuiCol_FrameBg, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("frameBg", &style_frameBg, ctx);
+		break;
+	case 2:
+		ImGui::Text("border");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("border", &style_border, ctx);
+		break;
+	case 3:
 		ImGui::Text("borderSize");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##borderSize", &style_frameBorderSize, ctx);
 		break;
-	case 1:
+	case 4:
+		ImGui::Text("font");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+		changed = InputBindable("##font", &style_font, ctx);
+		ImGui::SameLine(0, 0);
+		changed |= BindingButton("font", &style_font, ctx);
+		break;
+	case 5:
 		TreeNodeProp("flags", "...", [&] {
 			ImGui::TableNextColumn();
 			ImGui::Spacing();
 			changed = CheckBoxFlags(&flags);
 			});
 		break;
-	case 2:
+	case 6:
 		ImGui::Text("label");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputDirectVal("##label", &label, ctx);
 		break;
-	case 3:
+	case 7:
 		ImGui::Text("type");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6406,14 +6527,14 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 			ImGui::EndCombo();
 		}
 		break;
-	case 4:
+	case 8:
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_NAME_CLR);
 		ImGui::Text("fieldName");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
 		changed = InputFieldRef("##fieldName", &fieldName, type, false, ctx);
 		break;
-	case 5:
+	case 9:
 		ImGui::Text("size_x");
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6422,7 +6543,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
 		changed |= BindingButton("size_x", &size_x, ctx);
 		break;
 	default:
-		return Widget::PropertyUI(i - 6, ctx);
+		return Widget::PropertyUI(i - 10, ctx);
 	}
 	return changed;
 }

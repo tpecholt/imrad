@@ -626,7 +626,7 @@ struct Splitter : Widget
 	void DoExport(std::ostream& os, UIContext& ctx);
 	void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
 	//void CalcSizeEx(ImVec2 p1, UIContext& ctx);
-	const char* GetIcon() const { return ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE; }
+	const char* GetIcon() const { return ICON_FA_TABLE_COLUMNS; }
 };
 
 struct TopWindow : UINode
