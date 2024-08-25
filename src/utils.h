@@ -3,6 +3,7 @@
 #include <cmath>
 #include <imgui.h>
 #include <iostream>
+#include <vector>
 // c17 standard now
 #include <filesystem>
 namespace fs = std::filesystem;
