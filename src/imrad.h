@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <memory>
 #include <functional> //for ModalPopup callback
 #include <fstream> //Save/LoadStyle
 #include <iomanip> //std::quoted
