@@ -729,7 +729,9 @@ struct bindable<dimension> : property_base
 		os << val;
 		str = os.str();
 	}
-	bool empty() const { return str.empty(); }
+	bool empty() const { 
+		return str.empty(); 
+	}
 	bool zero() const {
 		if (empty())
 			return false;

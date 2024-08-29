@@ -212,8 +212,11 @@ struct BoxLayout
 			total += it.spacing;
 			if (it.stretch)
 				stretchTotal += it.size;
-			else if (it.size < 0)
-				total = avail + it.size;
+			else if (it.size < 0) {
+				//total = avail + it.size;
+				stretchTotal += 1.0;
+				total += -it.size;
+			}
 			else
 				total += it.size;
 		}
@@ -221,7 +224,8 @@ struct BoxLayout
 			if (it.stretch)
 				it.size = (float)(int)(it.size * (avail - total) / stretchTotal);
 			else if (it.size < 0)
-				it.size += avail;
+				it.size = (float)(int)(1.0 * (avail - total) / stretchTotal);
+				//it.size += avail;
 		}
 	}
 	//call after a widget call
@@ -247,7 +251,7 @@ struct BoxLayout
 		Item& it = items.back();
 		if (spacing > it.spacing)
 			it.spacing = spacing;
-		if (!it.stretch && size > it.size)
+		if (!it.stretch && (size > it.size || (size < 0 && it.size > 0)))
 			it.size = size;
 	}
 	void UpdateSize(float sp, Stretch size)

@@ -1003,21 +1003,28 @@ void DockspaceUI()
 
 	if (fileTabs.empty())
 	{
-		const std::string label = "Start by clicking the New File button ";
-		const std::string shortcut = "Ctrl + N";
-		ImVec2 size = ImGui::CalcTextSize((label + shortcut).c_str());
-		ImGui::SetCursorPos({ (viewport->WorkSize.x - size.x) / 2, (viewport->WorkSize.y - size.y) / 2 });
-		ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-		clr.w = 0.5f;
-		ImGui::PushStyleColor(ImGuiCol_Text, clr);
-		ImGui::TextUnformatted(label.c_str());
-		ImGui::PopStyleColor();
-		ImGui::SameLine(0, 0);
-		//clr = ImGui::GetStyleColorVec4(ImGuiCol_PlotHistogramHovered);
-		clr.w = 1.f;
-		ImGui::PushStyleColor(ImGuiCol_Text, clr);
-		ImGui::TextUnformatted(shortcut.c_str());
-		ImGui::PopStyleColor();
+		std::pair<std::string, std::string> help[]{
+			{ "Create a New File", "  Ctrl + N" },
+			{ "Open File", "  Ctrl + O" }
+		};
+		float lh = 2 * ImGui::GetTextLineHeight();
+		for (size_t i = 0; i < std::size(help); ++i) {
+			ImVec2 size = ImGui::CalcTextSize((help[i].first + help[i].second).c_str());
+			ImGui::SetCursorPos({ 
+				viewport->WorkSize.x / 2.5f, 
+				(viewport->WorkSize.y - std::size(help) * lh) / 2 + i * lh  
+				});
+			ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+			clr.w = 0.5f;
+			ImGui::PushStyleColor(ImGuiCol_Text, clr);
+			ImGui::TextUnformatted(help[i].first.c_str());
+			ImGui::PopStyleColor();
+			ImGui::SameLine(0, 0);
+			clr.w = 1.f;
+			ImGui::PushStyleColor(ImGuiCol_Text, clr);
+			ImGui::TextUnformatted(help[i].second.c_str());
+			ImGui::PopStyleColor();
+		}
 	}
 
 	ImGui::End();

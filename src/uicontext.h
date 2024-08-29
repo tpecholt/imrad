@@ -15,7 +15,10 @@ struct UIContext
 	//set from outside
 	enum Mode { 
 		NormalSelection, RectSelection, Snap, PickPoint, 
-		ItemDragging, ItemSizingX, ItemSizingY, ItemSizingXY 
+		ItemDragging, 
+		ItemSizingLeft = 0x100, ItemSizingRight = 0x200, 
+		ItemSizingTop = 0x400, ItemSizingBottom = 0x800, 
+		ItemSizingMask = ItemSizingLeft | ItemSizingRight | ItemSizingTop | ItemSizingBottom,
 	};
 	Mode mode = NormalSelection;
 	std::vector<UINode*> selected;

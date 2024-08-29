@@ -12,10 +12,10 @@ const std::string SPEC_FUN[] = {
 	"Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw",
 };
 
-std::string_view CppGen::INDENT = "    ";
-std::string_view CppGen::FOR_VAR_NAME = "i";
-std::string_view CppGen::HBOX_NAME = "hb";
-std::string_view CppGen::VBOX_NAME = "vb";
+const std::string_view CppGen::INDENT = "    ";
+const std::string_view CppGen::FOR_VAR_NAME = "i";
+const std::string_view CppGen::HBOX_NAME = "hb";
+const std::string_view CppGen::VBOX_NAME = "vb";
 
 CppGen::CppGen()
 	: m_name("Untitled"), m_vname("untitled")

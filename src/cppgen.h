@@ -8,10 +8,10 @@
 class CppGen
 {
 public:
-	static std::string_view INDENT;
-	static std::string_view FOR_VAR_NAME;
-	static std::string_view HBOX_NAME;
-	static std::string_view VBOX_NAME;
+	static const std::string_view INDENT;
+	static const std::string_view FOR_VAR_NAME;
+	static const std::string_view HBOX_NAME;
+	static const std::string_view VBOX_NAME;
 
 	CppGen();
 	bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);

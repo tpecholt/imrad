@@ -720,32 +720,42 @@ void Widget::Draw(UIContext& ctx)
 		{
 			ctx.hovered = this;
 		}
-		bool hoverSizeX = 
-			(Behavior() & HasSizeX) &&
-			ctx.selected.size() == 1 && ctx.selected[0] == this &&
-			std::abs(ImGui::GetMousePos().x - cached_pos.x - cached_size.x) < 5 &&
-			size_x.has_value();
-		bool hoverSizeY =
-			(Behavior() & HasSizeY) &&
-			ctx.selected.size() == 1 && ctx.selected[0] == this &&
-			std::abs(ImGui::GetMousePos().y - cached_pos.y - cached_size.y) < 5 &&
-			size_y.has_value();
-		if (hoverSizeX || hoverSizeY)
+		int hoverMode = 0;
+		if ((Behavior() & HasSizeX) && size_x.has_value() &&
+			ctx.selected.size() == 1 && ctx.selected[0] == this)
 		{
-			ImGui::SetMouseCursor((hoverSizeX && hoverSizeY) ? ImGuiMouseCursor_ResizeNWSE :
-				hoverSizeX ? ImGuiMouseCursor_ResizeEW :
-				ImGuiMouseCursor_ResizeNS
-			);
+			if (std::abs(ImGui::GetMousePos().x - cached_pos.x) < 5)
+				hoverMode |= UIContext::ItemSizingLeft;
+			else if (std::abs(ImGui::GetMousePos().x - cached_pos.x - cached_size.x) < 5)
+				hoverMode |= UIContext::ItemSizingRight;
+		}
+		if ((Behavior() & HasSizeY) && size_y.has_value() &&
+			ctx.selected.size() == 1 && ctx.selected[0] == this)
+		{
+			if (std::abs(ImGui::GetMousePos().y - cached_pos.y) < 5)
+				hoverMode |= UIContext::ItemSizingTop;
+			if (std::abs(ImGui::GetMousePos().y - cached_pos.y - cached_size.y) < 5)
+				hoverMode |= UIContext::ItemSizingBottom;
+		}
+		if (hoverMode)
+		{
+			if ((hoverMode & UIContext::ItemSizingLeft) && (hoverMode & UIContext::ItemSizingBottom))
+				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+			else if ((hoverMode & UIContext::ItemSizingRight) && (hoverMode & UIContext::ItemSizingBottom))
+				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+			else if (hoverMode & (UIContext::ItemSizingLeft | UIContext::ItemSizingRight))
+				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+			else if (hoverMode & (UIContext::ItemSizingTop | UIContext::ItemSizingBottom))
+				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+			
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
 			{
-				ctx.mode = (hoverSizeX && hoverSizeY) ? UIContext::ItemSizingXY :
-					hoverSizeX ? UIContext::ItemSizingX : 
-					UIContext::ItemSizingY;
+				ctx.mode = (UIContext::Mode)hoverMode;
 				ctx.dragged = this;
 				ctx.lastSize = { size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
-				if (!ctx.lastSize.x)
+				if (ctx.lastSize.x <= 0)
 					ctx.lastSize.x = cached_size.x;
-				if (!ctx.lastSize.y)
+				if (ctx.lastSize.y <= 0)
 					ctx.lastSize.y = cached_size.y;
 			}
 		}
@@ -792,31 +802,39 @@ void Widget::Draw(UIContext& ctx)
 			ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
 		}
 	}
-	else if (ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
+	else if ((ctx.mode & UIContext::ItemSizingMask) &&
 			allowed && ctx.dragged == this)
 	{
-		ImGui::SetMouseCursor(
-			ctx.mode == UIContext::ItemSizingX ? ImGuiMouseCursor_ResizeEW :
-			ctx.mode == UIContext::ItemSizingY ? ImGuiMouseCursor_ResizeNS :
-			ImGuiMouseCursor_ResizeNWSE
-		);
+		if ((ctx.mode & UIContext::ItemSizingLeft) && (ctx.mode & UIContext::ItemSizingBottom))
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+		else if ((ctx.mode & UIContext::ItemSizingRight) && (ctx.mode & UIContext::ItemSizingBottom))
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+		else if (ctx.mode & (UIContext::ItemSizingLeft | UIContext::ItemSizingRight))
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+		else if (ctx.mode & (UIContext::ItemSizingTop | UIContext::ItemSizingBottom))
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+		
 		if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
 			*ctx.modified = true;
-			ImVec2 delta = ImGui::GetMouseDragDelta();
+			ImVec2 delta = ImGui::GetMouseDragDelta() / ctx.zoomFactor;
 			ImVec2 sp = ImGui::GetStyle().ItemSpacing;
 			if (!sp.x)
 				sp.x = 5;
 			if (!sp.y)
 				sp.y = 5;
 			ImGuiWindow* win = ImGui::GetCurrentWindow();
-			if (ctx.mode != UIContext::ItemSizingY)
+			if (ctx.mode & (UIContext::ItemSizingLeft | UIContext::ItemSizingRight))
 			{
-				float val = ctx.lastSize.x + delta.x / ctx.zoomFactor;
+				float val = ctx.lastSize.x +
+					((ctx.mode & UIContext::ItemSizingLeft) ? -delta.x : delta.x);
 				val = int(val / sp.x) * sp.x;
-				if (ctx.lastSize.x < 0 && !val)
-					val = -1; //snap to the end
-				if (ctx.lastSize.x > 0 && cached_pos.x + val >= win->WorkRect.Max.x)
+				if ((ctx.mode & UIContext::ItemSizingRight) && size_x.value() < 0 && delta.x > 0)
+					val = size_x.value(); //removes flicker
+				/*if (ctx.lastSize.x < 0 && !val)
+					val = -1; //snap to the end*/
+				if ((ctx.mode & UIContext::ItemSizingRight) &&
+					ctx.lastSize.x > 0 && delta.x > 0 && cached_pos.x + val >= win->WorkRect.Max.x)
 				{
 					const ImGuiTable* table = ImGui::GetCurrentTable();
 					const ImGuiTableColumn* column = table ? &table->Columns[table->CurrentColumn] : nullptr;
@@ -831,14 +849,19 @@ void Widget::Draw(UIContext& ctx)
 				}
 				else if (std::signbit(ctx.lastSize.x) == std::signbit(val))
 					size_x = val;
+
 			}
-			if (ctx.mode != UIContext::ItemSizingX)
+			if (ctx.mode & (UIContext::ItemSizingTop | UIContext::ItemSizingBottom))
 			{
-				float val = ctx.lastSize.y + delta.y / ctx.zoomFactor;
+				float val = ctx.lastSize.y +
+					((ctx.mode & UIContext::ItemSizingTop) ? -delta.y : delta.y);
 				val = int(val / sp.y) * sp.y;
-				if (ctx.lastSize.y < 0 && !val)
-					val = -1; //snap to the end
-				if (ctx.lastSize.y > 0 && cached_pos.y + val >= win->WorkRect.Max.y)
+				if ((ctx.mode & UIContext::ItemSizingBottom) && size_y.value() < 0 && delta.y > 0)
+					val = size_y.value(); //removes flicker
+				/*if (ctx.lastSize.y < 0 && !val)
+					val = -1; //snap to the end*/
+				if ((ctx.mode & UIContext::ItemSizingBottom) &&
+					ctx.lastSize.y > 0 && delta.y > 0 && cached_pos.y + val >= win->WorkRect.Max.y)
 					size_y = -1; //set auto size
 				else if (std::signbit(ctx.lastSize.y) == std::signbit(val))
 					size_y = val;
@@ -893,7 +916,7 @@ void Widget::Draw(UIContext& ctx)
 	}
 	if ((selected || ctx.hovered == this) &&
 		ctx.mode != UIContext::ItemDragging &&
-		(ctx.mode < UIContext::ItemSizingX || ctx.mode > UIContext::ItemSizingXY))
+		(ctx.mode & UIContext::ItemSizingMask) == 0)
 	{
 		//dl->PushClipRectFullScreen();
 		drawList->AddRect(
