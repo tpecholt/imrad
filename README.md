@@ -1,4 +1,5 @@
-![img](https://github.com/tpecholt/imrad/actions/workflows/cmake.yml/badge.svg)
+![img](https://github.com/tpecholt/imrad/actions/workflows/windows.yml/badge.svg)
+![img](https://github.com/tpecholt/imrad/actions/workflows/ubuntu.yml/badge.svg)
 
 # ImRAD
 
@@ -90,15 +91,15 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
 
 ## Linux
-1. Due to the GTK FileOpen dialog you need to `apt install` these packages first (exact list depends on your OS):
+1. Due to the GTK FileOpen dialog dependency you need to `apt install` these packages first (exact list depends on your OS):
    
-   `pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev`
+*pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev*
 
 3. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
 
-   ```sudo ./release-linux 0.7```
+   ```sudo ./release-linux 0.8```
 
-4. ImRAD will be installed into *./install/imrad-0.7*
+4. ImRAD will be installed into *./install/imrad-0.8*
 
 # How to debug
    
