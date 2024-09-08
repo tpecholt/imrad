@@ -1846,7 +1846,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 	{
 		itemCount.set_from_arg(sit->line);
 	}
-	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 &&
+	else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 + !itemCount.empty() &&
 		columnData.size() &&
 		sit->callee.compare(0, 7, "ImGui::") &&
 		sit->callee.compare(0, 7, "ImRad::"))
@@ -1856,7 +1856,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 		else
 			onBeginRow.set_from_arg(sit->callee);
 	}
-	else if (sit->kind == cpp::IfStmt && sit->level == ctx.importLevel + 1 &&
+	else if (sit->kind == cpp::IfStmt && sit->level == ctx.importLevel + 1 + !itemCount.empty() &&
 		columnData.size() &&
 		!sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
 	{
