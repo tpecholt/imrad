@@ -1,4 +1,4 @@
-name: CMake
+name: ubuntu
 
 on:
   push:
@@ -26,11 +26,7 @@ jobs:
     - name: apt install
       run: |
            sudo apt update
-<<<<<<< HEAD
-           sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libgtk-3-dev libsystemd-dev
-=======
            sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libgtk-3-dev libsystemd-dev libwebp-dev libzstd-dev
->>>>>>> Super-Genius/main
 
 
     - name: Configure CMake
