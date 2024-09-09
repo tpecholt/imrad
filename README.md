@@ -5,20 +5,21 @@
 
 ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code which can be directly used in your application.  
 
+Unlike other tools ImRAD can be used for continuous modification of the generated UI. Data binding, events and even manual
+UI code additions are well supported. 
+
 ImRAD runs on Windows, Linux and MacOS. 
 
 # Features
 
-ImRAD is under active development but these are the main features:
-
-* supports designing all kinds of windows
+* Supports designing all kinds of windows
   * Floating windows, popups and modal popups. These are ImGui backend independent
   * MainWindow with GLFW integration. ImRAD generates GLFW calls which will synchronize ImGui window with its OS window (title bar, resizability flags, autosize etc.)
-  * Activity. This is a undecorated window which fills the entire viewport area. Only one activity can be shown at the time. Used mainly for Android apps  
+  * Activity. This is an undecorated window which fills the entire viewport area. Only one activity can be shown at the time. Used mainly for Android apps  
   * contains a GLFW template for generating generic `main.cpp`
-  * contains an android template for generating generic `MainActivity.java`+`manifest`+`main.cpp`
+  * contains an android template for generating generic `MainActivity.java`, `AndroidManifest.xml`, `main.cpp` and `CMakeLists.txt`
   
-* supports wide range of widgets
+* Supports wide range of widgets
   
   * basic widgets like `Text`, `Checkbox`, `Combo`, `Button`, `Slider`, `ColorEdit` etc.
   * container widgets like `Child`, `Table`, `CollapsingHeader`, `TreeNode`, `TabBar`,
@@ -26,41 +27,41 @@ ImRAD is under active development but these are the main features:
   * `MenuBar` and context menu editing
   * `CustomWidget` (a placeholder to user code)
 
-* generates layout using `SameLine`/`Spacing`/`NextColumn` instead of absolute positioning 
+* Generates layout using `SameLine`/`Spacing`/`NextColumn` instead of absolute positioning 
   
   * this ensures widgets respect item spacing and frame padding in a consistent way
   * there is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
-  * overlay widgets can be placed on top using relative position to the nearest window corner
+  * alternative positioning where widget keeps relative distance from a selected parent's scorner
 
-* supports box layout
+* Supports box layout
 
   * powerful and simple to use layout mechanism implemented on top of ImGui functionality
   * stretch any sizeable widget in horizontal or vertical direction
   * insert spacers to achieve alignment
   * alternatively you can use Table Layout Helper to generate horizontal layout using invisible Table
 
-* supports property binding 
+* Supports property binding 
   
+  * because ImGui is an immediate mode GUI library widget state like input text or combobox items must be set at the time of drawing from within the generated code through property binding. 
   * class variables can be managed through simple class wizard or from binding dialog
-  * property binding is important because ImGui is immediate mode GUI library so widget states like input text or combobox items must be set at the time of drawing from within the generated code. 
   * using property binding generated UI becomes dynamic and yet it can still be designed at the same time  
 
-* supports generating event handlers and other support code
+* Supports generating event handlers and other support code
   
-  * for example modal dialog will generate `OpenPopup` member function with a lambda callback called when dialog is closed
+  * for example modal dialog will automatically generate an `OpenPopup` member function with a lambda callback called when the dialog is closed
   * event handlers allow event handling user code to be separated from the generated part so the designer still works
 
-* generated code is delimited by comment markers and user is free to add additional code around and continue to use ImRAD at the same time
+* Generated code is delimited by comment markers and user can insert additional code around and continue to use ImRAD at the same time
   
   * this can be used to call dependent popup Draw calls or to calculate some variables
-  * it is also possible to use `CustomWidget` which will just call to a user code callback
+  * it is also possible to use `CustomWidget` which will delegate to a user callback function
 
-* target window style is fully configurable
+* Target window style is fully configurable
   * apart from default styles provided by ImGui user can define new style and save it as an INI file under the `style` folder. Colors, style variables and used fonts can all be configured.
-  * ImRAD will follow style settings when designing your UI
-  * stored style can be loaded in your app by using simple `imrad.h` function  
+  * ImRAD will follow chosen style settings when designing your UI
+  * stored style can be loaded in your app by using simple `imrad.h` functionality  
 
-* generated code is ready to use in your project and depends only on ImGui library and one accompanying header file (imrad.h)
+* Generated code is ready to use in your project and depends only on ImGui library and one accompanying header file (imrad.h)
 
   * some features such as MainWindow or Image widget require GLFW dependency. Compile your code with `IMRAD_WITH_GLFW` to activate it
   * currently Image widget requires stb library as well. Compile your code with `IMRAD_WITH_STB` or supply your own `LoadTextureFromFile()`
@@ -78,7 +79,7 @@ ImRAD is under active development but these are the main features:
 
 # Download binaries
 
-for up-to date version clone & build the repository using CMake. Don't forget to fetch submodules in the 3rdparty directory too.
+For up-to date version clone & build the repository using CMake. Don't forget to fetch submodules in the 3rdparty directory too.
 
 Somewhat older version can be downloaded from [Releases](https://github.com/tpecholt/imrad/releases)
 
@@ -93,7 +94,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 ## Linux
 1. Due to the GTK FileOpen dialog dependency you need to `apt install` these packages first (exact list depends on your OS):
    
-*pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev*
+   *pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev*
 
 3. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
 
