@@ -1,7 +1,7 @@
 // Generated with ImRAD 0.7
 // visit https://github.com/tpecholt/imrad
 
-#include "test.h"
+#include "test.hpp"
 
 Test test;
 
