@@ -1749,12 +1749,15 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 12:
+    {
         ImGui::BeginDisabled(!snapSides);
         ImGui::Text("nextColumn");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        if (ImGui::InputInt("##nextColumn", nextColumn.access())) {
+        int tmp = nextColumn;
+        if (ImGui::InputInt("##nextColumn", &tmp) && tmp >= 0) {
             changed = true;
+            nextColumn = tmp;
             if (nextColumn) {
                 sameLine = false;
                 spacing = 0;
@@ -1762,6 +1765,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::EndDisabled();
         break;
+    }
     case 13:
         ImGui::BeginDisabled(!snapSides);
         ImGui::Text("allowOverlap");
