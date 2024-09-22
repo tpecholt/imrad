@@ -3,8 +3,9 @@
 
 # ImRAD
 <div align="center">
-<img src="./src/icon.png" alt="logo" width="200" align="center">
+<img src="./src/icon.png" alt="logo" width="150" align="center">
 </div>
+<br>
 
 ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code which can be directly used in your application.  
 
