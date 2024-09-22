@@ -11,30 +11,30 @@
 class ClassWizard
 {
 public:
-	void OpenPopup();
-	void ClosePopup();
-	void Draw();
+    void OpenPopup();
+    void ClosePopup();
+    void Draw();
 
 public:
-	CppGen* codeGen;
-	UINode* root;
-	bool* modified;
-	
+    CppGen* codeGen;
+    UINode* root;
+    bool* modified;
+    
 private:
-	void Refresh();
-	void FindUsed(UINode* node, std::vector<std::string>& used);
+    void Refresh();
+    void FindUsed(UINode* node, std::vector<std::string>& used);
 
-	std::string varName;
-	std::string className;
-	std::vector<std::string> stypes;
-	std::vector<CppGen::Var> fields;
-	std::vector<std::string> used;
-	size_t stypeIdx;
-	int selRow;
-	
+    std::string varName;
+    std::string className;
+    std::vector<std::string> stypes;
+    std::vector<CppGen::Var> fields;
+    std::vector<std::string> used;
+    size_t stypeIdx;
+    int selRow;
+    
 private:
-	ImGuiID ID;
-	bool requestClose;
+    ImGuiID ID;
+    bool requestClose;
 };
 
 extern ClassWizard classWizard;

@@ -26,10 +26,10 @@ void ComboDlg::Draw()
         /// @begin Input
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-		ImGui::PushFont(defaultFont);
+        ImGui::PushFont(defaultFont);
         ImGui::InputTextMultiline("##value", &value, { -1, -40 }, ImGuiInputTextFlags_Multiline);
-		ImGui::PopFont();
-		/// @end Input
+        ImGui::PopFont();
+        /// @end Input
 
         /// @begin Table
         ImGui::Spacing();

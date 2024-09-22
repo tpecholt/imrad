@@ -21,7 +21,7 @@ public:
     UIContext * ctx;
     /// @end interface
 
-	static void ExpandSelection(std::vector<UINode*>& selected, UINode* root);
+    static void ExpandSelection(std::vector<UINode*>& selected, UINode* root);
 
 private:
     /// @begin impl

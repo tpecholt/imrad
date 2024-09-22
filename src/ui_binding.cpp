@@ -47,7 +47,7 @@ void BindingDlg::Draw()
         }
         /// @separator
 
-		newFieldPopup.Draw();
+        newFieldPopup.Draw();
 
         /// @begin Text
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff4d4dff);
@@ -160,9 +160,9 @@ void BindingDlg::Draw()
         hb5.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
-			bool exprValid = true;
-			if (type == "bool" || type == "float" || type == "int")
-				exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
+            bool exprValid = true;
+            if (type == "bool" || type == "float" || type == "int")
+                exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::SetCursorPosX(hb5);
@@ -196,34 +196,34 @@ void BindingDlg::Draw()
 
 void BindingDlg::Refresh()
 {
-	vars = codeGen->GetVarExprs(showAll ? "" : type);
+    vars = codeGen->GetVarExprs(showAll ? "" : type);
 }
 
 void BindingDlg::OnNewField()
 {
-	newFieldPopup.mode = NewFieldPopup::NewField;
-	newFieldPopup.varType = ""; //allow all types f.e. vector<string> for taking its .size()
-	newFieldPopup.scope = "";
-	newFieldPopup.codeGen = codeGen;
-	newFieldPopup.OpenPopup([this] {
-		Refresh();
-		});
+    newFieldPopup.mode = NewFieldPopup::NewField;
+    newFieldPopup.varType = ""; //allow all types f.e. vector<string> for taking its .size()
+    newFieldPopup.scope = "";
+    newFieldPopup.codeGen = codeGen;
+    newFieldPopup.OpenPopup([this] {
+        Refresh();
+        });
 }
 
 void BindingDlg::OnVarClicked()
 {
-	int idx = ImGui::TableGetRowIndex() - 1; //header row
-	if (type == "std::string" || type == "std::vector<std::string>")
-		expr += "{" + vars[idx].first + "}";
-	else
-		expr = vars[idx].first;
-	focusExpr = true;
+    int idx = ImGui::TableGetRowIndex() - 1; //header row
+    if (type == "std::string" || type == "std::vector<std::string>")
+        expr += "{" + vars[idx].first + "}";
+    else
+        expr = vars[idx].first;
+    focusExpr = true;
 }
 
 void BindingDlg::Init()
 {
-	showAll = type == "std::string";
-	Refresh();
+    showAll = type == "std::string";
+    Refresh();
 }
 
 void BindingDlg::ResetLayout()

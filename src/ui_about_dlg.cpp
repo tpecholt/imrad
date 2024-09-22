@@ -26,7 +26,7 @@ void AboutDlg::ClosePopup(ImRad::ModalResult mr)
 
 void AboutDlg::Init()
 {
-	// TODO: Add your code here
+    // TODO: Add your code here
 }
 
 void AboutDlg::Draw()
@@ -190,24 +190,24 @@ void AboutDlg::Draw()
 
 void AboutDlg::OpenURL()
 {
-	switch (ImGui::TableGetRowIndex())
-	{
-	case 0:
-		ShellExec(GITHUB_URL);
-		break;
-	case 1:
-		ShellExec(GITHUB_URL + "/wiki");
-		break;
-	case 2:
-		ShellExec(GITHUB_URL + "/issues");
-		break;
-	}
+    switch (ImGui::TableGetRowIndex())
+    {
+    case 0:
+        ShellExec(GITHUB_URL);
+        break;
+    case 1:
+        ShellExec(GITHUB_URL + "/wiki");
+        break;
+    case 2:
+        ShellExec(GITHUB_URL + "/issues");
+        break;
+    }
 }
 
 void AboutDlg::HoverURL()
 {
-	ImVec2 p1 = ImGui::GetItemRectMin();
-	ImVec2 p2 = ImGui::GetItemRectMax();
-	auto* dl = ImGui::GetWindowDrawList();
-	dl->AddLine({ p1.x, p2.y }, { p2.x, p2.y }, 0xff003399);
+    ImVec2 p1 = ImGui::GetItemRectMin();
+    ImVec2 p2 = ImGui::GetItemRectMax();
+    auto* dl = ImGui::GetWindowDrawList();
+    dl->AddLine({ p1.x, p2.y }, { p2.x, p2.y }, 0xff003399);
 }

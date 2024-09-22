@@ -153,7 +153,7 @@ void SettingsDlg::Draw()
         hb3.BeginLayout();
         ImGui::SetCursorPosX(hb3);
         ImRad::Dummy({ hb3.GetSize(), 0 });
-		vb1.AddSize(2, ImRad::VBox::ItemSize);
+        vb1.AddSize(2, ImRad::VBox::ItemSize);
         hb3.AddSize(0, ImRad::HBox::Stretch(1));
         /// @end Spacer
 

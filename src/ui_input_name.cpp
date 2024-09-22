@@ -26,8 +26,8 @@ void InputName::ClosePopup(ImRad::ModalResult mr)
 
 void InputName::Init()
 {
-	// TODO: Add your code here
-	name = "";
+    // TODO: Add your code here
+    name = "";
 }
 
 void InputName::Draw()
@@ -54,7 +54,7 @@ void InputName::Draw()
         /// @separator
 
         // TODO: Add Draw calls of dependent popup windows here
-		messageBox.Draw();
+        messageBox.Draw();
 
         /// @begin Input
         if (ImGui::IsWindowAppearing())

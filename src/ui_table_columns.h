@@ -10,19 +10,19 @@
 class TableColumns
 {
 public:
-	void OpenPopup();
-	void Draw();
+    void OpenPopup();
+    void Draw();
 
 public:
-	/// @interface
-	std::vector<Table::ColumnData> columnData;
-	std::vector<Table::ColumnData>* target;
-	ImFont* defaultFont = nullptr;
+    /// @interface
+    std::vector<Table::ColumnData> columnData;
+    std::vector<Table::ColumnData>* target;
+    ImFont* defaultFont = nullptr;
 
 private:
-	ImGuiID ID;
-	int selRow = 0;
-	float selY = 0;
+    ImGuiID ID;
+    int selRow = 0;
+    float selY = 0;
 };
 
 extern TableColumns tableColumns;
