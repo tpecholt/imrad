@@ -2,6 +2,9 @@
 ![img](https://github.com/tpecholt/imrad/actions/workflows/ubuntu.yml/badge.svg)
 
 # ImRAD
+<div align="center">
+<img src="./src/icon.png" alt="logo" width="200" align="center">
+</div>
 
 ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code which can be directly used in your application.  
 
