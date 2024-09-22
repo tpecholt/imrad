@@ -118,9 +118,17 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 
 ![screen1](https://github.com/tpecholt/imrad/blob/main/doc/screen1.png)
 
+# Sponsorship
+
+Development of ImRAD happens in my free time outside of my regular job, yoga, volunteering and other activities. 
+
+If you like the tool and want to support its further development please do. If you use it regularly you can even setup a monthly donation if it's convenient for you.
+
+[![kofi_button_black](https://github.com/user-attachments/assets/67a4a74a-0c06-425a-be98-55da20f05181)](https://ko-fi.com/tope99)
+
 # More information
 
-Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and more detailed content
+Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and more detailed content.
 
 # Credits
 
