@@ -1955,7 +1955,7 @@ std::string GetRootPath()
 #endif
 }
 
-#ifdef WIN32
+#if (WIN32) && !(__MINGW32__)
 int WINAPI wWinMain(
     HINSTANCE   hInstance,
     HINSTANCE   hPrevInstance,
