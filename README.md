@@ -1,5 +1,6 @@
 ![img](https://github.com/tpecholt/imrad/actions/workflows/windows.yml/badge.svg)
 ![img](https://github.com/tpecholt/imrad/actions/workflows/ubuntu.yml/badge.svg)
+![img](https://github.com/tpecholt/imrad/actions/workflows/msys2.yml/badge.svg)
 
 # ImRAD
 <div align="center">
