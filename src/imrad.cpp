@@ -579,6 +579,8 @@ void ShowCode()
         return;
     std::string path = (fs::temp_directory_path() / "imrad-preview.cpp").string();
     std::ofstream fout(path);
+    fout << "// NOTE: This is just a preview of the Draw() method. To see full generated code\n"
+         << "// including class definition and event handlers inspect the generated .h/cpp files\n\n";
     ctx.ind = "";
     auto* root = fileTabs[activeTab].rootNode.get();
     root->Export(fout, ctx);
