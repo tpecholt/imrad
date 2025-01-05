@@ -13,7 +13,7 @@ add_library(imgui STATIC
 	${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
 )
 
-add_definitions(-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS)
+#add_definitions(-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 add_definitions(-DIMGUI_ENABLE_FREETYPE)
 #add_definitions(-DIMGUI_USE_WCHAR32)
 

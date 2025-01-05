@@ -142,7 +142,7 @@ inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool b
 {
     if (button) {
         const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
-        bool hasWidth = nextItemData.Flags & ImGuiNextItemDataFlags_HasWidth;
+        bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
         ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
     }
 
@@ -223,7 +223,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
     
     ImGui::SameLine();
     ImVec2 sz{ 0, 0 };
-    if (nextData.Flags & ImGuiNextItemDataFlags_HasWidth)
+    if (nextData.HasFlags & ImGuiNextItemDataFlags_HasWidth)
     {
         sz.x = nextData.Width;
         if (sz.x < 0)
@@ -441,7 +441,7 @@ inline bool InputBindable(const char* label, bindable<dimension>* val, dimension
 {
     if (flags & InputBindable_StretchButton) {
         const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
-        bool hasWidth = nextItemData.Flags & ImGuiNextItemDataFlags_HasWidth;
+        bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
         ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
     }
 

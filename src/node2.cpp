@@ -216,8 +216,8 @@ void TopWindow::Draw(UIContext& ctx)
     else if (placement == Bottom)
         ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersBottom);
 
-    ImGui::GetCurrentContext()->NavDisableMouseHover = true;
-    ImGui::GetCurrentContext()->NavDisableHighlight = true;
+    ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
+    ImGui::GetCurrentContext()->NavCursorVisible = false;
     if (dimAll)
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.3f);
 
@@ -226,8 +226,8 @@ void TopWindow::Draw(UIContext& ctx)
     
     if (dimAll)
         ImGui::PopStyleVar();
-    ImGui::GetCurrentContext()->NavDisableHighlight = false;
-    ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+    ImGui::GetCurrentContext()->NavCursorVisible = true;
+    ImGui::GetCurrentContext()->NavHighlightItemUnderNav = false;
 
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->DrawExtra(ctx);
@@ -1873,7 +1873,7 @@ Child::Child(UIContext& ctx)
     size_x = size_y = 20;
 
     flags.prefix("ImGuiChildFlags_");
-    flags.add$(ImGuiChildFlags_Border);
+    flags.add$(ImGuiChildFlags_Borders);
     flags.add$(ImGuiChildFlags_AlwaysUseWindowPadding);
     flags.add$(ImGuiChildFlags_AlwaysAutoResize);
     flags.add$(ImGuiChildFlags_AutoResizeX);

@@ -524,7 +524,7 @@ inline int ScrollWhenDragging(bool drawScrollbars)
         int ret = !dragState ? 1 : 0;
         dragState = 1;
         ImGuiWindow *window = ImGui::GetCurrentWindow();
-        ImGui::GetCurrentContext()->NavDisableMouseHover = true;
+        ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
         ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
         if (delta.x)
             ImGui::SetScrollX(window, window->Scroll.x - delta.x);
@@ -553,7 +553,7 @@ inline int ScrollWhenDragging(bool drawScrollbars)
     else if (dragState == 1)
     {
         dragState = 0;
-        ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+        ImGui::GetCurrentContext()->NavHighlightItemUnderNav = false;
         ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
         return 2;
     }
@@ -589,7 +589,7 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
             mousePos[1] = mousePos[2];
             mousePos[2] = ImGui::GetMousePos();
             ImGuiWindow *window = ImGui::GetCurrentWindow();
-            ImGui::GetCurrentContext()->NavDisableMouseHover = true;
+            ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
 
             ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
             //don't reset DragDelta - we need to apply full delta if pos
@@ -629,7 +629,7 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
             pos = lastPos;
             dimBgRatio = lastDim;
             dragState = 0;
-            ImGui::GetCurrentContext()->NavDisableMouseHover = false;
+            ImGui::GetCurrentContext()->NavHighlightItemUnderNav = false;
             ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
 
             float spx = (mousePos[2].x - mousePos[0].x) / 2;
