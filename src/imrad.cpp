@@ -1172,24 +1172,6 @@ void ToolbarUI()
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
     
     ImGui::SameLine();
-    bool showHelper = activeTab >= 0 && 
-        ctx.selected.size() >= 1 && 
-        (ctx.selected[0]->Behavior() & UINode::SnapSides);
-    ImGui::BeginDisabled(!showHelper);
-    if (ImGui::Button(ICON_FA_LEFT_RIGHT))
-    {
-        horizLayout.root = fileTabs[activeTab].rootNode.get();
-        HorizLayout::ExpandSelection(ctx.selected, horizLayout.root);
-        horizLayout.selected = ctx.selected;
-        horizLayout.ctx = &ctx;
-        horizLayout.OpenPopup();
-    }
-    ImGui::EndDisabled();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip("Table Layout Helper");
-    ImGui::SameLine();
-    
-    ImGui::SameLine();
     ImGui::BeginDisabled(activeTab < 0);
     if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, ImGuiInputFlags_RouteGlobal))
@@ -1209,6 +1191,24 @@ void ToolbarUI()
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Class Wizard");
     
+    ImGui::SameLine();
+    bool showHelper = activeTab >= 0 &&
+        ctx.selected.size() >= 1 &&
+        (ctx.selected[0]->Behavior() & UINode::SnapSides);
+    ImGui::BeginDisabled(!showHelper);
+    if (ImGui::Button(ICON_FA_BORDER_NONE))
+    {
+        horizLayout.root = fileTabs[activeTab].rootNode.get();
+        HorizLayout::ExpandSelection(ctx.selected, horizLayout.root);
+        horizLayout.selected = ctx.selected;
+        horizLayout.ctx = &ctx;
+        horizLayout.OpenPopup();
+    }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        ImGui::SetTooltip("Table Layout Helper");
+    ImGui::SameLine();
+
     ImGui::EndDisabled();
     
     ImGui::SameLine();
@@ -1236,8 +1236,8 @@ void ToolbarUI()
     }
 
     ImGui::SameLine();
-    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-    
+    float defHeight = ImGui::GetFrameHeightWithSpacing();
+    ImGui::Dummy(ImGui::CalcItemSize({ -defHeight, 1 }, 0, 0));
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CIRCLE_INFO) ||
         ImGui::Shortcut(ImGuiKey_F1, ImGuiInputFlags_RouteGlobal))

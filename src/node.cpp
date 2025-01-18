@@ -1860,7 +1860,7 @@ bool Widget::EventUI(int i, UIContext& ctx)
 
 void Widget::TreeUI(UIContext& ctx)
 {
-    std::string label;
+    std::string label, typeLabel;
     const auto props = Properties();
     for (const auto& p : props) {
         if (p.kbdInput && p.property->c_str()) {
@@ -1868,13 +1868,13 @@ void Widget::TreeUI(UIContext& ctx)
         }
     }
     if (label.empty()) {
-        label = typeid(*this).name();
-        auto i = label.find(' ');
+        typeLabel = typeid(*this).name();
+        auto i = typeLabel.find(' ');
         if (i != std::string::npos)
-            label.erase(0, i + 1);
-        auto it = stx::find_if(label, [](char c) { return isalpha(c); });
-        if (it != label.end())
-            label.erase(0, it - label.begin());
+            typeLabel.erase(0, i + 1);
+        auto it = stx::find_if(typeLabel, [](char c) { return isalpha(c); });
+        if (it != typeLabel.end())
+            typeLabel.erase(0, it - typeLabel.begin());
     }
     std::string icon = ICON_FA_BARS;
     if (GetIcon()) {
@@ -1918,7 +1918,10 @@ void Widget::TreeUI(UIContext& ctx)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_Text]);
         ImGui::SameLine();
         ImGui::PushFont(ctx.defaultFont);
-        ImGui::Text("%s", label.c_str());
+        if (label != "")
+            ImGui::Text("\"%s\"", label.c_str());
+        else
+            ImGui::Text("%s", typeLabel.c_str());
         ImGui::PopFont();
         ImGui::PopStyleColor();
         ImGui::SameLine();
