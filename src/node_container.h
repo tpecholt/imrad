@@ -5,7 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <imgui.h>
-#include "node.h"
+#include "node_standard.h"
 
 struct Table : Widget
 {

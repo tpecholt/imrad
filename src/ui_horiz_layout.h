@@ -3,7 +3,7 @@
 
 #pragma once
 #include "imrad.h"
-#include "node.h"
+#include "node_standard.h"
 
 class HorizLayout
 {

@@ -1,5 +1,4 @@
 #pragma once
-#include "binding.h"
 #include "cppgen.h"
 #include <imgui.h>
 #include <string>

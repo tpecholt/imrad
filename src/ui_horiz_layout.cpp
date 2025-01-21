@@ -2,7 +2,7 @@
 // visit github.com/tpecholt/imrad
 
 #include "ui_horiz_layout.h"
-#include "node2.h"
+#include "node_container.h"
 
 HorizLayout horizLayout;
 

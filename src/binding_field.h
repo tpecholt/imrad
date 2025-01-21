@@ -1,6 +1,5 @@
 #pragma once
-#include "binding.h"
-#include "node.h"
+#include "binding_property.h"
 #include "cppgen.h"
 
 template <class T> 

@@ -6,7 +6,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include "stx.h"
 #include "utils.h"
-#include "binding.h"
+#include "binding_property.h"
 #include "cppgen.h"
 #include "ui_new_field.h"
 #include "ui_binding.h"

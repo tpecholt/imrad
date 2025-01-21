@@ -24,7 +24,7 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <nfd.h>
 
-#include "node.h"
+#include "node_standard.h"
 #include "cppgen.h"
 #include "utils.h"
 #include "ui_new_field.h"

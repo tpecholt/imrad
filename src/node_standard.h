@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <imgui.h>
 #include "uicontext.h"
-#include "binding.h"
+#include "binding_property.h"
 #include "imrad.h"
 #include "IconsFontAwesome6.h"
 
