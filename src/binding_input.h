@@ -92,7 +92,7 @@ inline bool InputDirectVal(const char* label, direct_val<bool>* val, UIContext& 
 inline bool InputDirectVal(const char* label, direct_val<std::string>* val, UIContext& ctx)
 {
     ImGui::PushFont(ctx.defaultFont);
-    bool ch = ImGui::InputText(label, val->access());
+    bool ch = ImGui::InputText(label, val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();
     return ch;
 }
@@ -105,7 +105,7 @@ inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool b
         ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
     }
 
-    bool changed = ImGui::InputText(label, val->access());
+    bool changed = ImGui::InputText(label, val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
 
     if (button) {
         ImGui::SameLine(0, 0);
@@ -387,7 +387,7 @@ inline bool InputBindable(const char* label, bindable<color32>* val, int def, UI
 inline bool InputBindable(const char* label, bindable<std::string>* val, UIContext& ctx)
 {
     ImGui::PushFont(ctx.defaultFont);
-    bool changed = ImGui::InputText(label, val->access());
+    bool changed = ImGui::InputText(label, val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();
     return changed;
 }
@@ -403,9 +403,9 @@ inline bool InputBindable(const char* label, bindable<dimension>* val, dimension
         bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
         ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
     }
-
+    
     bool stretch = val->stretched();
-    bool changed = ImGui::InputText(label, val->access());
+    bool changed = ImGui::InputText(label, val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
 
     //disallow empty state except string values
     if (ImGui::IsItemDeactivatedAfterEdit())
@@ -441,7 +441,7 @@ template <class T,
     class = std::enable_if_t<!std::is_same_v<T, dimension>> >
 inline bool InputBindable(const char* label, bindable<T>* val, T defVal, UIContext& ctx)
 {
-    bool changed = ImGui::InputText(label, val->access());
+    bool changed = ImGui::InputText(label, val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
 
     //disallow empty state except string values
     if (ImGui::IsItemDeactivatedAfterEdit() &&

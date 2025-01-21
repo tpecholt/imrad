@@ -90,7 +90,7 @@ void NewFieldPopup::Draw()
         {
             ImGui::Spacing();
             ImGui::Text("Initial value:");
-            if (ImGui::InputText("##init", &varInit))
+            if (ImGui::InputText("##init", &varInit, ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter))
                 change = true;
         }
 

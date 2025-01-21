@@ -60,6 +60,8 @@ inline std::ostream& operator<< (std::ostream& os, std::string_view t)
 
 void ShellExec(const std::string& path);
 
+int InputTextCharExprFilter(ImGuiInputTextCallbackData* data);
+
 //----------------------------------------------------------------------
 
 template <class T>

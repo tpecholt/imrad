@@ -15,6 +15,15 @@ void ShellExec(const std::string& path)
 #endif
 }
 
+int InputTextCharExprFilter(ImGuiInputTextCallbackData* data)
+{
+    //always map numpad decimal point to . (all expressions are in C)
+    //int localeDP = *localeconv()->decimal_point;
+    if (data->EventChar == ',' && ImGui::IsKeyDown(ImGuiKey_KeypadDecimal))
+        data->EventChar = '.';
+    return 0;
+}
+
 //----------------------------------------------------
 
 child_iterator::iter::iter()

@@ -3,6 +3,7 @@
 
 #include "ui_binding.h"
 #include "ui_new_field.h"
+#include "utils.h"
 
 BindingDlg bindingDlg;
 
@@ -74,16 +75,15 @@ void BindingDlg::Draw()
             ImGui::SetKeyboardFocusHere();
         }
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_None);
+        ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
         if (ImGui::IsItemActive())
             ioUserData->imeType = ImRad::ImeText;
         ImGui::PopFont();
         /// @end Input
 
         /// @begin Text
-        ImRad::Spacing(1);
         hb3.BeginLayout();
-        ImGui::SetCursorPosX(hb3);
+        ImRad::Spacing(1);
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Available fields:");
         hb3.AddSize(0, ImRad::HBox::ItemSize);
@@ -91,14 +91,12 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosX(hb3);
         ImRad::Dummy({ hb3.GetSize(), 0 });
         hb3.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
         /// @begin CheckBox
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosX(hb3);
         if (ImGui::Checkbox("show all", &showAll))
             Refresh();
         hb3.AddSize(1, ImRad::HBox::ItemSize);
@@ -143,9 +141,8 @@ void BindingDlg::Draw()
         /// @end Table
 
         /// @begin Button
-        ImRad::Spacing(1);
         hb5.BeginLayout();
-        ImGui::SetCursorPosX(hb5);
+        ImRad::Spacing(1);
         if (ImGui::Button(" New Field... ", { 110, 30 }))
         {
             OnNewField();
@@ -155,7 +152,6 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosX(hb5);
         ImRad::Dummy({ hb5.GetSize(), 0 });
         hb5.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
@@ -165,7 +161,6 @@ void BindingDlg::Draw()
                 exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosX(hb5);
         ImGui::BeginDisabled(!exprValid);
         if (ImGui::Button("OK", { 90, 30 }))
         {
@@ -177,7 +172,6 @@ void BindingDlg::Draw()
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosX(hb5);
         if (ImGui::Button("Cancel", { 90, 30 }) ||
             ImGui::Shortcut(ImGuiKey_Escape))
         {
@@ -228,6 +222,7 @@ void BindingDlg::Init()
 
 void BindingDlg::ResetLayout()
 {
+    // ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 2;
     hb3.Reset();
     hb5.Reset();
 }
