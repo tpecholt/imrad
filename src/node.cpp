@@ -1807,50 +1807,50 @@ bool Widget::EventUI(int i, UIContext& ctx)
         ImGui::Text("IsItemContextMenuClicked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##IsContextMenu", &onItemContextMenuClicked, ctx);
+        changed = InputEvent("##IsContextMenu", &onItemContextMenuClicked, 0, ctx);
         ImGui::EndDisabled();
         break;
     case 1:
         ImGui::Text("IsItemHovered");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##IsItemHovered", &onItemHovered, ctx);
+        changed = InputEvent("##IsItemHovered", &onItemHovered, 0, ctx);
         break;
     case 2:
         ImGui::Text("IsItemClicked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##itemclicked", &onItemClicked, ctx);
+        changed = InputEvent("##itemclicked", &onItemClicked, 0, ctx);
         break;
     case 3:
         ImGui::Text("IsItemDoubleClicked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##itemdblclicked", &onItemDoubleClicked, ctx);
+        changed = InputEvent("##itemdblclicked", &onItemDoubleClicked, 0, ctx);
         break;
     case 4:
         ImGui::Text("IsItemFocused");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##IsItemFocused", &onItemFocused, ctx);
+        changed = InputEvent("##IsItemFocused", &onItemFocused, 0, ctx);
         break;
     case 5:
         ImGui::Text("IsItemActivated");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##IsItemActivated", &onItemActivated, ctx);
+        changed = InputEvent("##IsItemActivated", &onItemActivated, 0, ctx);
         break;
     case 6:
         ImGui::Text("IsItemDeactivated");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##IsItemDeactivated", &onItemDeactivated, ctx);
+        changed = InputEvent("##IsItemDeactivated", &onItemDeactivated, 0, ctx);
         break;
     case 7:
         ImGui::Text("IsItemDeactivatedAfterEdit");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##IsItemDeactivatedAfterEdit", &onItemDeactivatedAfterEdit, ctx);
+        changed = InputEvent("##IsItemDeactivatedAfterEdit", &onItemDeactivatedAfterEdit, 0, ctx);
         break;
     default:
         return false;
@@ -2724,7 +2724,7 @@ bool Selectable::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -3107,7 +3107,7 @@ bool Button::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -3293,7 +3293,7 @@ bool CheckBox::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -3479,7 +3479,7 @@ bool RadioButton::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -3504,11 +3504,10 @@ Input::Input(UIContext& ctx)
     flags.add$(ImGuiInputTextFlags_CharsUppercase);
     flags.add$(ImGuiInputTextFlags_CharsNoBlank);
     flags.add$(ImGuiInputTextFlags_AutoSelectAll);
-    /* TODO: make events
     flags.add$(ImGuiInputTextFlags_CallbackCompletion);
     flags.add$(ImGuiInputTextFlags_CallbackHistory);
     flags.add$(ImGuiInputTextFlags_CallbackAlways);
-    flags.add$(ImGuiInputTextFlags_CallbackCharFilter);*/
+    flags.add$(ImGuiInputTextFlags_CallbackCharFilter);
     flags.add$(ImGuiInputTextFlags_CtrlEnterForNewLine);
     flags.add$(ImGuiInputTextFlags_NoHorizontalScroll);
     flags.add$(ImGuiInputTextFlags_ReadOnly);
@@ -3679,11 +3678,14 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     }
     else if (flags & ImGuiInputTextFlags_Multiline)
     {
-        os << "ImGui::InputTextMultiline(" << id << ", &" 
-            << fieldName.to_arg() << ", { " 
-            << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+        os << "ImGui::InputTextMultiline(" << id << ", &"
+            << fieldName.to_arg() << ", { "
+            << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
             << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
-            << flags.to_arg() << ")";
+            << flags.to_arg();
+        if (!onCallback.empty())
+            os << ", " << onCallback.to_arg();
+        os << ")";
     }
     else if (type == "std::string")
     {
@@ -3691,7 +3693,10 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
         else
             os << "ImGui::InputText(" << id << ", ";
-        os << "&" << fieldName.to_arg() << ", " << flags.to_arg() << ")";
+        os << "&" << fieldName.to_arg() << ", " << flags.to_arg();
+        if (!onCallback.empty())
+            os << ", " << onCallback.to_arg();
+        os << ")";
     }
     else if (type == "ImGuiTextFilter")
     {
@@ -3700,9 +3705,12 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
         else
             os << "ImGui::InputText(" << id << ", ";
-        os << fieldName.to_arg() << ".InputBuf, " 
-            << "IM_ARRAYSIZE(" << fieldName.to_arg() << ".InputBuf), " 
-            << flags.to_arg() << ")";
+        os << fieldName.to_arg() << ".InputBuf, "
+            << "IM_ARRAYSIZE(" << fieldName.to_arg() << ".InputBuf), "
+            << flags.to_arg();
+        if (!onCallback.empty())
+            os << ", " << onCallback.to_arg();
+        os << ")";
     }
 
     if (type == "ImGuiTextFilter") {
@@ -3774,6 +3782,9 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 4)
             flags.set_from_arg(sit->params[3]);
 
+        if (sit->params.size() >= 5)
+            onCallback.set_from_arg(sit->params[4]);
+
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
     }
@@ -3811,6 +3822,9 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() > 2 + i)
             flags.set_from_arg(sit->params[2 + i]);
+
+        if (sit->params.size() > 3 + i)
+            onCallback.set_from_arg(sit->params[3 + i]);
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -4142,6 +4156,7 @@ Input::Events()
     auto props = Widget::Events();
     props.insert(props.begin(), {
         { "onChange", &onChange },
+        { "onCallback", &onCallback },
         { "onImeAction", &onImeAction },
         });
     return props;
@@ -4156,16 +4171,22 @@ bool Input::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     case 1:
+        ImGui::Text("OnCallback");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent("##onCallback", &onCallback, InputEvent_GlobalFunction, ctx);
+        break;
+    case 2:
         ImGui::Text("OnImeAction");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onImeAction", &onImeAction, ctx);
+        changed = InputEvent("##onImeAction", &onImeAction, 0, ctx);
         break;
     default:
-        return Widget::EventUI(i - 2, ctx);
+        return Widget::EventUI(i - 3, ctx);
     }
     return changed;
 }
@@ -4432,7 +4453,7 @@ bool Combo::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -4738,7 +4759,7 @@ bool Slider::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -5193,7 +5214,7 @@ bool ColorEdit::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);
@@ -5590,7 +5611,7 @@ bool CustomWidget::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnDraw");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnDraw", &onDraw, ctx);
+        changed = InputEvent("##OnDraw", &onDraw, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 1, ctx);

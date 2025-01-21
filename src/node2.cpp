@@ -1326,13 +1326,13 @@ bool TopWindow::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnWindowAppearing");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnWindowAppearing", &onWindowAppearing, ctx);
+        changed = InputEvent("##OnWindowAppearing", &onWindowAppearing, 0, ctx);
         break;
     case 1:
         ImGui::Text("OnBackButton");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnBackButton", &onBackButton, ctx);
+        changed = InputEvent("##OnBackButton", &onBackButton, 0, ctx);
         break;
     }
     return changed;
@@ -1622,13 +1622,13 @@ bool Table::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnBeginRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnBeginRow", &onBeginRow, ctx);
+        changed = InputEvent("##OnBeginRow", &onBeginRow, 0, ctx);
         break;
     case 1:
         ImGui::Text("OnEndRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnEndRow", &onEndRow, ctx);
+        changed = InputEvent("##OnEndRow", &onEndRow, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 2, ctx);
@@ -3436,7 +3436,7 @@ bool TabItem::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnClose");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onClose", &onClose, ctx);
+        changed = InputEvent("##onClose", &onClose, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:
@@ -4007,7 +4007,7 @@ bool MenuIt::EventUI(int i, UIContext& ctx)
         ImGui::Text(ownerDraw ? "OnDraw" : "OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, ctx);
+        changed = InputEvent("##onChange", &onChange, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:

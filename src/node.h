@@ -286,6 +286,7 @@ struct Input : Widget
     field_ref<bool> forceFocus;
     event<> onChange;
     event<> onImeAction;
+    event<int(ImGuiInputTextCallbackData*)> onCallback;
 
     static flags_helper _imeClass, _imeAction;
     
@@ -408,7 +409,7 @@ struct Image : Widget
 
 struct CustomWidget : Widget
 {
-    event<ImRad::CustomWidgetArgs> onDraw;
+    event<void(ImRad::CustomWidgetArgs)> onDraw;
     
     CustomWidget(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

@@ -214,7 +214,7 @@ private:
 };
 
 //member function name
-template <class Arg = void>
+template <class FuncSig = void()>
 struct event : property_base
 {
     bool empty() const {
