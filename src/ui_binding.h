@@ -18,6 +18,7 @@ public:
 
     void OnNewField();
     void OnVarClicked();
+    int OnTextInputFilter(ImGuiInputTextCallbackData& args);
     void Refresh();
 
     std::string name;

@@ -75,7 +75,7 @@ void BindingDlg::Draw()
             ImGui::SetKeyboardFocusHere();
         }
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
+        ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_CallbackCharFilter, IMRAD_INPUTTEXT_EVENT(BindingDlg, OnTextInputFilter));
         if (ImGui::IsItemActive())
             ioUserData->imeType = ImRad::ImeText;
         ImGui::PopFont();
@@ -214,6 +214,11 @@ void BindingDlg::OnVarClicked()
     focusExpr = true;
 }
 
+int BindingDlg::OnTextInputFilter(ImGuiInputTextCallbackData& data)
+{
+    return InputTextCharExprFilter(&data);
+}
+
 void BindingDlg::Init()
 {
     showAll = type == "std::string";
@@ -226,3 +231,4 @@ void BindingDlg::ResetLayout()
     hb3.Reset();
     hb5.Reset();
 }
+

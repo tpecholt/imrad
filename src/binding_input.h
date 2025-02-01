@@ -549,7 +549,7 @@ inline bool InputDataSize(const char* label, bindable<int>* val, bool allowEmpty
             newFieldPopup.mode = NewFieldPopup::NewField;
             newFieldPopup.OpenPopup([&ctx, val] {
                 ctx.setProp = val;
-                if (cpp::is_container(newFieldPopup.varType))
+                if (cpp::is_std_container(newFieldPopup.varType))
                     ctx.setPropValue = newFieldPopup.varName + ".size()";
                 else
                     ctx.setPropValue = newFieldPopup.varName;

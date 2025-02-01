@@ -17,6 +17,37 @@ const std::string_view CppGen::FOR_VAR_NAME = "i";
 const std::string_view CppGen::HBOX_NAME = "hb";
 const std::string_view CppGen::VBOX_NAME = "vb";
 
+bool IsFunType(const std::string& type, std::string& ret, std::string& arg)
+{
+    size_t i = type.find('(');
+    if (i == std::string::npos || type.back() != ')')
+        return false;
+    ret = type.substr(0, i);
+    arg = type.substr(i + 1, type.size() - i - 2);
+    return true;
+}
+
+bool IsFunType(const std::string& type)
+{
+    std::string ret, arg;
+    return IsFunType(type, ret, arg);
+}
+
+std::string DefaultInitFor(const std::string& stype)
+{
+    /*if (!stype.compare(0, 5, "void("))
+        return "";*/
+    if (stype.find('<') != std::string::npos) //vector etc
+        return "";
+    if (stype == "int" || stype == "size_t" || stype == "double" || stype == "float")
+        return "0";
+    if (stype == "bool")
+        return "false";
+    return "";
+}
+
+//----------------------------------------------------------------
+
 CppGen::CppGen()
     : m_name("Untitled"), m_vname("untitled")
 {
@@ -266,16 +297,20 @@ CppGen::ExportH(
 
                 //write events
                 found = false;
+                std::string ret, arg;
                 for (const auto& var : m_fields[""])
                 {
                     if ((var.flags & Var::UserCode) || !(var.flags & Var::Interface))
                         continue;
-                    if (var.type.compare(0, 5, "void("))
+                    if (!IsFunType(var.type, ret, arg))
                         continue;
                     if (stx::count(SPEC_FUN, var.name))
                         continue;
                     found = true;
-                    out << INDENT << "void " << var.name << "();\n";
+                    out << INDENT << ret << " " << var.name << "(";
+                    if (arg != "")
+                        out << arg << " args";
+                    out << ");\n";
                 }
                 if (found)
                     out << "\n";
@@ -285,7 +320,7 @@ CppGen::ExportH(
                 {
                     if ((var.flags & Var::UserCode) || !(var.flags & Var::Interface))
                         continue;
-                    if (!var.type.compare(0, 5, "void("))
+                    if (IsFunType(var.type))
                         continue;
                     out << INDENT << var.type << " " << var.name;
                     if (var.init != "")
@@ -319,18 +354,18 @@ CppGen::ExportH(
 
                 //write events
                 found = false;
+                std::string ret, arg;
                 for (const auto& var : m_fields[""])
                 {
                     if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
                         continue;
-                    if ((var.type.size() >= 5 && !var.type.compare(0, 5, "void(")) &&
+                    if (IsFunType(var.type, ret, arg) &&
                         !stx::count(SPEC_FUN, var.name))
                     {
                         found = true;
-                        out << INDENT << "void " << var.name << "(";
-                        std::string arg = var.type.substr(5, var.type.size() - 6);
-                        if (arg.size())
-                            out << "const " << arg << "& args";
+                        out << INDENT << ret << " " << var.name << "(";
+                        if (arg != "")
+                            out << arg << " args";
                         out << ");\n";
                     }
                 }
@@ -367,7 +402,7 @@ CppGen::ExportH(
                 {
                     if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
                         continue;
-                    if (var.type.size() < 5 || var.type.compare(0, 5, "void(")) 
+                    if (!IsFunType(var.type)) 
                     {
                         out << INDENT << var.type << " " << var.name;
                         if (var.init != "")
@@ -627,19 +662,27 @@ CppGen::ExportCpp(
     }
 
     //add missing events
+    std::string ret, arg;
     for (const auto& var : m_fields[""])
     {
         if (var.flags & Var::UserCode)
             continue;
-        if (var.type.compare(0, 5, "void("))
+        if (!IsFunType(var.type, ret, arg))
             continue;
         if (funs.count(var.name) || stx::count(SPEC_FUN, var.name))
             continue;
-        fout << "\nvoid " << m_name << "::" << var.name << "(";
-        std::string arg = var.type.substr(5, var.type.size() - 6);
-        if (arg.size())
-            fout << "const " << arg << "& args";
-        fout << ")\n{\n}\n";
+        fout << "\n" << ret << " " << m_name << "::" << var.name << "(";
+        if (arg != "")
+            fout << arg << " args";
+        fout << ")\n{\n";
+        if (ret != "void")
+        {
+            fout << INDENT << "return ";
+            std::string init = DefaultInitFor(ret);
+            fout << (init != "" ? init : ret + "()");
+            fout << ";\n";
+        }
+        fout << "}\n";
     }
 }
 
@@ -949,21 +992,48 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
     if (line[0] == "enum" || line[0] == "template")
         return false;
     
-    if (line.size() >= 4 && line[0] == "void" && cpp::is_id(line[1]) && line[2] == "(" && line.back() == ")")
+    //parse event declaration
+    if (line.size() >= 4 && 
+        cpp::is_id(line[0]) && 
+        cpp::is_id(line[1]) && line[2] == "(" && line.back() == ")")
     {
         std::string name = line[1];
         //currently we allow generated Close/Popup in event handler list
         if (stx::count(SPEC_FUN, name) && name != "Close" && name != "ClosePopup")
             return false;
         
-        std::string type = "void()";
-        if (line[3] == "const" && line[line.size() - 3] == "&" && line[line.size() - 2] == "args")
-            type = "void(" + stx::join(line.begin() + 4, line.end() - 3, "") + ")";
-        
+        std::string type = line[0] + "(";
+        bool ignore = false;
+        bool typeValid = false;
+        for (size_t i = 3; i < line.size() - 1; ++i)
+        {
+            if (line[i] == ",") { //todo: && !level
+                ignore = false;
+                continue;
+            }
+            if (ignore)
+                continue;
+            if (line[i] == "=") { //skip default value
+                ignore = true;
+                continue;
+            }
+            if (cpp::is_id(line[i]) && line[i] != "const" && typeValid) { //skip argument name
+                ignore = true;
+                continue;
+            }
+            type += line[i];
+            typeValid = type != "const" &&
+                (cpp::is_id(line[i]) || 
+                line[i] == ">" || line[i] == "&" || line[i] == "*");
+        }
+        type += ")";
+
         CreateNamedVar(name, type, "", flags, sname);
     }
+    //parse variable
     else
     {
+        //skip other functions
         //todo: parse std::function<void(xxx)> koko;
         if (stx::count(line, "(") || stx::count(line, ")"))
             return false;
@@ -1038,7 +1108,7 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
 std::string CppGen::IsMemFun(const std::vector<std::string>& line)
 {
     if (line.size() >= 6 &&
-        line[0] == "void" && line[1] == m_name && line[2] == "::" &&
+        /*line[0] == "void" &&*/ line[1] == m_name && line[2] == "::" &&
         line[4] == "(" && line.back() == ")")
     {
         return line[3];
@@ -1272,13 +1342,9 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
         if (!var) {
             return id2.empty() ? New : New_ImplicitStruct;
         }
-        i = var->type.find_first_of('<');
-        j = var->type.find_last_of('>');
-        if (i == std::string::npos || j == std::string::npos || i > j)
+        std::string stype;
+        if (!cpp::is_std_container(var->type, stype))
             return ConflictError;
-        if (!cpp::is_container(var->type))
-            return ConflictError;
-        std::string stype = var->type.substr(i + 1, j - i - 1);
         if (id2 == "")
         {
             if (stype != type)
@@ -1308,21 +1374,7 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
     }
 }
 
-std::string DefaultInitFor(const std::string& stype)
-{
-    if (!stype.compare(0, 5, "void("))
-        return "";
-    if (stype.find('<') != std::string::npos) //vector etc
-        return "";
-    if (stype == "int" || stype == "size_t" || stype == "double" || stype == "float")
-        return "0";
-    if (stype == "bool")
-        return "false";
-    return "";
-}
-
-//accepts patterns recognized by CheckVarExpr
-//corrects [xyz]
+//accepts name patterns recognized by CheckVarExpr
 bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const std::string& init, const std::string& scope1)
 {
     std::string type = DecorateType(type_);
@@ -1358,15 +1410,22 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
         const Var* var = FindVar(id, scope);
         if (var)
         {
-            if (leaf && !array)
-                return var->type == type;
-            auto b = var->type.find('<');
-            auto e = var->type.find_last_of('>');
-            if (b == std::string::npos || e == std::string::npos || b > e)
-                return false;
-            scope = var->type.substr(b + 1, e - b - 1);
-            if (leaf)
-                return scope == type;
+            std::string stype;
+            bool isCont = cpp::is_std_container(var->type, stype);
+            if (!leaf)
+            {
+                if (!isCont)
+                    return false;
+                scope = stype;
+            }
+            else
+            {
+                if (!array)
+                    return var->type == type;
+                if (!isCont)
+                    return false;
+                return stype == type;
+            }
         }
         else
         {
@@ -1377,7 +1436,7 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
                 m_fields[id];
             }
             else if (!array) {
-                bool fun = !stype.compare(0, 5, "void(");
+                bool fun = IsFunType(stype);
                 std::string ninit = init.size() ? init : DefaultInitFor(stype); //initialize scalar variables
                 if (!CreateNamedVar(id, stype, ninit, fun ? Var::Impl : Var::Interface, scope))
                     return false;
@@ -1402,39 +1461,35 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
     return true;
 }
 
-//type=="" accepts all scalar variables
+//type=="" accepts all variables
 //type=="[]" accepts all arrays
-//type==void() accepts all functions
-//vector, array are searched recursively
+//type==void() accepts all functions of this type
+//vector, array, span element types are matched recursively
 std::vector<std::pair<std::string, std::string>> //(name, type) 
 CppGen::GetVarExprs(const std::string& type_, bool recurse)
 {
     std::string type = DecorateType(type_);
     std::vector<std::pair<std::string, std::string>> ret;
-    bool isFun = !type.compare(0, 5, "void(");
+    bool isFun = IsFunType(type);
+    std::string stype;
     for (const auto& f : m_fields[""])
     {
         //events
-        if (!f.type.compare(0, 5, "void("))
+        if (IsFunType(f.type))
         {
             if (f.type == type)
                 ret.push_back({ f.name, f.type });
         }
         //arrays
-        else if (cpp::is_container(f.type))
+        else if (cpp::is_std_container(f.type, stype))
         {
             if (isFun)
-                continue;
-            auto i = f.type.find('<');
-            auto j = f.type.find_last_of('>');
-            if (j == std::string::npos || j < i)
                 continue;
             if (type == "" || type == "[]" || type == f.type)
                 ret.push_back({ f.name, f.type });
             if (type == "" || type == "int")
                 ret.push_back({ f.name + ".size()", "int" }); //we use int indexes for simplicity
             else if (recurse) {
-                std::string stype = f.type.substr(i + 1, j - i - 1);
                 if (type == "" || stype == type)
                     ret.push_back({ f.name + "[]", stype });
                 /*todo: else if (!stype.compare(0, 10, "std::pair<"))

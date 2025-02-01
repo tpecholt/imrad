@@ -143,12 +143,14 @@ struct typeid_func_name;
 template <class T>
 std::string typeid_name()
 {
-    if constexpr (std::is_pointer_v<T>)
+    if constexpr (std::is_const_v<T>)
+        return "const " + typeid_name<std::remove_const_t<T>>();
+    else if constexpr (std::is_pointer_v<T>)
         return typeid_name<std::remove_pointer_t<T>>() + "*";
     else if constexpr (std::is_lvalue_reference_v<T>)
-        return typeid_name<std::remove_reference<T>>() + "&";
+        return typeid_name<std::remove_reference_t<T>>() + "&";
     else if constexpr (std::is_rvalue_reference_v<T>)
-        return typeid_name<std::remove_reference<T>>() + "&&";
+        return typeid_name<std::remove_reference_t<T>>() + "&&";
     else if constexpr (std::is_function_v<T>)
         return typeid_func_name<T>::str();
     

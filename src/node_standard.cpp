@@ -3684,7 +3684,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
             << flags.to_arg();
         if (!onCallback.empty())
-            os << ", " << onCallback.to_arg();
+            os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
     }
     else if (type == "std::string")
@@ -3695,7 +3695,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << "ImGui::InputText(" << id << ", ";
         os << "&" << fieldName.to_arg() << ", " << flags.to_arg();
         if (!onCallback.empty())
-            os << ", " << onCallback.to_arg();
+            os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
     }
     else if (type == "ImGuiTextFilter")
@@ -3709,7 +3709,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             << "IM_ARRAYSIZE(" << fieldName.to_arg() << ".InputBuf), "
             << flags.to_arg();
         if (!onCallback.empty())
-            os << ", " << onCallback.to_arg();
+            os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
     }
 
@@ -3782,8 +3782,13 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 4)
             flags.set_from_arg(sit->params[3]);
 
-        if (sit->params.size() >= 5)
-            onCallback.set_from_arg(sit->params[4]);
+        if (sit->params.size() >= 5 &&
+            !sit->params[4].compare(0, 22, "IMRAD_INPUTTEXT_EVENT("))
+        {
+            const std::string& arg = sit->params[4];
+            size_t j = arg.find(',');
+            onCallback.set_from_arg(arg.substr(j + 1, arg.size() - j - 2));
+        }
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -3823,8 +3828,13 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() > 2 + i)
             flags.set_from_arg(sit->params[2 + i]);
 
-        if (sit->params.size() > 3 + i)
-            onCallback.set_from_arg(sit->params[3 + i]);
+        if (sit->params.size() > 3 + i &&
+            !sit->params[3 + i].compare(0, 22, "IMRAD_INPUTTEXT_EVENT("))
+        {
+            const std::string& arg = sit->params[3 + i];
+            size_t j = arg.find(',');
+            onCallback.set_from_arg(arg.substr(j + 1, arg.size() - j - 2));
+        }
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -4177,7 +4187,7 @@ bool Input::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnCallback");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onCallback", &onCallback, InputEvent_GlobalFunction, ctx);
+        changed = InputEvent("##onCallback", &onCallback, 0, ctx);
         break;
     case 2:
         ImGui::Text("OnImeAction");

@@ -25,6 +25,9 @@
 #endif
 #endif
 
+#define IMRAD_INPUTTEXT_EVENT(clazz, member) \
+    [](ImGuiInputTextCallbackData* data) { return ((clazz*)data->UserData)->member(*data); }, this
+
 namespace ImRad {
 
 using Int2 = int[2];

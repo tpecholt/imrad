@@ -518,11 +518,31 @@ namespace cpp
             s == "unsigned char" || s == "char*" || s == "bool";
     }
 
-    inline bool is_container(std::string_view s)
+    inline bool is_std_container(std::string_view s, std::string& elemType)
     {
-        return !s.compare(0, 12, "std::vector<") ||
-            !s.compare(0, 11, "std::array<") ||
-            !s.compare(0, 10, "std::span<");
+        static const std::string_view names[]{
+            "std::vector", "std::array", "std::span",
+        };
+
+        if (s == "" || s.back() != '>')
+            return false;
+        for (std::string_view name : names)
+        {
+            if (s.size() > name.size() &&
+                !s.compare(0, name.size(), name) &&
+                s[name.size()] == '<')
+            {
+                elemType = s.substr(name.size() + 1, s.size() - name.size() - 2);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    inline bool is_std_container(std::string_view s)
+    {
+        std::string elemType;
+        return is_std_container(s, elemType);
     }
 
     //replaces identifier but ignores strings, preprocessor
