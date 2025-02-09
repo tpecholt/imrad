@@ -1,6 +1,6 @@
 #include "node_standard.h"
+#include "node_container.h"
 #include "stx.h"
-#include "imrad.h"
 #include "cppgen.h"
 #include "binding_input.h"
 #include "binding_field.h"
@@ -20,31 +20,6 @@ void toggle(std::vector<UINode*>& c, UINode* val)
         c.push_back(val);
     else
         c.erase(it);
-}
-
-template <class F>
-void TreeNodeProp(const char* name, const std::string& label, F&& f)
-{
-    ImVec2 pad = ImGui::GetStyle().FramePadding;
-    ImGui::Unindent();
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth)) {
-        ImGui::PopStyleVar();
-        ImGui::Indent();
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
-        f();
-        ImGui::PopStyleVar();
-        ImGui::TreePop();
-        ImGui::Unindent();
-    }
-    else
-    {
-        ImGui::PopStyleVar();
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImRad::Selectable(label.c_str(), false, ImGuiSelectableFlags_Disabled, { -ImGui::GetFrameHeight(), 0 });
-    }
-    ImGui::Indent();
 }
 
 // for compatibility with ImRAD 0.7
@@ -83,7 +58,127 @@ std::string ParseShortcutOld(const std::string& line)
     return sh;
 }
 
+void TreeNodeProp(const char* name, const std::string& label, std::function<void()> f)
+{
+    ImVec2 pad = ImGui::GetStyle().FramePadding;
+    ImGui::Unindent();
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
+    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth)) {
+        ImGui::PopStyleVar();
+        ImGui::Indent();
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
+        f();
+        ImGui::PopStyleVar();
+        ImGui::TreePop();
+        ImGui::Unindent();
+    }
+    else
+    {
+        ImGui::PopStyleVar();
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        ImRad::Selectable(label.c_str(), false, ImGuiSelectableFlags_Disabled, { -ImGui::GetFrameHeight(), 0 });
+    }
+    ImGui::Indent();
+}
+
 //----------------------------------------------------
+
+UINode::child_iterator::iter::iter()
+    : children(), idx()
+{}
+
+UINode::child_iterator::iter::iter(children_type& ch, bool freePos)
+    : children(&ch), freePos(freePos), idx()
+{
+    while (!end() && !valid())
+        ++idx;
+}
+
+UINode::child_iterator::iter&
+UINode::child_iterator::iter::operator++ () {
+    if (end())
+        return *this;
+    ++idx;
+    while (!end() && !valid())
+        ++idx;
+    return *this;
+}
+
+UINode::child_iterator::iter
+UINode::child_iterator::iter::operator++ (int) {
+    iter it(*this);
+    ++(*this);
+    return it;
+}
+
+bool UINode::child_iterator::iter::operator== (const iter& it) const
+{
+    if (end() != it.end())
+        return false;
+    if (!end())
+        return idx == it.idx;
+    return true;
+}
+
+bool UINode::child_iterator::iter::operator!= (const iter& it) const
+{
+    return !(*this == it);
+}
+
+UINode::child_iterator::children_type::value_type&
+UINode::child_iterator::iter::operator* ()
+{
+    static children_type::value_type dummy;
+    if (end())
+        return dummy;
+    return children->at(idx);
+}
+
+const UINode::child_iterator::children_type::value_type&
+UINode::child_iterator::iter::operator* () const
+{
+    static children_type::value_type dummy;
+    if (end())
+        return dummy;
+    return children->at(idx);
+}
+
+bool UINode::child_iterator::iter::end() const
+{
+    return !children || idx >= children->size();
+}
+
+bool UINode::child_iterator::iter::valid() const
+{
+    if (end())
+        return false;
+    bool fp = children->at(idx)->hasPos;
+    return freePos == fp;
+}
+
+UINode::child_iterator::child_iterator(children_type& children, bool freePos)
+    : children(children), freePos(freePos)
+{}
+
+UINode::child_iterator::iter
+UINode::child_iterator::begin() const
+{
+    return iter(children, freePos);
+}
+
+UINode::child_iterator::iter
+UINode::child_iterator::end() const
+{
+    return iter();
+}
+
+UINode::child_iterator::operator bool() const
+{
+    return begin() != end();
+}
+
+//--------------------------------------------------------------------
 
 void UINode::CloneChildrenFrom(const UINode& node, UIContext& ctx)
 {

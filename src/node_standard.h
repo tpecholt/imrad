@@ -2,17 +2,18 @@
 #include <vector>
 #include <memory>
 #include <optional>
-#include <sstream>
-#include <iomanip>
 #include <imgui.h>
 #include "uicontext.h"
 #include "binding_property.h"
 #include "imrad.h"
 #include "IconsFontAwesome6.h"
 
-extern const color32 FIELD_REF_CLR;
 
 #define DRAW_STR(a) cpp::to_draw_str(a.value()).c_str()
+
+extern const color32 FIELD_REF_CLR;
+
+void TreeNodeProp(const char* name, const std::string& label, std::function<void()> f);
 
 
 struct Widget;
@@ -47,7 +48,7 @@ struct UINode
     virtual void Export(std::ostream&, UIContext& ctx) = 0;
     virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual int Behavior() = 0;
-    
+
     void DrawInteriorRect(UIContext& ctx);
     void DrawSnap(UIContext& ctx);
     void RenameFieldVars(const std::string& oldn, const std::string& newn);
@@ -58,12 +59,50 @@ struct UINode
     void ResetLayout();
     auto GetParentId(UIContext& ctx) -> std::string;
     
+
+    struct child_iterator;
+
     ImVec2 cached_pos;
     ImVec2 cached_size;
     std::vector<std::unique_ptr<Widget>> children;
     std::vector<ImRad::VBox> vbox;
     std::vector<ImRad::HBox> hbox;
 };
+
+//to iterate children matching a filter e.g. free-positioned or not
+struct UINode::child_iterator
+{
+    using children_type = std::vector<std::unique_ptr<Widget>>;
+
+    struct iter
+    {
+        iter();
+        iter(children_type& ch, bool freePos);
+        iter& operator++ ();
+        iter operator++ (int);
+        bool operator== (const iter& it) const;
+        bool operator!= (const iter& it) const;
+        children_type::value_type& operator* ();
+        const children_type::value_type& operator* () const;
+
+    private:
+        bool end() const;
+        bool valid() const;
+
+        size_t idx;
+        children_type* children;
+        bool freePos;
+    };
+
+    child_iterator(children_type& children, bool freePos);
+    iter begin() const;
+    iter end() const;
+    explicit operator bool() const;
+
+private:
+    children_type& children;
+    bool freePos;
+}; 
 
 //--------------------------------------------------------------------
 

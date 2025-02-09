@@ -4,7 +4,6 @@
 #include <imgui.h>
 #include <iostream>
 #include <vector>
-// c17 standard now
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -38,6 +37,8 @@ inline float Norm(const ImVec2& a)
     return std::sqrt(a.x * a.x + a.y*a.y);
 }
 
+//-----------------------------------------------------------------------
+
 inline std::string operator+ (const std::string& s, std::string_view t)
 {
     std::string ss = s;
@@ -58,48 +59,11 @@ inline std::ostream& operator<< (std::ostream& os, std::string_view t)
     return os;
 }
 
+//----------------------------------------------------------------------
+
 void ShellExec(const std::string& path);
 
 int InputTextCharExprFilter(ImGuiInputTextCallbackData* data);
 
 std::string CodeShortcut(std::string_view sh);
 std::string ParseShortcut(std::string_view line);
-
-//----------------------------------------------------------------------
-
-struct Widget;
-
-//to iterate children matching a filter e.g. free-positioned or not
-struct child_iterator
-{
-    using children_type = std::vector<std::unique_ptr<Widget>>;
-
-    struct iter
-    {
-        iter();
-        iter(children_type& ch, bool freePos);
-        iter& operator++ ();
-        iter operator++ (int);
-        bool operator== (const iter& it) const;
-        bool operator!= (const iter& it) const;
-        children_type::value_type& operator* ();
-        const children_type::value_type& operator* () const;
-
-    private:
-        bool end() const;
-        bool valid() const;
-
-        size_t idx;
-        children_type* children;
-        bool freePos;
-    };
-
-    child_iterator(children_type& children, bool freePos);
-    iter begin() const;
-    iter end() const;
-    explicit operator bool() const;
-
-private:
-    children_type& children;
-    bool freePos;
-};
