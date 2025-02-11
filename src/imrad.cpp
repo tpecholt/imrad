@@ -430,20 +430,38 @@ void OpenFile()
     NFD_FreePath(outPath);
 }
 
-void CloseFile();
-bool SaveFile(bool thenClose);
+enum {
+    CLOSE_ACTIVE = 0x1,
+    CLOSE_ALL = 0x2,
+    CLOSE_ALL_BUT_PREVIOUS = 0x4,
+};
+void CloseFile(int flags = CLOSE_ACTIVE);
+bool SaveFile(int flags = 0);
+bool SaveFileAs(int flags = 0);
 
-void DoCloseFile()
+void DoCloseFile(int flags)
 {
+    if (activeTab < 0)
+        return;
+
     ctx.root = nullptr;
     ctx.selected.clear();
     fileTabs.erase(fileTabs.begin() + activeTab);
-    ActivateTab(activeTab);
-    if (programState == Shutdown)
-        CloseFile();
+
+    if ((flags & CLOSE_ALL_BUT_PREVIOUS) && fileTabs.size() >= 2) {
+        ActivateTab(activeTab >= fileTabs.size() ? 0 : activeTab); //cycle from first tab
+        CloseFile(flags);
+    }
+    else if (flags & CLOSE_ALL) {
+        ActivateTab(activeTab);
+        CloseFile(flags);
+    }
+    else {
+        ActivateTab(activeTab);
+    }
 }
 
-void CloseFile()
+void CloseFile(int flags)
 {
     if (activeTab < 0)
         return;
@@ -456,19 +474,19 @@ void CloseFile()
         messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
         messageBox.OpenPopup([=](ImRad::ModalResult mr) {
             if (mr == ImRad::Yes)
-                SaveFile(true);
+                SaveFile(flags);
             else if (mr == ImRad::No)
-                DoCloseFile();
+                DoCloseFile(flags);
             else
                 DoCancelShutdown();
             });
     }
     else {
-        DoCloseFile();
+        DoCloseFile(flags);
     }
 }
 
-void DoSaveFile(bool thenClose)
+void DoSaveFile(int flags)
 {
     auto& tab = fileTabs[activeTab];
     std::map<std::string, std::string> params{
@@ -495,17 +513,17 @@ void DoSaveFile(bool thenClose)
         messageBox.message = "Export finished with errors";
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup([=](ImRad::ModalResult) {
-            if (thenClose)
-                DoCloseFile();
+            if (flags)
+                DoCloseFile(flags);
             });
         return;
     }
 
-    if (thenClose)
-        DoCloseFile();
+    if (flags)
+        DoCloseFile(flags);
 }
 
-bool SaveFileAs(bool thenClose)
+bool SaveFileAs(int flags)
 {
     nfdchar_t *outPath = NULL;
     nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Header File", (const nfdchar_t *)"h,hpp" } };
@@ -545,18 +563,18 @@ bool SaveFileAs(bool thenClose)
     if (oldName == "")
         tab.codeGen.SetNamesFromId(fs::path(newName).stem().string());
     tab.fname = newName;
-    DoSaveFile(thenClose);
+    DoSaveFile(flags);
     return true;
 }
 
-bool SaveFile(bool thenClose)
+bool SaveFile(int flags)
 {
     auto& tab = fileTabs[activeTab];
     if (tab.fname == "") {
-        return SaveFileAs(thenClose);
+        return SaveFileAs(flags);
     }
     else {
-        DoSaveFile(thenClose);
+        DoSaveFile(flags);
         return true;
     }
 }
@@ -567,7 +585,7 @@ void SaveAll()
     int tmp = activeTab;
     for (activeTab = 0; activeTab < fileTabs.size(); ++activeTab)
     {
-        if (!SaveFile(false))
+        if (!SaveFile())
             break;
     }
     activeTab = tmp;
@@ -1098,9 +1116,11 @@ void ToolbarUI()
     
     ImGui::SameLine();
     float cx = ImGui::GetCursorPosX();
+    //ImGui::BeginDisabled(activeTab >= 0 && !fileTabs[activeTab].modified);
     if (ImGui::Button(ICON_FA_FLOPPY_DISK) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
-        SaveFile(false);
+        SaveFile();
+    //ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Save File (Ctrl+S)");
     
@@ -1112,14 +1132,16 @@ void ToolbarUI()
         ImGui::OpenPopup("SaveMenu");
     ImGui::PopStyleVar();
     ImGui::SetNextWindowPos({ cx, ImGui::GetCursorPosY() });
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
     if (ImGui::BeginPopup("SaveMenu"))
     {
         if (ImGui::MenuItem("Save As..."))
-            SaveFileAs(false);
+            SaveFileAs();
         if (ImGui::MenuItem("Save All", "\tCtrl+Shift+S"))
             SaveAll();
         ImGui::EndPopup();
     }
+    ImGui::PopStyleVar();
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
         SaveAll();
 
@@ -1301,6 +1323,7 @@ void TabsUI()
     ImGui::Begin("FileTabs", 0, window_flags);
     if (ImGui::BeginTabBar(".Tabs", ImGuiTabBarFlags_NoTabListScrollingButtons))
     {
+        ImGui::PopStyleVar();
         int untitled = 0;
         for (int i = 0; i < (int)fileTabs.size(); ++i)
         {
@@ -1311,12 +1334,38 @@ void TabsUI()
             if (tab.modified)
                 fname += " *";
             bool notClosed = true;
+            
             if (ImGui::BeginTabItem(fname.c_str(), &notClosed, i == activeTab ? ImGuiTabItemFlags_SetSelected : 0))
-            {
                 ImGui::EndTabItem();
-            }
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tab.fname != "")
                 ImGui::SetTooltip("%s", tab.fname.c_str());
+            
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
+            if (ImGui::BeginPopupContextItem(nullptr))
+            {
+                /*if (ImGui::MenuItem("Save", "Ctrl+S"))
+                {
+                    ActivateTab(i);
+                    SaveFile();
+                }*/
+                if (ImGui::MenuItem("Close", "Ctrl+F4"))
+                {
+                    ActivateTab(i);
+                    CloseFile();
+                }
+                if (ImGui::MenuItem("Close All"))
+                    CloseFile(CLOSE_ALL);
+                if (ImGui::MenuItem("Close All But This") && fileTabs.size() >= 2) {
+                    ActivateTab(i + 1 == fileTabs.size() ? 0 : i + 1); //cycle from beginning
+                    CloseFile(CLOSE_ALL_BUT_PREVIOUS);
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Copy Full Path"))
+                    ImGui::SetClipboardText(tab.fname.c_str());
+
+                ImGui::EndPopup();
+            }
+            ImGui::PopStyleVar();
 
             if (!i)
             {
@@ -1342,8 +1391,9 @@ void TabsUI()
         }
         ImGui::EndTabBar();
     }
+    else
+        ImGui::PopStyleVar();
     ImGui::End();
-    ImGui::PopStyleVar();
 }
 
 void HierarchyUI()
