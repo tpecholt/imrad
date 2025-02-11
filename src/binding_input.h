@@ -63,6 +63,8 @@ inline bool BindingButton(const char* label, bindable<T>* val, UIContext& ctx)
     return BindingButton(label, val, typeid_name<T>(), ctx);
 }
 
+//---------------------------------------------------------------------------------
+
 inline bool InputDirectVal(const char* label, direct_val<dimension>* val, UIContext& ctx)
 {
     return ImGui::InputFloat(label, val->access(), 0, 0, "%.0f");
@@ -97,6 +99,23 @@ inline bool InputDirectVal(const char* label, direct_val<std::string>* val, UICo
     return ch;
 }
 
+template <class T, class = std::enable_if_t<std::is_enum_v<T>>>
+bool InputDirectVal(const char* label, direct_val<T>* val, UIContext& ctx)
+{
+    bool changed = false;
+    if (ImGui::BeginCombo(label, val->get_id().c_str()))
+    {
+        changed = true;
+        for (const auto& item : val->get_ids())
+        {
+            if (ImGui::Selectable(item.first.c_str(), *val->access() == item.second))
+                *val->access() = item.second;
+        }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+
 inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool button, UIContext& ctx)
 {
     if (button) {
@@ -121,6 +140,8 @@ inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool b
 
     return changed;
 }
+
+//-------------------------------------------------------------------------------
 
 inline bool InputBindable(const char* label, bindable<bool>* val, bool defval, UIContext& ctx)
 {

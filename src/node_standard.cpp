@@ -77,7 +77,7 @@ void TreeNodeProp(const char* name, const std::string& label, std::function<void
         ImGui::PopStyleVar();
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImRad::Selectable(label.c_str(), false, ImGuiSelectableFlags_Disabled, { -ImGui::GetFrameHeight(), 0 });
+        ImRad::Selectable((label + "##" + name).c_str(), false, ImGuiSelectableFlags_Disabled, { -ImGui::GetFrameHeight(), 0 });
     }
     ImGui::Indent();
 }
@@ -5038,9 +5038,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("indicator");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        bool ind = indicator;
-        if (ImGui::Checkbox("##indicator", &ind))
-            indicator = ind;
+        changed = InputDirectVal("##indicator", &indicator, ctx);
         break;
     }
     case 9:

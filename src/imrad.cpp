@@ -964,7 +964,7 @@ void CloneStyle()
 void DockspaceUI()
 {
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
-        // because it would be confusing to have two docking targets within each others.
+    // because it would be confusing to have two docking targets within each others.
     ImGuiWindowFlags window_flags = /*ImGuiWindowFlags_MenuBar |*/ ImGuiWindowFlags_NoDocking;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, TB_SIZE + 0));
@@ -1330,7 +1330,7 @@ void TabsUI()
                 ctx.designAreaMax.y = viewport->Pos.y + viewport->Size.y;
             }
             if (!notClosed ||
-                (i == activeTab && ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))
+                (i == activeTab && ImGui::Shortcut(ImGuiKey_F4 | ImGuiMod_Ctrl, ImGuiInputFlags_RouteGlobal))) //ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))
             {
                 ActivateTab(i);
                 CloseFile();
@@ -1831,7 +1831,8 @@ void Work()
     else 
     {
         //don't IsMouseReleased otherwise closing modal popup will fire here too
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+        if (ctx.root &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
             ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
             !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
         {

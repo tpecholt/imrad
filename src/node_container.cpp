@@ -1933,7 +1933,7 @@ void TabItem::DoDrawExtra(UIContext& ctx)
         - parent->children.begin();
 
     ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
-    ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
 
     ImGui::BeginDisabled(!idx);
     if (ImGui::Button(ICON_FA_ANGLE_LEFT)) {
@@ -2369,7 +2369,7 @@ void MenuIt::DoDrawExtra(UIContext& ctx)
         //pos.x -= ImGui::GetStyle().ItemSpacing.x;
     }
     ImGui::SetNextWindowPos(pos, 0, vertical ? ImVec2{ 0, 1.f } : ImVec2{ 0, 1.f });
-    ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
 
     ImGui::BeginDisabled(!idx);
     if (ImGui::Button(vertical ? ICON_FA_ANGLE_UP : ICON_FA_ANGLE_LEFT, bsize)) {
