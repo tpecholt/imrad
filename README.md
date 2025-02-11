@@ -15,7 +15,28 @@ UI code additions are well supported.
 
 ImRAD runs on Windows, Linux and MacOS. 
 
-# Features
+<hr>
+
+![image](https://github.com/user-attachments/assets/91055dbc-2fc5-42dc-a4e5-26a18377b379)
+
+*Take a note of the Toolbar section:*
+* *Configurable global dialog style which is stored in an INI file. It contains definitions of colors, style variables and fonts. The example uses stock "Dark" style*
+* *Dialog units option which can also be set to DPI aware pixels useful when designing android apps*
+* *Code Preview for fast checks. Full generated code is saved in .h/cpp files*   
+* *Class wizard allows to manage member variables of the generated class*
+
+*Designed window shows:*
+* *Stretchable spacer between "Available fields" text and "show all" checkbox and between dialog buttons. ImRAD comes with box layout support not available in standard ImGui*
+* *Negative size_x/y support which makes the table widget expand vertically keeping 48px gap from the bottom edge of the dialog*
+* *Selectable widget bindings such as `{vars[i].first}`. Bind expressions will be put in the generated code showing content of the `vars` array*
+
+*Properties window contains:*
+* *Table.rowCount binding set to the `vars.size()` expression. This will generate code with a for loop over table rows. One-way or two-way binding is supported by most properties*
+
+*Events window*
+* *Allows to generate handlers for all kinds of events such as button click, window appearance, input text character filter etc.* 
+
+# Main Features
 
 * Supports designing all kinds of windows
   * Floating windows, popups and modal popups. These are ImGui backend independent
@@ -121,15 +142,13 @@ Add all generated code into your project. Generated code #includes `imrad.h` so 
 
 Add dependency to ImGui and GLFW (whether you build it as separate libraries or directly add to your project is up to you). Stb and fmt dependencies are optional.
 
+# Tutorials
+
 Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and more detailed content.
-
-# Screenshots
-
-![screen1](https://github.com/tpecholt/imrad/blob/main/doc/screen1.png)
 
 # Sponsorship
 
-Development of ImRAD happens in my free time outside of my regular job, yoga, volunteering and other activities. 
+Development of ImRAD happens in my free time outside of my regular job, yoga, badminton, volunteering and other activities. 
 
 If you like the tool and want to support its further development please do. If you use it regularly you can even setup a monthly donation if it's convenient for you.
 
