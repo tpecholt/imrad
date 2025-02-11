@@ -792,8 +792,9 @@ void Widget::Draw(UIContext& ctx)
     }
 
     //doesn't work for open CollapsingHeader etc:
-    //bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
-    bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size);
+    //bool hovered1 = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+    bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size) &&
+        ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows); //detects overlapping window such as widget tool windows
     if (ctx.mode == UIContext::NormalSelection &&
         hovered && !ImGui::GetTopMostAndVisiblePopupModal())
     {
