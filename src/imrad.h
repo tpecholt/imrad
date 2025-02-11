@@ -25,9 +25,6 @@
 #endif
 #endif
 
-#define IMRAD_INPUTTEXT_EVENT(clazz, member) \
-    [](ImGuiInputTextCallbackData* data) { return ((clazz*)data->UserData)->member(*data); }, this
-
 namespace ImRad {
 
 using Int2 = int[2];
@@ -1013,7 +1010,7 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
                 }
 
                 ImFontConfig cfg;
-                strncpy(cfg.Name, key.c_str(), sizeof(cfg.Name));
+                strncpy_s(cfg.Name, key.c_str(), sizeof(cfg.Name));
                 cfg.Name[sizeof(cfg.Name) - 1] = '\0';
                 cfg.MergeMode = key == lastFont;
                 cfg.GlyphRanges = hasRange ? rngs.back().get() : nullptr;
