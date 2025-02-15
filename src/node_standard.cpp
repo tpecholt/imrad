@@ -848,11 +848,15 @@ void Widget::Draw(UIContext& ctx)
             {
                 ctx.mode = (UIContext::Mode)hoverMode;
                 ctx.dragged = this;
-                ctx.lastSize = { size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
+                ctx.lastSize = { 
+                    size_x.eval_px(ImGuiAxis_X, ctx), 
+                    size_y.eval_px(ImGuiAxis_Y, ctx) 
+                };
                 if (ctx.lastSize.x <= 0)
                     ctx.lastSize.x = cached_size.x;
                 if (ctx.lastSize.y <= 0)
                     ctx.lastSize.y = cached_size.y;
+                ctx.lastSize /= ctx.zoomFactor;
             }
         }
         else if (hasPos && ctx.hovered == this && !ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
@@ -1784,7 +1788,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         break;
     case 6:
         ImGui::BeginDisabled(Behavior() & NoOverlayPos);
-        ImGui::Text("hasPos");
+        //ImGui::Text("hasPos"); category label is drawn by imrad.cpp already
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = ImGui::Checkbox("##hasPos", hasPos.access());

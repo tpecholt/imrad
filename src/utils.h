@@ -21,6 +21,16 @@ inline ImVec2 operator- (const ImVec2& a, const ImVec2& b)
     return ImVec2(a.x - b.x, a.y - b.y);
 }
 
+inline ImVec2 operator* (const ImVec2& a, float f)
+{
+    return { a.x * f, a.y * f };
+}
+
+inline ImVec2 operator* (float f, const ImVec2& a)
+{
+    return a * f;
+}
+
 inline ImVec2 operator/ (const ImVec2& a, float f)
 {
     return { a.x / f, a.y / f };
@@ -29,6 +39,18 @@ inline ImVec2 operator/ (const ImVec2& a, float f)
 inline ImVec2& operator+= (ImVec2& a, const ImVec2& b)
 {
     a = a + b;
+    return a;
+}
+
+inline ImVec2& operator*= (ImVec2& a, float f)
+{
+    a = a * f;
+    return a;
+}
+
+inline ImVec2& operator/= (ImVec2& a, float f)
+{
+    a = a / f;
     return a;
 }
 

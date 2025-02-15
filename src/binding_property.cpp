@@ -32,7 +32,7 @@ float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
         float val;
         std::istringstream is(var->init);
         if (is >> val)
-            return val;
+            return val * ctx.zoomFactor;
         else
             return 0;
     }

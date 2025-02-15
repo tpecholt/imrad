@@ -1021,6 +1021,10 @@ void DockspaceUI()
         ImGui::DockBuilderFinish(dockspace_id);
     }
 
+    ImGuiDockNode* cn = ImGui::DockBuilderGetCentralNode(dockspace_id);
+    ctx.designAreaMin = cn->Pos;
+    ctx.designAreaMax = cn->Pos + cn->Size;
+
     if (fileTabs.empty())
     {
         std::pair<std::string, std::string> help[]{
@@ -1030,9 +1034,9 @@ void DockspaceUI()
         float lh = 2 * ImGui::GetTextLineHeight();
         for (size_t i = 0; i < std::size(help); ++i) {
             ImVec2 size = ImGui::CalcTextSize((help[i].first + help[i].second).c_str());
-            ImGui::SetCursorPos({ 
-                viewport->WorkSize.x / 2.5f, 
-                (viewport->WorkSize.y - (std::size(help) - 0.5f) * lh) / 2 + i * lh  
+            ImGui::SetCursorScreenPos({
+                viewport->WorkSize.x / 2.5f,
+                (viewport->WorkSize.y - (std::size(help) - 1) * lh) / 2 + i * lh
                 });
             ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             clr.w = 0.5f;
@@ -1045,6 +1049,19 @@ void DockspaceUI()
             ImGui::TextUnformatted(help[i].second.c_str());
             ImGui::PopStyleColor();
         }
+    }
+    else
+    {
+        float sp = ImGui::GetStyle().ItemSpacing.x;
+        ImGui::SetCursorScreenPos({ 
+            ctx.designAreaMin.x + sp, 
+            ctx.designAreaMax.y - ImGui::GetTextLineHeight() - sp 
+            });
+        ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        clr.w = 0.5f;
+        ImGui::PushStyleColor(ImGuiCol_Text, clr);
+        ImGui::Text("Zoom: %d%%", (int)(ctx.zoomFactor * 100));
+        ImGui::PopStyleColor();
     }
 
     ImGui::End();
@@ -1367,17 +1384,6 @@ void TabsUI()
             }
             ImGui::PopStyleVar();
 
-            if (!i)
-            {
-                auto min = ImGui::GetItemRectMin();
-                auto max = ImGui::GetItemRectMax();
-                ctx.designAreaMin.x = min.x;
-                ctx.designAreaMin.y = max.y;
-                const ImGuiWindow* win = ImGui::GetCurrentWindow();
-                const auto* viewport = ImGui::GetMainViewport();
-                ctx.designAreaMax.x = win->Pos.x + win->Size.x;
-                ctx.designAreaMax.y = viewport->Pos.y + viewport->Size.y;
-            }
             if (!notClosed ||
                 (i == activeTab && ImGui::Shortcut(ImGuiKey_F4 | ImGuiMod_Ctrl, ImGuiInputFlags_RouteGlobal))) //ImGui::IsKeyPressed(ImGuiKey_F4, false) && ImGui::GetIO().KeyCtrl))
             {
@@ -1409,30 +1415,20 @@ bool BeginPropGroup(const std::string& label, const UINode::Prop& prop, bool& op
 {
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::TableNextRow();
-    if (label == "overlayPos") //hack
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 164, 255));
     ImGui::TableSetColumnIndex(0);
     ImGui::AlignTextToFramePadding();
     ImGui::Unindent();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
     ImGui::PopStyleVar();
-    bool eatProp = false;
-    if (label == "overlayPos") 
-    {
-        eatProp = true;
-        ImGui::TableNextColumn();
-        bool tmp = prop.property->to_arg() == "true";
-        if (ImGui::Checkbox(("##" + prop.name).c_str(), &tmp))
-            prop.property->set_from_arg(tmp ? "true" : "false");
-    }
-    else if (!open)
+    bool forceSameRow = label == "overlayPos";
+    if (!open && !forceSameRow)
     {
         ImGui::TableNextColumn();
         ImGui::TextDisabled("...");
     }
     ImGui::Indent();
-    return eatProp;
+    return forceSameRow;
 }
 
 void EndPropGroup(bool open)
@@ -1517,25 +1513,25 @@ void PropertyRowsUI(bool pr)
                 if (i2 != std::string::npos)
                     cat = prop.name.substr(i1 + 1, i2 - i1 - 1);
             }
-            bool skip = false;
+            bool forceSameRow = false;
             if (cat != inCat)
             {
                 inCat = cat;
                 if (inCat != "") {
                     ImGui::PopID();
-                    skip = BeginPropGroup(cat, prop, catOpen);
+                    forceSameRow = BeginPropGroup(cat, prop, catOpen);
                     ImGui::PushID(ctx.selected[0]);
                 }
                 else 
                     EndPropGroup(catOpen);
             }
-            if (inCat != "" && !catOpen)
+            if (inCat != "" && !catOpen && !forceSameRow)
                 continue;
-            if (skip)
-                continue;
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
+            if (!forceSameRow) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::AlignTextToFramePadding();
+            }
             if (keyPressed && props[i].kbdInput) {
                 addInputCharacter = keyPressed;
                 ImGui::SetKeyboardFocusHere();
@@ -1884,19 +1880,20 @@ void Work()
         if (ctx.root &&
             ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
             ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
-            !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
+            !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
+            !ImGui::IsAnyItemHovered())
         {
             ctx.selected = { ctx.root };
         }
-        if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal) ||
-            ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal))
+        if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
+            ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
-            ctx.zoomFactor = std::round(100 * ctx.zoomFactor * 1.2f) / 100.f;
+            ctx.zoomFactor *= 1.2f;
         }
-        if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, ImGuiInputFlags_RouteGlobal) ||
-            ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, ImGuiInputFlags_RouteGlobal))
+        if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
+            ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
-            ctx.zoomFactor = std::round(100 * ctx.zoomFactor / 1.2f) / 100.f;
+            ctx.zoomFactor /= 1.2f;
         }
         if (!ImGui::GetIO().WantTextInput)
         {

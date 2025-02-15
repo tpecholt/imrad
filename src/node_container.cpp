@@ -2223,7 +2223,7 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
 MenuIt::MenuIt(UIContext& ctx)
 {
-    shortcut.set_global(true);
+    //shortcut.set_global(true);
 }
 
 std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
