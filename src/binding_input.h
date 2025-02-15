@@ -126,16 +126,30 @@ inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool b
 
     bool changed = ImGui::InputText(label, val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
 
-    if (button) {
+    if (button) 
+    {
         ImGui::SameLine(0, 0);
-        bool global = val->is_global();
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[global ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-        if (ImGui::Button((std::string("G##") + label).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        std::string buttonId = label + std::string("##But");
+        std::string popupId = label + std::string("##DropDown");
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[val->flags() ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+        if (ImGui::ArrowButton(buttonId.c_str(), ImGuiDir_Down))
         {
-            changed = true;
-            val->set_global(!global);
-        };
+            ImGui::OpenPopup(popupId.c_str());
+        }
         ImGui::PopStyleColor();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 8 });
+        if (ImGui::BeginPopup(popupId.c_str()))
+        {
+            if (ImGui::MenuItem("Global", nullptr, val->flags() & ImGuiInputFlags_RouteGlobal))
+                val->set_flags(val->flags() ^ ImGuiInputFlags_RouteGlobal);
+            if (ImGui::MenuItem("Repeat", nullptr, val->flags() & ImGuiInputFlags_Repeat))
+                val->set_flags(val->flags() ^ ImGuiInputFlags_Repeat);
+            
+           ImGui::EndPopup();
+        }
+        ImGui::PopStyleVar(2);
     }
 
     return changed;

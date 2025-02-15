@@ -381,26 +381,34 @@ private:
 template <>
 struct direct_val<shortcut_> : property_base
 {
-    direct_val(const char* v, bool g = false) 
-        : sh(v), global(g) 
+    direct_val(const char* v, int f = 0) 
+        : sh(v), flags_(f)
     {}
-    direct_val(const std::string& v, bool g = false)
-        : sh(v), global(g)
+    direct_val(const std::string& v, int f = 0)
+        : sh(v), flags_(f)
     {}
 
-    bool is_global() const { return global; }
-    void set_global(bool g) { global = g; }
+    int flags() const { return flags_; }
+    void set_flags(int f) { flags_ = f; }
     //const std::string& value() const { return val; }
 
     void set_from_arg(std::string_view s) {
         sh = ParseShortcut(s);
-        global = s.find("ImGuiInputFlags_RouteGlobal") != std::string::npos;
+        if (s.find("ImGuiInputFlags_RouteGlobal") != std::string::npos)
+            flags_ |= ImGuiInputFlags_RouteGlobal;
+        if (s.find("ImGuiInputFlags_Repat") != std::string::npos)
+            flags_ |= ImGuiInputFlags_Repeat;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         std::ostringstream os;
         os << CodeShortcut(sh.value);
-        if (global)
-            os << ", ImGuiInputFlags_RouteGlobal";
+        std::vector<std::string> fl;
+        if (flags_ & ImGuiInputFlags_RouteGlobal)
+            fl.push_back("ImGuiInputFlags_RouteGlobal");
+        if (flags_ & ImGuiInputFlags_Repeat)
+            fl.push_back("ImGuiInputFlags_Repeat");
+        if (fl.size())
+            os << ", " << stx::join(fl, " | ");
         return os.str();
     }
     std::vector<std::string> used_variables() const {
@@ -413,7 +421,7 @@ struct direct_val<shortcut_> : property_base
     bool empty() const { return sh.value.empty(); }
 private:
     shortcut_ sh;
-    bool global;
+    int flags_;
 };
 
 #define add$(f) add(#f, f)
