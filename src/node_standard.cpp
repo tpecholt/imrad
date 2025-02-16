@@ -3631,18 +3631,29 @@ Input::Input(UIContext& ctx)
     flags.add$(ImGuiInputTextFlags_CharsScientific);
     flags.add$(ImGuiInputTextFlags_CharsUppercase);
     flags.add$(ImGuiInputTextFlags_CharsNoBlank);
+
+    flags.add$(ImGuiInputTextFlags_AllowTabInput);
+    flags.add$(ImGuiInputTextFlags_EnterReturnsTrue);
+    flags.add$(ImGuiInputTextFlags_EscapeClearsAll);
+    flags.add$(ImGuiInputTextFlags_CtrlEnterForNewLine);
+    
+    flags.add$(ImGuiInputTextFlags_ReadOnly);
+    flags.add$(ImGuiInputTextFlags_Password);
+    flags.add$(ImGuiInputTextFlags_AlwaysOverwrite);
     flags.add$(ImGuiInputTextFlags_AutoSelectAll);
+    flags.add$(ImGuiInputTextFlags_ParseEmptyRefVal);
+    flags.add$(ImGuiInputTextFlags_DisplayEmptyRefVal);
+    flags.add$(ImGuiInputTextFlags_NoHorizontalScroll);
+    flags.add$(ImGuiInputTextFlags_NoUndoRedo);
+    
+    flags.add$(ImGuiInputTextFlags_ElideLeft);
+
     flags.add$(ImGuiInputTextFlags_CallbackCompletion);
     flags.add$(ImGuiInputTextFlags_CallbackHistory);
     flags.add$(ImGuiInputTextFlags_CallbackAlways);
     flags.add$(ImGuiInputTextFlags_CallbackCharFilter);
-    flags.add$(ImGuiInputTextFlags_CtrlEnterForNewLine);
-    flags.add$(ImGuiInputTextFlags_NoHorizontalScroll);
-    flags.add$(ImGuiInputTextFlags_ReadOnly);
-    flags.add$(ImGuiInputTextFlags_Password);
     flags.add$(ImGuiInputTextFlags_Multiline);
-    flags.add$(ImGuiInputTextFlags_EscapeClearsAll);
-
+    
     if (_imeClass.get_ids().empty()) 
     {
         _imeClass.prefix("ImRad::");
