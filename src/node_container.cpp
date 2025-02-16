@@ -1919,7 +1919,7 @@ ImDrawList* TabItem::DoDraw(UIContext& ctx)
     return ImGui::GetWindowDrawList();
 }
 
-void TabItem::DoDrawExtra(UIContext& ctx)
+void TabItem::DoDrawTools(UIContext& ctx)
 {
     if (ctx.parents.empty())
         return;
@@ -2343,7 +2343,7 @@ ImDrawList* MenuIt::DoDraw(UIContext& ctx)
     return ImGui::GetWindowDrawList();
 }
 
-void MenuIt::DoDrawExtra(UIContext& ctx)
+void MenuIt::DoDrawTools(UIContext& ctx)
 {
     if (ctx.parents.empty())
         return;

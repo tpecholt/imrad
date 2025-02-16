@@ -32,7 +32,7 @@ struct TopWindow : UINode
 
     TopWindow(UIContext& ctx);
     void Draw(UIContext& ctx);
-    void DrawExtra(UIContext& ctx) {}
+    void DrawTools(UIContext& ctx) {}
     void TreeUI(UIContext& ctx);
     bool EventUI(int, UIContext& ctx);
     auto Properties() ->std::vector<Prop>;

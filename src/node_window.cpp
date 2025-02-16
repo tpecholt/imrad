@@ -126,7 +126,7 @@ void TopWindow::Draw(UIContext& ctx)
     
     if (style_titlePadding.has_value())
         ImGui::PopStyleVar();
-    
+
     ImGui::SetWindowFontScale(ctx.zoomFactor);
 
     ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
@@ -167,7 +167,7 @@ void TopWindow::Draw(UIContext& ctx)
     ImGui::GetCurrentContext()->NavHighlightItemUnderNav = false;
 
     for (size_t i = 0; i < children.size(); ++i)
-        children[i]->DrawExtra(ctx);
+        children[i]->DrawTools(ctx);
     
     //use all client area to allow snapping close to the border
     auto pad = ImGui::GetStyle().WindowPadding - ImVec2(3+1, 3);
@@ -187,11 +187,14 @@ void TopWindow::Draw(UIContext& ctx)
         if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
             ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
-            ctx.selStart = ctx.selEnd = ImGui::GetMousePos();
+            if (stx::count(ctx.selected, ctx.hovered)) //selected widget might want to do SnapMove instead
+                ctx.selStart.x = FLT_MAX;
+            else
+                ctx.selStart = ctx.selEnd = ImGui::GetMousePos();
         }
         if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
-            ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-            Norm(ImGui::GetMousePos() - ctx.selStart) > 5)
+            ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
+            ctx.selStart.x != FLT_MAX) //todo: initiate SnapMove, cursor is out of the widget already
         {
             ctx.mode = UIContext::RectSelection;
             ctx.selEnd = ImGui::GetMousePos();
@@ -233,7 +236,8 @@ void TopWindow::Draw(UIContext& ctx)
         ctx.snapIndex = children.size();
     }
     
-    if (ctx.mode == UIContext::Snap && !ctx.snapParent && ImGui::IsWindowHovered())
+    if ((ctx.mode == UIContext::SnapInsert || ctx.mode == UIContext::SnapMove) && 
+        !ctx.snapParent && ImGui::IsWindowHovered())
     {
         DrawSnap(ctx);
     }

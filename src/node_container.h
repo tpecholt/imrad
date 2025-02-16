@@ -121,7 +121,7 @@ struct TabItem : Widget
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     int Behavior() { return SnapInterior | SnapGrandparentClip | NoOverlayPos; }
     ImDrawList* DoDraw(UIContext& ctx);
-    void DoDrawExtra(UIContext& ctx);
+    void DoDrawTools(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
     auto Events()->std::vector<Prop>;
@@ -180,7 +180,7 @@ struct MenuIt : Widget
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     int Behavior() { return NoOverlayPos | NoContextMenu; }
     ImDrawList* DoDraw(UIContext& ctx);
-    void DoDrawExtra(UIContext& ctx);
+    void DoDrawTools(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
     auto Events()->std::vector<Prop>;

@@ -654,7 +654,7 @@ void NewWidget(const std::string& name)
     {
         activeButton = name;
         ctx.selected.clear();
-        ctx.mode = UIContext::Snap;
+        ctx.mode = UIContext::SnapInsert;
         newNode = Widget::Create(name, ctx);
     }
 }
@@ -1624,6 +1624,7 @@ void Draw()
     ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
     ImGui::PushFont(ctx.defaultFont);
     
+    ctx.appStyle = &tmpStyle;
     ctx.workingDir = fs::path(tab.fname).parent_path().string();
     ctx.unit = tab.unit;
     ctx.modified = &tab.modified;
@@ -1764,7 +1765,7 @@ void Work()
         }
         else if (!ImGui::GetIO().KeyCtrl)
         {
-            ctx.mode = UIContext::Snap;
+            ctx.mode = UIContext::SnapInsert;
         }
         else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && 
             ctx.snapParent) 
@@ -1789,31 +1790,65 @@ void Work()
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
         }
     }
-    else if (ctx.mode == UIContext::Snap)
+    else if (ctx.mode == UIContext::SnapInsert || ctx.mode == UIContext::SnapMove)
     {
         if (ImGui::IsKeyPressed(ImGuiKey_Escape))
         {
             ctx.mode = UIContext::NormalSelection;
             activeButton = "";
         }
-        else if (ImGui::GetIO().KeyCtrl && activeButton != "" && 
+        else if (ctx.mode == UIContext::SnapInsert && //todo: SnapMove
+            ImGui::GetIO().KeyCtrl && activeButton != "" && 
             (newNode->Behavior() & UINode::SnapSides))
         {
             ctx.mode = UIContext::PickPoint;
         }
-        else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && //MouseReleased to avoid confusing RectSelection
-            ctx.snapParent)
+        else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))  //MouseReleased to avoid confusing RectSelection
         {
+            if (!ctx.snapParent && ctx.mode == UIContext::SnapMove) 
+            {
+                ctx.mode = UIContext::NormalSelection;
+                ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
+                return;
+            }
+            else if (!ctx.snapParent) 
+            {
+                return;
+            }
+
             int n;
             std::unique_ptr<Widget>* newNodes;
-            if (activeButton != "") {
+            std::vector<std::unique_ptr<Widget>> tmpMoved;
+            if (ctx.mode == UIContext::SnapMove) 
+            {
+                assert(ctx.selected.size() == 1);
+                auto pinfo = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
+                auto chinfo = ctx.selected[0]->FindChild(ctx.snapParent);
+                if (chinfo) {
+                    //disallow moving into its child
+                    ctx.mode = UIContext::NormalSelection;
+                    ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
+                    return;
+                }
+                if (pinfo->first == ctx.snapParent && ctx.snapIndex > pinfo->second) {
+                    //compensate removeSelected operation
+                    --ctx.snapIndex;
+                }
+                tmpMoved = RemoveSelected();
+                n = (int)tmpMoved.size();
+                newNodes = tmpMoved.data();
+            }
+            else if (activeButton != "") 
+            {
                 n = 1;
                 newNodes = &newNode;
             }
-            else {
+            else 
+            {
                 n = (int)clipboard.size();
                 newNodes = clipboard.data();
             }
+
             if (n)
             {
                 bool firstItem = true;
@@ -1851,7 +1886,7 @@ void Work()
                     next->indent = 0; //otherwise creates widgets overlaps
             }
             ctx.selected.clear();
-            if (activeButton != "")
+            if (ctx.mode == UIContext::SnapMove || activeButton != "")
             {
                 ctx.selected.push_back(newNodes[0].get());
                 ctx.snapParent->children.insert(ctx.snapParent->children.begin() + ctx.snapIndex, std::move(newNodes[0]));
@@ -1888,12 +1923,14 @@ void Work()
         if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
             ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
-            ctx.zoomFactor *= 1.2f;
+            if (ctx.zoomFactor < 2)
+                ctx.zoomFactor *= 1.2f;
         }
         if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
             ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
-            ctx.zoomFactor /= 1.2f;
+            if (ctx.zoomFactor > 0.5)
+                ctx.zoomFactor /= 1.2f;
         }
         if (!ImGui::GetIO().WantTextInput)
         {
@@ -1906,6 +1943,7 @@ void Work()
                 ctx.selected[0] != fileTabs[activeTab].rootNode.get())
             {
                 clipboard.clear();
+                bool tmp = ctx.createVars;
                 ctx.createVars = false;
                 auto sortedSel = SortSelection(ctx.selected);
                 for (UINode* node : sortedSel)
@@ -1913,7 +1951,7 @@ void Work()
                     auto* wdg = dynamic_cast<Widget*>(node);
                     clipboard.push_back(wdg->Clone(ctx));
                 }
-                ctx.createVars = true;
+                ctx.createVars = tmp;
             }
             if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_X, ImGuiInputFlags_RouteGlobal) &&
                 !ctx.selected.empty() &&
@@ -1925,7 +1963,7 @@ void Work()
                 clipboard.size())
             {
                 activeButton = "";
-                ctx.mode = UIContext::Snap;
+                ctx.mode = UIContext::SnapInsert;
                 ctx.selected = {};
             }
         }

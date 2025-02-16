@@ -626,7 +626,7 @@ void Widget::Draw(UIContext& ctx)
     ctx.stretchSize = { 0, 0 };
 
     if (!hasPos && nextColumn) {
-        bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+        bool inTable = dynamic_cast<Table*>(parent);
         if (inTable)
             ImRad::TableNextColumn(nextColumn);
         else
@@ -794,7 +794,7 @@ void Widget::Draw(UIContext& ctx)
     //doesn't work for open CollapsingHeader etc:
     //bool hovered1 = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
     bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size) &&
-        ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows); //detects overlapping window such as widget tool windows
+        ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
     if (ctx.mode == UIContext::NormalSelection &&
         hovered && !ImGui::GetTopMostAndVisiblePopupModal())
     {
@@ -806,6 +806,12 @@ void Widget::Draw(UIContext& ctx)
                 ctx.selected = { this };
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
         }
+        else if (ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        {
+            if (!stx::count(ctx.selected, this))
+                ctx.selected = { this };
+            ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
+        }
     }
     bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() &&
         (ctx.activePopups.empty() || stx::count(ctx.activePopups, ImGui::GetCurrentWindow()));
@@ -813,59 +819,71 @@ void Widget::Draw(UIContext& ctx)
         allowed && hovered)
     {
         if (ctx.hovered == lastHovered) //e.g. child widget was not selected
-        {
             ctx.hovered = this;
-        }
-        int hoverMode = 0;
-        if ((Behavior() & HasSizeX) && size_x.has_value() &&
+        //next operations only with single selected widget
+        if (!ImGui::IsKeyDown(ImGuiKey_LeftCtrl) &&
             ctx.selected.size() == 1 && ctx.selected[0] == this)
         {
-            if (std::abs(ImGui::GetMousePos().x - cached_pos.x) < 5)
-                hoverMode |= UIContext::ItemSizingLeft;
-            else if (std::abs(ImGui::GetMousePos().x - cached_pos.x - cached_size.x) < 5)
-                hoverMode |= UIContext::ItemSizingRight;
-        }
-        if ((Behavior() & HasSizeY) && size_y.has_value() &&
-            ctx.selected.size() == 1 && ctx.selected[0] == this)
-        {
-            if (std::abs(ImGui::GetMousePos().y - cached_pos.y) < 5)
-                hoverMode |= UIContext::ItemSizingTop;
-            if (std::abs(ImGui::GetMousePos().y - cached_pos.y - cached_size.y) < 5)
-                hoverMode |= UIContext::ItemSizingBottom;
-        }
-        if (hoverMode)
-        {
-            if ((hoverMode & UIContext::ItemSizingLeft) && (hoverMode & UIContext::ItemSizingBottom))
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
-            else if ((hoverMode & UIContext::ItemSizingRight) && (hoverMode & UIContext::ItemSizingBottom))
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
-            else if (hoverMode & (UIContext::ItemSizingLeft | UIContext::ItemSizingRight))
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-            else if (hoverMode & (UIContext::ItemSizingTop | UIContext::ItemSizingBottom))
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-            
-            if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            int resizeMode = 0;
+            ImVec2 mousePos = ImGui::IsMouseDown(ImGuiMouseButton_Left) ?
+                ImGui::GetIO().MouseClickedPos[ImGuiMouseButton_Left] :
+                ImGui::GetMousePos();
+            if ((Behavior() & HasSizeX) && size_x.has_value())
             {
-                ctx.mode = (UIContext::Mode)hoverMode;
-                ctx.dragged = this;
-                ctx.lastSize = { 
-                    size_x.eval_px(ImGuiAxis_X, ctx), 
-                    size_y.eval_px(ImGuiAxis_Y, ctx) 
-                };
-                if (ctx.lastSize.x <= 0)
-                    ctx.lastSize.x = cached_size.x;
-                if (ctx.lastSize.y <= 0)
-                    ctx.lastSize.y = cached_size.y;
-                ctx.lastSize /= ctx.zoomFactor;
+                if (std::abs(mousePos.x - cached_pos.x) < 5)
+                    resizeMode |= UIContext::ItemSizingLeft;
+                else if (std::abs(mousePos.x - cached_pos.x - cached_size.x) < 5)
+                    resizeMode |= UIContext::ItemSizingRight;
             }
-        }
-        else if (hasPos && ctx.hovered == this && !ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
-        {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-            if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            if ((Behavior() & HasSizeY) && size_y.has_value())
             {
-                ctx.mode = UIContext::ItemDragging;
-                ctx.dragged = this;
+                if (std::abs(mousePos.y - cached_pos.y) < 5)
+                    resizeMode |= UIContext::ItemSizingTop;
+                if (std::abs(mousePos.y - cached_pos.y - cached_size.y) < 5)
+                    resizeMode |= UIContext::ItemSizingBottom;
+            }
+            if (resizeMode)
+            {
+                if ((resizeMode & UIContext::ItemSizingLeft) && (resizeMode & UIContext::ItemSizingBottom))
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+                else if ((resizeMode & UIContext::ItemSizingRight) && (resizeMode & UIContext::ItemSizingBottom))
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+                else if (resizeMode & (UIContext::ItemSizingLeft | UIContext::ItemSizingRight))
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+                else if (resizeMode & (UIContext::ItemSizingTop | UIContext::ItemSizingBottom))
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                {
+                    ctx.mode = (UIContext::Mode)resizeMode;
+                    ctx.dragged = this;
+                    ctx.lastSize = {
+                        size_x.eval_px(ImGuiAxis_X, ctx),
+                        size_y.eval_px(ImGuiAxis_Y, ctx)
+                    };
+                    if (ctx.lastSize.x <= 0)
+                        ctx.lastSize.x = cached_size.x;
+                    if (ctx.lastSize.y <= 0)
+                        ctx.lastSize.y = cached_size.y;
+                    ctx.lastSize /= ctx.zoomFactor;
+                }
+            }
+            else if ((Behavior() & SnapSides) && ctx.hovered == this)
+            {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+                if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) //ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                {
+                    if (hasPos)
+                    {
+                        ctx.mode = UIContext::ItemDragging;
+                        ctx.dragged = this;
+                    }
+                    else
+                    {
+                        ctx.mode = UIContext::SnapMove;
+                        ctx.snapParent = nullptr;
+                    }
+                }
             }
         }
     }
@@ -878,6 +896,11 @@ void Widget::Draw(UIContext& ctx)
             ctx.snapParent = this;
             ctx.snapIndex = children.size();
         }
+    }
+    else if (ctx.mode == UIContext::SnapMove &&
+        allowed)
+    {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     }
     else if (ctx.mode == UIContext::ItemDragging && 
             allowed && ctx.dragged == this)
@@ -1025,11 +1048,16 @@ void Widget::Draw(UIContext& ctx)
             0, 0, selected ? 2.f : 1.f);
         //dl->PopClipRect();
     }
-    if (ctx.mode == UIContext::Snap && !ctx.snapParent)
+    if (ctx.mode == UIContext::SnapInsert && !ctx.snapParent)
     {
         DrawSnap(ctx);
     }
-    if (ctx.mode == UIContext::PickPoint && ctx.snapParent == this)
+    else if (ctx.mode == UIContext::SnapMove && !ctx.snapParent)
+    {
+        if (!ctx.selected[0]->FindChild(parent)) //disallow moving into its child
+            DrawSnap(ctx);
+    }
+    else if (ctx.mode == UIContext::PickPoint && ctx.snapParent == this)
     {
         DrawInteriorRect(ctx);
     }
@@ -1039,17 +1067,17 @@ void Widget::Draw(UIContext& ctx)
     ImGui::PopID();
 }
 
-void Widget::DrawExtra(UIContext& ctx)
+void Widget::DrawTools(UIContext& ctx)
 {
     ctx.parents.push_back(this);
     
     bool selected = stx::count(ctx.selected, this);
     if (selected)
-        DoDrawExtra(ctx);
+        DoDrawTools(ctx);
 
     //for (const auto& child : children) defend against insertions within the loop
     for (size_t i = 0; i < children.size(); ++i)
-        children[i]->DrawExtra(ctx);
+        children[i]->DrawTools(ctx);
     
     ctx.parents.pop_back();
 }
@@ -2036,7 +2064,7 @@ void Widget::TreeUI(UIContext& ctx)
             float sp = ImGui::GetFontSize() * 1.4f - ImGui::CalcTextSize(icon.c_str(), 0, true).x;
             ImGui::Dummy({ sp, 0 });
             ImGui::SameLine(0, 0);
-            bool selected = ctx.mode == UIContext::Snap && ctx.snapParent == this;
+            bool selected = ctx.mode == UIContext::SnapInsert && ctx.snapParent == this;
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             //we keep all items open, OpenOnDoubleClick is to block flickering
             int flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;

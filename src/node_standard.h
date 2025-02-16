@@ -39,7 +39,7 @@ struct UINode
     UINode(const UINode&) {} //shallow copy
     virtual ~UINode() {}
     virtual void Draw(UIContext& ctx) = 0;
-    virtual void DrawExtra(UIContext& ctx) = 0;
+    virtual void DrawTools(UIContext& ctx) = 0;
     virtual void TreeUI(UIContext& ctx) = 0;
     virtual auto Properties()->std::vector<Prop> = 0;
     virtual auto Events()->std::vector<Prop> = 0;
@@ -156,7 +156,7 @@ struct Widget : UINode
     static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
     void Draw(UIContext& ctx);
-    void DrawExtra(UIContext& ctx);
+    void DrawTools(UIContext& ctx);
     void Export(std::ostream& os, UIContext& ctx);
     void Import(cpp::stmt_iterator& sit, UIContext& ctx);
     auto Properties() -> std::vector<Prop>;
@@ -168,7 +168,7 @@ struct Widget : UINode
     Layout GetLayout(UINode* parent);
     virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
     virtual ImDrawList* DoDraw(UIContext& ctx) = 0;
-    virtual void DoDrawExtra(UIContext& ctx) {}
+    virtual void DoDrawTools(UIContext& ctx) {}
     virtual void DoExport(std::ostream& os, UIContext& ctx) = 0;
     virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);

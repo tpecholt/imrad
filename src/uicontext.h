@@ -14,7 +14,7 @@ struct UIContext
 {
     //set from outside
     enum Mode { 
-        NormalSelection, RectSelection, Snap, PickPoint, 
+        NormalSelection, RectSelection, SnapInsert, SnapMove, PickPoint, 
         ItemDragging, 
         ItemSizingLeft = 0x100, ItemSizingRight = 0x200, 
         ItemSizingTop = 0x400, ItemSizingBottom = 0x800, 
@@ -32,6 +32,7 @@ struct UIContext
     std::string unit; //for dimension export
     bool createVars = true; //create variables etc. during contructor/Clone calls
     ImGuiStyle style;
+    const ImGuiStyle* appStyle = nullptr;
     const property_base* setProp = nullptr;
     std::string setPropValue;
     ImTextureID dashTexId = 0;
