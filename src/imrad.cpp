@@ -24,6 +24,7 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <nfd.h>
 
+#include "glfw_cursor.h"
 #include "node_standard.h"
 #include "cppgen.h"
 #include "utils.h"
@@ -76,12 +77,14 @@ std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
+std::string styleName;
 bool reloadStyle = true;
 GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
 GLFWcursor* curCross = nullptr;
+GLFWcursor* curWait = nullptr;
 ImRad::IOUserData ioUserData;
 
 struct TB_Button 
@@ -216,7 +219,7 @@ void ActivateTab(int i)
     ctx.codeGen = &tab.codeGen;
     ReloadFile();
 
-    if (programState != Shutdown)
+    if (programState != Shutdown && fileTabs[activeTab].styleName != styleName)
         reloadStyle = true;
 }
 
@@ -798,13 +801,15 @@ GetCtxColors(const std::string& styleName)
 
 void LoadStyle()
 {
-    float faSize = fontSize * 18.f / 20.f;
-    std::string fontPath = rootPath + "/style/" + fontName;
     if (!reloadStyle)
         return;
     
     reloadStyle = false;
     auto& io = ImGui::GetIO();
+    float faSize = fontSize * 18.f / 20.f;
+    std::string fontPath = rootPath + "/style/" + fontName;
+    glfwSetCursor(window, curWait);
+
     io.Fonts->Clear();
 
     //reload ImRAD UI first
@@ -1168,7 +1173,7 @@ void ToolbarUI()
     ImGui::Text("Style");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
-    std::string styleName;
+    styleName = "";
     if (activeTab >= 0)
         styleName = fileTabs[activeTab].styleName;
     if (ImGui::BeginCombo("##style", styleName.c_str()))
@@ -1357,8 +1362,9 @@ void TabsUI()
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tab.fname != "")
                 ImGui::SetTooltip("%s", tab.fname.c_str());
             
+            std::string popupId = "TabPopup" + std::to_string(i);
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
-            if (ImGui::BeginPopupContextItem(nullptr))
+            if (ImGui::BeginPopup(popupId.c_str()))
             {
                 /*if (ImGui::MenuItem("Save", "Ctrl+S"))
                 {
@@ -1393,6 +1399,11 @@ void TabsUI()
             else if (ImGui::IsItemActivated() && i != activeTab)
             {
                 ActivateTab(i);
+            }
+            else if (ImRad::IsItemContextMenuClicked())
+            {
+                ActivateTab(i);
+                ImGui::OpenPopup(popupId.c_str());
             }
         }
         ImGui::EndTabBar();
@@ -2103,6 +2114,8 @@ int main(int argc, const char* argv[])
     glfwSwapInterval(1); // Enable vsync
     glfwMaximizeWindow(window);
     curCross = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    //curWait = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    curWait = glfwCreateCursor(CUSTOM_BUSY_CURSOR);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -2208,6 +2221,7 @@ int main(int argc, const char* argv[])
     ImGui::DestroyContext();
 
     glfwDestroyCursor(curCross);
+    glfwDestroyCursor(curWait);
     glfwDestroyWindow(window);
     glfwTerminate();
 

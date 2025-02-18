@@ -132,7 +132,7 @@ inline bool InputDirectVal(const char* label, direct_val<shortcut_>* val, bool b
         std::string buttonId = label + std::string("##But");
         std::string popupId = label + std::string("##DropDown");
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[val->flags() ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-        if (ImGui::ArrowButton(buttonId.c_str(), ImGuiDir_Down))
+        if (ImGui::Button((ICON_FA_ELLIPSIS + buttonId).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             ImGui::OpenPopup(popupId.c_str());
         }

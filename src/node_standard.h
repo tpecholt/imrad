@@ -268,7 +268,7 @@ struct Button : Widget
     bool EventUI(int, UIContext& ctx);
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
-    int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
+    int Behavior();
     const char* GetIcon() const { return ICON_FA_CIRCLE_PLAY; }
 };
 

@@ -2886,6 +2886,14 @@ std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
     return std::make_unique<Button>(*this);
 }
 
+int Button::Behavior() 
+{ 
+    int fl = Widget::Behavior();
+    if (!small)
+        fl |= HasSizeX | HasSizeY;
+    return fl;
+}
+
 ImDrawList* Button::DoDraw(UIContext& ctx)
 {
     if (arrowDir != ImGuiDir_None)
@@ -5596,6 +5604,14 @@ bool Image::PropertyUI(int i, UIContext& ctx)
 
 bool Image::PickFileName(UIContext& ctx)
 {
+    if (ctx.workingDir.empty()) {
+        messageBox.title = "Warning";
+        messageBox.message = "Please save the file first so that relative paths can work";
+        messageBox.buttons = ImRad::Ok;
+        messageBox.OpenPopup();
+        return false;
+    }
+
     nfdchar_t *outPath = NULL;
     nfdfilteritem_t filterItem[1] = { { "All Images", "bmp,gif,jpg,jpeg,png,tga" } };
     nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, nullptr);
