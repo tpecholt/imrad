@@ -613,7 +613,7 @@ struct bindable<dimension> : property_base
         return is.eof() || is.tellg() == str.size();
     }
     bool stretched() const {
-        return grow && has_value();
+        return grow;
     }
     bool has_value() const {
         if (empty())
@@ -788,96 +788,19 @@ struct bindable<std::string> : property_base
     }
     const char* c_str() const { return str.c_str(); }
     std::string* access() { return &str; }
-private:
+protected:
     std::string str;
 };
 
 //{items} or prvni\0druha\0
 template <>
-struct bindable<std::vector<std::string>> : property_base
+struct bindable<std::vector<std::string>> : bindable<std::string>
 {
     bindable() {}
-    bindable(const char* val) {
-        str = val;
-    }
-    bindable(const std::string& val) {
-        str = val;
-    }
-    bool empty() const { return str.empty(); }
-    void set_from_arg(std::string_view s)
-    {
-        if (cpp::is_cstr(s))
-            str = cpp::parse_str_arg(s);
-        else if (s != "\"\"")
-            str = "{" + s + "}";
-    }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {
-        auto vars = used_variables();
-        if (vars.empty())
-            return cpp::to_str_arg(str);
-        else
-            return vars[0];
+        return cpp::to_str_arg(str, true);
     }
-    std::vector<std::string> used_variables() const {
-        std::vector<std::string> vars;
-        size_t i = 0;
-        while (true) {
-            size_t j = str.find('{', i);
-            if (j == std::string::npos)
-                break;
-            if (j + 1 < str.size() && str[j + 1] == '{')
-                i = j + 2;
-            else {
-                i = j + 1;
-                size_t e = i + 1;
-                for (; e < str.size(); ++e)
-                    if (!std::isalnum(str[e]) && str[e] != '_')
-                        break;
-                if (e == str.size())
-                    break;
-                auto s = str.substr(i, e - i);
-                size_t k = 0;
-                while (true) {
-                    auto id = cpp::find_id(s, k);
-                    if (id == "")
-                        break;
-                    vars.push_back(std::string(id));
-                }
-            }
-        }
-        return vars;
-    };
-    void rename_variable(const std::string& oldn, const std::string& newn) {
-        std::vector<std::string> vars;
-        size_t i = 0;
-        while (true) {
-            size_t j = str.find('{', i);
-            if (j == std::string::npos)
-                break;
-            if (j + 1 < str.size() && str[j + 1] == '{')
-                i = j + 2;
-            else {
-                i = j + 1;
-                size_t e = std::min(str.find(':', i), str.find('}', i));
-                if (e == std::string::npos)
-                    break;
-                auto s = str.substr(i, e - i);
-                size_t k = 0;
-                while (true) {
-                    auto id = cpp::find_id(s, k);
-                    if (id == "")
-                        break;
-                    if (id == oldn)
-                        str.replace(id.data() - str.data(), id.size(), newn);
-                }
-            }
-        }
-    };
-    const char* c_str() const { return str.c_str(); }
-    std::string* access() { return &str; }
-private:
-    std::string str;
 };
 
 template <>

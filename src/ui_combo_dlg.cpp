@@ -9,15 +9,16 @@ ComboDlg comboDlg;
 void ComboDlg::Draw()
 {
     /// @begin TopWindow
+    std::string id = title + "###" + std::to_string((uint64_t)this);
     ImGui::SetNextWindowSize({ 320, 420 }, ImGuiCond_Appearing);
     if (requestOpen) {
         requestOpen = false;
-        ImGui::OpenPopup("Items");
+        ImGui::OpenPopup(id.c_str());
     }
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("Items", &tmpOpen, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal(id.c_str(), &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
         if (requestClose)
             ImGui::CloseCurrentPopup();

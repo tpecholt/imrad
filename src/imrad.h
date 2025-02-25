@@ -317,12 +317,6 @@ using VBox = BoxLayout<false>;
 extern int GetAssetData(const char* filename, void** outData);
 #endif
 
-template <class T>
-inline void HashCombine(ImU32& hash, T data)
-{
-    hash = ImHashData(&data, sizeof(data), hash);
-}
-
 inline bool Combo(const char* label, std::string* curr, const std::vector<std::string>& items, int flags = 0)
 {
     bool changed = false;

@@ -71,7 +71,7 @@ inline std::string operator+ (const std::string& s, std::string_view t)
 inline std::string operator+ (std::string_view t, const std::string& s)
 {
     std::string ss = s;
-    ss.insert(0, t, t.size());
+    ss.insert(0, t);
     return ss;
 }
 
@@ -82,6 +82,12 @@ inline std::ostream& operator<< (std::ostream& os, std::string_view t)
 }
 
 //----------------------------------------------------------------------
+
+template <class T>
+inline void HashCombineData(ImU32& hash, T data)
+{
+    hash = ImHashData(&data, sizeof(data), hash);
+}
 
 void ShellExec(const std::string& path);
 

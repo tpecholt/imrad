@@ -130,7 +130,6 @@ void DoCancelShutdown()
 
     glfwSetWindowShouldClose(window, false);
     programState = Run;
-    reloadStyle = true;
     ImGui::GetIO().IniFilename = INI_FILE_NAME;
 }
 
@@ -219,7 +218,7 @@ void ActivateTab(int i)
     ctx.codeGen = &tab.codeGen;
     ReloadFile();
 
-    if (programState != Shutdown && fileTabs[activeTab].styleName != styleName)
+    if (fileTabs[activeTab].styleName != styleName)
         reloadStyle = true;
 }
 
@@ -2039,7 +2038,7 @@ std::string GetRootPath()
 #ifdef WIN32
     wchar_t tmp[1024];
     int n = GetModuleFileNameW(NULL, tmp, sizeof(tmp));
-    return fs::path(tmp).parent_path().generic_string(); //need generic for CMake path output
+    return fs::path(tmp).parent_path().generic_string(); //need generic for CMake template path substitutions
 #elif __APPLE__
     char executablePath[PATH_MAX];
     uint32_t len;

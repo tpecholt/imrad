@@ -15,6 +15,7 @@ public:
     void ClosePopup();
     void Draw();
 
+    std::string title = "Items";
     std::string value;
     ImFont* defaultFont = nullptr;
 

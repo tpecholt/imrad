@@ -21,7 +21,7 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
     ImGui::PopStyleVar();
     ImGui::TableNextColumn();
     ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-    changed |= InputDataSize("##size", &val->limit, true, ctx);
+    changed |= InputDataSize(&val->limit, true, ctx);
     //changed = ImGui::InputText("##size", val->limit.access()); //allow empty
     ImGui::SameLine(0, 0);
     changed |= BindingButton(name, &val->limit, ctx);
@@ -36,7 +36,7 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
         ImGui::Text("index");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed |= InputFieldRef("##index", &val->index, true, ctx);
+        changed |= InputFieldRef(&val->index, true, ctx);
         ImGui::EndDisabled();
         ImGui::TreePop();
     }
@@ -210,31 +210,31 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("headerBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##headerbg", &style_headerBg, ImGuiCol_TableHeaderBg, ctx);
+        changed = InputBindable(&style_headerBg, ImGuiCol_TableHeaderBg, ctx);
         break;
     case 1:
         ImGui::Text("rowBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##rowbg", &style_rowBg, ImGuiCol_TableRowBg, ctx);
+        changed = InputBindable(&style_rowBg, ImGuiCol_TableRowBg, ctx);
         break;
     case 2:
         ImGui::Text("rowBgAlt");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##rowbgalt", &style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx);
+        changed = InputBindable(&style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx);
         break;
     case 3:
         ImGui::Text("childBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##bg", &style_childBg, ImGuiCol_ChildBg, ctx);
+        changed = InputBindable(&style_childBg, ImGuiCol_ChildBg, ctx);
         break;
     case 4:
         ImGui::Text("cellPadding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_cellPadding", &style_cellPadding, ctx);
+        changed = InputDirectVal(&style_cellPadding, ctx);
         break;
     case 5:
         TreeNodeProp("flags", "...", [&] {
@@ -269,7 +269,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("rowHeight");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##rowh", &rowHeight, {}, false, ctx);
+        changed = InputBindable(&rowHeight, {}, false, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("rowHeight", &rowHeight, ctx);
         break;
@@ -287,13 +287,13 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##swd", &scrollWhenDragging, ctx);
+        changed = InputDirectVal(&scrollWhenDragging, ctx);
         break;
     case 12:
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_x, {}, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         break;
@@ -301,7 +301,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##size_y", &size_y, {}, true, ctx);
+        changed = InputBindable(&size_y, {}, true, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         break;
@@ -331,13 +331,13 @@ bool Table::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnBeginRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnBeginRow", &onBeginRow, 0, ctx);
+        changed = InputEvent(&onBeginRow, 0, ctx);
         break;
     case 1:
         ImGui::Text("OnEndRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnEndRow", &onEndRow, 0, ctx);
+        changed = InputEvent(&onEndRow, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 2, ctx);
@@ -622,7 +622,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
     if (flags & ImGuiWindowFlags_AlwaysAutoResize) 
     {
         ctx.isAutoSize = true;
-        ImRad::HashCombine(ctx.layoutHash, true);
+        HashCombineData(ctx.layoutHash, true);
     }
 
     if (style_padding.has_value())
@@ -884,7 +884,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("color");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##color", &style_bg, ImGuiCol_ChildBg, ctx);
+        changed = InputBindable(&style_bg, ImGuiCol_ChildBg, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("color", &style_bg, ctx);
         break;
@@ -892,7 +892,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("border");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##border", &style_border, ImGuiCol_Border, ctx);
+        changed = InputBindable(&style_border, ImGuiCol_Border, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("border", &style_border, ctx);
         break;
@@ -900,30 +900,30 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("padding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##padding", &style_padding, ctx);
+        changed = InputDirectVal(&style_padding, ctx);
         break;
     case 3:
         ImGui::Text("spacing");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##spacing", &style_spacing, ctx);
+        changed = InputDirectVal(&style_spacing, ctx);
         break;
     case 4:
         ImGui::Text("rounding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##rounding", &style_rounding, ctx);
+        changed = InputDirectVal(&style_rounding, ctx);
         break;
     case 5:
         ImGui::Text("borderSize");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##borderSize", &style_borderSize, ctx);
+        changed = InputDirectVal(&style_borderSize, ctx);
         break;
     case 6:
         ImGui::Text("outerPadding");
         ImGui::TableNextColumn();
-        changed = InputDirectVal("##outerPadding", &style_outer_padding, ctx);
+        changed = InputDirectVal(&style_outer_padding, ctx);
         break;
     case 7:
         TreeNodeProp("flags", "...", [&] {
@@ -966,14 +966,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("columnCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##columnCount", &columnCount, 1, ctx);
+        changed = InputBindable(&columnCount, 1, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("columnCount", &columnCount, ctx);
         break;
     case 10:
         ImGui::Text("columnBorder");
         ImGui::TableNextColumn();
-        changed = InputDirectVal("##columnBorder", &columnBorder, ctx);
+        changed = InputDirectVal(&columnBorder, ctx);
         break;
     case 11:
         changed = DataLoopProp("itemCount", &itemCount, ctx);
@@ -982,14 +982,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##swd", &scrollWhenDragging, ctx);
+        changed = InputDirectVal(&scrollWhenDragging, ctx);
         break;
     case 13:
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX));
-        changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_x, {}, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
@@ -999,7 +999,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY));
-        changed = InputBindable("##size_y", &size_y, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_y, {}, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
@@ -1172,7 +1172,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("bg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##bg", &style_bg, ImGuiCol_ChildBg, ctx);
+        changed = InputBindable(&style_bg, ImGuiCol_ChildBg, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("bg", &style_bg, ctx);
         break;
@@ -1180,7 +1180,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("active");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##active", &style_active, ImGuiCol_SeparatorActive, ctx);
+        changed = InputBindable(&style_active, ImGuiCol_SeparatorActive, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("active", &style_active, ctx);
         break;
@@ -1189,7 +1189,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("position");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef("##position", &position, false, ctx);
+        changed = InputFieldRef(&position, false, ctx);
         break;
     case 3:
         ImGui::Text("minSize1");
@@ -1207,7 +1207,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##size_x", &size_x, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_x, {}, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         break;
@@ -1215,7 +1215,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##size_y", &size_y, {}, true, ctx);
+        changed = InputBindable(&size_y, {}, true, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         break;
@@ -1273,10 +1273,11 @@ ImDrawList* CollapsingHeader::DoDraw(UIContext& ctx)
 
 void CollapsingHeader::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
+    cached_pos = p1;
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     cached_pos.x -= pad.x;
     cached_size.x = ImGui::GetContentRegionAvail().x + 2 * pad.x;
-    cached_size.y = ImGui::GetCursorPosY() - p1.y - pad.y;
+    cached_size.y = ImGui::GetCursorScreenPos().y - p1.y - pad.y;
 }
 
 void CollapsingHeader::DoExport(std::ostream& os, UIContext& ctx)
@@ -1365,7 +1366,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("text");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
+        changed = InputBindable(&style_text, ImGuiCol_Text, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("color", &style_text, ctx);
         break;
@@ -1373,7 +1374,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("header");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##header", &style_header, ImGuiCol_Header, ctx);
+        changed = InputBindable(&style_header, ImGuiCol_Header, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("header", &style_header, ctx);
         break;
@@ -1381,7 +1382,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("hovered");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##hovered", &style_hovered, ImGuiCol_HeaderHovered, ctx);
+        changed = InputBindable(&style_hovered, ImGuiCol_HeaderHovered, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("hovered", &style_hovered, ctx);
         break;
@@ -1389,7 +1390,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("active");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##active", &style_active, ImGuiCol_HeaderActive, ctx);
+        changed = InputBindable(&style_active, ImGuiCol_HeaderActive, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("active", &style_active, ctx);
         break;
@@ -1397,7 +1398,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("font");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##font", &style_font, ctx);
+        changed = InputBindable(&style_font, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_font, ctx);
         break;
@@ -1405,7 +1406,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##label", &label, ctx);
+        changed = InputBindable(&label, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -1413,7 +1414,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("open");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##open", &open, true, ctx);
+        changed = InputBindable(&open, true, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("open", &open, ctx);
         break;
@@ -1470,12 +1471,13 @@ ImDrawList* TreeNode::DoDraw(UIContext& ctx)
 
 void TreeNode::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
+    cached_pos = p1;
     cached_size = ImGui::GetItemRectSize();
     ImVec2 sp = ImGui::GetStyle().ItemSpacing;
     
     if (flags & (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_SpanFullWidth))
     {
-        cached_size.x = ImGui::GetContentRegionAvail().x - p1.x + sp.x;
+        //todo cached_size.x = ImGui::GetContentRegionAvail().x - p1.x + sp.x;
     }
     else
     {
@@ -1557,7 +1559,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("text");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
+        changed = InputBindable(&style_text, ImGuiCol_Text, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("color", &style_text, ctx);
         break;
@@ -1565,7 +1567,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("font");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##font", &style_font, ctx);
+        changed = InputBindable(&style_font, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_font, ctx);
         break;
@@ -1580,7 +1582,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##label", &label, ctx);
+        changed = InputBindable(&label, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -1588,7 +1590,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("open");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##open", &open, true, ctx);
+        changed = InputBindable(&open, true, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("open", &open, ctx);
         break;
@@ -1677,10 +1679,11 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
 
 void TabBar::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
+    cached_pos = p1;
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     cached_pos.x -= pad.x;
     cached_size.x = ImGui::GetContentRegionAvail().x + 2 * pad.x;
-    cached_size.y = ImGui::GetCursorPosY() - p1.y;
+    cached_size.y = ImGui::GetCursorScreenPos().y - p1.y;
 }
 
 void TabBar::DoExport(std::ostream& os, UIContext& ctx)
@@ -1796,7 +1799,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("text");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##color", &style_text, ImGuiCol_Text, ctx);
+        changed = InputBindable(&style_text, ImGuiCol_Text, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("color", &style_text, ctx);
         break;
@@ -1804,7 +1807,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("tab");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##bg", &style_tab, ImGuiCol_Tab, ctx);
+        changed = InputBindable(&style_tab, ImGuiCol_Tab, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("bg", &style_tab, ctx);
         break;
@@ -1812,7 +1815,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("hovered");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##hovered", &style_hovered, ImGuiCol_TabHovered, ctx);
+        changed = InputBindable(&style_hovered, ImGuiCol_TabHovered, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("hovered", &style_hovered, ctx);
         break;
@@ -1820,7 +1823,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##selected", &style_selected, ImGuiCol_TabSelected, ctx);
+        changed = InputBindable(&style_selected, ImGuiCol_TabSelected, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("selected", &style_selected, ctx);
         break;
@@ -1828,7 +1831,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("overline");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##overline", &style_overline, ImGuiCol_TabSelectedOverline, ctx);
+        changed = InputBindable(&style_overline, ImGuiCol_TabSelectedOverline, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("overline", &style_overline, ctx);
         break;
@@ -1836,19 +1839,19 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("regularWidth");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##regu", &style_regularWidth, ctx);
+        changed = InputDirectVal(&style_regularWidth, ctx);
         break;
     case 6:
         ImGui::Text("padding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##padding", &style_framePadding, ctx);
+        changed = InputDirectVal(&style_framePadding, ctx);
         break;
     case 7:
         ImGui::Text("font");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##font", &style_font, ctx);
+        changed = InputBindable(&style_font, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_font, ctx);
         break;
@@ -1867,7 +1870,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("activeTab");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef("##activeTab", &activeTab, true, ctx);
+        changed = InputFieldRef(&activeTab, true, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 11, ctx);
@@ -2109,7 +2112,7 @@ bool TabItem::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##label", &label, ctx);
+        changed = InputBindable(&label, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -2145,7 +2148,7 @@ bool TabItem::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnClose");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onClose", &onClose, 0, ctx);
+        changed = InputEvent(&onClose, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:
@@ -2409,12 +2412,13 @@ void MenuIt::DoDrawTools(UIContext& ctx)
     ImGui::PopFont();
 }
 
-void MenuIt::CalcSizeEx(ImVec2 x1, UIContext& ctx)
+void MenuIt::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
     assert(ctx.parents.back() == this);
     const UINode* par = ctx.parents[ctx.parents.size() - 2];
     bool mbm = dynamic_cast<const MenuBar*>(par);
     
+    cached_pos = p1;
     ImVec2 sp = ImGui::GetStyle().ItemSpacing;
     const ImGuiMenuColumns* mc = &ImGui::GetCurrentWindow()->DC.MenuColumns;
     cached_pos.x += mc->OffsetLabel;
@@ -2630,7 +2634,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("padding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##padding", &style_padding, ctx);
+        changed = InputDirectVal(&style_padding, ctx);
         ImGui::EndDisabled();
         break;
     case 1:
@@ -2638,7 +2642,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("spacing");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##spacing", &style_spacing, ctx);
+        changed = InputDirectVal(&style_spacing, ctx);
         ImGui::EndDisabled();
         break;
     case 2:
@@ -2646,7 +2650,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("rounding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##rounding", &style_rounding, ctx);
+        changed = InputDirectVal(&style_rounding, ctx);
         ImGui::EndDisabled();
         break;
     case 3:
@@ -2662,7 +2666,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##label", &label, ctx);
+        changed = InputDirectVal(&label, ctx);
         ImGui::EndDisabled();
         break;
     case 5:
@@ -2670,7 +2674,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("shortcut");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##shortcut", &shortcut, false, ctx);
+        changed = InputDirectVal(&shortcut, false, ctx);
         ImGui::EndDisabled();
         break;
     case 6:
@@ -2679,7 +2683,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("checked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef("##checked", &checked, true, ctx);
+        changed = InputFieldRef(&checked, true, ctx);
         ImGui::EndDisabled();
         break;
     case 7:
@@ -2716,7 +2720,7 @@ bool MenuIt::EventUI(int i, UIContext& ctx)
         ImGui::Text(ownerDraw ? "OnDraw" : "OnChange");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##onChange", &onChange, 0, ctx);
+        changed = InputEvent(&onChange, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:

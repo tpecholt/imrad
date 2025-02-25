@@ -714,7 +714,7 @@ namespace cpp
             return unescape(str.substr(1, str.size() - 2), true);
         }
         else if (!str.compare(0, 15, "ImRad::Format(\"") &&
-                !str.compare(str.size() - 9, 9, ").c_str()")) 
+            !str.compare(str.size() - 9, 9, ").c_str()"))
         {
             auto find_curly = [](std::string_view s, size_t i) {
                 --i;
@@ -775,7 +775,10 @@ namespace cpp
             return str;
         }
         else
-            return INVALID_TEXT;
+        {
+            //direct variable
+            return "{" + str + "}";
+        }
     }
 
     inline std::string escape(char c)
@@ -818,7 +821,7 @@ namespace cpp
         return str;
     }
 
-    inline std::string to_str_arg(std::string_view str)
+    inline std::string to_str_arg(std::string_view str, bool directVar = false)
     {
         std::string lit, fmt, args;
         for (size_t i = 0; i < str.size(); ++i)
@@ -857,15 +860,17 @@ namespace cpp
                         args.clear();
                         goto error;
                     }
-                    if (c != std::string::npos && c < e &&
+                    if (args.size())
+                        args += ", ";
+                    if (c != std::string::npos && c < e && //with formatting
                         (q == std::string::npos || q > c)) //probably ?: operator misinterpreted as :fmt
                     {
-                        args += ", " + str.substr(i + 1, c - i - 1);
+                        args += str.substr(i + 1, c - i - 1);
                         fmt += "{";
                         fmt += str.substr(c, e - c + 1);
                     }
                     else {
-                        args += ", " + escape(str.substr(i + 1, e - i - 1));
+                        args += escape(str.substr(i + 1, e - i - 1));
                         fmt += "{}";
                     }
                     i = e;
@@ -876,7 +881,9 @@ namespace cpp
 error:
         if (args.empty())
             return "\"" + lit + "\"";
-        return "ImRad::Format(\"" + fmt + "\"" + args + ").c_str()";
+        else if (directVar && args.find(",") == std::string::npos && fmt[0] == '{' && fmt.back() == '}')
+            return args;
+        return "ImRad::Format(\"" + fmt + "\", " + args + ").c_str()";
     }
 
     //1. limits length of lengthy {} expression (like in case it contains ?:)

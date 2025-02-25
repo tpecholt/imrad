@@ -57,14 +57,14 @@ void TopWindow::Draw(UIContext& ctx)
     ctx.isAutoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
     ctx.prevLayoutHash = ctx.layoutHash;
     ctx.layoutHash = ctx.isAutoSize;
-    bool dimAll = ctx.activePopups.size();
     ctx.activePopups.clear();
     ctx.parents = { this };
     ctx.hovered = nullptr;
     ctx.snapParent = nullptr;
     ctx.kind = kind;
     ctx.contextMenus.clear();
-    
+    bool dimAll = ctx.activePopups.size();
+
     std::string cap = title.value();
     cap += "###TopWindow" + std::to_string((size_t)this); //don't clash 
     int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
@@ -1072,7 +1072,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         int clr = (kind == Popup || kind == ModalPopup) ? ImGuiCol_PopupBg : ImGuiCol_WindowBg;
-        changed = InputBindable("##bg", &style_bg, clr, ctx);
+        changed = InputBindable(&style_bg, clr, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("bg", &style_bg, ctx);
         break;
@@ -1081,7 +1081,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("menuBarBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##menuBarBg", &style_menuBg, ImGuiCol_MenuBarBg, ctx);
+        changed = InputBindable(&style_menuBg, ImGuiCol_MenuBarBg, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("menuBarBg", &style_menuBg, ctx);
         break;
@@ -1090,7 +1090,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("padding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_padding", &style_padding, ctx);
+        changed = InputDirectVal(&style_padding, ctx);
         break;
     }
     case 4:
@@ -1098,7 +1098,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("titlePadding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_titlePadding", &style_titlePadding, ctx);
+        changed = InputDirectVal(&style_titlePadding, ctx);
         break;
     }
     case 5:
@@ -1106,7 +1106,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("rounding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_rounding", &style_rounding, ctx);
+        changed = InputDirectVal(&style_rounding, ctx);
         break;
     }
     case 6:
@@ -1114,7 +1114,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("borderSize");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_border", &style_borderSize, ctx);
+        changed = InputDirectVal(&style_borderSize, ctx);
         break;
     }
     case 7:
@@ -1122,7 +1122,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("scrollbarSize");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_scrbs", &style_scrollbarSize, ctx);
+        changed = InputDirectVal(&style_scrollbarSize, ctx);
         break;
     }
     case 8:
@@ -1130,14 +1130,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("spacing");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##style_spacing", &style_spacing, ctx);
+        changed = InputDirectVal(&style_spacing, ctx);
         break;
     }
     case 9:
         ImGui::Text("font");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##font", &style_font, ctx);
+        changed = InputBindable(&style_font, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_font, ctx);
         break;
@@ -1159,7 +1159,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("title");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##title", &title, ctx);
+        changed = InputBindable(&title, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("title", &title, ctx);
         break;
@@ -1201,7 +1201,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         //sometimes too many props are disabled so disable only value here to make it look better
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##size_x", &size_x, {}, 0, ctx);
+        changed = InputBindable(&size_x, {}, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
@@ -1212,7 +1212,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         //sometimes too many props are disabled so disable only value here to make it look better
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable("##size_y", &size_y, {}, 0, ctx);
+        changed = InputBindable(&size_y, {}, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
@@ -1222,7 +1222,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("closeOnEscape");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##cesc", &closeOnEscape, ctx);
+        changed = InputDirectVal(&closeOnEscape, ctx);
         ImGui::EndDisabled();
         break;
     case 16:
@@ -1230,7 +1230,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("initialActivity");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##initact", &initialActivity, ctx);
+        changed = InputDirectVal(&initialActivity, ctx);
         ImGui::EndDisabled();
         break;
     case 17:
@@ -1238,7 +1238,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("animate");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal("##animate", &animate, ctx);
+        changed = InputDirectVal(&animate, ctx);
         ImGui::EndDisabled();
         break;
     default:
@@ -1267,13 +1267,13 @@ bool TopWindow::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnWindowAppearing");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnWindowAppearing", &onWindowAppearing, 0, ctx);
+        changed = InputEvent(&onWindowAppearing, 0, ctx);
         break;
     case 1:
         ImGui::Text("OnBackButton");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent("##OnBackButton", &onBackButton, 0, ctx);
+        changed = InputEvent(&onBackButton, 0, ctx);
         break;
     }
     return changed;
