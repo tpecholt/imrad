@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest] #  self-hosted
-        sys: [ clang32, clang64, ucrt64, mingw32, mingw64 ] #  clangarm64
+        sys: [ clang64, ucrt64, mingw32, mingw64 ] #  clangarm64
 
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
