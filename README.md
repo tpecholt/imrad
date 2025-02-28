@@ -117,8 +117,8 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 3. Build the INSTALL project in Release mode. It may require running VS with admin rights
 4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
 
-## Linux
-1. Due to the GTK FileOpen dialog dependency you need to `apt install` these packages first (exact list depends on your OS):
+## Linux, MacOS
+1. *Ubuntu*: Due to the GTK FileOpen dialog dependency you need to `apt install` these packages first (exact list depends on your OS):
    
    *pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev*
 
@@ -140,11 +140,13 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 
 Add all generated code into your project. Generated code #includes `imrad.h` so you need to set an include directory and point it to the include folder in the ImRAD installation folder. Based on your setup set project-wide preprocessor defines `IMRAD_WITH_GLFW`/`IMRAD_WITH_STB`/`IMRAD_WITH_FMT`.
 
+Either let ImRad to generate it or write your own ImGui initialization code in main.cpp. Call `Draw()` methods of all generated UI classes from your UI loop.
+
 Add dependency to ImGui and GLFW (whether you build it as separate libraries or directly add to your project is up to you). Stb and fmt dependencies are optional.
 
 # Tutorials
 
-Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and more detailed content.
+Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and more detailed content. There is a lot to discover!
 
 # Sponsorship
 
