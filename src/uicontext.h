@@ -57,6 +57,7 @@ struct UIContext
     ImGuiWindow* rootWin = nullptr;
     bool isAutoSize;
     ImU32 layoutHash = 0, prevLayoutHash = 0;
+    ImU32 prevDockspaceHash = 0;
     bool beingResized = false;
     std::vector<ImGuiWindow*> activePopups;
     std::vector<UINode*> parents;
@@ -66,6 +67,7 @@ struct UIContext
     ImVec2 selStart, selEnd;
     std::string ind;
     int varCounter;
+    std::string parentVarName;
     std::vector<std::string> errors;
     ImVec2 stretchSize;
     std::array<std::string, 2> stretchSizeExpr;

@@ -118,8 +118,9 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
         { ICON_FA_SITEMAP, "TreeNode" },
         { ICON_FA_TABLE_COLUMNS, "Splitter" }, //ICON_FA_ARROWS_LEFT_RIGHT_TO_LINE
         //{ ICON_FA_CLAPPERBOARD /*ELLIPSIS*/, "MenuBar" },
+        { ICON_FA_TABLE, "DockSpace" },
         { ICON_FA_MESSAGE /*RECEIPT*/, "ContextMenu" },
-    }}
+    }},
 };
 
 //CancelShutdown identifier is used in winuser.h

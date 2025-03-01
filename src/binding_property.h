@@ -549,8 +549,22 @@ struct bindable : property_base
 
     void set_from_arg(std::string_view s) {
         str = s;
+        if (std::is_same_v<T, float> && str.size() && str.back() == 'f') { 
+            //try to remove trailing f
+            str.pop_back();
+            if (!has_value())
+                str.push_back('f');
+        }
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
+        if (std::is_same_v<T, float> && has_value()) {
+            std::string tmp = str;
+            if (str.find('.') == std::string::npos)
+                tmp += ".f";
+            else
+                tmp += "f";
+            return tmp;
+        }
         return str;
     }
     std::vector<std::string> used_variables() const {

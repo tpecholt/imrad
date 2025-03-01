@@ -1,5 +1,6 @@
 #include "node_standard.h"
 #include "node_container.h"
+#include "node_extra.h"
 #include "stx.h"
 #include "cppgen.h"
 #include "binding_input.h"
@@ -537,6 +538,10 @@ Widget::Create(const std::string& name, UIContext& ctx)
         return std::make_unique<MenuIt>(ctx);
     else if (name == "Splitter")
         return std::make_unique<Splitter>(ctx);
+    else if (name == "DockSpace")
+        return std::make_unique<DockSpace>(ctx);
+    else if (name == "DockNode")
+        return std::make_unique<DockNode>(ctx);
     else
         return {};
 }
