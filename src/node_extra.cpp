@@ -346,7 +346,7 @@ ImDrawList* DockNode::DoDraw(UIContext& ctx)
                     cached_pos.x + (cached_size.x - tsize.x) / 2,
                     cached_pos.y + (cached_size.y - tsize.y) / 2
                     });
-                ImGui::TextDisabled(labels.c_str());
+                ImGui::TextDisabled("%s", labels.c_str());
 
                 if (ctx.mode == UIContext::NormalSelection &&
                     ImGui::IsWindowHovered() && !ImGui::GetTopMostAndVisiblePopupModal())

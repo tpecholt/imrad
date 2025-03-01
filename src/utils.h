@@ -86,6 +86,7 @@ inline std::ostream& operator<< (std::ostream& os, std::string_view t)
 template <class T>
 inline void HashCombineData(ImU32& hash, T data)
 {
+    extern IMGUI_API ImGuiID ImHashData(const void* data, size_t data_size, ImGuiID seed);
     hash = ImHashData(&data, sizeof(data), hash);
 }
 
