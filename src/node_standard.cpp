@@ -1077,7 +1077,24 @@ void Widget::DrawTools(UIContext& ctx)
     
     bool selected = stx::count(ctx.selected, this);
     if (selected)
+    {
+        ImGui::PushFont(nullptr);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ctx.appStyle->WindowPadding);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ctx.appStyle->ItemSpacing);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ctx.appStyle->Colors[ImGuiCol_WindowBg]);
+        ImGui::PushStyleColor(ImGuiCol_Text, ctx.appStyle->Colors[ImGuiCol_Text]);
+        ImGui::PushStyleColor(ImGuiCol_TextDisabled, ctx.appStyle->Colors[ImGuiCol_TextDisabled]);
+        ImGui::PushStyleColor(ImGuiCol_Button, ctx.appStyle->Colors[ImGuiCol_Button]);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ctx.appStyle->Colors[ImGuiCol_ButtonHovered]);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ctx.appStyle->Colors[ImGuiCol_ButtonActive]);
+
         DoDrawTools(ctx);
+    
+        ImGui::PopStyleColor(6);
+        ImGui::PopStyleVar(3);
+        ImGui::PopFont();
+    }
 
     //for (const auto& child : children) defend against insertions within the loop
     for (size_t i = 0; i < children.size(); ++i)
@@ -2054,7 +2071,7 @@ void Widget::TreeUI(UIContext& ctx)
         ImGui::PopStyleColor();
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_Text]);
         ImGui::SameLine();
-        ImGui::PushFont(ctx.defaultFont);
+        ImGui::PushFont(ctx.defaultStyleFont);
         if (label != "")
             ImGui::Text("\"%s\"", label.c_str());
         else
@@ -4578,7 +4595,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
             stx::replace(tmp, '\0', '\n');
             comboDlg.title = "Items";
             comboDlg.value = tmp;
-            comboDlg.defaultFont = ctx.defaultFont;
+            comboDlg.font = ctx.defaultStyleFont;
             comboDlg.OpenPopup([this](ImRad::ModalResult) {
                 std::string tmp = comboDlg.value;
                 if (!tmp.empty() && tmp.back() != '\n')

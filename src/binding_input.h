@@ -42,7 +42,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
     ImGui::PopStyleColor();
     if (pushed)
     {
-        bindingDlg.font = type.find("std::string") != std::string::npos ? ctx.defaultFont : nullptr;
+        bindingDlg.font = type.find("std::string") != std::string::npos ? ctx.defaultStyleFont : nullptr;
         bindingDlg.codeGen = ctx.codeGen;
         bindingDlg.name = label;
         bindingDlg.expr = val->c_str();
@@ -97,7 +97,7 @@ inline bool InputDirectVal(direct_val<bool>* val, UIContext& ctx)
 
 inline bool InputDirectVal(direct_val<std::string>* val, UIContext& ctx)
 {
-    ImGui::PushFont(ctx.defaultFont);
+    ImGui::PushFont(ctx.defaultStyleFont);
     std::string id = "##" + std::to_string((uint64_t)val);
     bool ch = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();
@@ -431,7 +431,7 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
 
 inline bool InputBindable(bindable<std::string>* val, UIContext& ctx)
 {
-    ImGui::PushFont(ctx.defaultFont);
+    ImGui::PushFont(ctx.defaultStyleFont);
     std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();

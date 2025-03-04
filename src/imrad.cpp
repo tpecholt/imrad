@@ -827,7 +827,7 @@ void LoadStyle()
     strcpy(cfg.Name, "imrad.H3");
     io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.1f, &cfg);
 
-    ctx.defaultFont = nullptr;
+    ctx.defaultStyleFont = nullptr;
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
     ctx.style = ImGuiStyle();
@@ -838,24 +838,24 @@ void LoadStyle()
         if (styleName == "Classic")
         {
             ImGui::StyleColorsClassic(&ctx.style);
-            ctx.defaultFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
-            ctx.defaultFont->FallbackChar = '#';
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+            ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
         }
         else if (styleName == "Light")
         {
             ImGui::StyleColorsLight(&ctx.style);
-            ctx.defaultFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
-            ctx.defaultFont->FallbackChar = '#';
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+            ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
         }
         else if (styleName == "Dark")
         {
             ImGui::StyleColorsDark(&ctx.style);
-            ctx.defaultFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
-            ctx.defaultFont->FallbackChar = '#';
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+            ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
         }
@@ -867,7 +867,7 @@ void LoadStyle()
                 auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
                 ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
             
-                ctx.defaultFont = fontMap[""];
+                ctx.defaultStyleFont = fontMap[""];
                 for (const auto& f : fontMap) {
                     ctx.fontNames.push_back(f.first);
                 }
@@ -1633,7 +1633,7 @@ void Draw()
     ImGui::GetStyle() = ctx.style;
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
     ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
-    ImGui::PushFont(ctx.defaultFont);
+    ImGui::PushFont(ctx.defaultStyleFont);
     
     ctx.appStyle = &tmpStyle;
     ctx.workingDir = fs::path(tab.fname).parent_path().string();

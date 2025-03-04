@@ -17,7 +17,7 @@ public:
 
     std::string title = "Items";
     std::string value;
-    ImFont* defaultFont = nullptr;
+    ImFont* font = nullptr;
 
 private:
     /// @impl

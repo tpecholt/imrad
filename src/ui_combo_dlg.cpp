@@ -27,7 +27,7 @@ void ComboDlg::Draw()
         /// @begin Input
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-        ImGui::PushFont(defaultFont);
+        ImGui::PushFont(font);
         ImGui::InputTextMultiline("##value", &value, { -1, -40 }, ImGuiInputTextFlags_Multiline);
         ImGui::PopFont();
         /// @end Input

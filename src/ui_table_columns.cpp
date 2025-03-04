@@ -50,7 +50,7 @@ void TableColumns::Draw()
                     selY = cy;
                 
                 /// @begin Input
-                ImGui::PushFont(defaultFont);
+                ImGui::PushFont(font);
                 ImGui::SetNextItemWidth(-1);
                 ImGui::InputText("##lab", &cd.label);
                 if (ImGui::IsItemFocused() || selRow < 0) {

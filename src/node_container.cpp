@@ -252,7 +252,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
             changed = true;
             tableColumns.columnData = columnData;
             tableColumns.target = &columnData;
-            tableColumns.defaultFont = ctx.defaultFont;
+            tableColumns.font = ctx.defaultStyleFont;
             tableColumns.OpenPopup();
         }
         break;
@@ -1926,10 +1926,6 @@ void TabItem::DoDrawTools(UIContext& ctx)
 {
     if (ctx.parents.empty())
         return;
-
-    ImGui::PushFont(nullptr);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
     assert(ctx.parents.back() == this);
     auto* parent = ctx.parents[ctx.parents.size() - 2];
     size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
@@ -1963,8 +1959,6 @@ void TabItem::DoDrawTools(UIContext& ctx)
     ImGui::EndDisabled();
 
     ImGui::End();
-    ImGui::PopStyleVar(2);
-    ImGui::PopFont();
 }
 
 void TabItem::CalcSizeEx(ImVec2 p1, UIContext& ctx)
@@ -2361,10 +2355,6 @@ void MenuIt::DoDrawTools(UIContext& ctx)
     //draw toolbox
     //currently we always sit it on top of the menu so that it doesn't overlap with submenus
     //no WindowFlags_StayOnTop
-    ImGui::PushFont(nullptr);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
-
     const ImVec2 bsize{ 30, 0 };
     ImVec2 pos = cached_pos;
     if (vertical) {
@@ -2408,8 +2398,6 @@ void MenuIt::DoDrawTools(UIContext& ctx)
     ImGui::EndDisabled();
 
     ImGui::End();
-    ImGui::PopStyleVar(2);
-    ImGui::PopFont();
 }
 
 void MenuIt::CalcSizeEx(ImVec2 p1, UIContext& ctx)

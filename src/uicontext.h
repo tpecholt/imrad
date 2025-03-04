@@ -28,7 +28,7 @@ struct UIContext
     enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
     std::array<ImU32, Color::COUNT> colors;
     std::vector<std::string> fontNames;
-    ImFont* defaultFont = nullptr;
+    ImFont* defaultStyleFont = nullptr;
     std::string unit; //for dimension export
     bool createVars = true; //create variables etc. during contructor/Clone calls
     ImGuiStyle style;

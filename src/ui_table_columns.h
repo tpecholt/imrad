@@ -17,7 +17,7 @@ public:
     /// @interface
     std::vector<Table::ColumnData> columnData;
     std::vector<Table::ColumnData>* target;
-    ImFont* defaultFont = nullptr;
+    ImFont* font = nullptr;
 
 private:
     ImGuiID ID;

@@ -77,17 +77,12 @@ uint32_t DockSpace::CalcHash(UIContext& ctx)
 
 void DockSpace::DoDrawTools(UIContext& ctx)
 {
-    ImGui::PushFont(nullptr);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
-    
     ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
     ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
 
     static const char* DIRNAME[] = { "Split Left", "Split Right", "Split Up", "Split Down" };
     for (int dir = ImGuiDir_Left; dir != ImGuiDir_COUNT; ++dir)
     {
-        ImGui::SameLine();
         if (ImGui::Button(DIRNAME[dir])) {
             auto node = std::make_unique<DockNode>(ctx);
             node->splitDir = ImGuiDir(dir);
@@ -95,6 +90,7 @@ void DockSpace::DoDrawTools(UIContext& ctx)
             //ctx.selected = { node.get() };
             children.push_back(std::move(node));
         }
+        ImGui::SameLine();
     }
 
     /*ImGui::SameLine();
@@ -107,8 +103,6 @@ void DockSpace::DoDrawTools(UIContext& ctx)
     }*/
 
     ImGui::End();
-    ImGui::PopStyleVar(2);
-    ImGui::PopFont();
 }
 
 void DockSpace::DoExport(std::ostream& os, UIContext& ctx)
@@ -342,11 +336,14 @@ ImDrawList* DockNode::DoDraw(UIContext& ctx)
                 //ImGui::PopStyleVar();
                 dl = ImGui::GetWindowDrawList();
                 
-                ImGui::SetCursorScreenPos({
-                    cached_pos.x + (cached_size.x - tsize.x) / 2,
-                    cached_pos.y + (cached_size.y - tsize.y) / 2
-                    });
-                ImGui::TextDisabled("%s", labels.c_str());
+                if (!ctx.beingResized)
+                {
+                    ImGui::SetCursorScreenPos({
+                        cached_pos.x + (cached_size.x - tsize.x) / 2,
+                        cached_pos.y + (cached_size.y - tsize.y) / 2
+                        });
+                    ImGui::TextDisabled("%s", labels.c_str());
+                }
 
                 if (ctx.mode == UIContext::NormalSelection &&
                     ImGui::IsWindowHovered() && !ImGui::GetTopMostAndVisiblePopupModal())
@@ -388,9 +385,6 @@ void DockNode::DoDrawTools(UIContext& ctx)
     auto* parent = ctx.parents[ctx.parents.size() - 2];
     DockNode* pnode = dynamic_cast<DockNode*>(parent);
 
-    ImGui::PushFont(nullptr);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGuiStyle().ItemSpacing);
     ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
     ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
     
@@ -427,8 +421,6 @@ void DockNode::DoDrawTools(UIContext& ctx)
     ImGui::EndDisabled();
 
     ImGui::End();
-    ImGui::PopStyleVar(2);
-    ImGui::PopFont();
 }
 
 void DockNode::DoExport(std::ostream& os, UIContext& ctx)
@@ -579,7 +571,7 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
             changed = true;
             comboDlg.title = "Window Names";
             comboDlg.value = labels;
-            comboDlg.defaultFont = nullptr;
+            comboDlg.font = nullptr;
             comboDlg.OpenPopup([this](ImRad::ModalResult) {
                 *labels.access() = comboDlg.value;
                 });
