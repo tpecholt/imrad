@@ -6,8 +6,7 @@ struct DockSpace : Widget
     flags_helper flags = 0;
     bindable<color32> style_preview;
     bindable<color32> style_emptyBg;
-    bool reset = false;
-
+    
     DockSpace(UIContext& ctx);
     uint32_t CalcHash(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

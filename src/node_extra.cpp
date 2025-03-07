@@ -186,11 +186,11 @@ DockSpace::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@style.dockingPreview", &style_preview },
-        { "@style.dockingEmptyBg", &style_emptyBg },
-        { "dockspace.flags", &flags },
-        { "size_x", &size_x },
-        { "size_y", &size_y },
+        { "@appearance.dockingPreview", &style_preview },
+        { "@appearance.dockingEmptyBg", &style_emptyBg },
+        { "dockspace.@behavior.flags", &flags },
+        { "@behavior.size_x", &size_x },
+        { "@behavior.size_y", &size_y },
         });
     return props;
 }
@@ -522,10 +522,10 @@ DockNode::Properties()
 {
     std::vector<UINode::Prop> props;
     props.insert(props.begin(), {
-        { "docknode.flags", &flags },
-        { "docknode.splitDir", &splitDir },
-        { "docknode.splitRatio", &splitRatio },
-        { "docknode.labels", &labels, true },
+        { "docknode.@behavior.flags", &flags },
+        { "docknode.@behavior.splitDir", &splitDir },
+        { "docknode.@behavior.splitRatio", &splitRatio },
+        { "docknode.@behavior.labels", &labels, true },
         });
     return props;
 }

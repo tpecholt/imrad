@@ -1026,24 +1026,24 @@ std::vector<UINode::Prop>
 TopWindow::Properties()
 {
     return {
-        { "top.kind", nullptr },
-        { "top.@style.bg", &style_bg },
-        { "top.@style.menuBg", &style_menuBg },
-        { "top.@style.padding", &style_padding },
-        { "top.@style.titlePadding", &style_titlePadding },
-        { "top.@style.rounding", &style_rounding },
-        { "top.@style.borderSize", &style_borderSize },
-        { "top.@style.scrollbarSize", &style_scrollbarSize },
-        { "top.@style.spacing", &style_spacing },
-        { "top.@style.font", &style_font },
-        { "top.flags", nullptr },
-        { "title", &title, true },
-        { "placement", &placement },
-        { "size_x", &size_x },
-        { "size_y", &size_y },
-        { "closeOnEscape", &closeOnEscape },
-        { "initialActivity", &initialActivity },
-        { "animate", &animate },
+        { "top.@appearance.bg", &style_bg },
+        { "top.@appearance.menuBg", &style_menuBg },
+        { "top.@appearance.padding", &style_padding },
+        { "top.@appearance.titlePadding", &style_titlePadding },
+        { "top.@appearance.rounding", &style_rounding },
+        { "top.@appearance.borderSize", &style_borderSize },
+        { "top.@appearance.scrollbarSize", &style_scrollbarSize },
+        { "top.@appearance.spacing", &style_spacing },
+        { "top.@appearance.font", &style_font },
+        { "top.@behavior.flags", nullptr },
+        { "top.@behavior.kind", nullptr },
+        { "@behavior.title", &title, true },
+        { "@behavior.placement", &placement },
+        { "@behavior.size_x", &size_x },
+        { "@behavior.size_y", &size_y },
+        { "@behavior.closeOnEscape", &closeOnEscape },
+        { "@behavior.initialActivity", &initialActivity },
+        { "@behavior.animate", &animate },
     };
 }
 
@@ -1054,7 +1054,82 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
     {
     case 0:
     {
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(164, 164, 164, 255));
+        ImGui::Text("bg");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        int clr = (kind == Popup || kind == ModalPopup) ? ImGuiCol_PopupBg : ImGuiCol_WindowBg;
+        changed = InputBindable(&style_bg, clr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("bg", &style_bg, ctx);
+        break;
+    }
+    case 1:
+        ImGui::Text("menuBarBg");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_menuBg, ImGuiCol_MenuBarBg, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("menuBarBg", &style_menuBg, ctx);
+        break;
+    case 2:
+    {
+        ImGui::Text("padding");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_padding, ctx);
+        break;
+    }
+    case 3:
+    {
+        ImGui::Text("titlePadding");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_titlePadding, ctx);
+        break;
+    }
+    case 4:
+    {
+        ImGui::Text("rounding");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_rounding, ctx);
+        break;
+    }
+    case 5:
+    {
+        ImGui::Text("borderSize");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_borderSize, ctx);
+        break;
+    }
+    case 6:
+    {
+        ImGui::Text("scrollbarSize");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_scrollbarSize, ctx);
+        break;
+    }
+    case 7:
+    {
+        ImGui::Text("spacing");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_spacing, ctx);
+        break;
+    }
+    case 8:
+        ImGui::Text("font");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_font, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_font, ctx);
+        break;
+    case 9:
+    {
+        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(164, 164, 164, 255));
         ImGui::Text("kind");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1066,81 +1141,6 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         }
         break;
     }
-    case 1:
-    {
-        ImGui::Text("bg");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        int clr = (kind == Popup || kind == ModalPopup) ? ImGuiCol_PopupBg : ImGuiCol_WindowBg;
-        changed = InputBindable(&style_bg, clr, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("bg", &style_bg, ctx);
-        break;
-    }
-    case 2:
-        ImGui::Text("menuBarBg");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_menuBg, ImGuiCol_MenuBarBg, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("menuBarBg", &style_menuBg, ctx);
-        break;
-    case 3:
-    {
-        ImGui::Text("padding");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_padding, ctx);
-        break;
-    }
-    case 4:
-    {
-        ImGui::Text("titlePadding");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_titlePadding, ctx);
-        break;
-    }
-    case 5:
-    {
-        ImGui::Text("rounding");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_rounding, ctx);
-        break;
-    }
-    case 6:
-    {
-        ImGui::Text("borderSize");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_borderSize, ctx);
-        break;
-    }
-    case 7:
-    {
-        ImGui::Text("scrollbarSize");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_scrollbarSize, ctx);
-        break;
-    }
-    case 8:
-    {
-        ImGui::Text("spacing");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_spacing, ctx);
-        break;
-    }
-    case 9:
-        ImGui::Text("font");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
-        break;
     case 10:
         TreeNodeProp("flags", "...", [&] {
             ImGui::TableNextColumn();

@@ -1730,32 +1730,32 @@ Widget::Properties()
 {
     //some properties are left up to the subclass
     std::vector<UINode::Prop> props{
-        { "visible", &visible },
-        { "tabStop", &tabStop },
-        { "tooltip", &tooltip },
-        { "contextMenu", &contextMenu },
-        { "cursor", &cursor },
-        { "disabled", &disabled },
+        { "@common.visible", &visible },
+        { "@common.tabStop", &tabStop },
+        { "@common.tooltip", &tooltip },
+        { "@common.contextMenu", &contextMenu },
+        { "@common.cursor", &cursor },
+        { "@common.disabled", &disabled },
     };
     if (Behavior() & SnapSides) //only last section is optional
     {
         props.insert(props.end(), {
-            { "@overlayPos.hasPos", &hasPos },
-            { "@overlayPos.pos_x", &pos_x },
-            { "@overlayPos.pos_y", &pos_y },
-            { "indent", &indent },
-            { "spacing", &spacing },
-            { "sameLine", &sameLine },
-            { "nextColumn", &nextColumn },
-            { "allowOverlap", &allowOverlap },
+            { "@layout.overlayPos.hasPos", &hasPos },
+            { "@layout.overlayPos.pos_x", &pos_x },
+            { "@layout.overlayPos.pos_y", &pos_y },
+            { "@layout.indent", &indent },
+            { "@layout.spacing", &spacing },
+            { "@layout.sameLine", &sameLine },
+            { "@layout.nextColumn", &nextColumn },
+            { "@layout.allowOverlap", &allowOverlap },
             });
     }
     else if (!(Behavior() & NoOverlayPos))
     {
         props.insert(props.end(), {
-            { "@overlayPos.hasPos", &hasPos },
-            { "@overlayPos.pos_x", &pos_x },
-            { "@overlayPos.pos_y", &pos_y }
+            { "@layout.@overlayPos.hasPos", &hasPos },
+            { "@layout.@overlayPos.pos_x", &pos_x },
+            { "@layout.@overlayPos.pos_y", &pos_y }
             });
     }
 
@@ -1764,12 +1764,6 @@ Widget::Properties()
 
 bool Widget::PropertyUI(int i, UIContext& ctx)
 {
-    int sat = (i & 1) ? 202 : 164;
-    if (i <= 5)
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(sat, 255, sat, 255));
-    else
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
-
     bool snapSides = Behavior() & SnapSides;
     bool changed = false;
     switch (i)
