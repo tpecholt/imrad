@@ -24,23 +24,29 @@ TopWindow::TopWindow(UIContext& ctx)
         size_y = 480;
     }
 
+    kind.add("Main Window (GLFW)", MainWindow);
+    kind.add$(Window);
+    kind.add$(Popup);
+    kind.add$(ModalPopup);
+    kind.add("Activity (Android)", Activity);
+
     flags.prefix("ImGuiWindowFlags_");
-    flags.add$(ImGuiWindowFlags_NoTitleBar);
-    flags.add$(ImGuiWindowFlags_NoResize);
-    flags.add$(ImGuiWindowFlags_NoMove);
-    flags.add$(ImGuiWindowFlags_NoScrollbar);
-    flags.add$(ImGuiWindowFlags_NoScrollWithMouse);
-    flags.add$(ImGuiWindowFlags_NoCollapse);
     flags.add$(ImGuiWindowFlags_AlwaysAutoResize);
-    flags.add$(ImGuiWindowFlags_NoBackground);
-    flags.add$(ImGuiWindowFlags_NoSavedSettings);
-    flags.add$(ImGuiWindowFlags_MenuBar);
     flags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
     flags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    flags.add$(ImGuiWindowFlags_MenuBar);
+    flags.add$(ImGuiWindowFlags_NoBackground);
+    flags.add$(ImGuiWindowFlags_NoCollapse);
+    flags.add$(ImGuiWindowFlags_NoDocking);
+    flags.add$(ImGuiWindowFlags_NoMove);
     flags.add$(ImGuiWindowFlags_NoNavInputs);
     flags.add$(ImGuiWindowFlags_NoNavFocus);
-    flags.add$(ImGuiWindowFlags_NoDocking);
-
+    flags.add$(ImGuiWindowFlags_NoResize);
+    flags.add$(ImGuiWindowFlags_NoSavedSettings);
+    flags.add$(ImGuiWindowFlags_NoScrollbar);
+    flags.add$(ImGuiWindowFlags_NoScrollWithMouse);
+    flags.add$(ImGuiWindowFlags_NoTitleBar);
+    
     placement.add(" ", None);
     placement.add$(Left);
     placement.add$(Right);
@@ -1038,18 +1044,19 @@ TopWindow::Properties()
         { "top.@behavior.flags", nullptr },
         { "top.@behavior.kind", nullptr },
         { "@behavior.title", &title, true },
-        { "@behavior.placement", &placement },
-        { "@behavior.size_x", &size_x },
-        { "@behavior.size_y", &size_y },
         { "@behavior.closeOnEscape", &closeOnEscape },
         { "@behavior.initialActivity", &initialActivity },
         { "@behavior.animate", &animate },
+        { "@layout.placement", &placement },
+        { "@layout.size_x", &size_x },
+        { "@layout.size_y", &size_y },
     };
 }
 
 bool TopWindow::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl = 0;
     switch (i)
     {
     case 0:
@@ -1133,21 +1140,35 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("kind");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        int tmp = (int)kind;
-        if (ImGui::Combo("##kind", &tmp, "Main Window (GLFW)\0Window\0Popup\0Modal Popup\0Activity (Android)\0"))
+        ImGui::PushFont(kind != Defaults().kind ? ctx.pgbFont : ctx.pgFont);
+        if (ImGui::BeginCombo("##kind", kind.get_id().c_str()))
         {
-            changed = true;
-            kind = (Kind)tmp;
+            ImGui::PopFont();
+            ImGui::PushFont(ctx.pgFont);
+            for (const auto& item : kind.get_ids())
+            {
+                if (ImGui::Selectable(item.first.c_str(), item.second == kind)) {
+                    changed = true;
+                    kind = item.second;
+                }
+            }
+            ImGui::EndCombo();
         }
+        ImGui::PopFont();
         break;
     }
     case 10:
-        TreeNodeProp("flags", "...", [&] {
+    {
+        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
+        TreeNodeProp("flags", font, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
             bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
-            changed = CheckBoxFlags(&flags);
+            ImGui::PushFont(ImRad::GetFontByName(
+                flags != Defaults().flags ? "imrad.pgb" : "imrad.pg"));
+            changed = CheckBoxFlags(&flags, TopWindow::Defaults().flags);
+            ImGui::PopFont();
             bool flagsMB = flags & ImGuiWindowFlags_MenuBar;
             if (flagsMB && !hasMB)
                 children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
@@ -1155,6 +1176,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
                 children.erase(children.begin());
             });
         break;
+    }
     case 11:
         ImGui::Text("title");
         ImGui::TableNextColumn();
@@ -1164,6 +1186,33 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("title", &title, ctx);
         break;
     case 12:
+        ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
+        ImGui::Text("closeOnEscape");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = closeOnEscape != Defaults().closeOnEscape ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&closeOnEscape, fl, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 13:
+        ImGui::BeginDisabled(kind != Activity);
+        ImGui::Text("initialActivity");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = initialActivity != Defaults().initialActivity ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&initialActivity, fl, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 14:
+        ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
+        ImGui::Text("animate");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = animate != Defaults().animate ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&animate, fl, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 15:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");
@@ -1172,8 +1221,11 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         auto tmp = placement;
         bool isPopup = kind == Popup || kind == ModalPopup;
         bool isPopupOrWindow = isPopup || kind == Window;
+        ImGui::PushFont(placement != Defaults().placement ? ctx.pgbFont : ctx.pgbFont);
         if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
         {
+            ImGui::PopFont();
+            ImGui::PushFont(ctx.pgFont);
             if (ImGui::Selectable("None", placement == None))
                 placement = None;
             if (isPopupOrWindow && ImGui::Selectable("Left", placement == Left))
@@ -1191,54 +1243,33 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
 
             ImGui::EndCombo();
         }
+        ImGui::PopFont();
         changed = placement != tmp;
         ImGui::EndDisabled();
         break;
     }
-    case 13:
+    case 16:
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         //sometimes too many props are disabled so disable only value here to make it look better
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_x, {}, 0, ctx);
+        fl = size_x != Defaults().size_x ? InputBindable_Modified : 0;
+        changed = InputBindable(&size_x, fl, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 14:
+    case 17:
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
         //sometimes too many props are disabled so disable only value here to make it look better
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_y, {}, 0, ctx);
+        fl = size_y != Defaults().size_y ? InputBindable_Modified : 0;
+        changed = InputBindable(&size_y, fl, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
-        ImGui::EndDisabled();
-        break;
-    case 15:
-        ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
-        ImGui::Text("closeOnEscape");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&closeOnEscape, ctx);
-        ImGui::EndDisabled();
-        break;
-    case 16:
-        ImGui::BeginDisabled(kind != Activity);
-        ImGui::Text("initialActivity");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&initialActivity, ctx);
-        ImGui::EndDisabled();
-        break;
-    case 17:
-        ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
-        ImGui::Text("animate");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&animate, ctx);
         ImGui::EndDisabled();
         break;
     default:

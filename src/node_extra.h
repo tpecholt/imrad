@@ -10,7 +10,7 @@ struct DockSpace : Widget
     DockSpace(UIContext& ctx);
     uint32_t CalcHash(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-    int Behavior() { return SnapSides | NoOverlayPos; }
+    int Behavior() { return SnapSides | NoOverlayPos | HasSizeX | HasSizeY; }
     ImDrawList* DoDraw(UIContext& ctx);
     void DoDrawTools(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
@@ -18,6 +18,9 @@ struct DockSpace : Widget
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_TABLE; }
+    const DockSpace& Defaults() { static DockSpace var; return var; }
+private:
+    DockSpace() {}
 };
 
 struct DockNode : Widget
@@ -43,4 +46,7 @@ struct DockNode : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void ExportHelp(std::ostream& os, UIContext& ctx);
     const char* GetIcon() const { return "N"; }
+    const DockNode& Defaults() { static DockNode var; return var; }
+private:
+    DockNode() {}
 };

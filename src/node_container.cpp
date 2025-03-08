@@ -237,7 +237,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&style_cellPadding, ctx);
         break;
     case 5:
-        TreeNodeProp("flags", "...", [&] {
+        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags);
@@ -269,7 +269,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("rowHeight");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&rowHeight, {}, false, ctx);
+        changed = InputBindable(&rowHeight, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("rowHeight", &rowHeight, ctx);
         break;
@@ -287,13 +287,13 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&scrollWhenDragging, ctx);
+        changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
     case 12:
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_x, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_x, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         break;
@@ -301,7 +301,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_y, {}, true, ctx);
+        changed = InputBindable(&size_y, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         break;
@@ -923,10 +923,10 @@ bool Child::PropertyUI(int i, UIContext& ctx)
     case 6:
         ImGui::Text("outerPadding");
         ImGui::TableNextColumn();
-        changed = InputDirectVal(&style_outer_padding, ctx);
+        changed = InputDirectVal(&style_outer_padding, 0, ctx);
         break;
     case 7:
-        TreeNodeProp("flags", "...", [&] {
+        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             int ch = CheckBoxFlags(&flags);
@@ -956,7 +956,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
             });
         break;
     case 8:
-        TreeNodeProp("windowFlags", "...", [&] {
+        TreeNodeProp("windowFlags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&wflags);
@@ -966,14 +966,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("columnCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&columnCount, 1, ctx);
+        changed = InputBindable(&columnCount, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("columnCount", &columnCount, ctx);
         break;
     case 10:
         ImGui::Text("columnBorder");
         ImGui::TableNextColumn();
-        changed = InputDirectVal(&columnBorder, ctx);
+        changed = InputDirectVal(&columnBorder, 0, ctx);
         break;
     case 11:
         changed = DataLoopProp("itemCount", &itemCount, ctx);
@@ -982,14 +982,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&scrollWhenDragging, ctx);
+        changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
     case 13:
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX));
-        changed = InputBindable(&size_x, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_x, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
@@ -999,7 +999,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY));
-        changed = InputBindable(&size_y, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_y, InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
@@ -1207,7 +1207,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_x, {}, InputBindable_StretchButton, ctx);
+        changed = InputBindable(&size_x, InputBindable_StretchButtonDisabled, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
         break;
@@ -1215,7 +1215,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_y, {}, true, ctx);
+        changed = InputBindable(&size_y, InputBindable_StretchButtonDisabled, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
         break;
@@ -1572,7 +1572,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 2:
-        TreeNodeProp("flags", "...", [&]{
+        TreeNodeProp("flags", ctx.pgbFont, "...", [&]{
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags);
@@ -1839,7 +1839,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("regularWidth");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_regularWidth, ctx);
+        changed = InputDirectVal(&style_regularWidth, 0, ctx);
         break;
     case 6:
         ImGui::Text("padding");
@@ -1856,7 +1856,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 8:
-        TreeNodeProp("flags", "...", [&] {
+        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags);
@@ -2615,6 +2615,7 @@ MenuIt::Properties()
 bool MenuIt::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -2662,7 +2663,8 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("shortcut");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&shortcut, false, ctx);
+        fl = shortcut.empty() ? 0 : InputDirectVal_Modified;
+        changed = InputDirectVal(&shortcut, fl, ctx);
         ImGui::EndDisabled();
         break;
     case 6:

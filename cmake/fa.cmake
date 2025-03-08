@@ -12,4 +12,5 @@ install(FILES
 	"${FA_INCLUDE_DIR}/MaterialIcons-Regular.ttf"
 	"${FA_INCLUDE_DIR}/Roboto-Medium.ttf"
 	"${FA_INCLUDE_DIR}/Roboto-Regular.ttf"
+	"${FA_INCLUDE_DIR}/Roboto-Bold.ttf"
 	DESTINATION "style/")

@@ -827,10 +827,18 @@ void LoadStyle()
     strcpy(cfg.Name, "imrad.H3");
     io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.1f, &cfg);
     //TODO
+    //cfg.OversampleH = 1;
+    //cfg.OversampleV = 1;
     strcpy(cfg.Name, "imrad.pg");
-    io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Regular.ttf").c_str(), fontSize, &cfg);
+    ctx.pgFont = io.Fonts->AddFontFromFileTTF(
+        //"c:/windows/fonts/segoeui.ttf",
+        (rootPath + "/style/Roboto-Regular.ttf").c_str(), 
+        fontSize * 1.1f, &cfg);
     strcpy(cfg.Name, "imrad.pgb");
-    io.Fonts->AddFontFromFileTTF((rootPath + "/style/Roboto-Bold.ttf").c_str(), fontSize, &cfg);
+    ctx.pgbFont = io.Fonts->AddFontFromFileTTF(
+        //"c:/windows/fonts/segoeuib.ttf",
+        (rootPath + "/style/Roboto-Bold.ttf").c_str(),
+        fontSize * 1.1f, &cfg);
     
     ctx.defaultStyleFont = nullptr;
     ctx.fontNames.clear();
@@ -1427,21 +1435,22 @@ void HierarchyUI()
     ImGui::End();
 }
 
-bool BeginPropGroup(const std::string& cat, const UINode::Prop& prop, bool& open)
+bool BeginPropGroup(const std::string& cat, bool& open)
 {
     bool topLevel = cat.find('.') == std::string::npos;
+    bool forceSameRow = !topLevel; // cat == "layout.overlayPos" || cat == "layout.size"; //todo: !topLevel
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    int flags = ImGuiTreeNodeFlags_SpanAllColumns;
+    ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont);
+    int flags = topLevel ? ImGuiTreeNodeFlags_SpanAllColumns : ImGuiTreeNodeFlags_SpanAvailWidth;
     std::string str;
     if (topLevel)
     {
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
             ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)));
-        ImGui::PushFont(ImRad::GetFontByName("imrad.pgb"));
         str = std::string(1, std::toupper(cat[0])) + cat.substr(1);
         if (str != "Appearance")
             flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -1457,14 +1466,20 @@ bool BeginPropGroup(const std::string& cat, const UINode::Prop& prop, bool& open
     if (!topLevel)
         ImGui::Unindent();
     ImGui::PushStyleColor(ImGuiCol_NavCursor, 0x0);
-    open = ImGui::TreeNodeEx(str.c_str(), flags);
+    if (!forceSameRow)
+        open = ImGui::TreeNodeEx(str.c_str(), flags);
+    else {
+        open = ImGui::TreeNodeEx(("###TreeNode." + cat).c_str(), flags);
+        ImGui::SameLine(0, 0);
+        //ImGui::Indent();
+        //hack - use indent for next rows but not for this one - treeNode arrow is already drawn
+        //ImGui::SameLine(ImGui::GetStyle().IndentSpacing, 0);     
+    }
     ImGui::PopStyleColor();
-    if (topLevel)
-        ImGui::PopFont();
-    else
+    if (!topLevel && !forceSameRow)
         ImGui::Indent();
+    ImGui::PopFont();
     ImGui::PopStyleVar();
-    bool forceSameRow = cat == "layout.overlayPos";
     if (!open && !forceSameRow)
         ImGui::TableNextColumn();
     return forceSameRow;
@@ -1534,7 +1549,7 @@ void PropertyRowsUI(bool pr)
                 pnames = std::move(pres);
             }
         }
-        ImGui::PushFont(ImRad::GetFontByName("imrad.pg"));
+        ImGui::PushFont(ctx.pgFont);
         ImVec2 framePad = ImGui::GetStyle().FramePadding;
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
         //when selecting other widget of same kind from Tree, value from previous widget
@@ -1585,7 +1600,7 @@ void PropertyRowsUI(bool pr)
                     if (!stx::count(catOpen, false))
                     {
                         ImGui::PopID();
-                        forceSameRow = BeginPropGroup(stx::join(inCat, "."), prop, open);
+                        forceSameRow = BeginPropGroup(stx::join(inCat, "."), open);
                         ImGui::PushID(ctx.selected[0]);
                     }
                     catOpen.push_back(open);
@@ -1609,6 +1624,11 @@ void PropertyRowsUI(bool pr)
                     pname = props[i].name;
                     pval = props[i].property->to_arg();
                 }
+            }
+            if (forceSameRow) {
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Indent();
+                ImGui::TableNextColumn();
             }
         }
         while (inCat.size())
@@ -1648,6 +1668,9 @@ void PropertyUI()
     //ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0xfffafafa);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, 0xfffafafa);
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight, 0xffe5e5e5);
+    /*ImVec4 clrButton = ImGui::GetStyleColorVec4(ImGuiCol_FrameBg);
+    clrButton.w = 0.5f;
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, clrButton);*/
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
     
     ImGui::Begin("Events");

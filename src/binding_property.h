@@ -242,6 +242,7 @@ struct direct_val<pzdimension> : property_base
     operator float&() { return val; }
     operator const float() const { return val; }
     bool empty() const { return val == -1; }
+    void clear() { val = -1; }
     bool has_value() const { return !empty(); }
     bool operator== (dimension dv) const {
         return val == dv;
@@ -312,6 +313,7 @@ struct direct_val<pzdimension2> : property_base
         val = v;
         return *this;
     }
+    void clear() { val[0] = val[1] = -1; }
     bool empty() const { return val[0] == -1 && val[1] == -1; }
     bool has_value() const { return !empty(); }
     ImVec2 eval_px(const UIContext& ctx) const;
@@ -523,6 +525,12 @@ struct bindable : property_base
         os << std::boolalpha << val;
         str = os.str();
     }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
+    }
     bool empty() const { return str.empty(); }
     bool has_value() const {
         if (empty()) 
@@ -613,6 +621,12 @@ struct bindable<dimension> : property_base
         std::ostringstream os;
         os << val;
         str = os.str();
+    }
+    bool operator== (const bindable& b) const {
+        return str == b.str && grow == b.grow;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str || grow != b.grow;
     }
     bool empty() const { 
         return str.empty(); 
@@ -733,6 +747,12 @@ struct bindable<std::string> : property_base
     bindable(const std::string& val) {
         str = val;
     }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
+    }
     bool empty() const { return str.empty(); }
     const std::string& value() const { return str; }
     void set_from_arg(std::string_view s)
@@ -825,6 +845,12 @@ struct bindable<font_name> : property_base
     bindable(const font_name& fn) {
         set_font_name(fn);
     }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
+    }
     bool empty() const { return str.empty(); }
     bool has_value() const {
         return !str.compare(0, 22, "ImRad::GetFontByName(\"");
@@ -882,6 +908,12 @@ struct bindable<color32> : property_base
         std::ostringstream os;
         os << c;
         str = os.str();
+    }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
     }
     bool empty() const { return str.empty(); }
     /*bool has_value() const {

@@ -7,7 +7,7 @@ struct TopWindow : UINode
     enum Placement { None, Left, Right, Top, Bottom, Center, Maximize };
     
     flags_helper flags = ImGuiWindowFlags_NoCollapse;
-    Kind kind = Window;
+    direct_val<Kind> kind = Window;
     bindable<std::string> title = "title";
     bindable<dimension> size_x = 640.f;
     bindable<dimension> size_y = 480.f;
@@ -30,6 +30,8 @@ struct TopWindow : UINode
 
     std::string userCodeBefore, userCodeAfter, userCodeMid;
 
+    static const TopWindow& Defaults() { static TopWindow node; return node; }
+    
     TopWindow(UIContext& ctx);
     void Draw(UIContext& ctx);
     void DrawTools(UIContext& ctx) {}
@@ -41,5 +43,8 @@ struct TopWindow : UINode
     void Export(std::ostream& os, UIContext& ctx);
     void Import(cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return SnapInterior; }
+
+private:
+    TopWindow() {}
 };
 
