@@ -467,7 +467,7 @@ inline bool InputBindable(bindable<dimension>* val, dimension defVal, int flags,
         ImGui::SameLine(0, 0);
         ImGui::PushFont(ImGui::GetDefaultFont());
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[stretch ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-        ImGui::BeginDisabled(flags & InputBindable_StretchButtonDisabled);
+        ImGui::BeginDisabled((flags & InputBindable_StretchButtonDisabled) == InputBindable_StretchButtonDisabled);
         if (ImGui::Button((ICON_FA_LEFT_RIGHT + id).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             changed = true;
