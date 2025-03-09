@@ -275,14 +275,14 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
         IM_COL32(0, 0, 0, 255),*/
 
         //8x5 palette
-        IM_COL32(0,0,0,255),
+        IM_COL32(255,255,255,255), //IM_COL32(0,0,0,255),
         IM_COL32(152,51,0,255),
         IM_COL32(51,51,0,255),
         IM_COL32(0,51,0,255),
         IM_COL32(0,51,102,255),
         IM_COL32(0,0,128,255),
         IM_COL32(51,51,153,255),
-        IM_COL32(50,52,50,255),
+        IM_COL32(0,0,0,255),
 
         IM_COL32(128,0,0,255),
         IM_COL32(255,102,0,255),
@@ -291,7 +291,7 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
         IM_COL32(0,128,128,255),
         IM_COL32(0,0,255,255),
         IM_COL32(102,102,153,255),
-        IM_COL32(127,129,127,255),
+        IM_COL32(64,64,64,255),
 
         IM_COL32(255,0,0,255),
         IM_COL32(255,153,0,255),
@@ -300,7 +300,7 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
         IM_COL32(51,204,204,255),
         IM_COL32(51,102,255,255),
         IM_COL32(128,0,128,255),
-        IM_COL32(152,154,152,255),
+        IM_COL32(128,128,128,255),
 
         IM_COL32(254,0,255,255),
         IM_COL32(255,203,0,255),
@@ -309,7 +309,7 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
         IM_COL32(0,255,254,255),
         IM_COL32(0,204,255,255),
         IM_COL32(153,51,102,255),
-        IM_COL32(194,194,194,255),
+        IM_COL32(192,192,192,255),
 
         IM_COL32(255,153,204,255),
         IM_COL32(255,204,151,255),
@@ -324,7 +324,7 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
     static std::string lastOpen;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5, 5 });
     ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos() + ImVec2{ ImGui::GetContentRegionAvail().x, 0 }, ImGuiCond_Always, { 1, 0 });
-    if (ImGui::BeginPopup(id.c_str(), ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopup(id.c_str(), ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav))
     {
         lastOpen = id.c_str();
         *val->access() = lastColor;
@@ -332,8 +332,8 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
         bool autoSel = ImGui::ColorButton("tooltip", ctx.style.Colors[def], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview);
         bool autoHover = ImGui::IsItemHovered();
         ImGui::SameLine(0, 0);
-        ImGui::Selectable("  Automatic", false, ImGuiSelectableFlags_NoPadWithHalfSpacing, 
-            { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), 0 });
+        ImGui::Selectable("  Automatic", false, ImGuiSelectableFlags_NoPadWithHalfSpacing);
+            //, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), 0 });
         autoHover = autoHover || ImGui::IsItemHovered();
         autoSel = autoSel || ImGui::IsItemClicked(ImGuiMouseButton_Left);
         if (autoSel)
@@ -346,9 +346,9 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
         {
             *val = color32();
         }
-        ImGui::SameLine(0, 0);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 4, 4 });
+        /*ImGui::SameLine(0, 0);
         const color32 trc({ 1, 1, 1, 0 });
         ImGui::PushStyleColor(ImGuiCol_Button, trc);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, trc);
@@ -364,21 +364,28 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
             *val = trc;
         }
         ImGui::PopStyleColor(2);
-
+        */
         for (int i = 0; i < stx::ssize(COLORS); ++i)
         {
             ImGui::PushID(i);
             ImGui::PushStyleColor(ImGuiCol_Button, COLORS[i]);
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, COLORS[i]);
+            //if (ImGui::ColorButton("##clr", ImGui::ColorConvertU32ToFloat4(COLORS[i]), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview, { 30, 30 }))
             if (ImGui::Button("##clr", { 30, 30 }))
             {
                 changed = true;
                 *val = COLORS[i];
                 lastColor = *val->access();
             }
+            if (!i)
+            {
+                ImVec2 p1 = ImGui::GetItemRectMin();
+                ImVec2 p2 = ImGui::GetItemRectMax();
+                ImGui::GetWindowDrawList()->AddLine({ p1.x, p2.y }, { p2.x, p1.y }, 0xff0000ff);
+            }
             if (ImGui::IsItemHovered())
             {
-                *val = COLORS[i];
+                *val = i ? COLORS[i] : 0x00ffffff;
             }
             ImGui::PopStyleColor(2);
             ImGui::PopID();
