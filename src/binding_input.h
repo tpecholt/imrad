@@ -374,18 +374,18 @@ inline bool InputBindable(bindable<color32>* val, int def, UIContext& ctx)
             if (ImGui::Button("##clr", { 30, 30 }))
             {
                 changed = true;
-                *val = COLORS[i];
+                *val = i ? COLORS[i] : color32(0x00ffffff);
                 lastColor = *val->access();
+            }
+            if (ImGui::IsItemHovered())
+            {
+                *val = i ? COLORS[i] : color32(0x00ffffff);
             }
             if (!i)
             {
                 ImVec2 p1 = ImGui::GetItemRectMin();
                 ImVec2 p2 = ImGui::GetItemRectMax();
                 ImGui::GetWindowDrawList()->AddLine({ p1.x, p2.y }, { p2.x, p1.y }, 0xff0000ff);
-            }
-            if (ImGui::IsItemHovered())
-            {
-                *val = i ? COLORS[i] : 0x00ffffff;
             }
             ImGui::PopStyleColor(2);
             ImGui::PopID();
