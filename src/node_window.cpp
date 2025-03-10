@@ -1046,9 +1046,10 @@ TopWindow::Properties()
         { "@behavior.closeOnEscape", &closeOnEscape },
         { "@behavior.initialActivity", &initialActivity },
         { "@behavior.animate", &animate },
+        { "@layout.size.size", nullptr },
+        { "@layout.size.size_x", &size_x },
+        { "@layout.size.size_y", &size_y },
         { "@layout.placement", &placement },
-        { "@layout.size_x", &size_x },
-        { "@layout.size_y", &size_y },
     };
 }
 
@@ -1212,6 +1213,38 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 15:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::PushFont(size_x != Defaults().size_x || size_y != Defaults().size_y ?
+            ctx.pgbFont : ctx.pgFont);
+        ImGui::Text((*size_x.access() + "," + *size_y.access()).c_str());
+        ImGui::PopFont();
+        break;
+    case 16:
+        ImGui::Text("size_x");
+        ImGui::TableNextColumn();
+        //sometimes too many props are disabled so disable only value here to make it look better
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = size_x != Defaults().size_x ? InputBindable_Modified : 0;
+        changed = InputBindable(&size_x, fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("size_x", &size_x, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 17:
+        ImGui::Text("size_y");
+        ImGui::TableNextColumn();
+        //sometimes too many props are disabled so disable only value here to make it look better
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = size_y != Defaults().size_y ? InputBindable_Modified : 0;
+        changed = InputBindable(&size_y, fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("size_y", &size_y, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 18:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");
@@ -1220,7 +1253,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         auto tmp = placement;
         bool isPopup = kind == Popup || kind == ModalPopup;
         bool isPopupOrWindow = isPopup || kind == Window;
-        ImGui::PushFont(placement != Defaults().placement ? ctx.pgbFont : ctx.pgbFont);
+        ImGui::PushFont(placement != Defaults().placement ? ctx.pgbFont : ctx.pgFont);
         if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
         {
             ImGui::PopFont();
@@ -1247,30 +1280,6 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     }
-    case 16:
-        ImGui::Text("size_x");
-        ImGui::TableNextColumn();
-        //sometimes too many props are disabled so disable only value here to make it look better
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = size_x != Defaults().size_x ? InputBindable_Modified : 0;
-        changed = InputBindable(&size_x, fl, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("size_x", &size_x, ctx);
-        ImGui::EndDisabled();
-        break;
-    case 17:
-        ImGui::Text("size_y");
-        ImGui::TableNextColumn();
-        //sometimes too many props are disabled so disable only value here to make it look better
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = size_y != Defaults().size_y ? InputBindable_Modified : 0;
-        changed = InputBindable(&size_y, fl, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("size_y", &size_y, ctx);
-        ImGui::EndDisabled();
-        break;
     default:
         return false;
     }

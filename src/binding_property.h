@@ -465,7 +465,7 @@ public:
         if (str != "")
             str.resize(str.size() - 3);
         else
-            str = "None";
+            str = "0";
         return str;
     }
     void set_from_arg(std::string_view str) {

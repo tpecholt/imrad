@@ -1445,14 +1445,15 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont);
-    int flags = topLevel ? ImGuiTreeNodeFlags_SpanAllColumns : ImGuiTreeNodeFlags_SpanAvailWidth;
+    //int flags = topLevel ? ImGuiTreeNodeFlags_SpanAllColumns : ImGuiTreeNodeFlags_SpanAvailWidth;
+    int flags = ImGuiTreeNodeFlags_SpanAllColumns;
     std::string str;
     if (topLevel)
     {
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
             ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)));
         str = std::string(1, std::toupper(cat[0])) + cat.substr(1);
-        if (str != "Appearance")
+        if (str != "Appearance" & str != "Common")
             flags |= ImGuiTreeNodeFlags_DefaultOpen;
     }
     else
@@ -1466,6 +1467,7 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     if (!topLevel)
         ImGui::Unindent();
     ImGui::PushStyleColor(ImGuiCol_NavCursor, 0x0);
+    ImGui::SetNextItemAllowOverlap();
     if (!forceSameRow)
         open = ImGui::TreeNodeEx(str.c_str(), flags);
     else {

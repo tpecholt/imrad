@@ -14,7 +14,7 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 {
     bool changed = false;
     ImVec2 pad = ImGui::GetStyle().FramePadding;
-    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
+    //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
     ImGui::Unindent();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     bool open = ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth);
@@ -29,7 +29,7 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
+        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
         ImGui::Indent();
         ImGui::AlignTextToFramePadding();
         ImGui::BeginDisabled(val->empty());
@@ -181,20 +181,18 @@ Table::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@style.headerBg", &style_headerBg },
-        { "@style.rowBg", &style_rowBg },
-        { "@style.rowBgAlt", &style_rowBgAlt },
-        { "@style.childBg", &style_childBg },
-        { "@style.cellPadding", &style_cellPadding },
-        { "table.flags", &flags },
-        { "table.columns", nullptr },
-        { "table.header", &header },
-        { "table.rowCount", &itemCount },
-        { "table.rowHeight", &rowHeight },
-        { "table.rowFilter", &rowFilter },
-        { "table.scrollWhenDragging", &scrollWhenDragging },
-        { "size_x", &size_x },
-        { "size_y", &size_y },
+        { "@appearance.headerBg", &style_headerBg },
+        { "@appearance.rowBg", &style_rowBg },
+        { "@appearance.rowBgAlt", &style_rowBgAlt },
+        { "@appearance.childBg", &style_childBg },
+        { "@appearance.cellPadding", &style_cellPadding },
+        { "table.@appearance.header", &header },
+        { "table.@appearance.rowHeight", &rowHeight },
+        { "table.@behavior.flags", &flags },
+        { "table.@behavior.columns", nullptr },
+        { "table.@behavior.rowFilter", &rowFilter },
+        { "table.@behavior.scrollWhenDragging", &scrollWhenDragging },
+        { "table.@data.rowCount", &itemCount },
         });
     return props;
 }
@@ -202,6 +200,7 @@ Table::Properties()
 bool Table::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -235,17 +234,33 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&style_cellPadding, ctx);
         break;
     case 5:
+        ImGui::Text("header");
+        ImGui::TableNextColumn();
+        fl = header != Defaults().header ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&header, fl, ctx);
+        break;
+    case 6:
+        ImGui::Text("rowHeight");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = rowHeight != Defaults().rowHeight ? InputBindable_Modified : 0;
+        changed = InputBindable(&rowHeight, fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("rowHeight", &rowHeight, ctx);
+        break;
+    case 7:
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
-    case 6:
+    case 8:
     {
         ImGui::Text("columns");
         ImGui::TableNextColumn();
-        if (ImGui::Selectable(ICON_FA_PEN_TO_SQUARE, false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        ImGui::PushFont(ctx.pgbFont);
+        if (ImGui::Selectable("[...]", false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             changed = true;
             tableColumns.columnData = columnData;
@@ -253,25 +268,10 @@ bool Table::PropertyUI(int i, UIContext& ctx)
             tableColumns.font = ctx.defaultStyleFont;
             tableColumns.OpenPopup();
         }
+        ImGui::PopFont();
         break;
     }
-    case 7:
-        ImGui::Text("header");
-        ImGui::TableNextColumn();
-        changed = ImGui::Checkbox("##header", header.access());
-        break;
-    case 8:
-        changed = DataLoopProp("rowCount", &itemCount, ctx);
-        break;
     case 9:
-        ImGui::Text("rowHeight");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&rowHeight, 0, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("rowHeight", &rowHeight, ctx);
-        break;
-    case 10:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("rowFilter");
         ImGui::TableNextColumn();
@@ -281,30 +281,17 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("rowFilter", &rowFilter, ctx);
         ImGui::EndDisabled();
         break;
-    case 11:
+    case 10:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
-    case 12:
-        ImGui::Text("size_x");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_x, InputBindable_StretchButton, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("size_x", &size_x, ctx);
-        break;
-    case 13:
-        ImGui::Text("size_y");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_y, InputBindable_StretchButton, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("size_y", &size_y, ctx);
+    case 11:
+        changed = DataLoopProp("rowCount", &itemCount, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 14, ctx);
+        return Widget::PropertyUI(i - 12, ctx);
     }
     return changed;
 }
@@ -852,21 +839,19 @@ Child::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@style.color", &style_bg },
-        { "@style.border", &style_border },
-        { "@style.padding", &style_padding },
-        { "@style.spacing", &style_spacing },
-        { "@style.rounding", &style_rounding },
-        { "@style.borderSize", &style_borderSize },
-        { "@style.outer_padding", &style_outer_padding },
-        { "child.flags", &flags },
-        { "child.wflags", &wflags },
-        { "child.column_count", &columnCount },
-        { "child.column_border", &columnBorder },
-        { "child.item_count", &itemCount },
-        { "scrollWhenDragging", &scrollWhenDragging },
-        { "size_x", &size_x },
-        { "size_y", &size_y },
+        { "@appearance.color", &style_bg },
+        { "@appearance.border", &style_border },
+        { "@appearance.padding", &style_padding },
+        { "@appearance.spacing", &style_spacing },
+        { "@appearance.rounding", &style_rounding },
+        { "@appearance.borderSize", &style_borderSize },
+        { "@appearance.outer_padding", &style_outer_padding },
+        { "child.@behavior.flags", &flags },
+        { "child.@behavior.wflags", &wflags },
+        { "child.@behavior.column_count", &columnCount },
+        { "child.@behavior.column_border", &columnBorder },
+        { "@behavior.scrollWhenDragging", &scrollWhenDragging },
+        { "child.@data.item_count", &itemCount },
         });
     return props;
 }
@@ -972,36 +957,16 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&columnBorder, 0, ctx);
         break;
     case 11:
-        changed = DataLoopProp("itemCount", &itemCount, ctx);
-        break;
-    case 12:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
-    case 13:
-        ImGui::Text("size_x");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX));
-        changed = InputBindable(&size_x, InputBindable_StretchButton, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("size_x", &size_x, ctx);
-        ImGui::EndDisabled();
-        break;
-    case 14:
-        ImGui::Text("size_y");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::BeginDisabled((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY));
-        changed = InputBindable(&size_y, InputBindable_StretchButton, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("size_y", &size_y, ctx);
-        ImGui::EndDisabled();
+    case 12:
+        changed = DataLoopProp("itemCount", &itemCount, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 15, ctx);
+        return Widget::PropertyUI(i - 13, ctx);
     }
     return changed;
 }
