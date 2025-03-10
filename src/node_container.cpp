@@ -51,7 +51,6 @@ bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
 
 Table::ColumnData::ColumnData()
 {
-    flags.prefix("ImGuiTableColumnFlags_");
     flags.add$(ImGuiTableColumnFlags_Disabled);
     flags.add$(ImGuiTableColumnFlags_WidthStretch);
     flags.add$(ImGuiTableColumnFlags_WidthFixed);
@@ -67,7 +66,6 @@ Table::Table(UIContext& ctx)
     size_x = -1; //here 0 has the same effect as -1 but -1 works with our sizing visualization
     size_y = 0;
 
-    flags.prefix("ImGuiTableFlags_");
     flags.add$(ImGuiTableFlags_Resizable);
     flags.add$(ImGuiTableFlags_Reorderable);
     flags.add$(ImGuiTableFlags_Hideable);
@@ -240,7 +238,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 6:
@@ -581,7 +579,6 @@ Child::Child(UIContext& ctx)
     //it seems 0 is equivalent to -1 but only if children exist which is confusing
     size_x = size_y = 20;
 
-    flags.prefix("ImGuiChildFlags_");
     flags.add$(ImGuiChildFlags_Borders);
     flags.add$(ImGuiChildFlags_AlwaysUseWindowPadding);
     flags.add$(ImGuiChildFlags_AlwaysAutoResize);
@@ -590,7 +587,6 @@ Child::Child(UIContext& ctx)
     flags.add$(ImGuiChildFlags_FrameStyle);
     flags.add$(ImGuiChildFlags_NavFlattened);
 
-    wflags.prefix("ImGuiWindowFlags_");
     wflags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
     wflags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
     wflags.add$(ImGuiWindowFlags_NoBackground);
@@ -929,7 +925,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            int ch = CheckBoxFlags(&flags);
+            int ch = CheckBoxFlags(&flags, Defaults().flags);
             if (ch) {
                 changed = true;
                 //these flags are difficult to get right and there are asserts so fix it here
@@ -959,7 +955,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("windowFlags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&wflags);
+            changed = CheckBoxFlags(&wflags, Defaults().flags);
             });
         break;
     case 9:
@@ -1428,7 +1424,6 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 
 TreeNode::TreeNode(UIContext& ctx)
 {
-    flags.prefix("ImGuiTreeNodeFlags_");
     //flags.add$(ImGuiTreeNodeFlags_Framed);
     flags.add$(ImGuiTreeNodeFlags_FramePadding);
     flags.add$(ImGuiTreeNodeFlags_Leaf);
@@ -1575,7 +1570,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&]{
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 3:
@@ -1604,7 +1599,6 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
 
 TabBar::TabBar(UIContext& ctx)
 {
-    flags.prefix("ImGuiTabBarFlags_");
     flags.add$(ImGuiTabBarFlags_Reorderable);
     flags.add$(ImGuiTabBarFlags_TabListPopupButton);
     flags.add$(ImGuiTabBarFlags_NoTabListScrollingButtons);
@@ -1859,7 +1853,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 9:

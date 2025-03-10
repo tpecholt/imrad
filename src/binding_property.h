@@ -447,15 +447,8 @@ public:
     int operator& (int ff) {
         return f & ff;
     }
-    flags_helper& prefix(const char* p) {
-        pre = p;
-        return *this;
-    }
     flags_helper& add(const char* id, int v) {
-        if (!pre.compare(0, pre.size(), id, 0, pre.size()))
-            ids.push_back({ id + pre.size(), v });
-        else
-            ids.push_back({ id, v });
+        ids.push_back({ id, v });
         return *this;
     }
     flags_helper& separator() {
@@ -468,11 +461,11 @@ public:
         std::string str;
         for (const auto& id : ids)
             if ((f & id.second) && id.first != "")
-                str += pre + id.first + " | ";
+                str += id.first + " | ";
         if (str != "")
             str.resize(str.size() - 3);
         else
-            str = pre + "None";
+            str = "None";
         return str;
     }
     void set_from_arg(std::string_view str) {
@@ -485,8 +478,6 @@ public:
                 s = str.substr(i);
             else
                 s = str.substr(i, j - i);
-            if (!str.compare(0, pre.size(), pre))
-                s.erase(0, pre.size());
             auto id = stx::find_if(ids, [&](const auto& id) { return id.first == s; });
             //assert(id != ids.end());
             if (id != ids.end())
@@ -497,11 +488,11 @@ public:
         }
     }
     const auto& get_ids() const { return ids; }
-    std::string get_name(int fl, bool prefixed = true) const {
-        for (const auto& id : ids)
-            if (id.second == fl && id.first != "") 
-                return prefixed ? pre + id.first : id.first;
-        return "";
+    auto find_id(int fl) const {
+        for (auto id = ids.begin(); id != ids.end(); ++id)
+            if (id->second == fl && id->first != "") 
+                return id;
+        return ids.end();
     }
     std::vector<std::string> used_variables() const { return {}; }
     void rename_variable(const std::string& oldn, const std::string& newn) {}
@@ -509,7 +500,6 @@ public:
 
 private:
     int f;
-    std::string pre;
     std::vector<std::pair<std::string, int>> ids;
 };
 
@@ -557,8 +547,13 @@ struct bindable : property_base
 
     void set_from_arg(std::string_view s) {
         str = s;
-        if (std::is_same_v<T, float> && str.size() && str.back() == 'f') { 
-            //try to remove trailing f
+        //try to remove trailing f
+        if (std::is_same_v<T, float> && str.size() >= 3 && !str.compare(str.size() - 2, 2, ".f")) {
+            str.resize(str.size() - 2);
+            if (!has_value())
+                str += ".f";
+        }
+        else if (std::is_same_v<T, float> && str.size() && str.back() == 'f') {
             str.pop_back();
             if (!has_value())
                 str.push_back('f');

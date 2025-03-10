@@ -6,7 +6,6 @@ const float DEFAULT_SPLIT_RATIO = 0.3f;
 
 DockSpace::DockSpace(UIContext& ctx)
 {
-    flags.prefix("ImGuiDockNodeFlags_");
     flags.add$(ImGuiDockNodeFlags_KeepAliveOnly);
     flags.add$(ImGuiDockNodeFlags_NoDockingOverCentralNode);
     flags.add$(ImGuiDockNodeFlags_PassthruCentralNode);
@@ -215,12 +214,15 @@ bool DockSpace::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("dockingEmptyBg", &style_emptyBg, ctx);
         break;
     case 2:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
+    {
+        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
+        TreeNodeProp("flags", font, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
+    }
     default:
         return Widget::PropertyUI(i - 3, ctx);
     }
@@ -231,7 +233,6 @@ bool DockSpace::PropertyUI(int i, UIContext& ctx)
 
 DockNode::DockNode(UIContext& ctx)
 {
-    flags.prefix("ImGuiDockNodeFlags_");
     flags.add$(ImGuiDockNodeFlags_AutoHideTabBar);
     flags.add$(ImGuiDockNodeFlags_HiddenTabBar);
     flags.add$(ImGuiDockNodeFlags_NoCloseButton);
@@ -527,13 +528,16 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
+    {
+        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
+        TreeNodeProp("flags", font, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
-   case 1:
+    }
+    case 1:
         ImGui::Text("splitDir");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());

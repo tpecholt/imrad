@@ -30,7 +30,6 @@ TopWindow::TopWindow(UIContext& ctx)
     kind.add$(ModalPopup);
     kind.add("Activity (Android)", Activity);
 
-    flags.prefix("ImGuiWindowFlags_");
     flags.add$(ImGuiWindowFlags_AlwaysAutoResize);
     flags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
     flags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
@@ -47,7 +46,7 @@ TopWindow::TopWindow(UIContext& ctx)
     flags.add$(ImGuiWindowFlags_NoScrollWithMouse);
     flags.add$(ImGuiWindowFlags_NoTitleBar);
     
-    placement.add(" ", None);
+    placement.add$(None);
     placement.add$(Left);
     placement.add$(Right);
     placement.add$(Top);

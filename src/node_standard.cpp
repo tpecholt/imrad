@@ -2597,7 +2597,6 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 
 Selectable::Selectable(UIContext& ctx)
 {
-    flags.prefix("ImGuiSelectableFlags_");
     flags.add$(ImGuiSelectableFlags_DontClosePopups);
     flags.add$(ImGuiSelectableFlags_SpanAllColumns);
     flags.add$(ImGuiSelectableFlags_NoPadWithHalfSpacing);
@@ -2857,7 +2856,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 4:
@@ -3749,7 +3748,6 @@ Input::Input(UIContext& ctx)
     size_x = 200;
     size_y = 100;
 
-    flags.prefix("ImGuiInputTextFlags_");
     flags.add$(ImGuiInputTextFlags_CharsDecimal);
     flags.add$(ImGuiInputTextFlags_CharsHexadecimal);
     flags.add$(ImGuiInputTextFlags_CharsScientific);
@@ -3780,14 +3778,12 @@ Input::Input(UIContext& ctx)
     
     if (_imeClass.get_ids().empty()) 
     {
-        _imeClass.prefix("ImRad::");
         _imeClass.add("Default", 0);
         _imeClass.add$(ImRad::ImeText);
         _imeClass.add$(ImRad::ImeNumber);
         _imeClass.add$(ImRad::ImeDecimal);
         _imeClass.add$(ImRad::ImeEmail);
         _imeClass.add$(ImRad::ImePhone);
-        _imeAction.prefix("ImRad::");
         _imeAction.add("ImeActionNone", 0);
         _imeAction.add$(ImRad::ImeActionDone);
         _imeAction.add$(ImRad::ImeActionGo);
@@ -4001,9 +3997,9 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     int cls = imeType & 0xff;
     int action = imeType & (~0xff);
     os << ctx.ind << "ioUserData->imeType = " 
-        << (cls ? _imeClass.get_name(cls) : defIme);
+        << (cls ? _imeClass.find_id(cls)->first : defIme);
     if (action)
-        os << " | " << _imeAction.get_name(action);
+        os << " | " << _imeAction.find_id(action)->first;
     os << ";\n";
     ctx.ind_down();
     
@@ -4183,7 +4179,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             std::string fl = sit->line.substr(pos + 1);
             _imeClass.set_from_arg(fl);
             _imeAction.set_from_arg(fl);
-            
+            //set imeClass to default
             if (!type.access()->compare(0, 3, "int") && _imeClass == ImRad::ImeText)
                 _imeClass = 0;
             else if (!type.access()->compare(0, 5, "float") && _imeClass == ImRad::ImeDecimal)
@@ -4299,7 +4295,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 6:
@@ -4346,18 +4342,20 @@ bool Input::PropertyUI(int i, UIContext& ctx)
     {
         int type = imeType & 0xff;
         int action = imeType & (~0xff);
-        std::string val = _imeClass.get_name(type, false);
+        std::string val = _imeClass.find_id(type)->first.substr(7);
         if (action)
-            val += " | " + _imeAction.get_name(action, false);
+            val += " | " + _imeAction.find_id(action)->first.substr(7);
         TreeNodeProp("imeType", ctx.pgbFont, val, [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             for (const auto& id : _imeClass.get_ids()) {
-                changed |= ImGui::RadioButton(id.first.c_str(), &type, id.second);
+                int pre = !id.first.compare(0, 7, "ImRad::") ? 7 : 0;
+                changed |= ImGui::RadioButton(id.first.substr(pre).c_str(), &type, id.second);
             }
             ImGui::Separator();
             for (const auto& id : _imeAction.get_ids()) {
-                changed |= ImGui::RadioButton(id.first.c_str(), &action, id.second);
+                int pre = !id.first.compare(0, 7, "ImRad::") ? 7 : 0;
+                changed |= ImGui::RadioButton(id.first.substr(pre).c_str(), &action, id.second);
             }
             imeType = type | action;
             });
@@ -4473,7 +4471,6 @@ Combo::Combo(UIContext& ctx)
     if (ctx.createVars)
         fieldName.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
 
-    flags.prefix("ImGuiComboFlags_");
     flags.add$(ImGuiComboFlags_PopupAlignLeft);
     flags.add$(ImGuiComboFlags_HeightSmall);
     flags.add$(ImGuiComboFlags_HeightRegular);
@@ -4655,7 +4652,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 7:
@@ -5237,7 +5234,6 @@ ColorEdit::ColorEdit(UIContext& ctx)
 {
     size_x = 200;
 
-    flags.prefix("ImGuiColorEditFlags_");
     flags.add$(ImGuiColorEditFlags_NoAlpha);
     flags.add$(ImGuiColorEditFlags_NoPicker);
     flags.add$(ImGuiColorEditFlags_NoOptions);
@@ -5420,7 +5416,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
     case 6:

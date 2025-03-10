@@ -149,15 +149,31 @@ bool InputDirectVal(direct_val<T>* val, int fl, UIContext& ctx)
 {
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
+    std::string value = val->get_id();
+    size_t pre = 0;
+    if (!value.compare(0, 5, "ImGui")) {
+        pre = value.find("_");
+        if (pre != std::string::npos && pre + 1 < value.size())
+            ++pre;
+        else
+            pre = 0;
+    }
     ImGui::PushFont((fl & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
-    if (ImGui::BeginCombo(id.c_str(), val->get_id().c_str()))
+    if (ImGui::BeginCombo(id.c_str(), val->get_id().c_str() + pre))
     {
         ImGui::PopFont();
         ImGui::PushFont(ImGui::GetFont());
         changed = true;
         for (const auto& item : val->get_ids())
         {
-            if (ImGui::Selectable(item.first.c_str(), *val->access() == item.second))
+            if (!item.first.compare(0, 5, "ImGui")) {
+                pre = item.first.find("_");
+                if (pre != std::string::npos && pre + 1 < item.first.size())
+                    ++pre;
+                else
+                    pre = 0;
+            }
+            if (ImGui::Selectable(item.first.c_str() + pre, *val->access() == item.second))
                 *val->access() = item.second;
         }
         ImGui::EndCombo();
@@ -770,23 +786,32 @@ inline bool InputEvent(event<FuncSig>* val, int flags, UIContext& ctx)
     return changed;
 }
 
-inline int CheckBoxFlags(flags_helper* flags, int initial = -1)
+inline int CheckBoxFlags(flags_helper* flags, int initial)
 {
     int changed = false;
     for (const auto& id : flags->get_ids())
     {
-        if (id.first == "")
+        if (id.first == "") {
             ImGui::Separator();
-        else {
-            if (initial != -1) {
-                bool different = ((int)*flags & id.second) != (initial & id.second);
-                ImGui::PushFont(ImRad::GetFontByName(different ? "imrad.pgb" : "imrad.pg"));
-            }
-            if (ImGui::CheckboxFlags(id.first.c_str(), flags->access(), id.second))
-                changed = id.second;
-            if (initial != -1)
-                ImGui::PopFont();
+            continue;
         }
+        
+        if (initial != -1) {
+            bool different = ((int)*flags & id.second) != (initial & id.second);
+            ImGui::PushFont(ImRad::GetFontByName(different ? "imrad.pgb" : "imrad.pg"));
+        }
+        size_t pre = 0;
+        if (!id.first.compare(0, 5, "ImGui")) {
+            pre = id.first.find('_');
+            if (pre != std::string::npos && pre + 1 < id.first.size())
+                ++pre;
+            else
+                pre = 0;
+        }
+        if (ImGui::CheckboxFlags(id.first.c_str() + pre, flags->access(), id.second))
+            changed = id.second;
+        if (initial != -1)
+            ImGui::PopFont();
     }
     return changed;
 }
