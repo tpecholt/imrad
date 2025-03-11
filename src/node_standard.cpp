@@ -901,7 +901,8 @@ void Widget::Draw(UIContext& ctx)
                     ctx.lastSize /= ctx.zoomFactor;
                 }
             }
-            else if ((Behavior() & SnapSides) && ctx.hovered == this)
+            else if ((hasPos || (Behavior() & SnapSides)) && 
+                ctx.hovered == this)
             {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
                 if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) //ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -1938,6 +1939,34 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
             fl = hasPos != Defaults().hasPos ? InputDirectVal_Modified : 0;
             changed = InputDirectVal(&hasPos, fl, ctx);
+            if (changed)
+            {
+                bool moveChild = false;
+                auto pinfo = ctx.root->FindChild(this);
+                UINode* parent = pinfo->first;
+                int idx = pinfo->second;
+                if (hasPos)
+                {
+                    for (size_t i = idx + 1; i < parent->children.size(); ++i)
+                        if (!parent->children[i]->hasPos)
+                            moveChild = true;
+                }
+                else
+                {
+                    for (int i = idx - 1; i >= 0; --i)
+                        if (parent->children[i]->hasPos)
+                            moveChild = true;
+                }
+                if (moveChild)
+                {
+                    std::unique_ptr<Widget> child = std::move(parent->children[idx]);
+                    parent->children.erase(parent->children.begin() + idx);
+                    if (hasPos)
+                        parent->children.push_back(std::move(child));
+                    else
+                        parent->children.insert(parent->children.begin(), std::move(child));
+                }
+            }
             ImGui::EndDisabled();
             return changed;
         case 1:
