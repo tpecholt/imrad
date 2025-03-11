@@ -396,6 +396,7 @@ struct direct_val<shortcut_> : property_base
 
     void set_from_arg(std::string_view s) {
         sh = ParseShortcut(s);
+        flags_ = 0;
         if (s.find("ImGuiInputFlags_RouteGlobal") != std::string::npos)
             flags_ |= ImGuiInputFlags_RouteGlobal;
         if (s.find("ImGuiInputFlags_Repat") != std::string::npos)
@@ -659,22 +660,33 @@ struct bindable<dimension> : property_base
     
     void set_from_arg(std::string_view s) {
         str = s;
+        stretch(false);
         //strip unit calculation
         std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
-        if (factor == "*fs" || factor == "*dp") 
+        if (factor == "*fs" || factor == "*dp")
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 3)));
             dimension val;
             if ((is >> val) && is.eof())
                 str = s.substr(0, s.size() - 3);
         }
+        else if (s.size() && s.back() == 'X')
+        {
+            std::istringstream is(std::string(s.substr(0, s.size() - 1)));
+            dimension val;
+            if ((is >> val) && is.eof())
+                str.pop_back();
+            stretch(true);
+        }
     }
-    std::string to_arg(std::string_view unit, std::string_view stretchCode = "todo") const {
+    std::string to_arg(std::string_view unit, std::string_view stretchCode = "") const {
         if (stretched())
         {
-            return std::string(stretchCode);
+            if (stretchCode != "")
+                return std::string(stretchCode);
+            return str + "X";
         }
-        if (unit != "" && !stretched() && has_value() &&
+        if (unit != "" && has_value() &&
             str != "0" && str != "-1") //don't suffix special values
         {
             return str + "*" + unit;

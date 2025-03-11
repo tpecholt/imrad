@@ -219,11 +219,14 @@ inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 8 });
         if (ImGui::BeginPopup(popupId.c_str()))
         {
-            if (ImGui::MenuItem("Global", nullptr, val->flags() & ImGuiInputFlags_RouteGlobal))
+            if (ImGui::MenuItem("Global", nullptr, val->flags() & ImGuiInputFlags_RouteGlobal)) {
+                changed = true;
                 val->set_flags(val->flags() ^ ImGuiInputFlags_RouteGlobal);
-            if (ImGui::MenuItem("Repeat", nullptr, val->flags() & ImGuiInputFlags_Repeat))
+            }
+            if (ImGui::MenuItem("Repeat", nullptr, val->flags() & ImGuiInputFlags_Repeat)) {
+                changed = true;
                 val->set_flags(val->flags() ^ ImGuiInputFlags_Repeat);
-            
+           }
            ImGui::EndPopup();
         }
         ImGui::PopStyleVar(2);
