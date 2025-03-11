@@ -11,6 +11,7 @@
 #include "ui_new_field.h"
 #include "ui_binding.h"
 
+inline const char* PARENT_STR = "inherit";
 
 template <class T>
 inline bool BindingButton(const char* label, bindable<T>* val, const std::string& type, UIContext& ctx)
@@ -75,8 +76,9 @@ inline bool InputDirectVal(direct_val<dimension>* val, int flags, UIContext& ctx
 {
     ImGui::PushFont((flags & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
-    return ImGui::InputFloat(id.c_str(), val->access(), 0, 0, "%.0f");
+    bool changed = ImGui::InputFloat(id.c_str(), val->access(), 0, 0, "%.0f");
     ImGui::PopFont();
+    return changed;
 }
 
 inline bool InputDirectVal(direct_val<pzdimension>* val, UIContext& ctx)
@@ -84,7 +86,8 @@ inline bool InputDirectVal(direct_val<pzdimension>* val, UIContext& ctx)
     ImGui::PushFont(val->has_value() ? ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
     std::string tmp = val->has_value() ? std::to_string((int)*val->access()) : "";
-    bool changed = ImGui::InputTextWithHint(id.c_str(), "parent", &tmp, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_AutoSelectAll);
+    std::string hint = ImGui::GetActiveID() == ImGui::GetCurrentWindow()->GetID(id.c_str()) ? "" : PARENT_STR;
+    bool changed = ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &tmp, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_AutoSelectAll);
     if (changed) 
     {
         std::istringstream is(tmp);
@@ -109,7 +112,8 @@ inline bool InputDirectVal(direct_val<pzdimension2>* val, UIContext& ctx)
             ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
         //bool ch = ImGui::InputFloat2(id.c_str(), (float*)val->access(), "%.0f");
         std::string tmp = val->has_value() ? std::to_string((int)(*val->access())[i]) : "";
-        if (ImGui::InputTextWithHint(id.c_str(), i ? "" : "parent", &tmp, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_AutoSelectAll))
+        std::string hint = i || ImGui::GetActiveID() == ImGui::GetCurrentWindow()->GetID(id.c_str()) ? "" : PARENT_STR;
+        if (ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &tmp, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_AutoSelectAll))
         {
             changed = true;
             std::istringstream is(tmp);
@@ -135,9 +139,13 @@ inline bool InputDirectVal(direct_val<bool>* val, int fl, UIContext& ctx)
     return changed;
 }
 
-inline bool InputDirectVal(direct_val<std::string>* val, UIContext& ctx)
+inline bool InputDirectVal(direct_val<std::string>* val, int fl, UIContext& ctx)
 {
-    ImGui::PushFont(!IsAscii(*val->access()) ? ctx.defaultStyleFont : ctx.pgbFont);
+    ImGui::PushFont(
+        !IsAscii(*val->access()) ? ctx.defaultStyleFont : 
+        (fl & InputDirectVal_Modified) ? ctx.pgbFont :
+        ctx.pgFont
+    );
     std::string id = "##" + std::to_string((uint64_t)val);
     bool ch = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();
@@ -261,22 +269,12 @@ inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
 
 inline bool InputBindable(bindable<font_name>* val, UIContext& ctx)
 {
-    std::string fn = val->empty() ? "parent" : 
+    std::string fn = val->empty() ? PARENT_STR :
         val->has_value() ? val->eval(ctx) : val->c_str();
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
-    //todo: this also renders combo button text in grey
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(
-        val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text
-    ));
-    ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
-    if (ImGui::BeginCombo(id.c_str(), fn.c_str()))
+    if (ImGui::BeginCombo(id.c_str(), nullptr, ImGuiComboFlags_CustomPreview))
     {
-        ImGui::PopFont();
-        ImGui::PushFont(ImGui::GetFont());
-        ImGui::PopStyleColor();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_Text));
-
         for (const auto& f : ctx.fontNames)
         {
             if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == fn)) {
@@ -289,8 +287,16 @@ inline bool InputBindable(bindable<font_name>* val, UIContext& ctx)
         }
         ImGui::EndCombo();
     }
-    ImGui::PopFont();
-    ImGui::PopStyleColor();
+    if (ImGui::BeginComboPreview())
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(
+            val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text));
+        ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
+        ImGui::Text(fn.c_str());
+        ImGui::PopFont();
+        ImGui::PopStyleColor();
+        ImGui::EndComboPreview();
+    }
     return changed;
 }
 
@@ -323,7 +329,7 @@ inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ct
             sz.x += ImGui::GetContentRegionAvail().x;
     }
     std::string clrName = styleClr >= 0 ? ImGui::GetStyleColorName(styleClr) :
-        val->empty() ? "parent" :
+        val->empty() ? PARENT_STR :
         val->c_str();
     clrName += id;
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text));

@@ -559,7 +559,7 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::BeginDisabled(children.size());
         ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
-        changed = InputDirectVal(&labels, ctx);
+        changed = InputDirectVal(&labels, InputDirectVal_Modified, ctx);
         if (!ImRad::IsItemDisabled())
         {
             ImGui::SameLine(0, 0);

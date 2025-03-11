@@ -1540,8 +1540,10 @@ void PropertyRowsUI(bool pr)
         {
             std::vector<std::string_view> pn;
             auto props = pr ? node->Properties() : node->Events();
-            for (auto& p : props)
-                pn.push_back(p.name);
+            for (auto& p : props) {
+                if (ctx.selected.size() == 1 || p.name.compare(0, 2, "1@"))
+                    pn.push_back(p.name);
+            }
             stx::sort(pn);
             if (node == ctx.selected[0])
                 pnames = std::move(pn);
