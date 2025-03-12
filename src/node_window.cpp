@@ -62,14 +62,14 @@ void TopWindow::Draw(UIContext& ctx)
     ctx.isAutoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
     ctx.prevLayoutHash = ctx.layoutHash;
     ctx.layoutHash = ctx.isAutoSize;
+    bool dimAll = ctx.activePopups.size(); //from last frame
     ctx.activePopups.clear();
     ctx.parents = { this };
     ctx.hovered = nullptr;
     ctx.snapParent = nullptr;
     ctx.kind = kind;
     ctx.contextMenus.clear();
-    bool dimAll = ctx.activePopups.size();
-
+    
     std::string cap = title.value();
     cap += "###TopWindow" + std::to_string((size_t)this); //don't clash 
     int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
@@ -161,7 +161,7 @@ void TopWindow::Draw(UIContext& ctx)
     ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
     ImGui::GetCurrentContext()->NavCursorVisible = false;
     if (dimAll)
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.3f);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.2f);
 
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->Draw(ctx);
@@ -1031,25 +1031,25 @@ std::vector<UINode::Prop>
 TopWindow::Properties()
 {
     return {
-        { "top.@appearance.bg", &style_bg },
-        { "top.@appearance.menuBg", &style_menuBg },
-        { "top.@appearance.padding", &style_padding },
-        { "top.@appearance.titlePadding", &style_titlePadding },
-        { "top.@appearance.rounding", &style_rounding },
-        { "top.@appearance.borderSize", &style_borderSize },
-        { "top.@appearance.scrollbarSize", &style_scrollbarSize },
-        { "top.@appearance.spacing", &style_spacing },
-        { "top.@appearance.font", &style_font },
-        { "top.@behavior.flags", nullptr },
-        { "top.@behavior.kind", nullptr },
-        { "@behavior.title", &title, true },
-        { "@behavior.closeOnEscape", &closeOnEscape },
-        { "@behavior.initialActivity", &initialActivity },
-        { "@behavior.animate", &animate },
-        { "@layout.size.size", nullptr },
-        { "@layout.size.size_x", &size_x },
-        { "@layout.size.size_y", &size_y },
-        { "@layout.placement", &placement },
+        { "appearance.bg", &style_bg },
+        { "appearance.menuBg", &style_menuBg },
+        { "appearance.padding", &style_padding },
+        { "appearance.titlePadding", &style_titlePadding },
+        { "appearance.rounding", &style_rounding },
+        { "appearance.borderSize", &style_borderSize },
+        { "appearance.scrollbarSize", &style_scrollbarSize },
+        { "appearance.spacing", &style_spacing },
+        { "appearance.font", &style_font },
+        { "behavior.flags", nullptr },
+        { "behavior.kind", nullptr },
+        { "behavior.title", &title, true },
+        { "behavior.closeOnEscape", &closeOnEscape },
+        { "behavior.initialActivity", &initialActivity },
+        { "behavior.animate", &animate },
+        { "layout.size.size", nullptr },
+        { "layout.size.size_x", &size_x },
+        { "layout.size.size_y", &size_y },
+        { "layout.placement", &placement },
     };
 }
 

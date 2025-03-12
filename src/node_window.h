@@ -30,8 +30,6 @@ struct TopWindow : UINode
 
     std::string userCodeBefore, userCodeAfter, userCodeMid;
 
-    static const TopWindow& Defaults() { static TopWindow node; return node; }
-    
     TopWindow(UIContext& ctx);
     void Draw(UIContext& ctx);
     void DrawTools(UIContext& ctx) {}
@@ -43,6 +41,7 @@ struct TopWindow : UINode
     void Export(std::ostream& os, UIContext& ctx);
     void Import(cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return SnapInterior; }
+    const TopWindow& Defaults() { static TopWindow node; return node; }
 
 private:
     TopWindow() {}

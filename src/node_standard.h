@@ -49,6 +49,8 @@ struct UINode
     virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual int Behavior() = 0;
     
+    virtual const UINode& Defaults() = 0;
+
     void DrawInteriorRect(UIContext& ctx);
     void DrawSnap(UIContext& ctx);
     void RenameFieldVars(const std::string& oldn, const std::string& newn);
@@ -166,6 +168,7 @@ struct Widget : UINode
     void TreeUI(UIContext& ctx);
     bool EventUI(int, UIContext& ctx);
     int Behavior();
+    const Widget& Defaults() = 0;
     Layout GetLayout(UINode* parent);
     virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
     virtual ImDrawList* DoDraw(UIContext& ctx) = 0;
@@ -174,7 +177,6 @@ struct Widget : UINode
     virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     virtual const char* GetIcon() const { return ""; }
-    virtual const Widget& Defaults() = 0;
 };
 
 struct Spacer : Widget

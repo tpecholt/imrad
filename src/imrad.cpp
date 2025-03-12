@@ -1445,7 +1445,6 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont);
-    //int flags = topLevel ? ImGuiTreeNodeFlags_SpanAllColumns : ImGuiTreeNodeFlags_SpanAvailWidth;
     int flags = ImGuiTreeNodeFlags_SpanAllColumns;
     std::string str;
     if (topLevel)
@@ -1473,9 +1472,6 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     else {
         open = ImGui::TreeNodeEx(("###TreeNode." + cat).c_str(), flags);
         ImGui::SameLine(0, 0);
-        //ImGui::Indent();
-        //hack - use indent for next rows but not for this one - treeNode arrow is already drawn
-        //ImGui::SameLine(ImGui::GetStyle().IndentSpacing, 0);     
     }
     ImGui::PopStyleColor();
     if (!topLevel && !forceSameRow)
@@ -1527,7 +1523,7 @@ void PropertyRowsUI(bool pr)
             ImGui::Indent();
         ImGui::GetWindowDrawList()->AddRectFilled(
             pgMin, 
-            { pgMin.x + ImGui::GetStyle().IndentSpacing, pgMax.y }, 
+            { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMax.y }, 
             borderClr
         );
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
@@ -1541,7 +1537,8 @@ void PropertyRowsUI(bool pr)
             std::vector<std::string_view> pn;
             auto props = pr ? node->Properties() : node->Events();
             for (auto& p : props) {
-                if (ctx.selected.size() == 1 || p.name.compare(0, 2, "1@"))
+                if (ctx.selected.size() == 1 || 
+                    (p.name.size() > 3 && p.name.compare(p.name.size() - 3, 3, "##1")))
                     pn.push_back(p.name);
             }
             stx::sort(pn);
@@ -1574,17 +1571,13 @@ void PropertyRowsUI(bool pr)
             if (!stx::count(pnames, prop.name))
                 continue;
             std::vector<std::string_view> cat;
-            size_t i1 = prop.name.find('@');
-            if (i1 != std::string::npos) 
-            {
-                ++i1;
-                while (1) {
-                    size_t i2 = prop.name.find('.', i1);
-                    if (i2 == std::string::npos)
-                        break;
-                    cat.push_back(prop.name.substr(i1, i2 - i1));
-                    i1 = i2 + 1;
-                }
+            size_t i1 = 0;
+            while (1) {
+                size_t i2 = prop.name.find_first_of(".#", i1);
+                if (i2 == std::string::npos || prop.name[i2] == '#')
+                    break;
+                cat.push_back(prop.name.substr(i1, i2 - i1));
+                i1 = i2 + 1;
             }
             bool forceSameRow = false;
             if (cat != inCat)
@@ -1667,14 +1660,11 @@ void PropertyRowsUI(bool pr)
 
 void PropertyUI()
 {
-    //ImGui::PushStyleColor(ImGuiCol_ChildBg, 0x00000000);
-    //ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0xfffafafa);
-    //ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0xfffafafa);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, 0xfffafafa);
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight, 0xffe5e5e5);
-    /*ImVec4 clrButton = ImGui::GetStyleColorVec4(ImGuiCol_FrameBg);
-    clrButton.w = 0.5f;
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, clrButton);*/
+    ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Button);
+    clr.w *= 0.5f;
+    ImGui::PushStyleColor(ImGuiCol_Button, clr);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
     
     ImGui::Begin("Events");
@@ -1692,7 +1682,7 @@ void PropertyUI()
     ImGui::End();
     
     ImGui::PopStyleVar();
-    ImGui::PopStyleColor(2);
+    ImGui::PopStyleColor(3);
 }
 
 void PopupUI()

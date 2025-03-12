@@ -18,7 +18,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
 {
     if (val == ctx.setProp)
     {
-        //doing it here imrad.cpp will be able to set property in all selected widgets
+        //commit dialog request
         ctx.setProp = nullptr;
         *val->access() = ctx.setPropValue;
         return true;
@@ -152,6 +152,15 @@ inline bool InputDirectVal(direct_val<std::string>* val, int fl, UIContext& ctx)
     return ch;
 }
 
+inline bool InputDirectVal(direct_val<int>* val, int fl, UIContext& ctx)
+{
+    ImGui::PushFont((fl & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
+    std::string id = "##" + std::to_string((uint64_t)val);
+    bool changed = ImGui::InputInt(id.c_str(), val->access());
+    ImGui::PopFont();
+    return changed;
+}
+
 template <class T, class = std::enable_if_t<std::is_enum_v<T>>>
 bool InputDirectVal(direct_val<T>* val, int fl, UIContext& ctx)
 {
@@ -209,7 +218,7 @@ inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx
         std::string buttonId = id + "But";
         std::string popupId = id + "DropDown";
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[val->flags() ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-        if (ImGui::Button((":"/*ICON_FA_ELLIPSIS*/ + buttonId).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        if (ImGui::Button(("v" + buttonId).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             ImGui::OpenPopup(popupId.c_str());
         }
@@ -618,7 +627,7 @@ inline bool InputFieldRef(field_ref<T>* val, const std::string& type, bool allow
 {
     if (val == ctx.setProp)
     {
-        //doing it here imrad.cpp will be able to set property in all selected widgets
+        //commit dialog request
         ctx.setProp = nullptr;
         *val->access() = ctx.setPropValue;
         return true;
@@ -693,7 +702,7 @@ inline bool InputDataSize(bindable<int>* val, bool allowEmpty, UIContext& ctx)
 {
     if (val == ctx.setProp)
     {
-        //doing it here imrad.cpp will be able to set property in all selected widgets
+        //commit dialog request
         ctx.setProp = nullptr;
         *val->access() = ctx.setPropValue;
         return true;
@@ -713,6 +722,7 @@ inline bool InputDataSize(bindable<int>* val, bool allowEmpty, UIContext& ctx)
             changed = true;
         }
 
+        /* it's confusing to offer new variable here. User can still do it from BindingButton
         if (ImGui::Selectable("New Variable..."))
         {
             newFieldPopup.varType = ""; //allow to create std::vector etc.
@@ -725,7 +735,7 @@ inline bool InputDataSize(bindable<int>* val, bool allowEmpty, UIContext& ctx)
                 else
                     ctx.setPropValue = newFieldPopup.varName;
                 });
-        }
+        }*/
 
         ImGui::Separator();
         const auto& vars = ctx.codeGen->GetVarExprs("int");
@@ -752,7 +762,7 @@ inline bool InputEvent(event<FuncSig>* val, int flags, UIContext& ctx)
 {
     if (val == ctx.setProp) 
     {
-        //doing it here imrad.cpp will be able to set property in all selected widgets
+        //commit dialog request
         ctx.setProp = nullptr;
         *val->access() = ctx.setPropValue;
         return true;

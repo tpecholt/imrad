@@ -10,45 +10,6 @@
 #include <algorithm>
 #include <array>
 
-bool DataLoopProp(const char* name, data_loop* val, UIContext& ctx)
-{
-    bool changed = false;
-    ImVec2 pad = ImGui::GetStyle().FramePadding;
-    //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
-    ImGui::Unindent();
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    bool open = ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth);
-    ImGui::PopStyleVar();
-    ImGui::TableNextColumn();
-    ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-    changed |= InputDataSize(&val->limit, true, ctx);
-    //changed = ImGui::InputText("##size", val->limit.access()); //allow empty
-    ImGui::SameLine(0, 0);
-    changed |= BindingButton(name, &val->limit, ctx);
-    if (open)
-    {
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
-        ImGui::Indent();
-        ImGui::AlignTextToFramePadding();
-        ImGui::BeginDisabled(val->empty());
-        ImGui::Text("index");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed |= InputFieldRef(&val->index, true, ctx);
-        ImGui::EndDisabled();
-        ImGui::TreePop();
-    }
-    else
-    {
-        ImGui::Indent();
-    }
-    return changed;
-}
-
-//----------------------------------------------------------------------------
-
 Table::ColumnData::ColumnData()
 {
     flags.add$(ImGuiTableColumnFlags_AngledHeader);
@@ -181,18 +142,19 @@ Table::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.headerBg", &style_headerBg },
-        { "@appearance.rowBg", &style_rowBg },
-        { "@appearance.rowBgAlt", &style_rowBgAlt },
-        { "@appearance.childBg", &style_childBg },
-        { "@appearance.cellPadding", &style_cellPadding },
-        { "table@appearance.header", &header },
-        { "table@appearance.rowHeight", &rowHeight },
-        { "table@behavior.flags", &flags },
-        { "table@behavior.columns", nullptr },
-        { "table@behavior.rowFilter", &rowFilter },
-        { "table@behavior.scrollWhenDragging", &scrollWhenDragging },
-        { "table@data.rowCount", &itemCount },
+        { "appearance.headerBg", &style_headerBg },
+        { "appearance.rowBg", &style_rowBg },
+        { "appearance.rowBgAlt", &style_rowBgAlt },
+        { "appearance.childBg", &style_childBg },
+        { "appearance.cellPadding", &style_cellPadding },
+        { "appearance.header##table", &header },
+        { "appearance.rowHeight##table", &rowHeight },
+        { "behavior.flags##table", &flags },
+        { "behavior.columns##table", nullptr },
+        { "behavior.rowCount##table", &itemCount.limit },
+        { "behavior.rowFilter##table", &rowFilter },
+        { "behavior.scrollWhenDragging", &scrollWhenDragging },
+        { "design.rowIndex##1", &itemCount.index }
         });
     return props;
 }
@@ -272,6 +234,14 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         break;
     }
     case 9:
+        ImGui::Text("rowCount");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDataSize(&itemCount.limit, true, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("rowCount", &itemCount.limit, ctx);
+        break;
+    case 10:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("rowFilter");
         ImGui::TableNextColumn();
@@ -281,17 +251,22 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("rowFilter", &rowFilter, ctx);
         ImGui::EndDisabled();
         break;
-    case 10:
+    case 11:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
-    case 11:
-        changed = DataLoopProp("rowCount", &itemCount, ctx);
+    case 12:
+        ImGui::BeginDisabled(itemCount.empty());
+        ImGui::Text("rowIndex");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&itemCount.index, true, ctx);
+        ImGui::EndDisabled();
         break;
     default:
-        return Widget::PropertyUI(i - 12, ctx);
+        return Widget::PropertyUI(i - 13, ctx);
     }
     return changed;
 }
@@ -839,19 +814,20 @@ Child::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.color", &style_bg },
-        { "@appearance.border", &style_border },
-        { "@appearance.padding", &style_padding },
-        { "@appearance.spacing", &style_spacing },
-        { "@appearance.rounding", &style_rounding },
-        { "@appearance.borderSize", &style_borderSize },
-        { "@appearance.outer_padding", &style_outer_padding },
-        { "child@behavior.flags", &flags },
-        { "child@behavior.wflags", &wflags },
-        { "child@behavior.column_count", &columnCount },
-        { "child@behavior.column_border", &columnBorder },
-        { "@behavior.scrollWhenDragging", &scrollWhenDragging },
-        { "child@data.item_count", &itemCount },
+        { "appearance.color", &style_bg },
+        { "appearance.border", &style_border },
+        { "appearance.padding", &style_padding },
+        { "appearance.spacing", &style_spacing },
+        { "appearance.rounding", &style_rounding },
+        { "appearance.borderSize", &style_borderSize },
+        { "appearance.outer_padding", &style_outer_padding },
+        { "behavior.flags##child", &flags },
+        { "behavior.wflags##child", &wflags },
+        { "behavior.column_count##child", &columnCount },
+        { "behavior.column_border##child", &columnBorder },
+        { "behavior.item_count##child", &itemCount.limit },
+        { "behavior.scrollWhenDragging", &scrollWhenDragging },
+        { "design.itemIndex##1", &itemCount.index },
         });
     return props;
 }
@@ -957,16 +933,29 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&columnBorder, 0, ctx);
         break;
     case 11:
+        ImGui::Text("itemCount");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDataSize(&itemCount.limit, true, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("itemCount", &itemCount.limit, ctx);
+        break;
+    case 12:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
-    case 12:
-        changed = DataLoopProp("itemCount", &itemCount, ctx);
+    case 13:
+        ImGui::BeginDisabled(itemCount.empty());
+        ImGui::Text("itemIndex");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&itemCount.index, true, ctx);
+        ImGui::EndDisabled();
         break;
     default:
-        return Widget::PropertyUI(i - 13, ctx);
+        return Widget::PropertyUI(i - 14, ctx);
     }
     return changed;
 }
@@ -1113,11 +1102,11 @@ Splitter::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.bg", &style_bg },
-        { "@appearance.active", &style_active },
-        { "splitter@behavior.min1", &min_size1 },
-        { "splitter@behavior.min2", &min_size2 },
-        { "1@data.position", &position },
+        { "appearance.bg", &style_bg },
+        { "appearance.active", &style_active },
+        { "behavior.min1##splitter", &min_size1 },
+        { "behavior.min2##splitter", &min_size2 },
+        { "design.sashPosition##1", &position },
         });
     return props;
 }
@@ -1159,8 +1148,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&min_size2, fl, ctx);
         break;
     case 4:
-        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
-        ImGui::Text("position");
+        ImGui::Text("sashPosition");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&position, false, ctx);
@@ -1292,13 +1280,13 @@ CollapsingHeader::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.text", &style_text },
-        { "@appearance.header", &style_header },
-        { "@appearance.hovered", &style_hovered },
-        { "@appearance.active", &style_active },
-        { "@appearance.font", &style_font },
-        { "@behavior.label", &label, true },
-        { "@behavior.open", &open }
+        { "appearance.text", &style_text },
+        { "appearance.header", &style_header },
+        { "appearance.hovered", &style_hovered },
+        { "appearance.active", &style_active },
+        { "appearance.font", &style_font },
+        { "behavior.label", &label, true },
+        { "behavior.open", &open }
         });
     return props;
 }
@@ -1488,11 +1476,11 @@ TreeNode::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.text", &style_text },
-        { "@appearance.font", &style_font },
-        { "@behavior.flags", &flags },
-        { "@behavior.label", &label, true },
-        { "@behavior.open", &open },
+        { "appearance.text", &style_text },
+        { "appearance.font", &style_font },
+        { "behavior.flags", &flags },
+        { "behavior.label", &label, true },
+        { "behavior.open", &open },
         });
     return props;
 }
@@ -1723,17 +1711,18 @@ TabBar::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.text", &style_text },
-        { "@appearance.tab", &style_tab },
-        { "@appearance.hovered", &style_hovered },
-        { "@appearance.selected", &style_selected },
-        { "@appearance.overline", &style_overline },
-        { "@appearance.regularWidth", &style_regularWidth },
-        { "@appearance.padding", &style_framePadding },
-        { "@appearance.font", &style_font },
-        { "@behavior.flags", &flags },
-        { "@data.tabCount", &itemCount },
-        { "1@data.activeTab", &activeTab },
+        { "appearance.text", &style_text },
+        { "appearance.tab", &style_tab },
+        { "appearance.hovered", &style_hovered },
+        { "appearance.selected", &style_selected },
+        { "appearance.overline", &style_overline },
+        { "appearance.regularWidth", &style_regularWidth },
+        { "appearance.padding", &style_framePadding },
+        { "appearance.font", &style_font },
+        { "behavior.flags", &flags },
+        { "behavior.tabCount", &itemCount.limit },
+        { "design.activeTab##1", &activeTab },
+        { "design.tabIndex##1", &itemCount.index },
         });
     return props;
 }
@@ -1811,17 +1800,29 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
             });
         break;
     case 9:
-        changed = DataLoopProp("tabCount", &itemCount, ctx);
+        ImGui::Text("tabCount");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDataSize(&itemCount.limit, true, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("tabCount", &itemCount.limit, ctx);
         break;
     case 10:
-        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
         ImGui::Text("activeTab");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&activeTab, true, ctx);
         break;
+    case 11:
+        ImGui::BeginDisabled(itemCount.empty());
+        ImGui::Text("tabIndex");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&itemCount.index, true, ctx);
+        ImGui::EndDisabled();
+        break;
     default:
-        return Widget::PropertyUI(i - 11, ctx);
+        return Widget::PropertyUI(i - 12, ctx);
     }
     return changed;
 }
@@ -2039,8 +2040,8 @@ TabItem::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@behavior.label", &label, true },
-        { "@behavior.closeButton", &closeButton }
+        { "behavior.label", &label, true },
+        { "behavior.closeButton", &closeButton }
         });
     return props;
 }
@@ -2548,14 +2549,14 @@ MenuIt::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@appearance.padding", &style_padding },
-        { "@appearance.spacing", &style_spacing },
-        { "@appearance.rounding", &style_rounding },
-        { "@appearance.ownerDraw", &ownerDraw },
-        { "@behavior.label", &label, true },
-        { "@behavior.shortcut", &shortcut },
-        { "@behavior.separator", &separator },
-        { "1@data.checked", &checked },
+        { "appearance.padding", &style_padding },
+        { "appearance.spacing", &style_spacing },
+        { "appearance.rounding", &style_rounding },
+        { "appearance.ownerDraw", &ownerDraw },
+        { "behavior.label", &label, true },
+        { "behavior.shortcut", &shortcut },
+        { "behavior.separator", &separator },
+        { "design.checked##1", &checked },
         });
     return props;
 }
