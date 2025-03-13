@@ -304,7 +304,7 @@ inline bool InputBindable(bindable<font_name>* val, UIContext& ctx)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(
             val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text));
         ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
-        ImGui::Text(fn.c_str());
+        ImGui::TextUnformatted(fn.c_str());
         ImGui::PopFont();
         ImGui::PopStyleColor();
         ImGui::EndComboPreview();
@@ -483,18 +483,18 @@ inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ct
             if (ImGui::Button("##clr", { 30, 30 }))
             {
                 changed = true;
-                *val = i ? COLORS[i] : 0x00ffffff;
+                *val = i ? COLORS[i] : color32(0x00ffffff);
                 lastColor = *val->access();
+            }
+            if (ImGui::IsItemHovered())
+            {
+                *val = i ? COLORS[i] : color32(0x00ffffff);
             }
             if (!i)
             {
                 ImVec2 p1 = ImGui::GetItemRectMin();
                 ImVec2 p2 = ImGui::GetItemRectMax();
                 ImGui::GetWindowDrawList()->AddLine({ p1.x, p2.y }, { p2.x, p1.y }, 0xff0000ff);
-            }
-            if (ImGui::IsItemHovered())
-            {
-                *val = i ? COLORS[i] : 0x00ffffff;
             }
             ImGui::PopStyleColor(2);
             ImGui::PopID();

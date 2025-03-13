@@ -1217,7 +1217,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::PushFont(size_x != Defaults().size_x || size_y != Defaults().size_y ?
             ctx.pgbFont : ctx.pgFont);
-        ImGui::Text((*size_x.access() + "," + *size_y.access()).c_str());
+        ImGui::TextUnformatted((*size_x.access() + "," + *size_y.access()).c_str());
         ImGui::PopFont();
         break;
     case 16:
