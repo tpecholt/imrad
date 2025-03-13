@@ -38,6 +38,10 @@ struct Table : Widget
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_TABLE_CELLS_LARGE; }
+    const Table& Defaults() { static Table var; return var; }
+    int ColumnCount(UIContext& ctx) { return (int)columnData.size(); }
+private:
+    Table() {}
 };
 
 struct Child : Widget
@@ -64,6 +68,10 @@ struct Child : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_SQUARE_FULL; }
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+    const Child& Defaults() { static Child var; return var; }
+    int ColumnCount(UIContext& ctx) { return columnCount.eval(ctx); }
+private:
+    Child() {}
 };
 
 struct CollapsingHeader : Widget
@@ -84,6 +92,9 @@ struct CollapsingHeader : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_ARROW_DOWN_WIDE_SHORT; }
+    const CollapsingHeader& Defaults() { static CollapsingHeader var; return var; }
+private:
+    CollapsingHeader() {}
 };
 
 struct TabBar : Widget
@@ -109,6 +120,9 @@ struct TabBar : Widget
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_FOLDER_CLOSED; }
     float CalcRegularWidth();
+    const TabBar& Defaults() { static TabBar var; return var; }
+private:
+    TabBar() {}
 };
 
 struct TabItem : Widget
@@ -130,6 +144,9 @@ struct TabItem : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_FOLDER; }
+    const TabItem& Defaults() { static TabItem var; return var; }
+private:
+    TabItem() {}
 };
 
 struct TreeNode : Widget
@@ -149,6 +166,9 @@ struct TreeNode : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_SITEMAP; }
+    const TreeNode& Defaults() { static TreeNode var; return var; }
+private:
+    TreeNode() {}
 };
 
 struct MenuBar : Widget
@@ -161,6 +181,9 @@ struct MenuBar : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_ELLIPSIS; }
+    const MenuBar& Defaults() { static MenuBar var; return var; }
+private:
+    MenuBar() {}
 };
 
 struct MenuIt : Widget
@@ -191,6 +214,9 @@ struct MenuIt : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return contextMenu ? ICON_FA_MESSAGE : ICON_FA_BARS; }
+    const MenuIt& Defaults() { static MenuIt var; return var; }
+private:
+    MenuIt() {}
 };
 
 struct Splitter : Widget
@@ -211,4 +237,7 @@ struct Splitter : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     //void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_TABLE_COLUMNS; }
+    const Splitter& Defaults() { static Splitter var; return var; }
+private:
+    Splitter() {}
 };

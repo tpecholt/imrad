@@ -13,7 +13,7 @@
 
 extern const color32 FIELD_REF_CLR;
 
-void TreeNodeProp(const char* name, const std::string& label, std::function<void()> f);
+void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std::function<void()> f);
 
 
 struct Widget;
@@ -48,6 +48,8 @@ struct UINode
     virtual void Export(std::ostream&, UIContext& ctx) = 0;
     virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual int Behavior() = 0;
+    virtual int ColumnCount(UIContext& ctx) = 0;
+    virtual const UINode& Defaults() = 0;
 
     void DrawInteriorRect(UIContext& ctx);
     void DrawSnap(UIContext& ctx);
@@ -124,7 +126,7 @@ struct Widget : UINode
     bindable<bool> disabled = false;
     bindable<std::string> tooltip = "";
     direct_val<std::string> contextMenu = "";
-    direct_val<int> cursor = ImGuiMouseCursor_Arrow;
+    direct_val<ImGuiMouseCursor_> cursor = ImGuiMouseCursor_Arrow;
     direct_val<bool> tabStop = true;
     direct_val<bool> hasPos = false;
     direct_val<dimension> pos_x = 0;
@@ -155,6 +157,7 @@ struct Widget : UINode
 
     static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
 
+    Widget();
     void Draw(UIContext& ctx);
     void DrawTools(UIContext& ctx);
     void Export(std::ostream& os, UIContext& ctx);
@@ -165,6 +168,8 @@ struct Widget : UINode
     void TreeUI(UIContext& ctx);
     bool EventUI(int, UIContext& ctx);
     int Behavior();
+    int ColumnCount(UIContext& ctx) { return 0; }
+    const Widget& Defaults() = 0;
     Layout GetLayout(UINode* parent);
     virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
     virtual ImDrawList* DoDraw(UIContext& ctx) = 0;
@@ -186,6 +191,9 @@ struct Spacer : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
     const char* GetIcon() const { return ICON_FA_LEFT_RIGHT; }
+    const Spacer& Defaults() { static Spacer var; return var; }
+private:
+    Spacer() {}
 };
 
 struct Separator : Widget
@@ -203,6 +211,9 @@ struct Separator : Widget
     void DoExport(std::ostream&, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_MINUS; }
+    const Separator& Defaults() { static Separator var; return var; }
+private:
+    Separator() {}
 };
 
 struct Text : Widget
@@ -220,6 +231,9 @@ struct Text : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_FONT; }
+    const Text& Defaults() { static Text var; return var; }
+private:
+    Text() {}
 };
 
 struct Selectable : Widget
@@ -247,6 +261,9 @@ struct Selectable : Widget
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
     const char* GetIcon() const { return ICON_FA_AUDIO_DESCRIPTION; }
+    const Selectable& Defaults() { static Selectable var; return var; }
+private:
+    Selectable() {}
 };
 
 struct Button : Widget
@@ -270,6 +287,9 @@ struct Button : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior();
     const char* GetIcon() const { return ICON_FA_CIRCLE_PLAY; }
+    const Button& Defaults() { static Button var; return var; }
+private:
+    Button() {}
 };
 
 struct CheckBox : Widget
@@ -289,6 +309,9 @@ struct CheckBox : Widget
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_SQUARE_CHECK; }
+    const CheckBox& Defaults() { static CheckBox var; return var; }
+private:
+    CheckBox() {}
 };
 
 struct RadioButton : Widget
@@ -309,6 +332,9 @@ struct RadioButton : Widget
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_CIRCLE_DOT; }
+    const RadioButton& Defaults() { static RadioButton var; return var; }
+private:
+    RadioButton() {}
 };
 
 struct Input : Widget
@@ -340,6 +366,9 @@ struct Input : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior();
     const char* GetIcon() const { return "|a_|"; }
+    const Input& Defaults() { static Input var; return var; }
+private:
+    Input() {}
 };
 
 struct Combo : Widget
@@ -361,6 +390,9 @@ struct Combo : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX; }
     const char* GetIcon() const { return ICON_FA_SQUARE_CARET_DOWN; }
+    const Combo& Defaults() { static Combo var; return var; }
+private:
+    Combo() {}
 };
 
 struct Slider : Widget
@@ -384,6 +416,9 @@ struct Slider : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX; }
     const char* GetIcon() const { return ICON_FA_SLIDERS; }
+    const Slider& Defaults() { static Slider var; return var; }
+private:
+    Slider() {}
 };
 
 struct ProgressBar : Widget
@@ -401,6 +436,9 @@ struct ProgressBar : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
     const char* GetIcon() const { return ICON_FA_BATTERY_HALF; }
+    const ProgressBar& Defaults() { static ProgressBar var; return var; }
+private:
+    ProgressBar() {}
 };
 
 struct ColorEdit : Widget
@@ -422,6 +460,9 @@ struct ColorEdit : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX; }
     const char* GetIcon() const { return ICON_FA_CIRCLE_HALF_STROKE; }
+    const ColorEdit& Defaults() { static ColorEdit var; return var; }
+private:
+    ColorEdit() {}
 };
 
 struct Image : Widget
@@ -444,6 +485,9 @@ struct Image : Widget
     bool PickFileName(UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
     const char* GetIcon() const { return ICON_FA_IMAGE; }
+    const Image& Defaults() { static Image var; return var; }
+private:
+    Image() {}
 };
 
 struct CustomWidget : Widget
@@ -461,4 +505,7 @@ struct CustomWidget : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
     const char* GetIcon() const { return ICON_FA_EXPAND; }
+    const CustomWidget& Defaults() { static CustomWidget var; return var; }
+private:
+    CustomWidget() {}
 };

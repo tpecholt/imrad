@@ -101,3 +101,8 @@ std::string ParseShortcut(std::string_view line)
         sh.pop_back();
     return sh;
 }
+
+bool IsAscii(std::string_view str)
+{
+    return !stx::count_if(str, [](char c) { return c < 0; });
+}

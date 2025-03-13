@@ -29,6 +29,8 @@ struct UIContext
     std::array<ImU32, Color::COUNT> colors;
     std::vector<std::string> fontNames;
     ImFont* defaultStyleFont = nullptr;
+    ImFont* pgFont = nullptr;
+    ImFont* pgbFont = nullptr;
     std::string unit; //for dimension export
     bool createVars = true; //create variables etc. during contructor/Clone calls
     ImGuiStyle style;

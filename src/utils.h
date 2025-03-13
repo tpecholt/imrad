@@ -96,3 +96,5 @@ int InputTextCharExprFilter(ImGuiInputTextCallbackData* data);
 
 std::string CodeShortcut(std::string_view sh);
 std::string ParseShortcut(std::string_view line);
+
+bool IsAscii(std::string_view str);

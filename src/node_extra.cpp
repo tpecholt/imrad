@@ -6,7 +6,6 @@ const float DEFAULT_SPLIT_RATIO = 0.3f;
 
 DockSpace::DockSpace(UIContext& ctx)
 {
-    flags.prefix("ImGuiDockNodeFlags_");
     flags.add$(ImGuiDockNodeFlags_KeepAliveOnly);
     flags.add$(ImGuiDockNodeFlags_NoDockingOverCentralNode);
     flags.add$(ImGuiDockNodeFlags_PassthruCentralNode);
@@ -186,11 +185,9 @@ DockSpace::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "@style.dockingPreview", &style_preview },
-        { "@style.dockingEmptyBg", &style_emptyBg },
-        { "dockspace.flags", &flags },
-        { "size_x", &size_x },
-        { "size_y", &size_y },
+        { "appearance.dockingPreview", &style_preview },
+        { "appearance.dockingEmptyBg", &style_emptyBg },
+        { "behavior.flags##dockspace", &flags },
         });
     return props;
 }
@@ -217,26 +214,17 @@ bool DockSpace::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("dockingEmptyBg", &style_emptyBg, ctx);
         break;
     case 2:
-        TreeNodeProp("flags", "...", [&] {
+    {
+        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
+        TreeNodeProp("flags", font, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
-    case 3:
-        ImGui::Text("size_x");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_x, {}, InputBindable_StretchButtonDisabled, ctx);
-        break;
-    case 4:
-        ImGui::Text("size_y");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&size_y, {}, InputBindable_StretchButtonDisabled, ctx);
-        break;
+    }
     default:
-        return Widget::PropertyUI(i - 5, ctx);
+        return Widget::PropertyUI(i - 3, ctx);
     }
     return changed;
 }
@@ -245,12 +233,15 @@ bool DockSpace::PropertyUI(int i, UIContext& ctx)
 
 DockNode::DockNode(UIContext& ctx)
 {
-    flags.prefix("ImGuiDockNodeFlags_");
+    flags.add$(ImGuiDockNodeFlags_AutoHideTabBar);
+    flags.add$(ImGuiDockNodeFlags_HiddenTabBar);
+    flags.add$(ImGuiDockNodeFlags_NoCloseButton);
     flags.add$(ImGuiDockNodeFlags_NoDockingSplit);
     flags.add$(ImGuiDockNodeFlags_NoResize);
-    flags.add$(ImGuiDockNodeFlags_AutoHideTabBar);
+    flags.add$(ImGuiDockNodeFlags_NoTabBar);
     flags.add$(ImGuiDockNodeFlags_NoUndocking);
-
+    flags.add$(ImGuiDockNodeFlags_NoWindowMenuButton);
+    
     //splitDir.add$(ImGuiDir_None);
     splitDir.add$(ImGuiDir_Left);
     splitDir.add$(ImGuiDir_Right);
@@ -271,7 +262,7 @@ ImGuiID DockNode::SplitNode(ImGuiID parentId, UIContext& ctx)
     if (!ratio)
         ratio = DEFAULT_SPLIT_RATIO;
     ImGui::DockBuilderSplitNode(parentId, splitDir, ratio, &nodeId, &parentId);
-    ImGui::DockBuilderGetNode(nodeId)->LocalFlags = flags;
+    ImGui::DockBuilderGetNode(nodeId)->LocalFlags = flags | ImGuiDockNodeFlags_NoWindowMenuButton;
 
     if (children.empty())
     {
@@ -522,10 +513,10 @@ DockNode::Properties()
 {
     std::vector<UINode::Prop> props;
     props.insert(props.begin(), {
-        { "docknode.flags", &flags },
-        { "docknode.splitDir", &splitDir },
-        { "docknode.splitRatio", &splitRatio },
-        { "docknode.labels", &labels, true },
+        { "behavior.flags##docknode", &flags },
+        { "behavior.splitDir##docknode", &splitDir },
+        { "behavior.splitRatio##docknode", &splitRatio },
+        { "behavior.labels##docknode", &labels, true },
         });
     return props;
 }
@@ -533,28 +524,32 @@ DockNode::Properties()
 bool DockNode::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
-    
+    int fl;
     switch (i)
     {
     case 0:
-        TreeNodeProp("flags", "...", [&] {
+    {
+        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
+        TreeNodeProp("flags", font, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
-            changed = CheckBoxFlags(&flags);
+            changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
-   case 1:
+    }
+    case 1:
         ImGui::Text("splitDir");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&splitDir, ctx);
+        changed = InputDirectVal(&splitDir, InputDirectVal_Modified, ctx);
         break;
    case 2:
         ImGui::Text("splitRatio");
         ImGui::TableNextColumn();
         ImGui::BeginDisabled(splitDir == ImGuiDir_None);
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&splitRatio, 0.f, ctx);
+        fl = splitRatio != Defaults().splitRatio ? InputBindable_Modified : 0;
+        changed = InputBindable(&splitRatio, fl, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("splitRatio", &splitRatio, ctx);
         ImGui::EndDisabled();
@@ -564,17 +559,20 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::BeginDisabled(children.size());
         ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
-        changed = InputDirectVal(&labels, ctx);
-        ImGui::SameLine(0, 0);
-        if (ImGui::Button("...", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        changed = InputDirectVal(&labels, InputDirectVal_Modified, ctx);
+        if (!ImRad::IsItemDisabled())
         {
-            changed = true;
-            comboDlg.title = "Window Names";
-            comboDlg.value = labels;
-            comboDlg.font = nullptr;
-            comboDlg.OpenPopup([this](ImRad::ModalResult) {
-                *labels.access() = comboDlg.value;
-                });
+            ImGui::SameLine(0, 0);
+            if (ImGui::Button("...", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+            {
+                changed = true;
+                comboDlg.title = "Window Names";
+                comboDlg.value = labels;
+                comboDlg.font = nullptr;
+                comboDlg.OpenPopup([this](ImRad::ModalResult) {
+                    *labels.access() = comboDlg.value;
+                    });
+            }
         }
         ImGui::EndDisabled();
         break;

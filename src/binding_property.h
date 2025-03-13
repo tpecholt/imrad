@@ -242,6 +242,7 @@ struct direct_val<pzdimension> : property_base
     operator float&() { return val; }
     operator const float() const { return val; }
     bool empty() const { return val == -1; }
+    void clear() { val = -1; }
     bool has_value() const { return !empty(); }
     bool operator== (dimension dv) const {
         return val == dv;
@@ -312,6 +313,7 @@ struct direct_val<pzdimension2> : property_base
         val = v;
         return *this;
     }
+    void clear() { val[0] = val[1] = -1; }
     bool empty() const { return val[0] == -1 && val[1] == -1; }
     bool has_value() const { return !empty(); }
     ImVec2 eval_px(const UIContext& ctx) const;
@@ -394,6 +396,7 @@ struct direct_val<shortcut_> : property_base
 
     void set_from_arg(std::string_view s) {
         sh = ParseShortcut(s);
+        flags_ = 0;
         if (s.find("ImGuiInputFlags_RouteGlobal") != std::string::npos)
             flags_ |= ImGuiInputFlags_RouteGlobal;
         if (s.find("ImGuiInputFlags_Repat") != std::string::npos)
@@ -445,15 +448,8 @@ public:
     int operator& (int ff) {
         return f & ff;
     }
-    flags_helper& prefix(const char* p) {
-        pre = p;
-        return *this;
-    }
     flags_helper& add(const char* id, int v) {
-        if (!pre.compare(0, pre.size(), id, 0, pre.size()))
-            ids.push_back({ id + pre.size(), v });
-        else
-            ids.push_back({ id, v });
+        ids.push_back({ id, v });
         return *this;
     }
     flags_helper& separator() {
@@ -466,11 +462,11 @@ public:
         std::string str;
         for (const auto& id : ids)
             if ((f & id.second) && id.first != "")
-                str += pre + id.first + " | ";
+                str += id.first + " | ";
         if (str != "")
             str.resize(str.size() - 3);
         else
-            str = pre + "None";
+            str = "0";
         return str;
     }
     void set_from_arg(std::string_view str) {
@@ -483,8 +479,6 @@ public:
                 s = str.substr(i);
             else
                 s = str.substr(i, j - i);
-            if (!str.compare(0, pre.size(), pre))
-                s.erase(0, pre.size());
             auto id = stx::find_if(ids, [&](const auto& id) { return id.first == s; });
             //assert(id != ids.end());
             if (id != ids.end())
@@ -495,11 +489,11 @@ public:
         }
     }
     const auto& get_ids() const { return ids; }
-    std::string get_name(int fl, bool prefixed = true) const {
-        for (const auto& id : ids)
-            if (id.second == fl && id.first != "") 
-                return prefixed ? pre + id.first : id.first;
-        return "";
+    auto find_id(int fl) const {
+        for (auto id = ids.begin(); id != ids.end(); ++id)
+            if (id->second == fl && id->first != "") 
+                return id;
+        return ids.end();
     }
     std::vector<std::string> used_variables() const { return {}; }
     void rename_variable(const std::string& oldn, const std::string& newn) {}
@@ -507,7 +501,6 @@ public:
 
 private:
     int f;
-    std::string pre;
     std::vector<std::pair<std::string, int>> ids;
 };
 
@@ -522,6 +515,12 @@ struct bindable : property_base
         std::ostringstream os;
         os << std::boolalpha << val;
         str = os.str();
+    }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
     }
     bool empty() const { return str.empty(); }
     bool has_value() const {
@@ -549,8 +548,13 @@ struct bindable : property_base
 
     void set_from_arg(std::string_view s) {
         str = s;
-        if (std::is_same_v<T, float> && str.size() && str.back() == 'f') { 
-            //try to remove trailing f
+        //try to remove trailing f
+        if (std::is_same_v<T, float> && str.size() >= 3 && !str.compare(str.size() - 2, 2, ".f")) {
+            str.resize(str.size() - 2);
+            if (!has_value())
+                str += ".f";
+        }
+        else if (std::is_same_v<T, float> && str.size() && str.back() == 'f') {
             str.pop_back();
             if (!has_value())
                 str.push_back('f');
@@ -614,6 +618,12 @@ struct bindable<dimension> : property_base
         os << val;
         str = os.str();
     }
+    bool operator== (const bindable& b) const {
+        return str == b.str && grow == b.grow;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str || grow != b.grow;
+    }
     bool empty() const { 
         return str.empty(); 
     }
@@ -650,22 +660,33 @@ struct bindable<dimension> : property_base
     
     void set_from_arg(std::string_view s) {
         str = s;
+        stretch(false);
         //strip unit calculation
         std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
-        if (factor == "*fs" || factor == "*dp") 
+        if (factor == "*fs" || factor == "*dp")
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 3)));
             dimension val;
             if ((is >> val) && is.eof())
                 str = s.substr(0, s.size() - 3);
         }
+        else if (s.size() && s.back() == 'X')
+        {
+            std::istringstream is(std::string(s.substr(0, s.size() - 1)));
+            dimension val;
+            if ((is >> val) && is.eof())
+                str.pop_back();
+            stretch(true);
+        }
     }
-    std::string to_arg(std::string_view unit, std::string_view stretchCode = "todo") const {
+    std::string to_arg(std::string_view unit, std::string_view stretchCode = "") const {
         if (stretched())
         {
-            return std::string(stretchCode);
+            if (stretchCode != "")
+                return std::string(stretchCode);
+            return str + "X";
         }
-        if (unit != "" && !stretched() && has_value() &&
+        if (unit != "" && has_value() &&
             str != "0" && str != "-1") //don't suffix special values
         {
             return str + "*" + unit;
@@ -732,6 +753,12 @@ struct bindable<std::string> : property_base
     }
     bindable(const std::string& val) {
         str = val;
+    }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
     }
     bool empty() const { return str.empty(); }
     const std::string& value() const { return str; }
@@ -825,6 +852,12 @@ struct bindable<font_name> : property_base
     bindable(const font_name& fn) {
         set_font_name(fn);
     }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
+    }
     bool empty() const { return str.empty(); }
     bool has_value() const {
         return !str.compare(0, 22, "ImRad::GetFontByName(\"");
@@ -882,6 +915,12 @@ struct bindable<color32> : property_base
         std::ostringstream os;
         os << c;
         str = os.str();
+    }
+    bool operator== (const bindable& b) const {
+        return str == b.str;
+    }
+    bool operator!= (const bindable& b) const {
+        return str != b.str;
     }
     bool empty() const { return str.empty(); }
     /*bool has_value() const {

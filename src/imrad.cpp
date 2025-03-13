@@ -826,7 +826,20 @@ void LoadStyle()
     io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.5f, &cfg);
     strcpy(cfg.Name, "imrad.H3");
     io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.1f, &cfg);
-
+    //TODO
+    //cfg.OversampleH = 1;
+    //cfg.OversampleV = 1;
+    strcpy(cfg.Name, "imrad.pg");
+    ctx.pgFont = io.Fonts->AddFontFromFileTTF(
+        //"c:/windows/fonts/segoeui.ttf",
+        (rootPath + "/style/Roboto-Regular.ttf").c_str(), 
+        fontSize * 1.1f, &cfg);
+    strcpy(cfg.Name, "imrad.pgb");
+    ctx.pgbFont = io.Fonts->AddFontFromFileTTF(
+        //"c:/windows/fonts/segoeuib.ttf",
+        (rootPath + "/style/Roboto-Bold.ttf").c_str(),
+        fontSize * 1.1f, &cfg);
+    
     ctx.defaultStyleFont = nullptr;
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
@@ -1422,33 +1435,59 @@ void HierarchyUI()
     ImGui::End();
 }
 
-bool BeginPropGroup(const std::string& label, const UINode::Prop& prop, bool& open)
+bool BeginPropGroup(const std::string& cat, bool& open)
 {
+    bool topLevel = cat.find('.') == std::string::npos;
+    bool forceSameRow = !topLevel; // cat == "layout.overlayPos" || cat == "layout.size"; //todo: !topLevel
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
     ImGui::AlignTextToFramePadding();
-    ImGui::Unindent();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
-    ImGui::PopStyleVar();
-    bool forceSameRow = label == "overlayPos";
-    if (!open && !forceSameRow)
+    ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont);
+    int flags = ImGuiTreeNodeFlags_SpanAllColumns;
+    std::string str;
+    if (topLevel)
     {
-        ImGui::TableNextColumn();
-        ImGui::TextDisabled("...");
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+            ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)));
+        str = std::string(1, std::toupper(cat[0])) + cat.substr(1);
+        if (str != "Appearance" & str != "Common")
+            flags |= ImGuiTreeNodeFlags_DefaultOpen;
     }
-    ImGui::Indent();
+    else
+    {
+        size_t i1 = cat.rfind('.');
+        if (i1 == std::string::npos || i1 + 1 == cat.size())
+            str = cat;
+        else
+            str = cat.substr(i1 + 1);
+    }
+    if (!topLevel)
+        ImGui::Unindent();
+    ImGui::PushStyleColor(ImGuiCol_NavCursor, 0x0);
+    ImGui::SetNextItemAllowOverlap();
+    if (!forceSameRow)
+        open = ImGui::TreeNodeEx(str.c_str(), flags);
+    else {
+        open = ImGui::TreeNodeEx(("###TreeNode." + cat).c_str(), flags);
+        ImGui::SameLine(0, 0);
+    }
+    ImGui::PopStyleColor();
+    if (!topLevel && !forceSameRow)
+        ImGui::Indent();
+    ImGui::PopFont();
+    ImGui::PopStyleVar();
+    if (!open && !forceSameRow)
+        ImGui::TableNextColumn();
     return forceSameRow;
 }
 
-void EndPropGroup(bool open)
+void EndPropGroup(const std::string& cat, bool open)
 {
-    if (open) 
-    {
+    bool topLevel = cat.find('.') == std::string::npos;
+    if (open)
         ImGui::TreePop();
-        //ImGui::Unindent();
-    }
 }
 
 void PropertyRowsUI(bool pr)
@@ -1475,9 +1514,18 @@ void PropertyRowsUI(bool pr)
             }
     }
 
-    ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
+    static ImVec2 pgMin, pgMax;
+    uint32_t borderClr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight));
+    ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable;
     if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
     {
+        if (!pr)
+            ImGui::Indent();
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            pgMin, 
+            { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMax.y }, 
+            borderClr
+        );
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
 
@@ -1488,8 +1536,11 @@ void PropertyRowsUI(bool pr)
         {
             std::vector<std::string_view> pn;
             auto props = pr ? node->Properties() : node->Events();
-            for (auto& p : props)
-                pn.push_back(p.name);
+            for (auto& p : props) {
+                if (ctx.selected.size() == 1 || 
+                    (p.name.size() > 3 && p.name.compare(p.name.size() - 3, 3, "##1")))
+                    pn.push_back(p.name);
+            }
             stx::sort(pn);
             if (node == ctx.selected[0])
                 pnames = std::move(pn);
@@ -1499,6 +1550,9 @@ void PropertyRowsUI(bool pr)
                 pnames = std::move(pres);
             }
         }
+        ImGui::PushFont(ctx.pgFont);
+        ImVec2 framePad = ImGui::GetStyle().FramePadding;
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
         //when selecting other widget of same kind from Tree, value from previous widget
         //wants to be sent to the new widget because input IDs are the same
         //PushID widget ptr to prevent it
@@ -1509,34 +1563,47 @@ void PropertyRowsUI(bool pr)
         auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
         std::string_view pname;
         std::string pval;
-        std::string inCat;
-        bool catOpen = false;
-        ImGui::Indent(); //to align TreeNodes in the table
+        std::vector<std::string_view> inCat;
+        std::vector<bool> catOpen;
         for (int i = 0; i < (int)props.size(); ++i)
         {
             const auto& prop = props[i];
             if (!stx::count(pnames, prop.name))
                 continue;
-            std::string cat;
-            auto i1 = prop.name.find('@');
-            if (i1 != std::string::npos) {
-                auto i2 = prop.name.find('.', i1);
-                if (i2 != std::string::npos)
-                    cat = prop.name.substr(i1 + 1, i2 - i1 - 1);
+            std::vector<std::string_view> cat;
+            size_t i1 = 0;
+            while (1) {
+                size_t i2 = prop.name.find_first_of(".#", i1);
+                if (i2 == std::string::npos || prop.name[i2] == '#')
+                    break;
+                cat.push_back(prop.name.substr(i1, i2 - i1));
+                i1 = i2 + 1;
             }
             bool forceSameRow = false;
             if (cat != inCat)
             {
-                inCat = cat;
-                if (inCat != "") {
-                    ImGui::PopID();
-                    forceSameRow = BeginPropGroup(cat, prop, catOpen);
-                    ImGui::PushID(ctx.selected[0]);
+                while (inCat.size() &&
+                    (inCat.size() > cat.size() ||
+                    !std::equal(inCat.begin(), inCat.end(), cat.begin(), cat.begin() + inCat.size())))
+                {
+                    EndPropGroup(stx::join(inCat, "."), catOpen.back());
+                    inCat.pop_back();
+                    catOpen.pop_back();
                 }
-                else 
-                    EndPropGroup(catOpen);
+                while (inCat.size() < cat.size())
+                {
+                    inCat.push_back(cat[inCat.size()]);
+                    bool open = false;
+                    if (!stx::count(catOpen, false))
+                    {
+                        ImGui::PopID();
+                        forceSameRow = BeginPropGroup(stx::join(inCat, "."), open);
+                        ImGui::PushID(ctx.selected[0]);
+                    }
+                    catOpen.push_back(open);
+                }
             }
-            if (inCat != "" && !catOpen && !forceSameRow)
+            if (inCat.size() && stx::count(catOpen, false) && !forceSameRow)
                 continue;
             if (!forceSameRow) {
                 ImGui::TableNextRow();
@@ -1555,12 +1622,26 @@ void PropertyRowsUI(bool pr)
                     pval = props[i].property->to_arg();
                 }
             }
+            if (forceSameRow) {
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Indent();
+                ImGui::TableNextColumn();
+            }
         }
-        if (inCat != "")
-            EndPropGroup(catOpen);
-        ImGui::Unindent();
+        while (inCat.size())
+        {
+            EndPropGroup(stx::join(inCat, "."), catOpen.back());
+            inCat.pop_back();
+            catOpen.pop_back();
+        }
+        
         ImGui::PopID();
+        ImGui::PopFont();
+        ImGui::PopStyleVar();
         ImGui::EndTable();
+
+        pgMin = ImGui::GetItemRectMin();
+        pgMax = ImGui::GetItemRectMax();
 
         //copy changes to other widgets
         for (size_t i = 1; i < ctx.selected.size(); ++i)
@@ -1579,6 +1660,11 @@ void PropertyRowsUI(bool pr)
 
 void PropertyUI()
 {
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0xfffafafa);
+    ImGui::PushStyleColor(ImGuiCol_TableBorderLight, 0xffe5e5e5);
+    ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Button);
+    clr.w *= 0.5f;
+    ImGui::PushStyleColor(ImGuiCol_Button, clr);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
     
     ImGui::Begin("Events");
@@ -1596,6 +1682,7 @@ void PropertyUI()
     ImGui::End();
     
     ImGui::PopStyleVar();
+    ImGui::PopStyleColor(3);
 }
 
 void PopupUI()
@@ -1863,7 +1950,7 @@ void Work()
             if (n)
             {
                 bool firstItem = true;
-                for (size_t i = 0; i < ctx.snapIndex; ++i) 
+                for (size_t i = 0; i < ctx.snapIndex; ++i)
                 {
                     auto* ch = ctx.snapParent->children[i].get();
                     if (!ch->hasPos && (ch->Behavior() & UINode::SnapSides))
@@ -1872,6 +1959,12 @@ void Work()
                 newNodes[0]->sameLine = ctx.snapSameLine;
                 newNodes[0]->spacing = firstItem ? 0 : 1;
                 newNodes[0]->nextColumn = ctx.snapNextColumn;
+                //reset nextColumn
+                if (ctx.snapParent->ColumnCount(ctx) <= 1)
+                {
+                    for (size_t i = 1; i < n; ++i)
+                        newNodes[i]->nextColumn = 0;
+                }
             }
             if (ctx.snapIndex < ctx.snapParent->children.size())
             {
