@@ -39,6 +39,7 @@ struct Table : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_TABLE_CELLS_LARGE; }
     const Table& Defaults() { static Table var; return var; }
+    int ColumnCount(UIContext& ctx) { return (int)columnData.size(); }
 private:
     Table() {}
 };
@@ -68,6 +69,7 @@ struct Child : Widget
     const char* GetIcon() const { return ICON_FA_SQUARE_FULL; }
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const Child& Defaults() { static Child var; return var; }
+    int ColumnCount(UIContext& ctx) { return columnCount.eval(ctx); }
 private:
     Child() {}
 };

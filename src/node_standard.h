@@ -48,7 +48,7 @@ struct UINode
     virtual void Export(std::ostream&, UIContext& ctx) = 0;
     virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual int Behavior() = 0;
-    
+    virtual int ColumnCount(UIContext& ctx) = 0;
     virtual const UINode& Defaults() = 0;
 
     void DrawInteriorRect(UIContext& ctx);
@@ -168,6 +168,7 @@ struct Widget : UINode
     void TreeUI(UIContext& ctx);
     bool EventUI(int, UIContext& ctx);
     int Behavior();
+    int ColumnCount(UIContext& ctx) { return 0; }
     const Widget& Defaults() = 0;
     Layout GetLayout(UINode* parent);
     virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;

@@ -1950,7 +1950,7 @@ void Work()
             if (n)
             {
                 bool firstItem = true;
-                for (size_t i = 0; i < ctx.snapIndex; ++i) 
+                for (size_t i = 0; i < ctx.snapIndex; ++i)
                 {
                     auto* ch = ctx.snapParent->children[i].get();
                     if (!ch->hasPos && (ch->Behavior() & UINode::SnapSides))
@@ -1959,6 +1959,12 @@ void Work()
                 newNodes[0]->sameLine = ctx.snapSameLine;
                 newNodes[0]->spacing = firstItem ? 0 : 1;
                 newNodes[0]->nextColumn = ctx.snapNextColumn;
+                //reset nextColumn
+                if (ctx.snapParent->ColumnCount(ctx) <= 1)
+                {
+                    for (size_t i = 1; i < n; ++i)
+                        newNodes[i]->nextColumn = 0;
+                }
             }
             if (ctx.snapIndex < ctx.snapParent->children.size())
             {
