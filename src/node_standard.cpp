@@ -250,6 +250,13 @@ void UINode::DrawSnap(UIContext& ctx)
         m.y > clip->cached_pos.y + clip->cached_size.y)
         return;
         
+    int ncols = parent->ColumnCount(ctx);
+    int col = 0;
+    if (ncols > 1) 
+    {
+        for (size_t j = 0; j <= i; ++j)
+            col = (col + pchildren[j]->nextColumn) % ncols;
+    }
     bool lastItem = i + 1 == pchildren.size();
     ImGuiDir snapDir = ImGuiDir_None;
     //allow to snap in space between widgets too (don't check all coordinates)
@@ -297,7 +304,10 @@ void UINode::DrawSnap(UIContext& ctx)
     {
         p = cached_pos + ImVec2(cached_size.x, 0);
         h = cached_size.y;
+        //check we are not pointing into widget on right
         auto* nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
+        if (nch && nch->nextColumn && col + 1 == ncols)
+            nch = nullptr;
         if (nch && !nch->sameLine)
         {
             for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
@@ -360,7 +370,7 @@ void UINode::DrawSnap(UIContext& ctx)
             else
                 p.y = std::min(p.y, ch->cached_pos.y);
         }
-        for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
+        for (size_t j = i + 1; j < pchildren.size(); ++j)
         {
             if (!pchildren[j]->sameLine || pchildren[j]->nextColumn)
                 break;
@@ -372,13 +382,41 @@ void UINode::DrawSnap(UIContext& ctx)
             else
                 p.y = std::min(p.y, ch->cached_pos.y);
         }
+        //find a widget from next/prev column-row
+        size_t inr = -1, ipr = -1;
+        if (ncols >= 2)
+        {
+            int nc = ncols - col;
+            for (size_t j = i + 1; j < pchildren.size(); ++j)
+            {
+                nc -= pchildren[j]->nextColumn;
+                if (nc <= 0) {
+                    inr = j;
+                    break;
+                }
+            }
+            nc = ncols;
+            for (int j = (int)i; j >= 0; --j)
+            {
+                if (nc <= 0) {
+                    ipr = j;
+                    break;
+                }
+                nc -= pchildren[j]->nextColumn;
+            }
+        }
         w = x2 - p.x;
         if (down)
         {
-            const auto* nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
+            //check m.y not pointing in next column-row
+            const Widget* nch = inr < pchildren.size() ? pchildren[inr].get() : nullptr;
+            if (nch)
+            {
+                if (m.y >= nch->cached_pos.y)
+                    return;
+            }
             //check m.y not pointing in next row
-            //we assume all columns belong to the same row and there is no more rows so
-            //we don't check
+            nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
             if (nch && !nch->nextColumn)
             {
                 if (m.y >= nch->cached_pos.y + MARGIN)
@@ -392,6 +430,12 @@ void UINode::DrawSnap(UIContext& ctx)
         }
         else
         {
+            const Widget* pch = ipr < pchildren.size() ? pchildren[ipr].get() : nullptr;
+            if (pch)
+            {
+                if (m.y <= pch->cached_pos.y + pch->cached_size.y)
+                    return;
+            }
             if (!topmost) //up(i) is handled by down(i-1)
                 return;
             ctx.snapParent = parent;
