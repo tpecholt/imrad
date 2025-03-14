@@ -13,8 +13,11 @@ public:
     void Draw();
 
     std::vector<std::string> fontNames;
-    std::string fontName;
-    std::string fontSize;
+    std::string uiFontName;
+    std::string uiFontSize;
+    std::string pgFontName;
+    std::string pgbFontName;
+    std::string pgFontSize;
     /// @end interface
 
 private:

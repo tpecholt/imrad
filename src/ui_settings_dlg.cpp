@@ -26,6 +26,7 @@ void SettingsDlg::ClosePopup(ImRad::ModalResult mr)
 
 void SettingsDlg::ResetLayout()
 {
+    // ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 2;
     vb1.Reset();
     hb3.Reset();
 }
@@ -44,7 +45,7 @@ void SettingsDlg::Draw()
     ID = ImGui::GetID("###SettingsDlg");
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 5 });
-    ImGui::SetNextWindowSize({ 640, 480 }, ImGuiCond_FirstUseEver); //{ 640, 480 }
+    ImGui::SetNextWindowSize({ 700, 520 }, ImGuiCond_FirstUseEver); //{ 700, 520 }
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Settings###SettingsDlg", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
@@ -64,7 +65,6 @@ void SettingsDlg::Draw()
 
         /// @begin Selectable
         vb1.BeginLayout();
-        ImGui::SetCursorPosY(vb1);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0.5f });
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
@@ -86,10 +86,9 @@ void SettingsDlg::Draw()
         // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Table
-        ImGui::SetCursorPosY(vb1);
-        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 140, vb1.GetSize(false) }))
+        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 140, vb1.GetSize() }))
         {
-            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_None, 0);
+            ImGui::TableSetupColumn("A", 0, 0);
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
@@ -110,21 +109,30 @@ void SettingsDlg::Draw()
         /// @begin Child
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffd0d0d0);
-        ImGui::BeginChild("child2", { -1, vb1.GetSize(true) }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
+        ImGui::BeginChild("child2", { -1, vb1.GetSize() }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
         {
             /// @separator
 
             /// @begin Text
-            ImRad::Spacing(1);
+            ImGui::PushFont(ImRad::GetFontByName("imrad.H3"));
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Font:");
+            ImGui::TextUnformatted("UI font");
+            ImGui::PopFont();
             /// @end Text
+
+            /// @begin Selectable
+            ImRad::Spacing(1);
+            ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
+            ImGui::AlignTextToFramePadding();
+            ImRad::Selectable("Regular:", false, ImGuiSelectableFlags_DontClosePopups, { 60, 0 });
+            ImGui::PopStyleVar();
+            /// @end Selectable
 
             /// @begin Combo
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
             ImGui::SetNextItemWidth(200);
-            ImRad::Combo("##fontName", &fontName, fontNames, ImGuiComboFlags_None);
+            ImRad::Combo("##uiFontName", &uiFontName, fontNames, 0);
             ImGui::PopStyleVar();
             /// @end Combo
 
@@ -137,7 +145,60 @@ void SettingsDlg::Draw()
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
             ImGui::SetNextItemWidth(100);
-            ImRad::Combo("##fontSize", &fontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\00028\00032\00036\000", ImGuiComboFlags_None);
+            ImRad::Combo("##uiFontSize", &uiFontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\00028\00032\00036\000", 0);
+            ImGui::PopStyleVar();
+            /// @end Combo
+
+            /// @begin Text
+            ImRad::Spacing(4);
+            ImGui::PushFont(ImRad::GetFontByName("imrad.H3"));
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Property Grid Fonts");
+            ImGui::PopFont();
+            /// @end Text
+
+            /// @begin Selectable
+            ImRad::Spacing(1);
+            ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
+            ImGui::AlignTextToFramePadding();
+            ImRad::Selectable("Regular:", false, ImGuiSelectableFlags_DontClosePopups, { 60, 0 });
+            ImGui::PopStyleVar();
+            /// @end Selectable
+
+            /// @begin Combo
+            ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+            ImGui::SetNextItemWidth(200);
+            ImRad::Combo("##pgFontName", &pgFontName, fontNames, 0);
+            ImGui::PopStyleVar();
+            /// @end Combo
+
+            /// @begin Text
+            ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::TextUnformatted("Size:");
+            /// @end Text
+
+            /// @begin Combo
+            ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+            ImGui::SetNextItemWidth(100);
+            ImRad::Combo("##pgFontSize", &pgFontSize, "12\00014\00016\00018\00019\00020\00021\00022\00024\00026\00028\00032\00036\000", 0);
+            ImGui::PopStyleVar();
+            /// @end Combo
+
+            /// @begin Selectable
+            ImRad::Spacing(1);
+            ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
+            ImGui::AlignTextToFramePadding();
+            ImRad::Selectable("Bold:", false, ImGuiSelectableFlags_DontClosePopups, { 60, 0 });
+            ImGui::PopStyleVar();
+            /// @end Selectable
+
+            /// @begin Combo
+            ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+            ImGui::SetNextItemWidth(200);
+            ImRad::Combo("##pgbFontName", &pgbFontName, fontNames, 0);
             ImGui::PopStyleVar();
             /// @end Combo
 
@@ -149,9 +210,8 @@ void SettingsDlg::Draw()
         /// @end Child
 
         /// @begin Spacer
-        ImGui::SetCursorPosY(vb1);
         hb3.BeginLayout();
-        ImGui::SetCursorPosX(hb3);
+        ImRad::Spacing(1);
         ImRad::Dummy({ hb3.GetSize(), 0 });
         vb1.AddSize(2, ImRad::VBox::ItemSize);
         hb3.AddSize(0, ImRad::HBox::Stretch(1));
@@ -159,7 +219,6 @@ void SettingsDlg::Draw()
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetCursorPosX(hb3);
         if (ImGui::Button("OK", { 100, 30 }))
         {
             ClosePopup(ImRad::Ok);

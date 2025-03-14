@@ -4644,15 +4644,23 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
     case 8:
+    {
         ImGui::Text("items");
         ImGui::TableNextColumn();
         //ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        std::string tmp;
+        if (items.has_single_variable())
+            tmp = *items.access();
+        else
+            tmp = "[...]";
         ImGui::PushFont(items.empty() ? ctx.pgFont : ctx.pgbFont);
-        if (ImGui::Selectable("[...]", /*ICON_FA_PEN_TO_SQUARE,*/ false, 0, { ImGui::GetContentRegionAvail().x-ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        if (ImGui::Selectable(tmp.c_str(), false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             changed = true;
-            std::string tmp = *items.access(); //preserve embeded nulls
+            tmp = *items.access(); //preserve embeded nulls
             stx::replace(tmp, '\0', '\n');
+            if (tmp.size() && tmp.back() == '\n')
+                tmp.pop_back();
             comboDlg.title = "Items";
             comboDlg.value = tmp;
             comboDlg.font = ctx.defaultStyleFont;
@@ -4668,6 +4676,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("items", &items, ctx);
         break;
+    }
     case 9:
         ImGui::Text("value");
         ImGui::TableNextColumn();

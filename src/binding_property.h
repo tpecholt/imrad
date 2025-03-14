@@ -838,6 +838,12 @@ template <>
 struct bindable<std::vector<std::string>> : bindable<std::string>
 {
     bindable() {}
+    bool has_single_variable() const
+    {
+        return str.size() > 2 && str[0] == '{' &&
+            str.find('{', 1) == std::string::npos &&
+            (str.back() == '}' || (str[str.size() - 2] == '}' && str.back() == '\0'));
+    }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {
         return cpp::to_str_arg(str, true);

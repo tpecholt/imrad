@@ -222,7 +222,8 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("columns");
         ImGui::TableNextColumn();
         ImGui::PushFont(ctx.pgbFont);
-        if (ImGui::Selectable("[...]", false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        std::string label = "[" + std::to_string(columnData.size()) + "]";
+        if (ImRad::Selectable(label.c_str(), false, 0, { -ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             changed = true;
             tableColumns.columnData = columnData;

@@ -70,8 +70,11 @@ enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
 std::string rootPath;
 std::string initErrors, showError;
-std::string fontName = "Roboto-Regular.ttf";
-float fontSize = 19;
+std::string uiFontName = "Roboto-Regular.ttf";
+std::string pgFontName = "Roboto-Regular.ttf";
+std::string pgbFontName = "Roboto-Bold.ttf";
+float uiFontSize = 19;
+float pgFontSize = 20;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -806,39 +809,33 @@ void LoadStyle()
     
     reloadStyle = false;
     auto& io = ImGui::GetIO();
-    float faSize = fontSize * 18.f / 20.f;
-    std::string fontPath = rootPath + "/style/" + fontName;
+    float faSize = uiFontSize * 18.f / 20.f;
+    std::string stylePath = rootPath + "/style/";
     glfwSetCursor(window, curWait);
 
     io.Fonts->Clear();
 
     //reload ImRAD UI first
     StyleColors();
-    io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+    io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
     static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
     ImFontConfig cfg;
     cfg.MergeMode = true;
     //icons_config.PixelSnapH = true;
-    io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
-    io.Fonts->AddFontFromFileTTF((rootPath + "/style/" + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
     cfg.MergeMode = false;
     strcpy(cfg.Name, "imrad.H1");
-    io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.5f, &cfg);
+    io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.5f, &cfg);
     strcpy(cfg.Name, "imrad.H3");
-    io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize * 1.1f, &cfg);
+    io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.1f, &cfg);
     //TODO
     //cfg.OversampleH = 1;
     //cfg.OversampleV = 1;
     strcpy(cfg.Name, "imrad.pg");
-    ctx.pgFont = io.Fonts->AddFontFromFileTTF(
-        //"c:/windows/fonts/segoeui.ttf",
-        (rootPath + "/style/Roboto-Regular.ttf").c_str(), 
-        fontSize * 1.1f, &cfg);
+    ctx.pgFont = io.Fonts->AddFontFromFileTTF((stylePath + pgFontName).c_str(), pgFontSize, &cfg);
     strcpy(cfg.Name, "imrad.pgb");
-    ctx.pgbFont = io.Fonts->AddFontFromFileTTF(
-        //"c:/windows/fonts/segoeuib.ttf",
-        (rootPath + "/style/Roboto-Bold.ttf").c_str(),
-        fontSize * 1.1f, &cfg);
+    ctx.pgbFont = io.Fonts->AddFontFromFileTTF((stylePath + pgbFontName).c_str(), pgFontSize, &cfg);
     
     ctx.defaultStyleFont = nullptr;
     ctx.fontNames.clear();
@@ -848,10 +845,11 @@ void LoadStyle()
     if (activeTab >= 0)
     {
         std::string styleName = fileTabs[activeTab].styleName;
+        std::string defaultFont = stylePath + "Roboto-Regular.ttf";
         if (styleName == "Classic")
         {
             ImGui::StyleColorsClassic(&ctx.style);
-            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(defaultFont.c_str(), uiFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
@@ -859,7 +857,7 @@ void LoadStyle()
         else if (styleName == "Light")
         {
             ImGui::StyleColorsLight(&ctx.style);
-            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(defaultFont.c_str(), uiFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
@@ -867,7 +865,7 @@ void LoadStyle()
         else if (styleName == "Dark")
         {
             ImGui::StyleColorsDark(&ctx.style);
-            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(defaultFont.c_str(), uiFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
@@ -1281,12 +1279,19 @@ void ToolbarUI()
                 fontNames.push_back(entry.path().stem().string());
         }
         settingsDlg.fontNames = std::move(fontNames);
-        settingsDlg.fontName = fontName.substr(0, fontName.size() - 4);
-        settingsDlg.fontSize = std::to_string((int)fontSize);
-        settingsDlg.OpenPopup([](ImRad::ModalResult) 
+        settingsDlg.uiFontName = uiFontName.substr(0, uiFontName.size() - 4);
+        settingsDlg.uiFontSize = std::to_string((int)uiFontSize);
+        settingsDlg.pgFontName = pgFontName.substr(0, pgFontName.size() - 4);
+        settingsDlg.pgbFontName = pgbFontName.substr(0, pgbFontName.size() - 4);
+        settingsDlg.pgFontSize = std::to_string((int)pgFontSize);
+        settingsDlg.OpenPopup([](ImRad::ModalResult)
         {
-            fontName = settingsDlg.fontName + ".ttf";
-            fontSize = std::stof(settingsDlg.fontSize);
+            uiFontName = settingsDlg.uiFontName + ".ttf";
+            uiFontSize = std::stof(settingsDlg.uiFontSize);
+            pgFontName = settingsDlg.pgFontName + ".ttf";
+            pgbFontName = settingsDlg.pgbFontName + ".ttf";
+            pgFontSize = std::stof(settingsDlg.pgFontSize);
+            
             ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
             reloadStyle = true;
         });
@@ -2104,9 +2109,15 @@ void AddINIHandler()
             }
             else if (!strcmp((const char*)entry, "UI")) {
                 if (!strncmp(line, "FontName=", 9))
-                    fontName = line + 9;
+                    uiFontName = line + 9;
                 else if (!strncmp(line, "FontSize=", 9))
-                    fontSize = (float)std::atof(line + 9);
+                    uiFontSize = (float)std::atof(line + 9);
+                else if (!strncmp(line, "PgFontName=", 11))
+                    pgFontName = line + 11;
+                else if (!strncmp(line, "PgbFontName=", 12))
+                    pgbFontName = line + 12;
+                else if (!strncmp(line, "PgFontSize=", 11))
+                    pgFontSize = (float)std::atof(line + 11);
             }
         };
     ini_handler.ApplyAllFn = nullptr; 
@@ -2120,8 +2131,11 @@ void AddINIHandler()
             buf->append("\n");
 
             buf->append("[ImRAD][UI]\n");
-            buf->appendf("FontName=%s\n", fontName.c_str());
-            buf->appendf("FontSize=%f\n", fontSize);
+            buf->appendf("FontName=%s\n", uiFontName.c_str());
+            buf->appendf("FontSize=%f\n", uiFontSize);
+            buf->appendf("PgFontName=%s\n", pgFontName.c_str());
+            buf->appendf("PgbFontName=%s\n", pgbFontName.c_str());
+            buf->appendf("PgFontSize=%f\n", pgFontSize);
             buf->append("\n");
         };
     ImGui::GetCurrentContext()->SettingsHandlers.push_back(ini_handler);
