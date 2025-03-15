@@ -1402,7 +1402,7 @@ void TabsUI()
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Copy Full Path"))
-                    ImGui::SetClipboardText(tab.fname.c_str());
+                    ImGui::SetClipboardText(("\"" + tab.fname + "\"").c_str());
 
                 ImGui::EndPopup();
             }
@@ -2096,12 +2096,13 @@ void AddINIHandler()
             char buf[1000];
             if (!strcmp((const char*)entry, "Recent")) {
                 int i;
-                if (sscanf(line, "File%d=%s", &i, buf) == 2) {
+                if (sscanf(line, "File%d=", &i) == 1) {
+                    std::string fname = line + std::string_view(line).find('=') + 1;
                     if (i == 1) {
                         fileTabs.clear();
                         ActivateTab(-1);
                     }
-                    DoOpenFile(buf, &initErrors);
+                    DoOpenFile(fname, &initErrors);
                 }
                 else if (sscanf(line, "ActiveTab=%d", &i) == 1) {
                     ActivateTab(i);
