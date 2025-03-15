@@ -131,11 +131,24 @@ inline bool InputDirectVal(direct_val<pzdimension2>* val, UIContext& ctx)
 inline bool InputDirectVal(direct_val<bool>* val, int fl, UIContext& ctx)
 {
     std::string id = "##" + std::to_string((uint64_t)val);
-    if (!(fl & InputDirectVal_Modified))
-        ImGui::PushStyleColor(ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    bool val1 = *val;
+    
+    ImGui::PushStyleColor(ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(
+        (fl & InputDirectVal_Modified) ? ImGuiCol_Text : ImGuiCol_TextDisabled));
+    
+    if ((fl & InputDirectVal_Modified) && !val1) {
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2);
+        ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyleColorVec4(ImGuiCol_Text));
+    }
+
     bool changed = ImGui::Checkbox(id.c_str(), val->access());
-    if (!(fl & InputDirectVal_Modified))
+    
+    if ((fl & InputDirectVal_Modified) && !val1) {
+        ImGui::PopStyleVar();
         ImGui::PopStyleColor();
+    }
+    ImGui::PopStyleColor();
+
     return changed;
 }
 
@@ -576,8 +589,10 @@ inline bool InputBindable(bindable<dimension>* val, int flags, UIContext& ctx)
     {
         if (!stretch && val->empty())
             *val = 0;
-        else if (stretch && !val->has_value())
+        else if (stretch && !val->has_value()) {
             *val = 1.0f;
+            val->stretch(true);
+        }
     }
 
     if (flags & InputBindable_StretchButton) {

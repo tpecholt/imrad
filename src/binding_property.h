@@ -670,7 +670,7 @@ struct bindable<dimension> : property_base
             if ((is >> val) && is.eof())
                 str = s.substr(0, s.size() - 3);
         }
-        else if (s.size() && s.back() == 'X')
+        else if (s.size() && s.back() == 'x')
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 1)));
             dimension val;
@@ -684,7 +684,7 @@ struct bindable<dimension> : property_base
         {
             if (stretchCode != "")
                 return std::string(stretchCode);
-            return str + "X";
+            return str + "x";
         }
         if (unit != "" && has_value() &&
             str != "0" && str != "-1") //don't suffix special values
@@ -842,7 +842,7 @@ struct bindable<std::vector<std::string>> : bindable<std::string>
     {
         return str.size() > 2 && str[0] == '{' &&
             str.find('{', 1) == std::string::npos &&
-            (str.back() == '}' || (str[str.size() - 2] == '}' && str.back() == '\0'));
+            str.back() == '}';
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {

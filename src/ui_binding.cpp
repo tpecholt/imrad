@@ -159,6 +159,10 @@ void BindingDlg::Draw()
             bool exprValid = true;
             if (type == "bool" || type == "float" || type == "int")
                 exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
+            //combo.items requires carefully embedded nulls so disable editing here
+            if (type == "std::vector<std::string>" && 
+                (expr.empty() || expr[0] != '{' || expr.find('{', 1) != std::string::npos || expr.back() != '}')) 
+                exprValid = false;
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(!exprValid);
@@ -207,8 +211,10 @@ void BindingDlg::OnNewField()
 void BindingDlg::OnVarClicked()
 {
     int idx = ImGui::TableGetRowIndex() - 1; //header row
-    if (type == "std::string" || type == "std::vector<std::string>")
+    if (type == "std::string")
         expr += "{" + vars[idx].first + "}";
+    else if (type == "std::vector<std::string>")
+        expr = "{" + vars[idx].first + "}";
     else
         expr = vars[idx].first;
     focusExpr = true;

@@ -154,7 +154,7 @@ Table::Properties()
         { "behavior.rowCount##table", &itemCount.limit },
         { "behavior.rowFilter##table", &rowFilter },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
-        { "fields.rowIndex##1", &itemCount.index }
+        { "bindings.rowIndex##1", &itemCount.index }
         });
     return props;
 }
@@ -602,7 +602,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
         sz.y = 30;
     
     ImRad::IgnoreWindowPaddingData data;
-    if (!style_outer_padding)
+    if (!style_outerPadding)
         ImRad::PushIgnoreWindowPadding(&sz, &data);
     
     //after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
@@ -628,7 +628,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
     
     ImGui::EndChild();
 
-    if (!style_outer_padding) 
+    if (!style_outerPadding) 
         ImRad::PopIgnoreWindowPadding(data);
 
     if (!style_bg.empty())
@@ -652,7 +652,7 @@ void Child::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 void Child::DoExport(std::ostream& os, UIContext& ctx)
 {
     std::string datavar, szvar;
-    if (!style_outer_padding)
+    if (!style_outerPadding)
     {
         datavar = "_data" + std::to_string(ctx.varCounter);
         szvar = "_sz" + std::to_string(ctx.varCounter);
@@ -742,7 +742,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     if (style_borderSize.has_value())
         os << ctx.ind << "ImGui::PopStyleVar();\n";
 
-    if (!style_outer_padding)
+    if (!style_outerPadding)
         os << ctx.ind << "ImRad::PopIgnoreWindowPadding(" << datavar << ");\n";
 
 }
@@ -768,7 +768,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if (sit->kind == cpp::Other && 
         (!sit->line.compare(0, 10, "ImVec2 _sz") || !sit->line.compare(0, 9, "ImVec2 sz"))) //sz for compatibility
     {
-        style_outer_padding = false;
+        style_outerPadding = false;
         size_t i = sit->line.find('{');
         if (i != std::string::npos) {
             auto size = cpp::parse_size(sit->line.substr(i));
@@ -821,14 +821,14 @@ Child::Properties()
         { "appearance.spacing", &style_spacing },
         { "appearance.rounding", &style_rounding },
         { "appearance.borderSize", &style_borderSize },
-        { "appearance.outer_padding", &style_outer_padding },
+        { "appearance.outer_padding", &style_outerPadding },
+        { "appearance.column_border##child", &columnBorder },
         { "behavior.flags##child", &flags },
         { "behavior.wflags##child", &wflags },
         { "behavior.column_count##child", &columnCount },
-        { "behavior.column_border##child", &columnBorder },
         { "behavior.item_count##child", &itemCount.limit },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
-        { "fields.itemIndex##1", &itemCount.index },
+        { "bindings.itemIndex##1", &itemCount.index },
         });
     return props;
 }
@@ -836,6 +836,7 @@ Child::Properties()
 bool Child::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -881,9 +882,16 @@ bool Child::PropertyUI(int i, UIContext& ctx)
     case 6:
         ImGui::Text("outerPadding");
         ImGui::TableNextColumn();
-        changed = InputDirectVal(&style_outer_padding, 0, ctx);
+        fl = style_outerPadding != Defaults().style_outerPadding ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&style_outerPadding, fl, ctx);
         break;
     case 7:
+        ImGui::Text("columnBorder");
+        ImGui::TableNextColumn();
+        fl = columnBorder != Defaults().columnBorder ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&columnBorder, fl, ctx);
+        break;
+    case 8:
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
@@ -913,25 +921,21 @@ bool Child::PropertyUI(int i, UIContext& ctx)
             }
             });
         break;
-    case 8:
+    case 9:
         TreeNodeProp("windowFlags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&wflags, Defaults().flags);
             });
         break;
-    case 9:
+    case 10:
         ImGui::Text("columnCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&columnCount, 0, ctx);
+        fl = columnCount != Defaults().columnCount  ? InputBindable_Modified : 0;
+        changed = InputBindable(&columnCount, fl, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("columnCount", &columnCount, ctx);
-        break;
-    case 10:
-        ImGui::Text("columnBorder");
-        ImGui::TableNextColumn();
-        changed = InputDirectVal(&columnBorder, 0, ctx);
         break;
     case 11:
         ImGui::Text("itemCount");
@@ -945,7 +949,8 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
+        fl = scrollWhenDragging != Defaults().scrollWhenDragging ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&scrollWhenDragging, fl, ctx);
         break;
     case 13:
         ImGui::BeginDisabled(itemCount.empty());
@@ -1107,7 +1112,7 @@ Splitter::Properties()
         { "appearance.active", &style_active },
         { "behavior.min1##splitter", &min_size1 },
         { "behavior.min2##splitter", &min_size2 },
-        { "fields.sashPosition##1", &position },
+        { "bindings.sashPosition##1", &position },
         });
     return props;
 }
@@ -1722,8 +1727,8 @@ TabBar::Properties()
         { "appearance.font", &style_font },
         { "behavior.flags", &flags },
         { "behavior.tabCount", &itemCount.limit },
-        { "fields.activeTab##1", &activeTab },
-        { "fields.tabIndex##1", &itemCount.index },
+        { "bindings.activeTab##1", &activeTab },
+        { "bindings.tabIndex##1", &itemCount.index },
         });
     return props;
 }
@@ -2557,7 +2562,7 @@ MenuIt::Properties()
         { "behavior.label", &label, true },
         { "behavior.shortcut", &shortcut },
         { "behavior.separator", &separator },
-        { "fields.checked##1", &checked },
+        { "bindings.checked##1", &checked },
         });
     return props;
 }

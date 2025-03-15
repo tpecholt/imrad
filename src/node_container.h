@@ -53,7 +53,7 @@ struct Child : Widget
     direct_val<bool> scrollWhenDragging = false;
     direct_val<pzdimension2> style_padding;
     direct_val<pzdimension2> style_spacing;
-    direct_val<bool> style_outer_padding = true;
+    direct_val<bool> style_outerPadding = true;
     direct_val<pzdimension> style_rounding;
     direct_val<pzdimension> style_borderSize;
     bindable<color32> style_bg;

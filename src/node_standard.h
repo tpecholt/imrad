@@ -200,7 +200,7 @@ struct Separator : Widget
 {
     bindable<std::string> label;
     direct_val<pzdimension> style_thickness;
-    direct_val<bool> style_outer_padding = true;
+    direct_val<bool> style_outerPadding = true;
 
     Separator(UIContext&);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

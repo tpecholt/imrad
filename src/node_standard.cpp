@@ -288,10 +288,10 @@ void UINode::DrawSnap(UIContext& ctx)
     {
         p = cached_pos;
         h = cached_size.y;
-        bool leftmost = !i || !pch->sameLine || pch->nextColumn;
+        bool leftmost = !i || !pch->sameLine || (ncols > 1 && pch->nextColumn);
         if (!leftmost) //handled by right(i-1)
             return;
-        if (pch->nextColumn && m.x < pch->cached_pos.x)
+        if (ncols > 1 && pch->nextColumn && m.x < pch->cached_pos.x)
             return;
         ctx.snapParent = parent;
         ctx.snapIndex = i;
@@ -306,7 +306,7 @@ void UINode::DrawSnap(UIContext& ctx)
         h = cached_size.y;
         //check we are not pointing into widget on right
         auto* nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
-        if (nch && nch->nextColumn && col + 1 == ncols)
+        if (nch && ncols > 1 && nch->nextColumn && col + 1 == ncols)
             nch = nullptr;
         if (nch && !nch->sameLine)
         {
@@ -316,7 +316,7 @@ void UINode::DrawSnap(UIContext& ctx)
                     break;
                 }
         }
-        if (nch && (nch->sameLine || nch->nextColumn))
+        if (nch && (nch->sameLine || (ncols > 1 && nch->nextColumn)))
         {
             if (m.x >= nch->cached_pos.x) //no margin, left(i+1) can differ
                 return;
@@ -348,19 +348,18 @@ void UINode::DrawSnap(UIContext& ctx)
         bool topmost = true;
         for (int j = (int)i; j >= 0; --j)
         {
-            if (pchildren[j]->nextColumn)
+            if (ncols > 1 && pchildren[j]->nextColumn)
                 break;
             if (j && 
                 (pchildren[j - 1]->Behavior() & SnapSides) && //ignore preceeding MenuBar etc.
-                !pchildren[j]->sameLine && 
-                !pchildren[j]->nextColumn)
+                !pchildren[j]->sameLine)
                 topmost = false;
         }
         //find range of widgets in the same row and column
         size_t i1 = i, i2 = i;
         for (int j = (int)i - 1; j >= 0; --j)
         {
-            if (!pchildren[j + 1]->sameLine || pchildren[j + 1]->nextColumn) 
+            if (!pchildren[j + 1]->sameLine || (ncols > 1 && pchildren[j + 1]->nextColumn)) 
                 break;
             i1 = j;
             const auto& ch = pchildren[j];
@@ -372,7 +371,7 @@ void UINode::DrawSnap(UIContext& ctx)
         }
         for (size_t j = i + 1; j < pchildren.size(); ++j)
         {
-            if (!pchildren[j]->sameLine || pchildren[j]->nextColumn)
+            if (!pchildren[j]->sameLine || (ncols > 1 && pchildren[j]->nextColumn))
                 break;
             i2 = j;
             const auto& ch = pchildren[j];
@@ -417,7 +416,7 @@ void UINode::DrawSnap(UIContext& ctx)
             }
             //check m.y not pointing in next row
             nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
-            if (nch && !nch->nextColumn)
+            if (nch && (ncols <= 1 || !nch->nextColumn))
             {
                 if (m.y >= nch->cached_pos.y + MARGIN)
                     return;
@@ -1805,21 +1804,26 @@ Widget::Properties()
     };
     if ((Behavior() & (HasSizeX | HasSizeY)) == (HasSizeX | HasSizeY))
     {
-        props.insert(props.end(),
-            { "layout.size.size", nullptr }
-        );
+        props.insert(props.end(), {
+            { "layout.size.size", nullptr },
+            { "layout.size.size_x", &size_x },
+            { "layout.size.size_y", &size_y } 
+        });
     }
-    if (Behavior() & HasSizeX)
+    else
     {
-        props.insert(props.end(), 
-            { "layout.size.size_x", &size_x }
-        );
-    }
-    if (Behavior() & HasSizeY)
-    {
-        props.insert(props.end(),
-            { "layout.size.size_y", &size_y }
-        );
+        if (Behavior() & HasSizeX)
+        {
+            props.insert(props.end(),
+                { "layout.size_x", &size_x }
+            );
+        }
+        if (Behavior() & HasSizeY)
+        {
+            props.insert(props.end(),
+                { "layout.size_y", &size_y }
+            );
+        }
     }
     if (!(Behavior() & NoOverlayPos))
     {
@@ -1933,7 +1937,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         bool modified = size_x != Defaults().size_x || size_y != Defaults().size_y;
         ImGui::PushFont(modified ? ctx.pgbFont : ctx.pgFont);
-        ImGui::Text((*size_x.access() + "," + *size_y.access()).c_str());
+        ImGui::Text((size_x.to_arg("") + ", " + size_y.to_arg("")).c_str());
         ImGui::PopFont();
         return changed;
     }
@@ -2385,7 +2389,7 @@ std::unique_ptr<Widget> Separator::Clone(UIContext& ctx)
 ImDrawList* Separator::DoDraw(UIContext& ctx)
 {
     ImRad::IgnoreWindowPaddingData data;
-    if (!style_outer_padding && !sameLine)
+    if (!style_outerPadding && !sameLine)
         ImRad::PushIgnoreWindowPadding(nullptr, &data);
 
     if (!label.empty())
@@ -2395,7 +2399,7 @@ ImDrawList* Separator::DoDraw(UIContext& ctx)
     else 
         ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
 
-    if (!style_outer_padding && !sameLine)
+    if (!style_outerPadding && !sameLine)
         ImRad::PopIgnoreWindowPadding(data);
 
     return ImGui::GetWindowDrawList();
@@ -2420,7 +2424,7 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 void Separator::DoExport(std::ostream& os, UIContext& ctx)
 {
     std::string datavar;
-    if (!style_outer_padding && !sameLine) 
+    if (!style_outerPadding && !sameLine) 
     {
         datavar = "_data" + std::to_string(ctx.varCounter);
         ++ctx.varCounter;
@@ -2443,7 +2447,7 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
         os << ");\n";
     }
 
-    if (!style_outer_padding && !sameLine)
+    if (!style_outerPadding && !sameLine)
     {
         os << ctx.ind << "ImRad::PopIgnoreWindowPadding(" << datavar << ");\n";
     }
@@ -2464,7 +2468,7 @@ void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if (sit->kind == cpp::CallExpr && 
         (sit->callee == "ImRad::PushIgnoreWindowPadding" || sit->callee == "ImGui::PushClipRect")) //PushClipRect for compatibility
     {
-        style_outer_padding = false;
+        style_outerPadding = false;
     }
 }
 
@@ -2474,7 +2478,7 @@ Separator::Properties()
     auto props = Widget::Properties();
     props.insert(props.begin(), {
         { "appearance.thickness", &style_thickness },
-        { "appearance.outer_padding", &style_outer_padding },
+        { "appearance.outer_padding", &style_outerPadding },
         { "behavior.label", &label, true }
         });
     return props;
@@ -2495,7 +2499,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("outerPadding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_outer_padding, 0, ctx);
+        changed = InputDirectVal(&style_outerPadding, 0, ctx);
         break;
     case 2:
         ImGui::Text("label");
@@ -2610,6 +2614,7 @@ Text::Properties()
 bool Text::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -2645,7 +2650,8 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("wrap");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = ImGui::Checkbox("##wrap", wrap.access());
+        fl = wrap != Defaults().wrap ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&wrap, fl, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 5, ctx);
@@ -2876,7 +2882,7 @@ Selectable::Properties()
         { "behavior.label", &label, true },
         { "behavior.readOnly", &readOnly },
         { "behavior.selected##selectable", &selected },
-        { "fields.selected##1", &fieldName },
+        { "bindings.selected##1", &fieldName },
         });
     return props;
 }
@@ -3456,7 +3462,7 @@ CheckBox::Properties()
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.font", &style_font },
         { "behavior.label", &label, true },
-        { "fields.checked##1", &fieldName },
+        { "bindings.checked##1", &fieldName },
         });
     return props;
 }
@@ -3637,7 +3643,7 @@ RadioButton::Properties()
         { "appearance.font", &style_font },
         { "behavior.label", &label, true },
         { "behavior.valueID##1", &valueID },
-        { "fields.value##radio", &fieldName },
+        { "bindings.value##radio", &fieldName },
     });
     return props;
 }
@@ -4218,8 +4224,8 @@ Input::Properties()
         { "behavior.step##input", &step },
         { "behavior.format##input", &format },
         { "behavior.initial_focus", &initialFocus },
-        { "fields.value##1", &fieldName },
-        { "fields.force_focus##1", &forceFocus },
+        { "bindings.value##1", &fieldName },
+        { "bindings.force_focus##1", &forceFocus },
     });
     return props;
 }
@@ -4574,7 +4580,7 @@ Combo::Properties()
         { "behavior.flags##combo", &flags },
         { "behavior.label", &label, true },
         { "behavior.items", &items },
-        { "fields.value##1", &fieldName },
+        { "bindings.value##1", &fieldName },
         });
     return props;
 }
@@ -4648,13 +4654,12 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("items");
         ImGui::TableNextColumn();
         //ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        std::string tmp;
-        if (items.has_single_variable())
-            tmp = *items.access();
-        else
-            tmp = "[...]";
+        std::string tmp = *items.access();
+        int nl = (int)stx::count(tmp, '\0');
+        if (!items.has_single_variable())
+            tmp = "[" + std::to_string(nl) + "]";
         ImGui::PushFont(items.empty() ? ctx.pgFont : ctx.pgbFont);
-        if (ImGui::Selectable(tmp.c_str(), false, 0, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        if (ImRad::Selectable(tmp.c_str(), false, 0, { -ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             changed = true;
             tmp = *items.access(); //preserve embeded nulls
@@ -4666,10 +4671,15 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
             comboDlg.font = ctx.defaultStyleFont;
             comboDlg.OpenPopup([this](ImRad::ModalResult) {
                 std::string tmp = comboDlg.value;
-                if (!tmp.empty() && tmp.back() != '\n')
-                    tmp.push_back('\n');
-                stx::replace(tmp, '\n', '\0');
+                while (tmp.size() && tmp.back() == '\n')
+                    tmp.pop_back();
                 *items.access() = tmp;
+                if (!items.has_single_variable()) {
+                    if (tmp.size() && tmp.back() != '\n')
+                        tmp.push_back('\n');
+                    stx::replace(tmp, '\n', '\0');
+                    *items.access() = tmp;
+                }
                 });
         }
         ImGui::PopFont();
@@ -4858,7 +4868,7 @@ Slider::Properties()
         { "behavior.min##slider", &min },
         { "behavior.max##slider", &max },
         { "behavior.format##slider", &format },
-        { "fields.value##1", &fieldName },
+        { "bindings.value##1", &fieldName },
         });
     return props;
 }
@@ -5113,7 +5123,7 @@ ProgressBar::Properties()
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.font", &style_font },
         { "appearance.indicator##progress", &indicator },
-        { "fields.value##1", &fieldName },
+        { "bindings.value##1", &fieldName },
         });
     return props;
 }
@@ -5315,7 +5325,7 @@ ColorEdit::Properties()
         { "behavior.flags##color", &flags },
         { "behavior.label", &label, true },
         { "behavior.type##color", &type },
-        { "fields.value##1", &fieldName },
+        { "bindings.value##1", &fieldName },
         });
     return props;
 }
@@ -5601,7 +5611,7 @@ Image::Properties()
     props.insert(props.begin(), {
         { "behavior.file_name#1", &fileName, true },
         { "behavior.stretchPolicy", &stretchPolicy },
-        { "fields.texture#1", &fieldName },
+        { "bindings.texture#1", &fieldName },
         });
     return props;
 }
