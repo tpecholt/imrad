@@ -869,7 +869,10 @@ void Widget::Draw(UIContext& ctx)
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
         {
             if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-                toggle(ctx.selected, this);
+            {
+                if (!stx::count(ctx.selected, ctx.root))
+                    toggle(ctx.selected, this);
+            }
             else
                 ctx.selected = { this };
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event

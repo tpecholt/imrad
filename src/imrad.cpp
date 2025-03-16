@@ -88,6 +88,7 @@ std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
 GLFWcursor* curCross = nullptr;
 GLFWcursor* curWait = nullptr;
+float pgHeight = 0, pgeHeight = 0;
 ImRad::IOUserData ioUserData;
 
 struct TB_Button 
@@ -1508,7 +1509,7 @@ void PropertyRowsUI(bool pr)
         ImGui::GetIO().AddInputCharacter(addInputCharacter);
         addInputCharacter = 0;
     }
-    if (!ImGui::GetIO().WantTextInput && 
+    if (!ImGui::GetIO().WantTextInput &&
         !(ImGui::GetIO().KeyMods & ~ImGuiMod_Shift) &&
         !ImGui::GetTopMostPopupModal()) //TopMostAndVisible doesn't work with ClassWizard open??
     {
@@ -1519,18 +1520,18 @@ void PropertyRowsUI(bool pr)
             }
     }
 
-    static ImVec2 pgMin, pgMax;
+    ImVec2 pgMin = ImGui::GetCursorScreenPos();
     uint32_t borderClr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight));
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pgMin,
+        { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMin.y + (pr ? pgHeight : pgeHeight)},
+        borderClr
+    );
     ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable;
     if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
     {
         if (!pr)
             ImGui::Indent();
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            pgMin, 
-            { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMax.y }, 
-            borderClr
-        );
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
 
@@ -1542,7 +1543,7 @@ void PropertyRowsUI(bool pr)
             std::vector<std::string_view> pn;
             auto props = pr ? node->Properties() : node->Events();
             for (auto& p : props) {
-                if (ctx.selected.size() == 1 || 
+                if (ctx.selected.size() == 1 ||
                     (p.name.size() > 3 && p.name.compare(p.name.size() - 3, 3, "##1")))
                     pn.push_back(p.name);
             }
@@ -1563,7 +1564,7 @@ void PropertyRowsUI(bool pr)
         //PushID widget ptr to prevent it
         //We PopID/PushID before a category treeNode to keep them open/close across all widgets
         //having same property
-        ImGui::PushID(ctx.selected[0]); 
+        ImGui::PushID(ctx.selected[0]);
         //edit first widget
         auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
         std::string_view pname;
@@ -1589,7 +1590,7 @@ void PropertyRowsUI(bool pr)
             {
                 while (inCat.size() &&
                     (inCat.size() > cat.size() ||
-                    !std::equal(inCat.begin(), inCat.end(), cat.begin(), cat.begin() + inCat.size())))
+                        !std::equal(inCat.begin(), inCat.end(), cat.begin(), cat.begin() + inCat.size())))
                 {
                     EndPropGroup(stx::join(inCat, "."), catOpen.back());
                     inCat.pop_back();
@@ -1639,14 +1640,16 @@ void PropertyRowsUI(bool pr)
             inCat.pop_back();
             catOpen.pop_back();
         }
-        
+
         ImGui::PopID();
         ImGui::PopFont();
         ImGui::PopStyleVar();
         ImGui::EndTable();
-
-        pgMin = ImGui::GetItemRectMin();
-        pgMax = ImGui::GetItemRectMax();
+        
+        if (pr)
+            pgHeight = ImGui::GetItemRectSize().y;
+        else
+            pgeHeight = ImGui::GetItemRectSize().y;
 
         //copy changes to other widgets
         for (size_t i = 1; i < ctx.selected.size(); ++i)
@@ -2020,15 +2023,6 @@ void Work()
     }
     else 
     {
-        //don't IsMouseReleased otherwise closing modal popup will fire here too
-        if (ctx.root &&
-            ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-            ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
-            !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
-            !ImGui::IsAnyItemHovered())
-        {
-            ctx.selected = { ctx.root };
-        }
         if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
             ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
@@ -2093,7 +2087,6 @@ void AddINIHandler()
         {
             if (programState != Init)
                 return;
-            char buf[1000];
             if (!strcmp((const char*)entry, "Recent")) {
                 int i;
                 if (sscanf(line, "File%d=", &i) == 1) {

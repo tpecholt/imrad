@@ -65,10 +65,16 @@ namespace stx {
         return std::unique(std::begin(c), std::begin(c));
     }
 
+    template <class C, class T>
+    decltype(auto) erase(C& c, const T& val)
+    {
+        return c.erase(std::remove(std::begin(c), std::end(c), val), c.end());
+    }
+    
     template <class C, class F>
     decltype(auto) erase_if(C& c, F&& fun)
     {
-        c.erase(std::remove_if(std::begin(c), std::end(c), std::forward<F>(fun)), c.end());
+        return c.erase(std::remove_if(std::begin(c), std::end(c), std::forward<F>(fun)), c.end());
     }
 
     template <class C, class I>

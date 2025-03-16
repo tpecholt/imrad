@@ -184,21 +184,19 @@ void TopWindow::Draw(UIContext& ctx)
     if (!ImGui::GetTopMostAndVisiblePopupModal() && ctx.activePopups.size() &&
         ImGui::IsKeyPressed(ImGuiKey_Escape))
     {
-        ctx.selected = { ctx.parents[0] };
+        ctx.selected = { this };
     }
     bool allowed = !ImGui::GetTopMostAndVisiblePopupModal() && ctx.activePopups.empty();
     if (allowed && ctx.mode == UIContext::NormalSelection)
     {
-        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
-            ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
             if (stx::count(ctx.selected, ctx.hovered)) //selected widget might want to do SnapMove instead
                 ctx.selStart.x = FLT_MAX;
             else
                 ctx.selStart = ctx.selEnd = ImGui::GetMousePos();
         }
-        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
-            ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
             ctx.selStart.x != FLT_MAX) //todo: initiate SnapMove, cursor is out of the widget already
         {
             ctx.mode = UIContext::RectSelection;
@@ -206,8 +204,10 @@ void TopWindow::Draw(UIContext& ctx)
         }
     }
     if (ctx.mode == UIContext::NormalSelection &&
-        ImGui::IsWindowHovered() && //includes !GetTopMostVisibleModal
-        ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+        ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+        (ImGui::IsWindowHovered() || //includes !GetTopMostVisibleModal
+        (!ImGui::IsAnyItemHovered() && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) 
+        ))
     {
         if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
             ; //don't participate in group selection
@@ -223,13 +223,16 @@ void TopWindow::Draw(UIContext& ctx)
             ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
             ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
             auto sel = FindInRect(ImRect(a, b));
-            if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl)) {
-                for (auto s : sel)
-                    if (!stx::count(ctx.selected, s))
-                        ctx.selected.push_back(s);
+            stx::erase(sel, this);
+            if (sel.size()) {
+                if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl)) {
+                    for (auto s : sel)
+                        if (!stx::count(ctx.selected, s))
+                            ctx.selected.push_back(s);
+                }
+                else
+                    ctx.selected = sel;
             }
-            else
-                ctx.selected = sel;
             ctx.mode = UIContext::NormalSelection; //todo
         }
     }
