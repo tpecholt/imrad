@@ -2069,6 +2069,143 @@ void Work()
                 ctx.mode = UIContext::SnapInsert;
                 ctx.selected = {};
             }
+            if (ImGui::Shortcut(ImGuiMod_Alt | ImGuiKey_LeftArrow, ImGuiInputFlags_RouteGlobal) &&
+                ctx.selected.size() == 1 &&
+                (ctx.selected[0]->Behavior() & UINode::SnapSides))
+            {
+                auto pos = ctx.root->FindChild(ctx.selected[0]);
+                if (!pos)
+                    return;
+                UINode* parent = pos->first;
+                auto* child = parent->children[pos->second].get();
+                auto* left = pos->second ? parent->children[pos->second - 1].get() : nullptr;
+                auto* right = pos->second + 1 < parent->children.size() ? parent->children[pos->second + 1].get() : nullptr;
+                int ncols = parent->ColumnCount(ctx);
+                int col = 0;
+                if (ncols >= 2) {
+                    for (size_t j = 0; j <= pos->second; ++j)
+                        col = (col + parent->children[j]->nextColumn) % ncols;
+                }
+                if (left && (left->Behavior() & UINode::SnapSides))
+                {
+                    if (ncols >= 2 && child->nextColumn) {
+                        --child->nextColumn;
+                        if (right) {
+                            ++right->nextColumn;
+                            right->sameLine = false;
+                            right->spacing = child->spacing;
+                        }
+                        if (!child->nextColumn) {
+                            child->sameLine = false;
+                            child->spacing = 1;
+                        }
+                    }
+                    else if (!child->sameLine) { //move to the end of previous row (same pos)
+                        if (right && (ncols < 2 || !right->nextColumn)) {
+                            right->sameLine = false;
+                            right->spacing = child->spacing;
+                        }
+                        child->sameLine = true;
+                        child->spacing = 1;
+                    }
+                    else {
+                        if (ncols >= 2 && left->nextColumn) {
+                            child->nextColumn = left->nextColumn;
+                            child->spacing = left->spacing;
+                            child->sameLine = false;
+                            left->nextColumn = 0;
+                            left->spacing = 1;
+                            left->sameLine = true;
+                        }
+                        else if (!left->sameLine) {
+                            child->spacing = left->spacing;
+                            left->spacing = 1;
+                            std::swap(child->sameLine, left->sameLine);
+                        }
+                        else {
+                            std::swap(child->sameLine, left->sameLine);
+                        }
+                        auto mv = std::move(parent->children[pos->second]);
+                        parent->children.erase(parent->children.begin() + pos->second);
+                        parent->children.insert(parent->children.begin() + pos->second - 1, std::move(mv));
+                    }
+                }
+            }
+            if (ImGui::Shortcut(ImGuiMod_Alt | ImGuiKey_RightArrow, ImGuiInputFlags_RouteGlobal) &&
+                ctx.selected.size() == 1 &&
+                (ctx.selected[0]->Behavior() & UINode::SnapSides))
+            {
+                auto pos = ctx.root->FindChild(ctx.selected[0]);
+                if (!pos) 
+                    return;
+                UINode* parent = pos->first;
+                auto* child = parent->children[pos->second].get();
+                auto* right = pos->second + 1 < parent->children.size() ? parent->children[pos->second + 1].get() : nullptr;
+                int ncols = parent->ColumnCount(ctx);
+                int col = 0;
+                if (ncols >= 2) {
+                    for (size_t j = 0; j <= pos->second; ++j)
+                        col = (col + parent->children[j]->nextColumn) % ncols;
+                }
+                if (!right || !(right->Behavior() & UINode::SnapSides))
+                {
+                    //just ensure a new row
+                    if (child->sameLine) {
+                        child->spacing = 1;
+                        child->sameLine = false;
+                    }
+                    else if (col + 1 < ncols) {
+                        child->sameLine = false;
+                        child->spacing = 0;
+                        ++child->nextColumn;
+                    }
+                }
+                else
+                {
+                    if (child->sameLine && (ncols >= 2 && right->nextColumn)) {
+                        //move to the beginning of next row (same pos)
+                        child->sameLine = false;
+                        child->spacing = 1;
+                    }
+                    else if (ncols >= 2 && right->nextColumn) {
+                        ++child->nextColumn;
+                        child->sameLine = false;
+                        if (child->nextColumn == right->nextColumn) {
+                            child->spacing = right->spacing;
+                            right->spacing = 1;
+                            right->sameLine = true;
+                            right->nextColumn = 0;
+                        }
+                        else {
+                            child->spacing = 0;
+                            --right->nextColumn;
+                        }
+                    }
+                    else {
+                        if (ncols >= 2 && child->nextColumn) {
+                            right->nextColumn = child->nextColumn;
+                            right->sameLine = false;
+                            right->spacing = child->spacing;
+                            child->nextColumn = 0;
+                            child->sameLine = true;
+                            child->spacing = 1;
+                        }
+                        else if (!child->sameLine) {
+                            right->sameLine = false;
+                            right->spacing = child->spacing;
+                            child->sameLine = true;
+                            child->spacing = 1;
+                        }
+                        else {
+                            right->sameLine = child->sameLine;
+                            child->sameLine = true;
+                        }
+                        auto mv = std::move(parent->children[pos->second]);
+                        parent->children.erase(parent->children.begin() + pos->second);
+                        parent->children.insert(parent->children.begin() + pos->second + 1, std::move(mv));
+                    }
+                }
+            }
         }
     }
 }
