@@ -2357,21 +2357,23 @@ void MenuIt::DoDrawTools(UIContext& ctx)
 
 void MenuIt::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
+    if (contextMenu)
+    {
+        cached_pos = ctx.rootWin->InnerRect.Min;
+        cached_size = { 1, 1 };
+        return;
+    }
+    
     assert(ctx.parents.back() == this);
     const UINode* par = ctx.parents[ctx.parents.size() - 2];
     bool mbm = dynamic_cast<const MenuBar*>(par);
-    
-    cached_pos = p1;
     ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+    cached_pos = p1;
     const ImGuiMenuColumns* mc = &ImGui::GetCurrentWindow()->DC.MenuColumns;
     cached_pos.x += mc->OffsetLabel;
     cached_size = ImGui::CalcTextSize(label.c_str(), nullptr, true);
     cached_size.x += sp.x;
-    if (contextMenu)
-    {
-        cached_pos = ctx.rootWin->Pos;
-    }
-    else if (mbm)
+    if (mbm)
     {
         ++cached_pos.y;
         cached_size.y = ctx.rootWin->MenuBarHeight - 2;

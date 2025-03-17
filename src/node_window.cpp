@@ -197,6 +197,7 @@ void TopWindow::Draw(UIContext& ctx)
                 ctx.selStart = ctx.selEnd = ImGui::GetMousePos();
         }
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
+            !ctx.beingResized &&
             ctx.selStart.x != FLT_MAX) //todo: initiate SnapMove, cursor is out of the widget already
         {
             ctx.mode = UIContext::RectSelection;
