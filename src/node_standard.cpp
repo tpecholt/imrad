@@ -3654,6 +3654,7 @@ RadioButton::Properties()
 bool RadioButton::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -3698,7 +3699,8 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("valueID");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&valueID, InputDirectVal_Modified, ctx);
+        fl = valueID != Defaults().valueID ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&valueID, fl, ctx);
         break;
     case 6:
         ImGui::Text("value");
@@ -4227,8 +4229,8 @@ Input::Properties()
         { "behavior.step##input", &step },
         { "behavior.format##input", &format },
         { "behavior.initial_focus", &initialFocus },
+        { "behavior.force_focus##1", &forceFocus },
         { "bindings.value##1", &fieldName },
-        { "bindings.force_focus##1", &forceFocus },
     });
     return props;
 }
@@ -4396,16 +4398,16 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&initialFocus, fl, ctx);
         break;
     case 13:
-        ImGui::Text("value");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, type, false, ctx);
-        break;
-    case 14:
         ImGui::Text("forceFocus");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&forceFocus, true, ctx);
+        break;
+    case 14:
+        ImGui::Text("value");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&fieldName, type, false, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 15, ctx);

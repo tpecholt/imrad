@@ -18,9 +18,7 @@ struct DockSpace : Widget
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_TABLE; }
-    const DockSpace& Defaults() { static DockSpace var; return var; }
-private:
-    DockSpace() {}
+    const DockSpace& Defaults() { static DockSpace var(UIContext::Defaults()); return var; }
 };
 
 struct DockNode : Widget
@@ -46,7 +44,5 @@ struct DockNode : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void ExportHelp(std::ostream& os, UIContext& ctx);
     const char* GetIcon() const { return "N"; }
-    const DockNode& Defaults() { static DockNode var; return var; }
-private:
-    DockNode() {}
+    const DockNode& Defaults() { static DockNode var(UIContext::Defaults()); return var; }
 };

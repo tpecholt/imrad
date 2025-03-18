@@ -1,6 +1,13 @@
 #include "uicontext.h"
 #include "cppgen.h"
 
+UIContext& UIContext::Defaults() 
+{
+    static UIContext ctx; 
+    ctx.createVars = false; 
+    return ctx;
+}
+
 void UIContext::ind_up()
 {
     ind += codeGen->INDENT;

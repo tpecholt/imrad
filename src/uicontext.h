@@ -77,4 +77,6 @@ struct UIContext
     //convenience
     void ind_up();
     void ind_down();
+
+    static UIContext& Defaults();
 };

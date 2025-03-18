@@ -42,9 +42,6 @@ struct TopWindow : UINode
     void Import(cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return SnapInterior; }
     int ColumnCount(UIContext& ctx) { return 0; }
-    const TopWindow& Defaults() { static TopWindow node; return node; }
-
-private:
-    TopWindow() {}
+    const TopWindow& Defaults() { static TopWindow node(UIContext::Defaults()); return node; }
 };
 

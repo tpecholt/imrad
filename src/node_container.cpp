@@ -1727,8 +1727,8 @@ TabBar::Properties()
         { "appearance.font", &style_font },
         { "behavior.flags", &flags },
         { "behavior.tabCount", &itemCount.limit },
-        { "bindings.activeTab##1", &activeTab },
         { "bindings.tabIndex##1", &itemCount.index },
+        { "bindings.activeTab##1", &activeTab },
         });
     return props;
 }
@@ -1814,18 +1814,18 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("tabCount", &itemCount.limit, ctx);
         break;
     case 10:
-        ImGui::Text("activeTab");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&activeTab, true, ctx);
-        break;
-    case 11:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("tabIndex");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&itemCount.index, true, ctx);
         ImGui::EndDisabled();
+        break;
+    case 11:
+        ImGui::Text("activeTab");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&activeTab, true, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 12, ctx);
