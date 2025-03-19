@@ -14,7 +14,7 @@ public:
 public:
     std::string varType;
     std::string varOldName;
-    std::string varName; //auto filled
+    std::string varName; //auto reset except for NewEvent
     std::string varInit; //auto filled
     std::string scope;
     CppGen* codeGen = nullptr;

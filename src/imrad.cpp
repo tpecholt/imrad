@@ -1530,8 +1530,6 @@ void PropertyRowsUI(bool pr)
     ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable;
     if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
     {
-        if (!pr)
-            ImGui::Indent();
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
 

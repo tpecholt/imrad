@@ -277,8 +277,8 @@ Table::Events()
 {
     auto props = Widget::Events();
     props.insert(props.begin(), {
-        { "onBeginRow", &onBeginRow },
-        { "onEndRow", &onEndRow }, 
+        { "table.beginRow", &onBeginRow },
+        { "table.endRow", &onEndRow }, 
         });
     return props;
 }
@@ -292,13 +292,13 @@ bool Table::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnBeginRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(&onBeginRow, 0, ctx);
+        changed = InputEvent(GetTypeName() + "_BeginRow", &onBeginRow, 0, ctx);
         break;
     case 1:
         ImGui::Text("OnEndRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(&onEndRow, 0, ctx);
+        changed = InputEvent(GetTypeName() + "_EndRow", &onEndRow, 0, ctx);
         break;
     default:
         return Widget::EventUI(i - 2, ctx);
@@ -2082,7 +2082,7 @@ TabItem::Events()
 {
     auto props = Widget::Events();
     props.insert(props.begin(), {
-        { "onClose", &onClose },
+        { "tabItem.close", &onClose },
         });
     return props;
 }
@@ -2097,7 +2097,7 @@ bool TabItem::EventUI(int i, UIContext& ctx)
         ImGui::Text("OnClose");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(&onClose, 0, ctx);
+        changed = InputEvent(GetTypeName() + "_Close", &onClose, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:
@@ -2652,7 +2652,7 @@ MenuIt::Events()
 {
     auto props = Widget::Events();
     props.insert(props.begin(), {
-        { "onChange", &onChange },
+        { "menuIt.change", &onChange },
         });
     return props;
 }
@@ -2663,15 +2663,21 @@ bool MenuIt::EventUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
+    {
         ImGui::BeginDisabled(children.size());
-        ImGui::Text(ownerDraw ? "OnDraw" : "OnChange");
+        std::string name = ownerDraw ? "Draw" : "Change";
+        ImGui::Text(("On" + name).c_str());
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(&onChange, 0, ctx);
+        changed = InputEvent(GetTypeName() + "_" + name, &onChange, 0, ctx);
         ImGui::EndDisabled();
         break;
+    }
     default:
-        return Widget::EventUI(i - 1, ctx);
+        ImGui::BeginDisabled(contextMenu);
+        changed = Widget::EventUI(i - 1, ctx);
+        ImGui::EndDisabled();
+        break;
     }
     return changed;
 }

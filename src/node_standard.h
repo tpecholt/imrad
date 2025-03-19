@@ -178,6 +178,7 @@ struct Widget : UINode
     virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     virtual const char* GetIcon() const { return ""; }
+    virtual std::string GetTypeName();
 };
 
 struct Spacer : Widget

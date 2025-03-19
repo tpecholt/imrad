@@ -18,7 +18,8 @@ void NewFieldPopup::OpenPopup(std::function<void()> clb)
     varTypeArray = varType == "[]";
     if (varTypeArray)
         varType = "std::vector<>";
-    varName = "";
+    if (mode != NewEvent)
+        varName = "";
     varInit = "";
     if (mode == RenameField) {
         varName = varOldName;
@@ -80,7 +81,9 @@ void NewFieldPopup::Draw()
         }
         
         ImGui::Spacing();
-        ImGui::Text(mode == RenameWindow ? "New name:" : "Field name:");
+        ImGui::Text(mode == RenameWindow ? "New name:" : 
+            mode == NewEvent ? "Method name:" : 
+            "Field name:");
         if (ImGui::IsWindowAppearing() && varType != "")
             ImGui::SetKeyboardFocusHere();
         if (ImGui::InputText("##varName", &varName, ImGuiInputTextFlags_CharsNoBlank))

@@ -1294,29 +1294,27 @@ std::vector<UINode::Prop>
 TopWindow::Events()
 {
     return {
-        { "OnWindowAppearing", &onWindowAppearing },
-        { "OnBackButton", &onBackButton },
+        { "window.appearing", &onWindowAppearing },
+        { "window.backButton", &onBackButton },
     };
 }
 
 bool TopWindow::EventUI(int i, UIContext& ctx)
 {
     bool changed = false;
-    int sat = (i & 1) ? 202 : 164;
-    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, sat, 255));
     switch (i)
     {
     case 0:
-        ImGui::Text("OnWindowAppearing");
+        ImGui::Text("Appearing");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(&onWindowAppearing, 0, ctx);
+        changed = InputEvent("Window_Appearing", &onWindowAppearing, 0, ctx);
         break;
     case 1:
-        ImGui::Text("OnBackButton");
+        ImGui::Text("BackButton");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(&onBackButton, 0, ctx);
+        changed = InputEvent("Window_BackButton", &onBackButton, 0, ctx);
         break;
     }
     return changed;

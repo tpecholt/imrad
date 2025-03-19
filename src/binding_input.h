@@ -769,11 +769,8 @@ inline bool InputDataSize(bindable<int>* val, bool allowEmpty, UIContext& ctx)
     return changed;
 }
 
-enum {
-    InputEvent_GlobalFunction = 0x1,
-};
 template <class FuncSig>
-inline bool InputEvent(event<FuncSig>* val, int flags, UIContext& ctx)
+inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, UIContext& ctx)
 {
     if (val == ctx.setProp) 
     {
@@ -785,60 +782,67 @@ inline bool InputEvent(event<FuncSig>* val, int flags, UIContext& ctx)
 
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
-
-    if (flags & InputEvent_GlobalFunction)
+    std::string type = typeid_name<FuncSig>();
+    const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
+    bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
+    float width = (hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight();
+    float realWidth = ImGui::CalcItemSize({ width, 0 }, 0, 0).x;
+    ImGui::SetNextItemWidth(width);
+    ImGui::PushFont(ctx.pgbFont);
+    ImGui::InputText((id + "Input").c_str(), val->access(), ImGuiInputTextFlags_ReadOnly);
+    ImGui::PopFont();
+    if (ImRad::IsItemDoubleClicked() && val->empty())
     {
-        const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
-        bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
-        ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
-        changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CharsNoBlank);
-        ImGui::SameLine(0, 0);
-        ImGui::BeginDisabled();
-        //if (ImGui::BeginCombo((label + std::string("BUT")).c_str(), "", ImGuiComboFlags_NoPreview))
-        //    ImGui::EndCombo();
-        ImGui::Button((" " + id).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() });
-        ImGui::EndDisabled();
+        newFieldPopup.varType = type;
+        newFieldPopup.varName = name;
+        newFieldPopup.codeGen = ctx.codeGen;
+        newFieldPopup.mode = NewFieldPopup::NewEvent;
+        newFieldPopup.OpenPopup([&ctx, val] {
+            ctx.setProp = val;
+            ctx.setPropValue = newFieldPopup.varName;
+            });
     }
-    else
+
+    ImGui::SameLine(0, 0);
+    ImGui::SetNextWindowSizeConstraints({ realWidth + ImGui::GetFrameHeight(), 0 }, { FLT_MAX, FLT_MAX });
+    if (ImGui::BeginCombo(id.c_str(), val->c_str(), ImGuiComboFlags_HeightLarge | ImGuiComboFlags_NoPreview))
     {
-        std::string type = typeid_name<FuncSig>();
-        if (ImGui::BeginCombo(id.c_str(), val->c_str(), ImGuiComboFlags_HeightLarge))
+        if (ImGui::Selectable("None"))
         {
-            if (ImGui::Selectable("None"))
-            {
-                changed = true;
-                *val->access() = "";
-            }
-            if (ImGui::Selectable("New Method..."))
-            {
-                changed = true;
-                newFieldPopup.varType = type;
-                newFieldPopup.codeGen = ctx.codeGen;
-                newFieldPopup.mode = NewFieldPopup::NewEvent;
-                newFieldPopup.OpenPopup([&ctx, val] {
-                    ctx.setProp = val;
-                    ctx.setPropValue = newFieldPopup.varName;
-                    });
-            }
-
-            ImGui::Separator();
-            std::vector<std::string> events;
-            for (const auto& v : ctx.codeGen->GetVars()) {
-                if (v.type == type)
-                    events.push_back(v.name);
-            }
-            stx::sort(events);
-            for (const auto& ev : events)
-            {
-                if (ImGui::Selectable(ev.c_str(), ev == val->c_str()))
-                {
-                    changed = true;
-                    *val->access() = ev;
-                }
-            }
-            ImGui::EndCombo();
+            changed = true;
+            *val->access() = "";
         }
+        if (ImGui::Selectable("New Method..."))
+        {
+            changed = true;
+            newFieldPopup.varType = type;
+            newFieldPopup.varName = name;
+            newFieldPopup.codeGen = ctx.codeGen;
+            newFieldPopup.mode = NewFieldPopup::NewEvent;
+            newFieldPopup.OpenPopup([&ctx, val] {
+                ctx.setProp = val;
+                ctx.setPropValue = newFieldPopup.varName;
+                });
+        }
+
+        ImGui::Separator();
+        std::vector<std::string> events;
+        for (const auto& v : ctx.codeGen->GetVars()) {
+            if (v.type == type)
+                events.push_back(v.name);
+        }
+        stx::sort(events);
+        for (const auto& ev : events)
+        {
+            if (ImGui::Selectable(ev.c_str(), ev == val->c_str()))
+            {
+                changed = true;
+                *val->access() = ev;
+            }
+        }
+        ImGui::EndCombo();
     }
+    
     return changed;
 }
 
