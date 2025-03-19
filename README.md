@@ -17,13 +17,14 @@ ImRAD runs on Windows, Linux and MacOS.
 
 <hr>
 
-![image](https://github.com/user-attachments/assets/91055dbc-2fc5-42dc-a4e5-26a18377b379)
+![screen1](https://github.com/user-attachments/assets/ae8b5e8c-6c84-4172-869d-2e51e7e86912)
 
 *Take a note of the Toolbar section:*
-* *Configurable global dialog style which is stored in an INI file. It contains definitions of colors, style variables and fonts. The example uses stock "Dark" style*
+* *Configurable window style which is stored in an INI file. It contains definitions of colors, style variables and fonts. The example uses stock "Dark" style*
 * *Dialog units option which can also be set to DPI aware pixels useful when designing android apps*
-* *Code Preview for fast checks. Full generated code is saved in .h/cpp files*   
+* *Code Preview for quick checks. Full generated code is saved in .h/cpp files*   
 * *Class wizard allows to manage member variables of the generated class*
+* *Horizontal layout helper using invisible table. This is an alternative to the box layout functionality.*
 
 *Designed window shows:*
 * *Stretchable spacer between "Available fields" text and "show all" checkbox and between dialog buttons. ImRAD comes with box layout support not available in standard ImGui*
@@ -49,7 +50,7 @@ ImRAD runs on Windows, Linux and MacOS.
   
   * basic widgets like `Text`, `Checkbox`, `Combo`, `Button`, `Slider`, `ColorEdit` etc.
   * container widgets like `Child`, `Table`, `CollapsingHeader`, `TreeNode`, `TabBar`,
-  * more exotic widgets such as `Splitter`
+  * more exotic widgets such as `Splitter` and `DockSpace`
   * `MenuBar` and context menu editing
   * `CustomWidget` (a placeholder to user code)
 
@@ -57,7 +58,7 @@ ImRAD runs on Windows, Linux and MacOS.
   
   * this ensures widgets respect item spacing and frame padding in a consistent way
   * there is a clear relationship between parent - child widget as well as children ordering which is important for container widgets like Table
-  * alternative positioning where widget keeps relative distance from a selected parent's scorner
+  * alternative positioning where widget keeps relative distance from a selected parent's corner is available and can be used for overlay widgets
 
 * Supports box layout
 
@@ -79,13 +80,13 @@ ImRAD runs on Windows, Linux and MacOS.
 
 * Generated code is delimited by comment markers and user can insert additional code around and continue to use ImRAD at the same time
   
-  * this can be used to call dependent popup Draw calls or to calculate some variables
-  * it is also possible to use `CustomWidget` which will delegate to a user callback function
+  * this can be used to f.e. to call draw dependent popups or to calculate some variables
+  * it is also possible to use `CustomWidget` which will delegate to a user callback 
 
 * Target window style is fully configurable
   * apart from default styles provided by ImGui user can define new style and save it as an INI file under the `style` folder. Colors, style variables and used fonts can all be configured.
   * ImRAD will follow chosen style settings when designing your UI
-  * stored style can be loaded in your app by using simple `imrad.h` functionality  
+  * stored style can be loaded in your app by using `LoadStyle` call  
 
 * Generated code is ready to use in your project and depends only on ImGui library and one accompanying header file (imrad.h)
 
@@ -94,8 +95,6 @@ ImRAD runs on Windows, Linux and MacOS.
   * optional support for the popular `fmt` library can be activated by defining `IMRAD_WITH_FMT`. This will allow you to use formating flags throughout all string properties  
 
 * ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
-  
-  * maybe the auto-save feature would be useful to have 
 
 # License
 
