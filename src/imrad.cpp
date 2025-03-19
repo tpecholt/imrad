@@ -543,6 +543,11 @@ bool SaveFileAs(int flags)
     std::string oldName = tab.fname;
     std::string newName = fs::path(outPath).replace_extension(".h").string();
     NFD_FreePath(outPath);
+    if (newName == oldName) {
+        DoSaveFile(flags);
+        return true;
+    }
+
     try {
         if (oldName != "") {
             //copy files first so CppGen can parse it and preserve user content as with Save
@@ -604,14 +609,14 @@ void ShowCode()
         return;
     std::string path = (fs::temp_directory_path() / "imrad-preview.cpp").string();
     std::ofstream fout(path);
-    fout << "// NOTE: This is just a preview of the Draw() method. To see full generated code\n"
-         << "// including class definition and event handlers inspect the generated .h/cpp files\n\n";
+    fout << "// NOTE: This is just a preview of the Draw() method. To see the complete code\n"
+         << "// including class definition and event handlers inspect generated .h/cpp files\n\n";
     ctx.ind = "";
     auto* root = fileTabs[activeTab].rootNode.get();
     root->Export(fout, ctx);
     
     if (ctx.errors.size()) {
-        fout << "\n// Export finished with errors\n";
+        fout << "\n// Export finished with errors:\n";
         for (const std::string& e : ctx.errors)
             fout << "// " << e <<  "\n";
     }

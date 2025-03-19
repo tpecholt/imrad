@@ -34,7 +34,7 @@ void HorizLayout::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5, 10 });
     ImGui::SetNextWindowSize({ 0, 0 }); //{ 640, 480 }
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("Table Layout Helper###HorizLayout", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("Table Layout Helper###HorizLayout", &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
     {
         if (ioUserData->activeActivity != "")
             ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
@@ -130,7 +130,7 @@ void HorizLayout::Draw()
         /// @end Selectable
 
         /// @begin Input
-        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
         ImGui::SetNextItemWidth(100);
@@ -149,7 +149,7 @@ void HorizLayout::Draw()
         /// @end Selectable
 
         /// @begin Input
-        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##padding", &padding, 1);
         if (ImGui::IsItemActive())

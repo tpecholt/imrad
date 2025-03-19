@@ -206,8 +206,9 @@ void TopWindow::Draw(UIContext& ctx)
     }
     if (ctx.mode == UIContext::NormalSelection &&
         ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
-        (ImGui::IsWindowHovered() || //includes !GetTopMostVisibleModal
-        (!ImGui::IsAnyItemHovered() && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) 
+        ImRect(ctx.designAreaMin, ctx.designAreaMax).Contains(ImGui::GetMousePos()) &&
+        (ImGui::IsWindowHovered() || //includes !GetTopMostAndVisiblePopupModal
+        (!ImGui::GetTopMostAndVisiblePopupModal() && !ImGui::IsAnyItemHovered() && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
         ))
     {
         if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
