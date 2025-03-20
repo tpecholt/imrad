@@ -289,13 +289,13 @@ bool Table::EventUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-        ImGui::Text("OnBeginRow");
+        ImGui::Text("BeginRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_BeginRow", &onBeginRow, 0, ctx);
         break;
     case 1:
-        ImGui::Text("OnEndRow");
+        ImGui::Text("EndRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_EndRow", &onEndRow, 0, ctx);
@@ -2094,10 +2094,10 @@ bool TabItem::EventUI(int i, UIContext& ctx)
     {
     case 0:
         ImGui::BeginDisabled(!closeButton);
-        ImGui::Text("OnClose");
+        ImGui::Text("Closed");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(GetTypeName() + "_Close", &onClose, 0, ctx);
+        changed = InputEvent(GetTypeName() + "_Closed", &onClose, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:

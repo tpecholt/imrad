@@ -1837,11 +1837,12 @@ Widget::Properties()
     }
     if (Behavior() & SnapSides)
     {
+        //##1 because indent, sameLine work differently for first in a row and other widgets
         props.insert(props.end(), {
-            { "layout.indent", &indent },
-            { "layout.spacing", &spacing },
-            { "layout.sameLine", &sameLine },
-            { "layout.nextColumn", &nextColumn },
+            { "layout.indent##1", &indent }, 
+            { sameLine && !nextColumn ? "layout.spacing_x" : "layout.spacing_y", &spacing },
+            { "layout.sameLine##1", &sameLine },
+            { "layout.nextColumn##1", &nextColumn },
             { "layout.allowOverlap", &allowOverlap },
             });
     }

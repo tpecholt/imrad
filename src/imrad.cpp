@@ -2281,6 +2281,7 @@ std::string GetRootPath()
     wchar_t tmp[1024];
     int n = GetModuleFileNameW(NULL, tmp, sizeof(tmp));
     return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
+    //test utf8 path: return u8string(L"c:/work/dežo/latest");
 #elif __APPLE__
     char executablePath[PATH_MAX];
     uint32_t len;
