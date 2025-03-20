@@ -7,10 +7,10 @@
 #include <shellapi.h>
 #endif
 
-void ShellExec(const std::string& upath)
+void ShellExec(const std::string& path)
 {
 #ifdef WIN32
-    ShellExecuteW(nullptr, L"open", u8path(upath).wstring().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    ShellExecuteW(nullptr, L"open", u8path(path).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 #else
     system(("xdg-open " + path).c_str());
 #endif
