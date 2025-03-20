@@ -143,7 +143,7 @@ void DoReloadFile()
     if (activeTab < 0)
         return;
     auto& tab = fileTabs[activeTab];
-    if (tab.fname == "" || !fs::is_regular_file(tab.fname))
+    if (tab.fname == "" || !fs::is_regular_file(u8path(tab.fname)))
         return;
 
     std::map<std::string, std::string> params;
@@ -176,11 +176,11 @@ void ReloadFile()
     if (activeTab < 0)
         return;
     auto& tab = fileTabs[activeTab];
-    if (tab.fname == "" || !fs::is_regular_file(tab.fname))
+    if (tab.fname == "" || !fs::is_regular_file(u8path(tab.fname)))
         return;
-    auto time1 = fs::last_write_time(tab.fname);
+    auto time1 = fs::last_write_time(u8path(tab.fname));
     std::error_code err;
-    auto time2 = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
+    auto time2 = fs::last_write_time(u8path(tab.codeGen.AltFName(tab.fname)), err);
     if (time1 == tab.time[0] && time2 == tab.time[1])
         return;
     tab.time[0] = time1;
@@ -188,7 +188,7 @@ void ReloadFile()
 
     if (programState != Shutdown) 
     {
-        auto fn = fs::path(tab.fname).filename().string();
+        std::string fn = u8string(u8path(tab.fname).filename());
         messageBox.title = "Reload";
         messageBox.message = "File content of '" + fn + "' has changed. Reload?";
         messageBox.buttons = ImRad::Yes | ImRad::No;
@@ -242,10 +242,10 @@ void NewFile(TopWindow::Kind k)
 
 void CopyFileReplace(const std::string& from, const std::string& to, std::vector<std::pair<std::string, std::string>>& repl)
 {
-    std::ifstream fin(from);
+    std::ifstream fin(u8path(from));
     if (!fin)
         throw std::runtime_error("can't read from " + from);
-    std::ofstream fout(to);
+    std::ofstream fout(u8path(to));
     if (!fout)
         throw std::runtime_error("can't write to " + to);
     
@@ -280,7 +280,7 @@ void DoNewTemplate(int type, const std::string& name)
     nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "main.cpp");
     if (result != NFD_OKAY)
         return;
-    fs::path p = outPath;
+    fs::path p = u8path(outPath);
     NFD_FreePath(outPath);
     if (!p.has_extension())
         p.replace_extension(".cpp");
@@ -289,7 +289,7 @@ void DoNewTemplate(int type, const std::string& name)
         switch (type)
         {
         case 0:
-            fs::copy_file(rootPath + "/template/glfw/main.cpp", p, fs::copy_options::overwrite_existing);
+            fs::copy_file(u8path(rootPath + "/template/glfw/main.cpp"), p, fs::copy_options::overwrite_existing);
             break;
         case 1: {
             std::string jni = name;
@@ -304,10 +304,10 @@ void DoNewTemplate(int type, const std::string& name)
                 { "LIB_NAME", lib },
                 { "IMRAD_INCLUDE", rootPath + "/include" },
             };
-            CopyFileReplace(rootPath + "/template/android/main.cpp", p.string(), repl);
-            CopyFileReplace(rootPath + "/template/android/CMakeLists.txt", p.replace_filename("CMakeLists.txt").string(), repl);
-            CopyFileReplace(rootPath + "/template/android/MainActivity.java", p.replace_filename("MainActivity.java").string(), repl);
-            CopyFileReplace(rootPath + "/template/android/AndroidManifest.xml", p.replace_filename("AndroidManifest.xml").string(), repl);
+            CopyFileReplace(rootPath + "/template/android/main.cpp", u8string(p), repl);
+            CopyFileReplace(rootPath + "/template/android/CMakeLists.txt", u8string(p.replace_filename("CMakeLists.txt")), repl);
+            CopyFileReplace(rootPath + "/template/android/MainActivity.java", u8string(p.replace_filename("MainActivity.java")), repl);
+            CopyFileReplace(rootPath + "/template/android/AndroidManifest.xml", u8string(p.replace_filename("AndroidManifest.xml")), repl);
             break;
         }
         }
@@ -337,7 +337,7 @@ void NewTemplate(int type)
 
 void DoOpenFile(const std::string& path, std::string* errs = nullptr)
 {
-    if (!fs::is_regular_file(path)) {
+    if (!fs::is_regular_file(u8path(path))) {
         if (errs)
             *errs += "Can't read '" + path + "'\n";
         else {
@@ -351,9 +351,9 @@ void DoOpenFile(const std::string& path, std::string* errs = nullptr)
 
     File file;
     file.fname = path;
-    file.time[0] = fs::last_write_time(file.fname);
+    file.time[0] = fs::last_write_time(u8path(file.fname));
     std::error_code err;
-    file.time[1] = fs::last_write_time(file.codeGen.AltFName(file.fname), err);
+    file.time[1] = fs::last_write_time(u8path(file.codeGen.AltFName(file.fname)), err);
     std::map<std::string, std::string> params;
     file.rootNode = file.codeGen.Import(file.fname, params, messageBox.error);
     auto pit = params.find("style");
@@ -474,7 +474,7 @@ void CloseFile(int flags)
         return;
     if (fileTabs[activeTab].modified) {
         messageBox.title = "Confirmation";
-        std::string fname = fs::path(fileTabs[activeTab].fname).filename().string();
+        std::string fname = u8string(u8path(fileTabs[activeTab].fname).filename());
         if (fname.empty())
             fname = UNTITLED;
         messageBox.message = "Save changes to " + fname + "?";
@@ -512,8 +512,8 @@ void DoSaveFile(int flags)
 
     std::error_code err;
     tab.modified = false;
-    tab.time[0] = fs::last_write_time(tab.fname, err);
-    tab.time[1] = fs::last_write_time(tab.codeGen.AltFName(tab.fname), err);
+    tab.time[0] = fs::last_write_time(u8path(tab.fname), err);
+    tab.time[1] = fs::last_write_time(u8path(tab.codeGen.AltFName(tab.fname)), err);
     if (messageBox.error != "" && programState != Shutdown)
     {
         messageBox.title = "CodeGen";
@@ -540,8 +540,8 @@ bool SaveFileAs(int flags)
         return false;
     }
     auto& tab = fileTabs[activeTab];
-    std::string oldName = tab.fname;
-    std::string newName = fs::path(outPath).replace_extension(".h").string();
+    fs::path oldName = u8path(tab.fname);
+    fs::path newName = u8path(outPath).replace_extension(".h");
     NFD_FreePath(outPath);
     if (newName == oldName) {
         DoSaveFile(flags);
@@ -553,13 +553,13 @@ bool SaveFileAs(int flags)
             //copy files first so CppGen can parse it and preserve user content as with Save
             fs::copy_file(oldName, newName, fs::copy_options::overwrite_existing);
             fs::copy_file(
-                fs::path(oldName).replace_extension(".cpp"), 
-                fs::path(newName).replace_extension(".cpp"),
+                oldName.replace_extension(".cpp"), 
+                newName.replace_extension(".cpp"),
                 fs::copy_options::overwrite_existing);
         }
         else {
             fs::remove(newName);
-            fs::remove(fs::path(newName).replace_extension(".cpp"));
+            fs::remove(newName.replace_extension(".cpp"));
         }
     }
     catch (std::exception& e) 
@@ -573,8 +573,8 @@ bool SaveFileAs(int flags)
     }
 
     if (oldName == "")
-        tab.codeGen.SetNamesFromId(fs::path(newName).stem().string());
-    tab.fname = newName;
+        tab.codeGen.SetNamesFromId(u8string(newName.stem()));
+    tab.fname = u8string(newName.replace_extension(".h"));
     DoSaveFile(flags);
     return true;
 }
@@ -607,7 +607,7 @@ void ShowCode()
 {
     if (activeTab < 0)
         return;
-    std::string path = (fs::temp_directory_path() / "imrad-preview.cpp").string();
+    fs::path path = fs::temp_directory_path() / "imrad-preview.cpp";
     std::ofstream fout(path);
     fout << "// NOTE: This is just a preview of the Draw() method. To see the complete code\n"
          << "// including class definition and event handlers inspect generated .h/cpp files\n\n";
@@ -621,7 +621,7 @@ void ShowCode()
             fout << "// " << e <<  "\n";
     }
     fout.close();
-    ShellExec(path);
+    ShellExec(u8string(path));
 }
 
 void NewWidget(const std::string& name)
@@ -764,11 +764,11 @@ void GetStyles()
         { "Light", "" }, 
         { "Dark", "" } 
     };
-    for (fs::directory_iterator it(rootPath + "/style/"); it != fs::directory_iterator(); ++it)
+    for (fs::directory_iterator it(u8path(rootPath + "/style/")); it != fs::directory_iterator(); ++it)
     {
         if (it->path().extension() != ".ini")
             continue;
-        styleNames.push_back({ it->path().stem().string(), it->path().string() });
+        styleNames.push_back({ u8string(it->path().stem()), u8string(it->path()) });
     }
 }
 
@@ -815,10 +815,9 @@ void LoadStyle()
     
     reloadStyle = false;
     auto& io = ImGui::GetIO();
-    float faSize = uiFontSize * 18.f / 20.f;
     std::string stylePath = rootPath + "/style/";
+    
     glfwSetCursor(window, curWait);
-
     io.Fonts->Clear();
 
     //reload ImRAD UI first
@@ -828,6 +827,7 @@ void LoadStyle()
     ImFontConfig cfg;
     cfg.MergeMode = true;
     //icons_config.PixelSnapH = true;
+    const float faSize = uiFontSize * 18.f / 20.f;
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
     cfg.MergeMode = false;
@@ -959,7 +959,7 @@ void DoCloneStyle(const std::string& name)
         }
         else 
         {
-            fs::copy_file(rootPath + "/style/" + from + ".ini", path, fs::copy_options::overwrite_existing);
+            fs::copy_file(u8path(rootPath + "/style/" + from + ".ini"), u8path(path), fs::copy_options::overwrite_existing);
         }
 
         fileTabs[activeTab].styleName = name;
@@ -987,7 +987,7 @@ void CloneStyle()
     inputName.OpenPopup([](ImRad::ModalResult mr)
         {
             std::string path = rootPath + "/style/" + inputName.name + ".ini";
-            if (fs::exists(path)) {
+            if (fs::exists(u8string(path))) {
                 messageBox.title = "Confirmation";
                 messageBox.message = "Overwrite existing style?";
                 messageBox.buttons = ImRad::Yes | ImRad::No;
@@ -1279,10 +1279,10 @@ void ToolbarUI()
     if (ImGui::Button(ICON_FA_GEAR))
     {
         std::vector<std::string> fontNames;
-        for (const auto& entry : fs::directory_iterator(rootPath + "/style/")) 
+        for (const auto& entry : fs::directory_iterator(u8path(rootPath + "/style/"))) 
         {
             if (entry.is_regular_file() && entry.path().extension() == ".ttf")
-                fontNames.push_back(entry.path().stem().string());
+                fontNames.push_back(u8string(entry.path().stem()));
         }
         settingsDlg.fontNames = std::move(fontNames);
         settingsDlg.uiFontName = uiFontName.substr(0, uiFontName.size() - 4);
@@ -1374,7 +1374,7 @@ void TabsUI()
         for (int i = 0; i < (int)fileTabs.size(); ++i)
         {
             const auto& tab = fileTabs[i];
-            std::string fname = fs::path(tab.fname).filename().string();
+            std::string fname = u8string(u8path(tab.fname).filename());
             if (fname == "")
                 fname = UNTITLED + std::to_string(++untitled);
             if (tab.modified)
@@ -1734,7 +1734,7 @@ void Draw()
     ImGui::PushFont(ctx.defaultStyleFont);
     
     ctx.appStyle = &tmpStyle;
-    ctx.workingDir = fs::path(tab.fname).parent_path().string();
+    ctx.workingDir = u8string(u8path(tab.fname).parent_path());
     ctx.unit = tab.unit;
     ctx.modified = &tab.modified;
     tab.rootNode->Draw(ctx);
@@ -2280,18 +2280,18 @@ std::string GetRootPath()
 #ifdef WIN32
     wchar_t tmp[1024];
     int n = GetModuleFileNameW(NULL, tmp, sizeof(tmp));
-    return fs::path(tmp).parent_path().generic_string(); //need generic for CMake template path substitutions
+    return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
 #elif __APPLE__
     char executablePath[PATH_MAX];
     uint32_t len;
     if (_NSGetExecutablePath(executablePath, &len) != 0) {
         IM_ASSERT_USER_ERROR(0, "Could not get root path!");
     }
-    fs::path pexe = fs::canonical(executablePath);
-    return pexe.parent_path().string();
+    fs::path pexe = fs::canonical(u8path(executablePath));
+    return u8string(pexe.parent_path());
 #else
     fs::path pexe = fs::canonical("/proc/self/exe");
-    return pexe.parent_path().string();
+    return u8string(pexe.parent_path());
 #endif
 }
 

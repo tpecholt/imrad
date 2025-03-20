@@ -98,3 +98,7 @@ std::string CodeShortcut(std::string_view sh);
 std::string ParseShortcut(std::string_view line);
 
 bool IsAscii(std::string_view str);
+
+fs::path u8path(std::string_view s);
+std::string u8string(const fs::path& p);
+std::string generic_u8string(const fs::path& p);

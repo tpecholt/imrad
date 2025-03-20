@@ -61,12 +61,16 @@ void CppGen::SetNamesFromId(const std::string& fname)
     for (char c : fname) {
         if (c == '_' || c == ' ')
             upper = true;
-        else if (upper) {
-            name += std::toupper(c);
-            upper = false;
+        else if ((c & 0xc0) == 0xc0) //ignore utf8 subsequent bytes
+            continue;
+        else {
+            char cc = c >= 0 ? c : 'x';
+            if (upper) {
+                cc = std::toupper(cc);
+                upper = false;
+            }
+            name += cc;
         }
-        else
-            name += c;
     }
     m_name = (char)std::toupper(name[0]) + name.substr(1);
     m_vname = (char)std::tolower(name[0]) + name.substr(1);
@@ -74,11 +78,11 @@ void CppGen::SetNamesFromId(const std::string& fname)
 
 std::string CppGen::AltFName(const std::string& path)
 {
-    fs::path p(path);
+    fs::path p = u8path(path);
     if (p.extension() == ".h")
-        return p.replace_extension("cpp").string();
+        return u8string(p.replace_extension("cpp"));
     if (p.extension() == ".cpp")
-        return p.replace_extension("h").string();
+        return u8string(p.replace_extension("h"));
     return "";
 }
 
@@ -113,7 +117,7 @@ bool CppGen::ExportUpdate(
         err += e + "\n";
 
     //export .h
-    auto hpath = fs::path(fname).replace_extension(".h");
+    auto hpath = u8path(fname).replace_extension(".h");
     if (!fs::exists(hpath) || fs::is_empty(hpath))
     {
         std::ofstream fout(hpath);
@@ -132,11 +136,11 @@ bool CppGen::ExportUpdate(
     fprev.seekg(0);
     std::ofstream fout(hpath, std::ios::trunc);
     auto origNames = ExportH(fout, fprev, m_hname, node);
-    m_hname = hpath.filename().string();
+    m_hname = u8string(hpath.filename());
     fout.close();
     
     //export .cpp
-    auto fpath = fs::path(fname).replace_extension(".cpp");
+    auto fpath = u8path(fname).replace_extension(".cpp");
     if (!fs::exists(fpath) || fs::is_empty(fpath))
     {
         std::ofstream fout(fpath);
@@ -847,24 +851,24 @@ CppGen::Import(
     m_fields[""];
     m_name = m_vname = "";
     m_error = "";
-    ctx_workingDir = fs::path(path).parent_path().string();
+    ctx_workingDir = u8string(u8path(path).parent_path());
     std::unique_ptr<TopWindow> node;
 
-    auto fpath = fs::path(path).replace_extension("h");
-    m_hname = fpath.filename().string();
-    std::ifstream fin(fpath.string());
+    auto fpath = u8path(path).replace_extension("h");
+    m_hname = u8string(fpath.filename());
+    std::ifstream fin(fpath);
     if (!fin)
-        m_error += "Can't read " + fpath.string() + "\n";
+        m_error += "Can't read " + u8string(fpath) + "\n";
     else
         node = ImportCode(fin, m_hname, params);
     fin.close();
 
-    fpath = fs::path(path).replace_extension("cpp");
-    fin.open(fpath.string());
+    fpath = u8path(path).replace_extension("cpp");
+    fin.open(fpath);
     if (!fin)
-        m_error += "Can't read " + fpath.string() + "\n";
+        m_error += "Can't read " + u8string(fpath) + "\n";
     else {
-        auto node2 = ImportCode(fin, fpath.filename().string(), params);
+        auto node2 = ImportCode(fin, u8string(fpath.filename()), params);
         if (!node)
             node = std::move(node2);
     }

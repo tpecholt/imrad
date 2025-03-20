@@ -7,10 +7,10 @@
 #include <shellapi.h>
 #endif
 
-void ShellExec(const std::string& path)
+void ShellExec(const std::string& upath)
 {
 #ifdef WIN32
-    ShellExecuteA(nullptr, "open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    ShellExecuteW(nullptr, L"open", u8path(upath).wstring().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 #else
     system(("xdg-open " + path).c_str());
 #endif
@@ -105,4 +105,31 @@ std::string ParseShortcut(std::string_view line)
 bool IsAscii(std::string_view str)
 {
     return !stx::count_if(str, [](char c) { return c < 0; });
+}
+
+fs::path u8path(std::string_view s)
+{
+#if __cplusplus >= 202202L
+    return fs::path((const char8_t*)s.data(), s.size());
+#else
+    return fs::u8path(s);
+#endif
+}
+
+std::string u8string(const fs::path& p)
+{
+#if __cplusplus >= 202202L
+    return std::string((const char*)p.u8string().data());
+#else
+    return p.u8string();
+#endif
+}
+
+std::string generic_u8string(const fs::path& p)
+{
+#if __cplusplus >= 202202L
+    return std::string((const char*)p.generic_u8string().data());
+#else
+    return p.generic_u8string();
+#endif
 }

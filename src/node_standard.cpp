@@ -5685,7 +5685,7 @@ bool Image::PickFileName(UIContext& ctx)
     if (result != NFD_OKAY)
         return false;
 
-    fileName = fs::relative(outPath, ctx.workingDir).generic_string();
+    fileName = generic_u8string(fs::relative(u8path(outPath), u8path(ctx.workingDir)));
     NFD_FreePath(outPath);
     return true;
 }
@@ -5699,7 +5699,7 @@ void Image::RefreshTexture(UIContext& ctx)
         return;
 
     std::string fname = fileName.value();
-    if (fs::path(fname).is_relative()) 
+    if (u8path(fname).is_relative()) 
     {
         if (ctx.workingDir.empty() && !ctx.importState) {
             messageBox.title = "Warning";
@@ -5708,7 +5708,7 @@ void Image::RefreshTexture(UIContext& ctx)
             messageBox.OpenPopup();
             return;
         }
-        fname = (fs::path(ctx.workingDir) / fileName.value()).string();
+        fname = u8string(u8path(ctx.workingDir) / u8path(fileName.value()));
     }
 
     tex = ImRad::LoadTextureFromFile(fname);

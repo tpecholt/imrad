@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional> //for ModalPopup callback
 #include <fstream> //Save/LoadStyle
+#include <filesystem> //Save/LoadStyle
 #include <iomanip> //std::quoted
 #include <sstream> 
 #include <map>
@@ -834,13 +835,17 @@ Texture LoadTextureFromFile(std::string_view filename);
 #endif
 
 //For debugging pruposes
-inline void SaveStyle(std::string_view fname_, const ImGuiStyle* src = nullptr, const std::map<std::string, std::string>& extra = {})
+inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, const std::map<std::string, std::string>& extra = {})
 {
     const ImGuiStyle* style = src ? src : &ImGui::GetStyle();
-    std::string fname(fname_.begin(), fname_.end());
-    std::ofstream fout(fname);
+#if __cplusplus >= 202002L
+    std::filesystem::path stylePath((const char8_t*)spath.data(), spath.size());
+#else
+    std::filesystem::path stylePath = std::filesystem::u8path(spath);
+#endif
+    std::ofstream fout(stylePath);
     if (!fout)
-        throw std::runtime_error("can't write '" + fname + "'");
+        throw std::runtime_error("can't write '" + stylePath.string() + "'");
     
     fout << "[colors]\n";
     for (int i = 0; i < ImGuiCol_COUNT; ++i) {
@@ -898,20 +903,20 @@ inline void SaveStyle(std::string_view fname_, const ImGuiStyle* src = nullptr, 
 
 //This function can be used in your code to load style and fonts from the INI file
 //It is also used by ImRAD when switching themes
-inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
+inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
 {
     ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
     *style = ImGuiStyle();
     auto& io = ImGui::GetIO();
 
-    std::string parentPath(fname);
-    size_t ix = parentPath.find_last_of("/\\");
-    if (ix != std::string::npos)
-        parentPath.resize(ix + 1);
-
-    std::ifstream fin(std::string(fname.begin(), fname.end()));
+#if __cplusplus >= 202002L
+    std::filesystem::path stylePath((const char8_t*)spath.data(), spath.size());
+#else
+    std::filesystem::path stylePath = std::filesystem::u8path(spath);
+#endif
+    std::ifstream fin(stylePath);
     if (!fin)
-        throw std::runtime_error("Can't read " + std::string(fname));
+        throw std::runtime_error("Can't read " + stylePath.string());
     std::string line;
     std::string cat;
     int lastClr = -1;
@@ -978,17 +983,20 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
             }
             else if (cat == "fonts")
             {
-                std::string fname, path;
+                std::string fname;
                 float size = 20;
                 ImVec2 goffset;
                 bool hasRange = false;
                 static std::vector<std::unique_ptr<ImWchar[]>> rngs;
 
                 is >> std::quoted(fname);
-                path = fname;
-                bool isAbsolute = path.size() >= 2 && (path[0] == '/' || path[1] == ':');
-                if (!isAbsolute)
-                    path = parentPath + path;
+#if __cplusplus >= 202202L
+                std::filesystem::path fpath((const char8_t*)fname.data(), fname.size());
+#else
+                std::filesystem::path fpath = std::filesystem::u8path(fname);
+#endif
+                if (fpath.is_relative())
+                    fpath = stylePath.parent_path() / fpath;
                 std::string tmp;
                 while (is >> tmp)
                 {
@@ -1017,12 +1025,17 @@ inline void LoadStyle(std::string_view fname, float fontScaling = 1, ImGuiStyle*
                 int font_data_size = GetAssetData(fname.c_str(), &font_data);
                 ImFont* fnt = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, size * fontScaling);
 #else
-                if (!std::ifstream(path))
-                    throw std::runtime_error("Can't read '" + path + "'");
-                ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size * fontScaling, &cfg);
+#if __cplusplus >= 202202L
+                std::string fp8((const char*)fpath.u8string().data());
+#else
+                std::string fp8 = fpath.u8string();
+#endif
+                if (!std::ifstream(fpath))
+                    throw std::runtime_error("Can't read '" + fp8 + "'");
+                ImFont* fnt = io.Fonts->AddFontFromFileTTF(fp8.c_str(), size * fontScaling, &cfg);
 #endif
                 if (!fnt)
-                    throw std::runtime_error("Can't load " + path);
+                    throw std::runtime_error("Can't load " + fp8);
                 if (!cfg.MergeMode && fontMap)
                     (*fontMap)[lastFont == "" ? "" : key] = fnt;
             
