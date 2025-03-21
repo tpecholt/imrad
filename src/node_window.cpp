@@ -251,6 +251,10 @@ void TopWindow::Draw(UIContext& ctx)
     {
         DrawSnap(ctx);
     }
+    if (ctx.snapParent && ctx.snapIndex == -1)
+    {
+        ctx.snapParent = nullptr;
+    }
     if (ctx.mode == UIContext::PickPoint && ctx.snapParent == this)
     {
         DrawInteriorRect(ctx);

@@ -43,10 +43,10 @@ struct UIContext
     //snap result
     UINode* snapParent = nullptr;
     size_t snapIndex;
-    bool snapSameLine;
     int snapNextColumn;
+    bool snapSameLine;
+    bool snapUseNextSpacing;
     bool snapSetNextSameLine;
-    bool snapClearNextNextColumn;
     
     //recursive info
     int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import

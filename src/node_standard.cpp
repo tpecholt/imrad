@@ -203,10 +203,10 @@ void UINode::DrawInteriorRect(UIContext& ctx)
 
 void UINode::DrawSnap(UIContext& ctx)
 {
-    ctx.snapSameLine = false;
     ctx.snapNextColumn = 0;
+    ctx.snapSameLine = false;
+    ctx.snapUseNextSpacing = false;
     ctx.snapSetNextSameLine = false;
-    ctx.snapClearNextNextColumn = false;
 
     const float MARGIN = 7;
     assert(ctx.parents.back() == this);
@@ -219,7 +219,7 @@ void UINode::DrawSnap(UIContext& ctx)
 
     //snap interior (first child)
     if ((snapOp & SnapInterior) && 
-        mind >= 2 && //allow snapping sides with zero border
+        mind >= 3 && //allow snapping sides with zero border
         !stx::count_if(children, [](const auto& ch) { return ch->Behavior() & SnapSides; }))
     {
         ctx.snapParent = this;
@@ -272,29 +272,49 @@ void UINode::DrawSnap(UIContext& ctx)
     else if (lastItem && d2.x < 0 && d2.y < 0)
         snapDir = ImGuiDir_Down;
 
-    if (snapDir == ImGuiDir_None)
+    if (snapDir == ImGuiDir_None) 
+    {
+        if (ImRect(cached_pos, cached_pos + cached_size).Contains(m)) 
+        {
+            //end of search with no result (interpreted by TopWindow) 
+            //children were already snapped so we can safely end search here
+            ctx.snapParent = parent;
+            ctx.snapIndex = -1;
+        }
         return;
+    }
     
     ImVec2 p;
     float w = 0, h = 0;
-    const auto& pch = pchildren[i];
-    //snapRight and snapDown will extend the area to the next widget
-    //snapLeft and snapTop only when we are first widget
+    //snapRight and snapDown will extend the checked area to the next widget
     switch (snapDir)
     {
     case ImGuiDir_Left:
     {
         p = cached_pos;
         h = cached_size.y;
-        bool leftmost = !i || !pch->sameLine || (ncols > 1 && pch->nextColumn);
-        if (!leftmost) //handled by right(i-1)
-            return;
-        if (ncols > 1 && pch->nextColumn && m.x < pch->cached_pos.x)
-            return;
+        auto& ch = pchildren[i];
+        //check we are not pointing into widget on left
+        const auto* lch = i && (pchildren[i - 1]->Behavior() & SnapSides) ? pchildren[i - 1].get() : nullptr;
+        if (ncols > 1 && ch->nextColumn) {
+            if (m.x < cached_pos.x)
+                return;
+        }
+        if (ch->sameLine && lch) {
+            float xm = (p.x + lch->cached_pos.x + lch->cached_size.x) / 2.f;
+            //avg marker
+            if (ch->spacing <= 1) {
+                p.x = xm;
+                h = std::max(h, lch->cached_size.y);
+            }
+            if (m.x < xm)
+                return;
+        }
         ctx.snapParent = parent;
         ctx.snapIndex = i;
-        ctx.snapSameLine = pchildren[i]->sameLine;
         ctx.snapNextColumn = pchildren[i]->nextColumn;
+        ctx.snapSameLine = pchildren[i]->sameLine;
+        ctx.snapUseNextSpacing = true;
         ctx.snapSetNextSameLine = true;
         break;
     }
@@ -303,36 +323,38 @@ void UINode::DrawSnap(UIContext& ctx)
         p = cached_pos + ImVec2(cached_size.x, 0);
         h = cached_size.y;
         //check we are not pointing into widget on right
-        auto* nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
-        if (nch && ncols > 1 && nch->nextColumn && col + 1 == ncols)
-            nch = nullptr;
-        if (nch && !nch->sameLine)
-        {
-            for (int j = (int)i + 1; j < (int)pchildren.size(); ++j)
-                if (pchildren[j]->nextColumn) {
-                    nch = pchildren[j].get();
-                    break;
-                }
-        }
-        if (nch && (nch->sameLine || (ncols > 1 && nch->nextColumn)))
-        {
-            if (m.x >= nch->cached_pos.x) //no margin, left(i+1) can differ
+        const Widget* rch = nullptr;
+        if (i + 1 < pchildren.size() && !pchildren[i + 1]->nextColumn && pchildren[i + 1]->sameLine)
+            rch = pchildren[i + 1].get();
+        if (rch) {
+            float xm = (p.x + rch->cached_pos.x) / 2.f;
+            //avg marker
+            if (rch->spacing <= 1) {
+                p.x = xm;
+                h = std::max(h, rch->cached_size.y);
+            }
+            if (m.x > xm)
                 return;
         }
-        nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
-        if (nch && nch->sameLine && !nch->nextColumn)
+        if (!rch && ncols > 1)
         {
-            //same effect for insering right(i) or left(i+1) so avg marker
-            auto p2 = nch->cached_pos;
-            auto h2 = nch->cached_size.y;
-            ImVec2 q{ (p.x + p2.x) / 2, std::min(p.y, p2.y) };
-            h = std::max(p.y + h, p2.y + h2) - q.y;
-            p = q;
+            for (size_t j = i + 1; j < pchildren.size(); ++j)
+            {
+                if (pchildren[j]->nextColumn) {
+                    if ((col + pchildren[j]->nextColumn) % ncols > col)
+                        rch = pchildren[j].get();
+                    break;
+                }
+            }
+            if (rch && m.x >= rch->cached_pos.x)
+                return;
         }
+        const auto* nch = i + 1 < pchildren.size() ? pchildren[i + 1].get() : nullptr;
         ctx.snapParent = parent;
         ctx.snapIndex = i + 1;
-        ctx.snapSameLine = true;
         ctx.snapNextColumn = 0;
+        ctx.snapSameLine = true;
+        ctx.snapUseNextSpacing = false;
         break;
     }
     case ImGuiDir_Up:
@@ -343,41 +365,31 @@ void UINode::DrawSnap(UIContext& ctx)
         if (down)
             p.y += cached_size.y;
         float x2 = p.x + cached_size.x;
-        bool topmost = true;
-        for (int j = (int)i; j >= 0; --j)
-        {
-            if (ncols > 1 && pchildren[j]->nextColumn)
-                break;
-            if (j && 
-                (pchildren[j - 1]->Behavior() & SnapSides) && //ignore preceeding MenuBar etc.
-                !pchildren[j]->sameLine)
-                topmost = false;
-        }
         //find range of widgets in the same row and column
         size_t i1 = i, i2 = i;
         for (int j = (int)i - 1; j >= 0; --j)
         {
-            if (!pchildren[j + 1]->sameLine || (ncols > 1 && pchildren[j + 1]->nextColumn)) 
+            if (ncols > 1 && pchildren[j + 1]->nextColumn)
                 break;
-            i1 = j;
+            if (!pchildren[j + 1]->sameLine)
+                break;
             const auto& ch = pchildren[j];
+            i1 = j;
             p.x = ch->cached_pos.x;
             if (down)
                 p.y = std::max(p.y, ch->cached_pos.y + ch->cached_size.y);
-            else
-                p.y = std::min(p.y, ch->cached_pos.y);
         }
         for (size_t j = i + 1; j < pchildren.size(); ++j)
         {
-            if (!pchildren[j]->sameLine || (ncols > 1 && pchildren[j]->nextColumn))
+            const auto& ch = pchildren[j];
+            if (ncols > 1 && ch->nextColumn) 
+                break;
+            if (!ch->sameLine)
                 break;
             i2 = j;
-            const auto& ch = pchildren[j];
             x2 = ch->cached_pos.x + ch->cached_size.x;
             if (down)
                 p.y = std::max(p.y, ch->cached_pos.y + ch->cached_size.y);
-            else
-                p.y = std::min(p.y, ch->cached_pos.y);
         }
         //find a widget from next/prev column-row
         size_t inr = -1, ipr = -1;
@@ -416,30 +428,36 @@ void UINode::DrawSnap(UIContext& ctx)
             nch = i2 + 1 < pchildren.size() ? pchildren[i2 + 1].get() : nullptr;
             if (nch && (ncols <= 1 || !nch->nextColumn))
             {
-                if (m.y >= nch->cached_pos.y + MARGIN)
+                if (m.y >= (p.y + nch->cached_pos.y) / 2.f)
                     return;
-                p.y = (p.y + nch->cached_pos.y) / 2;
             }
             ctx.snapParent = parent;
             ctx.snapIndex = i2 + 1;
-            ctx.snapSameLine = false;
             ctx.snapNextColumn = 0;
+            ctx.snapSameLine = false;
+            ctx.snapUseNextSpacing = false;
         }
         else
         {
+            //check m.y is not pointing in previous column-row
             const Widget* pch = ipr < pchildren.size() ? pchildren[ipr].get() : nullptr;
             if (pch)
             {
                 if (m.y <= pch->cached_pos.y + pch->cached_size.y)
                     return;
             }
-            if (!topmost) //up(i) is handled by down(i-1)
-                return;
+            //check m.y not pointing in prev row
+            pch = i1 > 0 ? pchildren[i1 - 1].get() : nullptr;
+            if (pch && (ncols <= 1 || !pchildren[i1]->nextColumn))
+            {
+                if (m.y <= pch->cached_pos.y + pch->cached_size.y)
+                    return;
+            }
             ctx.snapParent = parent;
             ctx.snapIndex = i1;
             ctx.snapSameLine = false;
             ctx.snapNextColumn = pchildren[i1]->nextColumn;
-            ctx.snapClearNextNextColumn = true;
+            ctx.snapUseNextSpacing = true;
         }
         break;
     }
@@ -472,7 +490,8 @@ UINode::FindInRect(const ImRect& r)
 {
     std::vector<UINode*> sel;
     
-    if (cached_pos.x > r.Min.x &&
+    if (cached_size.x && cached_size.y && //skip contextMenu
+        cached_pos.x > r.Min.x &&
         cached_pos.y > r.Min.y &&
         cached_pos.x + cached_size.x < r.Max.x &&
         cached_pos.y + cached_size.y < r.Max.y)
@@ -861,6 +880,12 @@ void Widget::Draw(UIContext& ctx)
     //bool hovered1 = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
     bool hovered = ImGui::IsMouseHoveringRect(cached_pos, cached_pos + cached_size) &&
         ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+    if ((ctx.mode == UIContext::NormalSelection || ctx.mode == UIContext::SnapInsert) &&
+        hovered && !ImGui::GetTopMostAndVisiblePopupModal())
+    {
+        //prevent changing cursor to e.g. TextInput
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+    }
     if (ctx.mode == UIContext::NormalSelection &&
         hovered && !ImGui::GetTopMostAndVisiblePopupModal())
     {

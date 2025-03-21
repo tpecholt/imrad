@@ -2360,7 +2360,7 @@ void MenuIt::CalcSizeEx(ImVec2 p1, UIContext& ctx)
     if (contextMenu)
     {
         cached_pos = ctx.rootWin->InnerRect.Min;
-        cached_size = { 1, 1 };
+        cached_size = { 0, 0 }; //won't rect-select
         return;
     }
     

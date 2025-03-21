@@ -1786,6 +1786,7 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
     return allNodes;
 }
 
+//discarding result will delete widgets permanently
 std::vector<std::unique_ptr<Widget>> 
 RemoveSelected()
 {
@@ -1795,37 +1796,38 @@ RemoveSelected()
         return {};
 
     std::vector<std::unique_ptr<Widget>> remove;
+    tab.modified = true;
     auto pi1 = tab.rootNode->FindChild(sortedSel[0]);
     for (UINode* node : sortedSel)
     {
         auto pi = tab.rootNode->FindChild(node);
-        tab.modified = true;
-        Widget* wdg = dynamic_cast<Widget*>(node);
-        bool sameLine = wdg->sameLine;
-        int nextColumn = wdg->nextColumn;
-        int spacing = wdg->spacing;
-        remove.push_back(std::move(pi->first->children[pi->second]));
-        pi->first->children.erase(pi->first->children.begin() + pi->second);
-        if (pi->second < pi->first->children.size() &&
-            !stx::count(ctx.selected, pi->first->children[pi->second].get()))
+        UINode* parent = pi->first;
+        remove.push_back(std::move(parent->children[pi->second]));
+        parent->children.erase(parent->children.begin() + pi->second);
+        if (pi->second < parent->children.size() &&
+            !stx::count(ctx.selected, parent->children[pi->second].get()) &&
+            (parent->children[pi->second]->Behavior() & UINode::SnapSides))
         {
-            wdg = dynamic_cast<Widget*>(pi->first->children[pi->second].get());
-            wdg->nextColumn += nextColumn;
-            if (!sameLine) {
-                wdg->sameLine = false;
-                wdg->spacing = spacing;
+            Widget* child = dynamic_cast<Widget*>(remove.back().get());
+            Widget* next = dynamic_cast<Widget*>(parent->children[pi->second].get());
+            next->nextColumn += child->nextColumn;
+            if (!child->sameLine && next->sameLine) {
+                next->sameLine = false;
+                next->spacing = child->spacing;
+                next->indent = child->indent;
             }
         }
     }
     //move selection. Useful for things like menu items
     if (sortedSel.size() == 1 && pi1)
     {
-        if (pi1->second < pi1->first->children.size())
-            ctx.selected = { pi1->first->children[pi1->second].get() };
+        UINode* parent1 = pi1->first;
+        if (pi1->second < parent1->children.size())
+            ctx.selected = { parent1->children[pi1->second].get() };
         else if (pi1->second)
-            ctx.selected = { pi1->first->children[pi1->second - 1].get() };
+            ctx.selected = { parent1->children[pi1->second - 1].get() };
         else
-            ctx.selected = { pi1->first };
+            ctx.selected = { parent1 };
     }
     else
     {
@@ -1980,22 +1982,16 @@ void Work()
             if (ctx.snapIndex < ctx.snapParent->children.size())
             {
                 auto& next = ctx.snapParent->children[ctx.snapIndex];
-                if (ctx.snapSetNextSameLine) 
-                {
-                    next->nextColumn = false;
-                    next->sameLine = true;
-                    if (!ctx.snapSameLine) {
-                        newNodes[0]->spacing = next->spacing;
-                        next->spacing = 1;
-                    }
-                    else
-                        next->spacing = std::max((int)next->spacing, 1);
+                if (ctx.snapUseNextSpacing) {
+                    newNodes[0]->nextColumn = next->nextColumn;
+                    newNodes[0]->spacing = next->spacing;
+                    newNodes[0]->indent = next->indent;
+                    next->nextColumn = 0; 
+                    next->spacing = 1;
+                    next->indent = 0;
                 }
-                if (ctx.snapClearNextNextColumn) 
-                {
-                    next->nextColumn = 0;
-                    next->sameLine = false;
-                    next->spacing = std::max((int)next->spacing, 1);
+                if (ctx.snapSetNextSameLine) {
+                    next->sameLine = true;
                 }
                 if (next->sameLine)
                     next->indent = 0; //otherwise creates widgets overlaps
@@ -2406,10 +2402,10 @@ int main(int argc, const char* argv[])
             else
             {    
                 programState = Shutdown;
+                ctx.mode = UIContext::NormalSelection;
                 //save state before files close
                 ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
                 ImGui::GetIO().IniFilename = nullptr;
-
             }
         }
 
