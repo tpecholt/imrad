@@ -122,8 +122,8 @@ struct Widget : UINode
     direct_val<int> nextColumn = 0;
     bindable<dimension> size_x = 0;
     bindable<dimension> size_y = 0;
-    bindable<bool> visible = true;
-    bindable<bool> disabled = false;
+    bindable<bool> visible;
+    bindable<bool> disabled;
     bindable<std::string> tooltip = "";
     direct_val<std::string> contextMenu = "";
     direct_val<ImGuiMouseCursor_> cursor = ImGuiMouseCursor_Arrow;
@@ -239,7 +239,6 @@ struct Selectable : Widget
     direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
     direct_val<bool> alignToFrame = false;
     direct_val<bool> readOnly = false;
-    field_ref<bool> fieldName;
     bindable<bool> selected = false;
     bindable<color32> style_header;
     event<> onChange;

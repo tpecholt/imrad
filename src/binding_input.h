@@ -10,6 +10,7 @@
 #include "cppgen.h"
 #include "ui_new_field.h"
 #include "ui_binding.h"
+#include "ui_combo_dlg.h"
 
 inline const char* PARENT_STR = "inherit";
 
@@ -214,11 +215,8 @@ bool InputDirectVal(direct_val<T>* val, int fl, UIContext& ctx)
 
 inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx)
 {
-    if (flags & InputDirectVal_ShortcutButton) {
-        const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
-        bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
-        ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
-    }
+    if (flags & InputDirectVal_ShortcutButton)
+        ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - ImGui::GetFrameHeight());
 
     std::string id = "##" + std::to_string((uint64_t)val);
     ImGui::PushFont(ctx.pgbFont);
@@ -231,7 +229,7 @@ inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx
         std::string buttonId = id + "But";
         std::string popupId = id + "DropDown";
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[val->flags() ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-        if (ImGui::Button(("v" + buttonId).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        if (ImGui::ArrowButton(buttonId.c_str(), ImGuiDir_Down)) // { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             ImGui::OpenPopup(popupId.c_str());
         }
@@ -264,31 +262,77 @@ enum
     InputBindable_StretchButton = 0x1,
     InputBindable_StretchButtonDisabled = InputBindable_StretchButton | 0x2,
     InputBindable_Modified = 0x10,
+    InputBindable_ShowVariables = 0x20,
 }; 
 
 inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
 {
+    if (val == ctx.setProp)
+    {
+        //commit dialog request
+        ctx.setProp = nullptr;
+        *val->access() = ctx.setPropValue;
+        return true;
+    }
+
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
     ImGui::PushFont((flags & InputBindable_Modified) ? ctx.pgbFont : ctx.pgFont);
-    if (ImGui::BeginCombo(id.c_str(), val->c_str()))
+    
+    if (!(flags & InputBindable_ShowVariables))
     {
-        ImGui::PopFont();
-        ImGui::PushFont(ImGui::GetFont());
-        if (ImGui::Selectable("true", val->has_value() && val->value()))
+        changed = ImGui::InputText(id.c_str(), val->access());
+        if (ImGui::IsItemDeactivatedAfterEdit())
         {
-            *val = true; 
-            changed = true;
+            *val->access() = Trim(val->c_str());
         }
-        if (ImGui::Selectable("false", val->has_value() && !val->value()))
-        {
-            *val = false; 
-            changed = true;
-        }
-        ImGui::EndCombo();
     }
-    ImGui::PopFont();
+    else
+    {
+        if (ImGui::BeginCombo(id.c_str(), val->c_str()))
+        {
+            ImGui::PopFont();
+            ImGui::PushFont(ImGui::GetFont());
 
+            /*if (!val->empty() && ImGui::Selectable("Rename..."))
+            {
+                auto vars = val->used_variables();
+                assert(vars.size() == 1);
+                newFieldPopup.codeGen = ctx.codeGen;
+                newFieldPopup.varOldName = vars[0];
+                newFieldPopup.mode = NewFieldPopup::RenameField;
+                newFieldPopup.OpenPopup([val, root = ctx.root]{
+                    root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
+                    });
+            }*/
+
+            if (ImGui::Selectable("New Variable..."))
+            {
+                newFieldPopup.varType = "bool";
+                newFieldPopup.codeGen = ctx.codeGen;
+                newFieldPopup.mode = NewFieldPopup::NewField;
+                newFieldPopup.OpenPopup([&ctx, val] {
+                    ctx.setProp = val;
+                    ctx.setPropValue = newFieldPopup.varName;
+                    });
+            }
+
+            ImGui::Separator();
+            const auto& vars = ctx.codeGen->GetVars();
+            for (const auto& v : vars)
+            {
+                if (v.type == "bool" && ImGui::Selectable(v.name.c_str(), v.name == val->c_str()))
+                {
+                    *val->access() = v.name;
+                    changed = true;
+                }
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+    
+    ImGui::PopFont();
     return changed;
 }
 
@@ -564,6 +608,83 @@ inline bool InputBindable(bindable<std::string>* val, UIContext& ctx)
     std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();
+    return changed;
+}
+
+inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ctx)
+{
+    bool changed = false;
+    std::string id = "##" + std::to_string((uint64_t)val);
+    std::string tmp;
+    int nl = (int)stx::count(*val->access(), '\0');
+    if (!val->has_single_variable())
+        tmp = "[" + std::to_string(nl) + "]";
+    else
+        tmp = val->used_variables()[0];
+    
+    const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
+    float w = ImGui::CalcItemWidth();
+    ImGui::SetNextItemWidth(w - ImGui::GetFrameHeight());
+
+    ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
+    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+    ImRad::Selectable(tmp.c_str(), false, 0, { -2 * ImGui::GetFrameHeight(), 0 });
+    ImGui::PopItemFlag();
+    ImGui::PopFont();
+    ImGui::SameLine(0, 0);
+    ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+    ImGui::SetNextWindowSizeConstraints({ w, 0 }, { FLT_MAX, FLT_MAX });
+    if (ImGui::BeginCombo(id.c_str(), nullptr, ImGuiComboFlags_NoPreview))
+    {
+        if (ImGui::Selectable("Edit Items..."))
+        {
+            changed = true;
+            tmp = *val->access(); //preserve embeded nulls
+            stx::replace(tmp, '\0', '\n');
+            if (tmp.size() && tmp.back() == '\n')
+                tmp.pop_back();
+            comboDlg.title = "Items";
+            comboDlg.value = tmp;
+            comboDlg.font = ctx.defaultStyleFont;
+            comboDlg.OpenPopup([val](ImRad::ModalResult) {
+                std::string tmp = comboDlg.value;
+                while (tmp.size() && tmp.back() == '\n')
+                    tmp.pop_back();
+                *val->access() = tmp;
+                if (!val->has_single_variable()) {
+                    if (tmp.size() && tmp.back() != '\n')
+                        tmp.push_back('\n');
+                    stx::replace(tmp, '\n', '\0');
+                    *val->access() = tmp;
+                }
+                });
+        }
+        if (ImGui::Selectable("New Variable..."))
+        {
+            newFieldPopup.varType = "std::vector<std::string>";
+            newFieldPopup.codeGen = ctx.codeGen;
+            newFieldPopup.mode = NewFieldPopup::NewField;
+            newFieldPopup.OpenPopup([val, &ctx] {
+                *val->access() = '{' + newFieldPopup.varName + '}';
+                //todo
+                //ctx.setProp = &items;
+                //ctx.setPropValue = '{' + newFieldPopup.varName + '}';
+                });
+        }
+        ImGui::Separator();
+        const auto& vars = ctx.codeGen->GetVars();
+        for (const auto& v : vars)
+        {
+            if (v.type == "std::vector<std::string>" &&
+                ImGui::Selectable(v.name.c_str(), '{' + v.name + '}' == val->c_str()))
+            {
+                *val->access() = '{' + v.name + '}';
+                changed = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
     return changed;
 }
 

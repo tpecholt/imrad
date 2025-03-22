@@ -107,6 +107,18 @@ bool IsAscii(std::string_view str)
     return !stx::count_if(str, [](char c) { return c < 0; });
 }
 
+std::string Trim(std::string_view str)
+{
+    size_t i1, i2;
+    for (i1 = 0; i1 < str.size(); ++i1)
+        if (str[i1] >= 128 || !std::isspace(str[i1]))
+            break;
+    for (i2 = str.size() - 1; i2 < str.size(); --i2)
+        if (str[i2] >= 128 || !std::isspace(str[i2]))
+            break;
+    return std::string(str.substr(i1, i2 - i1 + 1));
+}
+
 fs::path u8path(std::string_view s)
 {
 #if __cplusplus >= 202202L

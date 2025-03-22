@@ -808,7 +808,7 @@ void Widget::Draw(UIContext& ctx)
     if (!style_framePadding.empty())
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_framePadding);
 
-    ImGui::BeginDisabled((disabled.has_value() && disabled.value()) || (visible.has_value() && !visible.value()));
+    ImGui::BeginDisabled((!disabled.empty() && disabled.eval(ctx)) || (!visible.empty() && !visible.eval(ctx)));
     ImDrawList* drawList = DoDraw(ctx);
     ImGui::EndDisabled();
     CalcSizeEx(p1, ctx);
@@ -1211,13 +1211,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     if (userCodeBefore != "")
         os << userCodeBefore << "\n";
     
-    std::string stype = typeid(*this).name();
-    auto i = stype.find(' ');
-    if (i != std::string::npos)
-        stype.erase(0, i + 1);
-    auto it = stx::find_if(stype, [](char c) { return isalpha(c);});
-    if (it != stype.end())
-        stype.erase(0, it - stype.begin());
+    std::string stype = GetTypeName();
     os << ctx.ind << "/// @begin " << stype << "\n";
 
     //layout commands first even when !visible
@@ -1259,9 +1253,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.stretchSizeExpr[0] = hbName + ".GetSize()";
     }
 
-    if (!visible.has_value() || !visible.value())
+    if (!visible.empty())
     {
-        os << ctx.ind << "if (" << visible.c_str() << ")\n" << ctx.ind << "{\n";
+        os << ctx.ind << "if (" << visible.to_arg() << ")\n" << ctx.ind << "{\n";
         ctx.ind_up();
         os << ctx.ind << "//visible\n";
     }
@@ -1302,9 +1296,9 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::SetNextItemAllowOverlap();\n";
     }
-    if (!disabled.has_value() || disabled.value())
+    if (!disabled.empty())
     {
-        os << ctx.ind << "ImGui::BeginDisabled(" << disabled.c_str() << ");\n";
+        os << ctx.ind << "ImGui::BeginDisabled(" << disabled.to_arg() << ");\n";
     }
     if (!tabStop)
     {
@@ -1428,7 +1422,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PopTabStop();\n";
     }
-    if (!disabled.has_value() || disabled.value())
+    if (!disabled.empty())
     {
         os << ctx.ind << "ImGui::EndDisabled();\n";
     }
@@ -1512,7 +1506,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
 
-    if (!visible.has_value() || !visible.value())
+    if (!visible.empty())
     {
         ctx.ind_down();
         os << ctx.ind << "}\n";
@@ -2204,6 +2198,7 @@ bool Widget::EventUI(int i, UIContext& ctx)
     return changed;
 }
 
+//this must return exact class id
 std::string Widget::GetTypeName()
 {
     std::string name = typeid(*this).name();
@@ -2696,6 +2691,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 
 Selectable::Selectable(UIContext& ctx)
 {
+    flags.add$(ImGuiSelectableFlags_AllowDoubleClick);
     flags.add$(ImGuiSelectableFlags_DontClosePopups);
     flags.add$(ImGuiSelectableFlags_NoPadWithHalfSpacing);
     flags.add$(ImGuiSelectableFlags_SpanAllColumns);
@@ -2711,9 +2707,9 @@ Selectable::Selectable(UIContext& ctx)
 std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Selectable>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
-    }
+    /*if (!selected.has_single_variable() && ctx.createVars) {
+        sel->selected.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+    }*/
     return sel;
 }
 
@@ -2742,7 +2738,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     ImVec2 size;
     size.x = size_x.eval_px(ImGuiAxis_X, ctx);
     size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
-    bool sel = fieldName.empty() ? selected.eval(ctx) : fieldName.eval(ctx);
+    bool sel = selected.eval(ctx);
     ImRad::Selectable(DRAW_STR(label), sel, flags, size);
 
     if (readOnly)
@@ -2810,8 +2806,8 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << "if (";
     
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
-    if (!fieldName.empty())
-        os << "&" << fieldName.to_arg();
+    if (selected.has_single_variable())
+        os << "&" << selected.to_arg();
     else
         os << selected.to_arg();
     
@@ -2853,7 +2849,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
         if (sit->params.size() >= 2) {
             if (!sit->params[1].compare(0, 1, "&"))
-                fieldName.set_from_arg(sit->params[1].substr(1));
+                selected.set_from_arg(sit->params[1].substr(1));
             else
                 selected.set_from_arg(sit->params[1]);
         }
@@ -2914,8 +2910,7 @@ Selectable::Properties()
         { "behavior.flags##selectable", &flags },
         { "behavior.label", &label, true },
         { "behavior.readOnly", &readOnly },
-        { "behavior.selected##selectable", &selected },
-        { "bindings.selected##1", &fieldName },
+        { "bindings.selected##selectable", &selected },
         });
     return props;
 }
@@ -2994,25 +2989,16 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&readOnly, fl, ctx);
         break;
     case 9:
-        ImGui::BeginDisabled(!fieldName.empty());
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = selected != Defaults().selected ? InputBindable_Modified : 0;
-        changed = InputBindable(&selected, fl, ctx);
+        changed = InputBindable(&selected, fl | InputBindable_ShowVariables, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("value", &selected, ctx);
-        ImGui::EndDisabled();
-        break;
-    case 10:
-        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, FIELD_REF_CLR);
-        ImGui::Text("selected");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, true, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 11, ctx);
+        return Widget::PropertyUI(i - 10, ctx);
     }
     return changed;
 }
@@ -4614,7 +4600,7 @@ Combo::Properties()
         { "appearance.font", &style_font },
         { "behavior.flags##combo", &flags },
         { "behavior.label", &label, true },
-        { "behavior.items", &items },
+        { "behavior.items##1", &items },
         { "bindings.value##1", &fieldName },
         });
     return props;
@@ -4688,38 +4674,8 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
     {
         ImGui::Text("items");
         ImGui::TableNextColumn();
-        //ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        std::string tmp = *items.access();
-        int nl = (int)stx::count(tmp, '\0');
-        if (!items.has_single_variable())
-            tmp = "[" + std::to_string(nl) + "]";
-        ImGui::PushFont(items.empty() ? ctx.pgFont : ctx.pgbFont);
-        if (ImRad::Selectable(tmp.c_str(), false, 0, { -ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
-        {
-            changed = true;
-            tmp = *items.access(); //preserve embeded nulls
-            stx::replace(tmp, '\0', '\n');
-            if (tmp.size() && tmp.back() == '\n')
-                tmp.pop_back();
-            comboDlg.title = "Items";
-            comboDlg.value = tmp;
-            comboDlg.font = ctx.defaultStyleFont;
-            comboDlg.OpenPopup([this](ImRad::ModalResult) {
-                std::string tmp = comboDlg.value;
-                while (tmp.size() && tmp.back() == '\n')
-                    tmp.pop_back();
-                *items.access() = tmp;
-                if (!items.has_single_variable()) {
-                    if (tmp.size() && tmp.back() != '\n')
-                        tmp.push_back('\n');
-                    stx::replace(tmp, '\n', '\0');
-                    *items.access() = tmp;
-                }
-                });
-        }
-        ImGui::PopFont();
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("items", &items, ctx);
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&items, ctx);
         break;
     }
     case 9:

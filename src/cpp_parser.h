@@ -13,7 +13,7 @@ namespace cpp
     
     inline bool is_id(std::string_view s)
     {
-        if (s.empty())
+        if (s.empty() || s == "true" || s == "false")
             return false;
         if (s[0] < 0 || (!std::isalpha(s[0]) && s[0] != '_'))
             return false;

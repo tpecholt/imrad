@@ -545,6 +545,9 @@ struct bindable : property_base
     T eval(const UIContext& ctx) const {
         return value();
     }
+    bool has_single_variable() const {
+        return cpp::is_id(str);
+    }
 
     void set_from_arg(std::string_view s) {
         str = s;

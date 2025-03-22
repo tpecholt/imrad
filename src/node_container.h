@@ -73,7 +73,8 @@ struct Child : Widget
 struct CollapsingHeader : Widget
 {
     bindable<std::string> label = "label";
-    bindable<bool> open = true;
+    flags_helper flags = 0;
+    bindable<bool> open;
     bindable<color32> style_header;
     bindable<color32> style_hovered;
     bindable<color32> style_active;
@@ -143,7 +144,7 @@ struct TreeNode : Widget
 {
     flags_helper flags = ImGuiTreeNodeFlags_None;
     bindable<std::string> label = "Node";
-    bindable<bool> open = true;
+    bindable<bool> open;
     bool lastOpen;
 
     TreeNode(UIContext& ctx);

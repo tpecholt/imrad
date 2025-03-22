@@ -247,7 +247,8 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("rowFilter");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = ImGui::InputText("##rowFilter", rowFilter.access());
+        fl = rowFilter != Defaults().rowFilter ? InputBindable_Modified : 0;
+        changed = InputBindable(&rowFilter, fl, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("rowFilter", &rowFilter, ctx);
         ImGui::EndDisabled();
@@ -1169,6 +1170,18 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
 
 CollapsingHeader::CollapsingHeader(UIContext& ctx)
 {
+    flags.add$(ImGuiTreeNodeFlags_Bullet);
+    flags.add$(ImGuiTreeNodeFlags_DefaultOpen);
+    //flags.add$(ImGuiTreeNodeFlags_Framed);
+    flags.add$(ImGuiTreeNodeFlags_FramePadding);
+    //flags.add$(ImGuiTreeNodeFlags_Leaf);
+    //flags.add$(ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    flags.add$(ImGuiTreeNodeFlags_OpenOnArrow);
+    flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);
+    flags.add$(ImGuiTreeNodeFlags_SpanAllColumns);
+    flags.add$(ImGuiTreeNodeFlags_SpanAvailWidth);
+    flags.add$(ImGuiTreeNodeFlags_SpanFullWidth);
+    flags.add$(ImGuiTreeNodeFlags_SpanTextWidth);
 }
 
 std::unique_ptr<Widget> CollapsingHeader::Clone(UIContext& ctx)
@@ -1193,7 +1206,7 @@ ImDrawList* CollapsingHeader::DoDraw(UIContext& ctx)
     {
         ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
     }
-    if (ImGui::CollapsingHeader(DRAW_STR(label)))
+    if (ImGui::CollapsingHeader(DRAW_STR(label), flags))
     {
         for (size_t i = 0; i < children.size(); ++i)
         {
@@ -1229,15 +1242,12 @@ void CollapsingHeader::DoExport(std::ostream& os, UIContext& ctx)
     if (!style_active.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_HeaderActive, " << style_active.to_arg() << ");\n";
 
-    os << ctx.ind << "ImGui::SetNextItemOpen(";
-    if (open.has_value())
-        os << open.to_arg() << ", ImGuiCond_Appearing";
-    else
-        os << open.to_arg();
-    os << ");\n";
+    if (!open.empty())
+        os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ");\n";
 
-    os << ctx.ind << "if (ImGui::CollapsingHeader(" << label.to_arg() << "))\n"
-        << ctx.ind << "{\n";
+    os << ctx.ind << "if (ImGui::CollapsingHeader(" << label.to_arg() << ", "
+        << flags.to_arg() << "))\n";
+    os << ctx.ind << "{\n";
     ctx.ind_up();
 
     os << ctx.ind << "/// @separator\n\n";
@@ -1278,6 +1288,8 @@ void CollapsingHeader::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 1)
             label.set_from_arg(sit->params[0]);
+        if (sit->params.size() >= 2)
+            flags.set_from_arg(sit->params[1]);
     }
 }
 
@@ -1291,6 +1303,7 @@ CollapsingHeader::Properties()
         { "appearance.hovered", &style_hovered },
         { "appearance.active", &style_active },
         { "appearance.font", &style_font },
+        { "behavior.flags##coh", &flags },
         { "behavior.label", &label, true },
         { "behavior.open", &open }
         });
@@ -1344,6 +1357,13 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
+        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
+            ImGui::TableNextColumn();
+            ImGui::Spacing();
+            changed = CheckBoxFlags(&flags, Defaults().flags);
+            });
+        break;
+    case 6:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1351,7 +1371,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
-    case 6:
+    case 7:
         ImGui::Text("open");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1361,7 +1381,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("open", &open, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 7, ctx);
+        return Widget::PropertyUI(i - 8, ctx);
     }
     return changed;
 }
@@ -1371,9 +1391,11 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
 TreeNode::TreeNode(UIContext& ctx)
 {
     flags.add$(ImGuiTreeNodeFlags_Bullet);
+    flags.add$(ImGuiTreeNodeFlags_DefaultOpen);
     //flags.add$(ImGuiTreeNodeFlags_Framed);
     flags.add$(ImGuiTreeNodeFlags_FramePadding);
     flags.add$(ImGuiTreeNodeFlags_Leaf);
+    flags.add$(ImGuiTreeNodeFlags_NoTreePushOnOpen);
     flags.add$(ImGuiTreeNodeFlags_OpenOnArrow);
     flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);
     flags.add$(ImGuiTreeNodeFlags_SpanAllColumns);
@@ -1438,9 +1460,7 @@ void TreeNode::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void TreeNode::DoExport(std::ostream& os, UIContext& ctx)
 {
-    if (open.has_value())
-        os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ", ImGuiCond_Appearing);\n";
-    else if (!open.empty())
+    if (!open.empty())
         os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ");\n";
 
     os << ctx.ind << "if (ImGui::TreeNodeEx(" << label.to_arg() << ", " << flags.to_arg() << "))\n";
