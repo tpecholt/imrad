@@ -153,6 +153,8 @@ struct Widget : UINode
     event<> onItemDeactivated;
     event<> onItemDeactivatedAfterEdit;
     event<> onItemContextMenuClicked;
+    event<> onDragDropSource;
+    event<> onDragDropTarget;
     std::string userCodeBefore, userCodeAfter;
 
     static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);

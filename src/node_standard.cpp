@@ -1449,6 +1449,26 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
     
+    if (!onDragDropSource.empty())
+    {
+        os << ctx.ind << "if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))\n";
+        os << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << onDragDropSource.c_str() << "();\n";
+        os << ctx.ind << "ImGui::EndDragDropSource();\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+    }
+    if (!onDragDropTarget.empty())
+    {
+        os << ctx.ind << "if (ImGui::BeginDragDropTarget())\n";
+        os << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << onDragDropTarget.c_str() << "();\n";
+        os << ctx.ind << "ImGui::EndDragDropTarget();\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+    }
     if (!onItemContextMenuClicked.empty())
     {
         os << ctx.ind << "if (ImRad::IsItemContextMenuClicked())\n";
@@ -1525,12 +1545,23 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
     ctx.parents.push_back(this);
     userCodeBefore = ctx.userCode;
     spacing = -1;
-
+    int ignoreLevel = -1;
+    
     while (sit != cpp::stmt_iterator())
     {
         cpp::stmt_iterator ifBlockIt;
         cpp::stmt_iterator screenPosIt;
 
+        if (ignoreLevel >= 0)
+        {
+            if (sit->level >= ignoreLevel) {
+                ++sit;
+                continue;
+            }
+            else
+                ignoreLevel = -1;
+        }
+        
         if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
         {
             ctx.importState = 1;
@@ -1773,6 +1804,18 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->kind == cpp::Comment && sit->line == "//visible")
             {
                 visible.set_from_arg(ifBlockIt->cond);
+            }
+            else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImGui::BeginDragDropSource")
+            {
+                if (sit->kind == cpp::CallExpr)
+                    onDragDropSource.set_from_arg(sit->callee);
+                ignoreLevel = sit->level;
+            }
+            else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImGui::BeginDragDropTarget")
+            {
+                if (sit->kind == cpp::CallExpr)
+                    onDragDropTarget.set_from_arg(sit->callee);
+                ignoreLevel = sit->level;
             }
             else
             {
@@ -2134,6 +2177,8 @@ Widget::Events()
         { "isItem.doubleClicked", &onItemDoubleClicked },
         { "isItem.focused", &onItemFocused },
         { "isItem.hovered", &onItemHovered },
+        { "dragDrop.source", &onDragDropSource },
+        { "dragDrop.target", &onDragDropTarget },
     };
 }
 
@@ -2191,6 +2236,18 @@ bool Widget::EventUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Hovered", &onItemHovered, 0, ctx);
+        break;
+    case 8:
+        ImGui::Text("Source");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_DragDropSource", &onDragDropSource, 0, ctx);
+        break;
+    case 9:
+        ImGui::Text("Target");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_DragDropTarget", &onDragDropTarget, 0, ctx);
         break;
     default:
         return false;
