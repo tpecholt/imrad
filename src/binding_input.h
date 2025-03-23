@@ -26,10 +26,14 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
     }
 
     bool bound;
-    if constexpr (std::is_same_v<T, std::string> || 
-                  std::is_same_v<T, std::vector<std::string>> ||
-                  std::is_same_v<T, color32>)
+    if constexpr (std::is_same_v<T, std::string> ||
+        std::is_same_v<T, std::vector<std::string>> ||
+        std::is_same_v<T, color32>)
+    {
         bound = !val->used_variables().empty();
+    }
+    else if constexpr (std::is_same_v<T, bool>)
+        bound = !val->empty(); //the default value is usually empty
     else
         bound = !val->empty() && !val->has_value();
     
@@ -604,7 +608,9 @@ inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ct
 
 inline bool InputBindable(bindable<std::string>* val, UIContext& ctx)
 {
-    ImGui::PushFont(!IsAscii(*val->access()) ? ctx.defaultStyleFont : ctx.pgbFont);
+    ImGui::PushFont((ImRad::IsItemDisabled() || !IsAscii(*val->access())) ? 
+        ctx.defaultStyleFont : ctx.pgbFont
+    );
     std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, InputTextCharExprFilter);
     ImGui::PopFont();

@@ -1166,8 +1166,7 @@ void Widget::DrawTools(UIContext& ctx)
 {
     ctx.parents.push_back(this);
     
-    bool selected = stx::count(ctx.selected, this);
-    if (selected)
+    if (ctx.selected.size() == 1 && ctx.selected[0] == this)
     {
         ImGui::PushFont(nullptr);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ctx.appStyle->WindowPadding);
@@ -4401,7 +4400,10 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         break;
     case 8:
-        ImGui::BeginDisabled(type != "std::string" && type != "ImGuiTextFilter");
+        ImGui::BeginDisabled(
+            (type != "std::string" && type != "ImGuiTextFilter") ||
+            (flags & ImGuiInputTextFlags_Multiline)
+        );
         ImGui::Text("hint");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());

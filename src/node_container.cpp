@@ -223,7 +223,12 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::PushFont(ctx.pgbFont);
         std::string label = "[" + std::to_string(columnData.size()) + "]";
-        if (ImRad::Selectable(label.c_str(), false, 0, { -ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        ImGui::Text(label.c_str());
+        ImGui::PopFont();
+        ImGui::SameLine(0, 0);
+        ImGui::Dummy(ImGui::CalcItemSize({ -2 * ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }, 0, 0));
+        ImGui::SameLine(0, 0);
+        if (ImGui::Button("...##columns", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         {
             changed = true;
             tableColumns.columnData = columnData;
@@ -231,7 +236,6 @@ bool Table::PropertyUI(int i, UIContext& ctx)
             tableColumns.font = ctx.defaultStyleFont;
             tableColumns.OpenPopup();
         }
-        ImGui::PopFont();
         break;
     }
     case 9:

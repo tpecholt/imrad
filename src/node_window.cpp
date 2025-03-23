@@ -198,7 +198,8 @@ void TopWindow::Draw(UIContext& ctx)
         }
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
             !ctx.beingResized &&
-            ctx.selStart.x != FLT_MAX) //todo: initiate SnapMove, cursor is out of the widget already
+            ctx.selStart.x != FLT_MAX && //todo: initiate SnapMove, cursor is out of the widget already
+            (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow) || ImGui::IsWindowFocused())) //no RectSel during docking
         {
             ctx.mode = UIContext::RectSelection;
             ctx.selEnd = ImGui::GetMousePos();
