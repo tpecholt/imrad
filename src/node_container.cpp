@@ -5,21 +5,95 @@
 #include "cppgen.h"
 #include "binding_input.h"
 #include "binding_field.h"
-#include "ui_table_columns.h"
+#include "ui_table_cols.h"
 #include "ui_message_box.h"
 #include <algorithm>
 #include <array>
 
 Table::ColumnData::ColumnData()
 {
+    sizingPolicy.add$(ImGuiTableColumnFlags_None);
+    sizingPolicy.add$(ImGuiTableColumnFlags_WidthFixed);
+    sizingPolicy.add$(ImGuiTableColumnFlags_WidthStretch);
+    
     flags.add$(ImGuiTableColumnFlags_AngledHeader);
-    flags.add$(ImGuiTableColumnFlags_Disabled);
+    flags.add$(ImGuiTableColumnFlags_DefaultHide);
+    flags.add$(ImGuiTableColumnFlags_DefaultSort);
+    //flags.add$(ImGuiTableColumnFlags_Disabled);
+    flags.add$(ImGuiTableColumnFlags_NoClip);
+    flags.add$(ImGuiTableColumnFlags_NoHeaderLabel);
     flags.add$(ImGuiTableColumnFlags_NoHeaderWidth);
     flags.add$(ImGuiTableColumnFlags_NoHide);
     flags.add$(ImGuiTableColumnFlags_NoResize);
     flags.add$(ImGuiTableColumnFlags_NoSort);
-    //flags.add$(ImGuiTableColumnFlags_WidthStretch);
-    //flags.add$(ImGuiTableColumnFlags_WidthFixed);
+    flags.add$(ImGuiTableColumnFlags_NoSortAscending);
+    flags.add$(ImGuiTableColumnFlags_NoSortDescending);
+}
+
+Table::ColumnData::ColumnData(const std::string& l, ImGuiTableColumnFlags_ policy, float w)
+    : ColumnData()
+{
+    label = l;
+    sizingPolicy = policy;
+    width = w;
+}
+
+std::vector<UINode::Prop>
+Table::ColumnData::Properties()
+{
+    return {
+        { "behavior.flags", &flags },
+        { "behavior.label", &label },
+        { "behavior.sizingPolicy", &sizingPolicy },
+        { "behavior.width", &width },
+        { "behavior.visible", &visible },
+    };
+}
+
+bool Table::ColumnData::PropertyUI(int i, UIContext& ctx)
+{
+    bool changed = false;
+    int fl;
+    switch (i)
+    {
+    case 0:
+        TreeNodeProp("flags", ctx.pgbFont, "...", [&,this] {
+            ImGui::TableNextColumn();
+            ImGui::Spacing();
+            changed = CheckBoxFlags(&flags, Defaults().flags);
+            });
+        break;
+    case 1:
+        ImGui::Text("label");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
+        break;
+    case 2:
+        ImGui::Text("sizingPolicy");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = sizingPolicy != Defaults().sizingPolicy ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&sizingPolicy, fl, ctx);
+        break;
+    case 3:
+        ImGui::Text("width");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = width - Defaults().width ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&width, fl, ctx);
+        break;
+    case 4:
+        ImGui::Text("visible");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = visible != Defaults().visible ? InputBindable_Modified : 0;
+        changed = InputBindable(&visible, InputBindable_Modified, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("visible", &visible, ctx);
+        break;
+    }
+    return changed;
 }
 
 Table::Table(UIContext& ctx)
@@ -55,7 +129,7 @@ Table::Table(UIContext& ctx)
 
     columnData.resize(3);
     for (size_t i = 0; i < columnData.size(); ++i)
-        columnData[i].label = char('A' + i);
+        columnData[i].label = std::string(1, (char)('A' + i));
 }
 
 std::unique_ptr<Widget> Table::Clone(UIContext& ctx)
@@ -93,8 +167,11 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
         //need to override drawList because when table is in a Child mode its drawList will be drawn on top
         drawList = ImGui::GetWindowDrawList();
 
-        for (size_t i = 0; i < (int)columnData.size(); ++i)
-            ImGui::TableSetupColumn(columnData[i].label.c_str(), columnData[i].flags, columnData[i].width);
+        for (const auto& cd : columnData) {
+            ImGui::TableSetupColumn(cd.label.c_str(), cd.sizingPolicy | cd.flags, cd.width);
+            /*if (!cd.visible.empty())
+                ImGui::TableSetColumnEnabled(i, cd.visible.eval(ctx));*/
+        }
         if (header)
             ImGui::TableHeadersRow();
 
@@ -147,12 +224,16 @@ Table::Properties()
         { "appearance.rowBgAlt", &style_rowBgAlt },
         { "appearance.childBg", &style_childBg },
         { "appearance.cellPadding", &style_cellPadding },
-        { "appearance.header##table", &header },
         { "appearance.rowHeight##table", &rowHeight },
+        { "appearance.font", &style_font },
+        { "appearance.header##table", &header },
         { "behavior.flags##table", &flags },
         { "behavior.columns##table", nullptr },
         { "behavior.rowCount##table", &itemCount.limit },
         { "behavior.rowFilter##table", &rowFilter },
+        { "behavior.scrollFreeze.frz##table", nullptr },
+        { "behavior.scrollFreeze.x##table", &scrollFreeze_x },
+        { "behavior.scrollFreeze.y##table", &scrollFreeze_y },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
         { "bindings.rowIndex##1", &itemCount.index }
         });
@@ -196,12 +277,6 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&style_cellPadding, ctx);
         break;
     case 5:
-        ImGui::Text("header");
-        ImGui::TableNextColumn();
-        fl = header != Defaults().header ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&header, fl, ctx);
-        break;
-    case 6:
         ImGui::Text("rowHeight");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -210,35 +285,51 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("rowHeight", &rowHeight, ctx);
         break;
+    case 6:
+        ImGui::Text("font");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_font, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_font, ctx);
+        break;
     case 7:
+        ImGui::Text("showHeader");
+        ImGui::TableNextColumn();
+        fl = header != Defaults().header ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&header, fl, ctx);
+        break;
+    case 8:
         TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
             ImGui::TableNextColumn();
             ImGui::Spacing();
             changed = CheckBoxFlags(&flags, Defaults().flags);
             });
         break;
-    case 8:
+    case 9:
     {
         ImGui::Text("columns");
         ImGui::TableNextColumn();
         ImGui::PushFont(ctx.pgbFont);
         std::string label = "[" + std::to_string(columnData.size()) + "]";
-        ImGui::Text(label.c_str());
+        /*ImGui::Text(label.c_str());
         ImGui::PopFont();
         ImGui::SameLine(0, 0);
         ImGui::Dummy(ImGui::CalcItemSize({ -2 * ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }, 0, 0));
-        ImGui::SameLine(0, 0);
-        if (ImGui::Button("...##columns", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        ImGui::SameLine(0, 0);*/
+        if (ImRad::Selectable((label + "##columns").c_str(), false, 0, { -ImGui::GetFrameHeight(), 0 }))
         {
             changed = true;
-            tableColumns.columnData = columnData;
-            tableColumns.target = &columnData;
-            tableColumns.font = ctx.defaultStyleFont;
-            tableColumns.OpenPopup();
+            tableCols.ctx = &ctx;
+            tableCols.columns = columnData;
+            tableCols.OpenPopup([this](ImRad::ModalResult mr) {
+                columnData = tableCols.columns;
+                });
         }
+        ImGui::PopFont();
         break;
     }
-    case 9:
+    case 10:
         ImGui::Text("rowCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -246,7 +337,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("rowCount", &itemCount.limit, ctx);
         break;
-    case 10:
+    case 11:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("rowFilter");
         ImGui::TableNextColumn();
@@ -257,13 +348,40 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("rowFilter", &rowFilter, ctx);
         ImGui::EndDisabled();
         break;
-    case 11:
+    case 12:
+    {
+        ImGui::Text("scrollFreeze");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        std::string tmp = std::to_string(scrollFreeze_x) + ", " +
+            std::to_string(scrollFreeze_y);
+        fl = scrollFreeze_x != Defaults().scrollFreeze_x || scrollFreeze_y != Defaults().scrollFreeze_y;
+        ImGui::PushFont(fl ? ctx.pgbFont : ctx.pgFont);
+        ImGui::TextUnformatted(tmp.c_str());
+        ImGui::PopFont();
+        break;
+    }
+    case 13:
+        ImGui::Text("columns");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = scrollFreeze_x ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&scrollFreeze_x, fl, ctx);
+        break;
+    case 14:
+        ImGui::Text("rows");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = scrollFreeze_y ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&scrollFreeze_y, fl, ctx);
+        break;
+    case 15:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
-    case 12:
+    case 16:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("rowIndex");
         ImGui::TableNextColumn();
@@ -272,7 +390,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     default:
-        return Widget::PropertyUI(i - 13, ctx);
+        return Widget::PropertyUI(i - 17, ctx);
     }
     return changed;
 }
@@ -284,6 +402,7 @@ Table::Events()
     props.insert(props.begin(), {
         { "table.beginRow", &onBeginRow },
         { "table.endRow", &onEndRow }, 
+        { "table.sortSpecs", &onSortSpecs },
         });
     return props;
 }
@@ -305,8 +424,16 @@ bool Table::EventUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_EndRow", &onEndRow, 0, ctx);
         break;
+    case 2:
+        ImGui::BeginDisabled(!(flags & ImGuiTableFlags_Sortable));
+        ImGui::Text("SortSpecs");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_SortSpecs", &onSortSpecs, 0, ctx);
+        ImGui::EndDisabled();
+        break;
     default:
-        return Widget::EventUI(i - 2, ctx);
+        return Widget::EventUI(i - 3, ctx);
     }
     return changed;
 }
@@ -359,9 +486,21 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
     for (const auto& cd : columnData)
     {
-        os << ctx.ind << "ImGui::TableSetupColumn(\"" << cd.label << "\", "
-            << cd.flags.to_arg() << ", ";
-        if (cd.flags & ImGuiTableColumnFlags_WidthFixed) {
+        std::string fl;
+        if (cd.sizingPolicy)
+            fl += cd.sizingPolicy.to_arg() + " | ";
+        if (cd.flags)
+            fl += cd.flags.to_arg() + " | ";
+        if (!cd.visible.empty())
+            fl += "(" + cd.visible.to_arg() + " ? 0 : ImGuiTableColumnFlags_Disabled) | ";
+        if (fl != "")
+            fl.resize(fl.size() - 3);
+        else
+            fl = "0";
+        
+        os << ctx.ind << "ImGui::TableSetupColumn(" << cd.label.to_arg() << ", "
+            << fl << ", ";
+        if (cd.sizingPolicy == ImGuiTableColumnFlags_WidthFixed) {
             direct_val<dimension> dim(cd.width);
             os << dim.to_arg(ctx.unit);
         }
@@ -369,8 +508,18 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             os << cd.width;
         os << ");\n";
     }
+    os << ctx.ind << "ImGui::TableSetupScrollFreeze(" << scrollFreeze_x.to_arg() << ", "
+        << scrollFreeze_y.to_arg() << ");\n";
     if (header)
         os << ctx.ind << "ImGui::TableHeadersRow();\n";
+
+    if (!onSortSpecs.empty() && (flags & ImGuiTableFlags_Sortable)) 
+    {
+        os << ctx.ind << "if (auto* specs = ImGui::TableGetSortSpecs())\n";
+        ctx.ind_up();
+        os << ctx.ind << onSortSpecs.to_arg() << "(*specs);\n";
+        ctx.ind_down();
+    }
 
     if (!itemCount.empty())
     {
@@ -496,17 +645,27 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableSetupColumn")
     {
         ColumnData cd;
-        cd.label = cpp::parse_str_arg(sit->params[0]);
+        cd.label.set_from_arg(sit->params[0]);
         
-        if (sit->params.size() >= 2)
+        if (sit->params.size() >= 2) {
+            cd.sizingPolicy.set_from_arg(sit->params[1]);
             cd.flags.set_from_arg(sit->params[1]);
-        
-        if (sit->params.size() >= 3) {
-            std::istringstream is(sit->params[2]);
-            is >> cd.width;
+            size_t i = sit->params[1].find("(");
+            if (i != std::string::npos) {
+                size_t j = sit->params[1].find("? 0 :", i);
+                std::string expr = sit->params[1].substr(i + 1, j - i - 1);
+                cd.visible.set_from_arg(Trim(expr));
+            }
         }
         
         columnData.push_back(std::move(cd));
+    }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableSetupScrollFreeze")
+    {
+        if (sit->params.size() >= 1)
+            scrollFreeze_x.set_from_arg(sit->params[0]);
+        if (sit->params.size() >= 2)
+            scrollFreeze_y.set_from_arg(sit->params[1]);
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableHeadersRow")
     {
@@ -516,6 +675,10 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 2)
             rowHeight.set_from_arg(sit->params[1]);
+    }
+    else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::TableGetSortSpecs")
+    {
+        onSortSpecs.set_from_arg(sit->callee2);
     }
     else if (sit->kind == cpp::ForBlock)
     {

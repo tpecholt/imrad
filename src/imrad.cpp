@@ -31,7 +31,7 @@
 #include "ui_new_field.h"
 #include "ui_message_box.h"
 #include "ui_class_wizard.h"
-#include "ui_table_columns.h"
+#include "ui_table_cols.h"
 #include "ui_about_dlg.h"
 #include "ui_binding.h"
 #include "ui_combo_dlg.h"
@@ -1874,7 +1874,7 @@ void PopupUI()
 {
     newFieldPopup.Draw();
 
-    tableColumns.Draw();
+    tableCols.Draw();
 
     comboDlg.Draw();
 

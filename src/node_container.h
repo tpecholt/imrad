@@ -5,19 +5,26 @@ struct Table : Widget
 {
     struct ColumnData 
     {
-        std::string label;
+        direct_val<std::string> label = "";
+        bindable<bool> visible;
+        direct_val<int> sizingPolicy = 0;
+        direct_val<float> width = 0;
         flags_helper flags = 0;
-        float width = 0;
+
         ColumnData();
-        ColumnData(std::string_view l, int f, float w = 0) : ColumnData() {
-            label = l; flags = f; width = w; 
-        }
+        ColumnData(const std::string& l, ImGuiTableColumnFlags_ sizingPolicy, float w = 0);
+        const ColumnData& Defaults() const { static ColumnData cd; return cd; }
+        auto Properties()->std::vector<Prop>;
+        bool PropertyUI(int i, UIContext& ctx);
     };
+
     flags_helper flags = ImGuiTableFlags_Borders;
     std::vector<ColumnData> columnData;
     direct_val<bool> header = true;
     bindable<bool> rowFilter;
     bindable<dimension> rowHeight = 0;
+    direct_val<int> scrollFreeze_x = 0;
+    direct_val<int> scrollFreeze_y = 0;
     direct_val<bool> scrollWhenDragging = false;
     direct_val<pzdimension2> style_cellPadding;
     bindable<color32> style_headerBg;
@@ -26,6 +33,7 @@ struct Table : Widget
     bindable<color32> style_childBg;
     event<> onBeginRow;
     event<> onEndRow;
+    event<void(ImGuiTableSortSpecs&)> onSortSpecs;
 
     Table(UIContext&);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

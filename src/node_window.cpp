@@ -4,7 +4,6 @@
 #include "cppgen.h"
 #include "binding_input.h"
 #include "binding_field.h"
-#include "ui_table_columns.h"
 #include "ui_message_box.h"
 #include <algorithm>
 #include <array>
