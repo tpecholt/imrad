@@ -65,6 +65,14 @@ struct File
     std::string styleName;
     std::string unit;
 };
+struct ExplorerEntry 
+{
+    std::string path;
+    bool folder;
+    std::string fileName;
+    std::time_t last_write_time;
+    std::string modified;
+};
 
 enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
@@ -79,6 +87,11 @@ UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
+std::string explorerPath;
+int explorerFilter = 0;
+std::vector<ExplorerEntry> explorerData;
+ImGuiTableColumnSortSpecs explorerSorting;
+bool explorerScrollBack = false;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 std::string styleName;
 bool reloadStyle = true;
@@ -335,7 +348,7 @@ void NewTemplate(int type)
         DoNewTemplate(type, "");
 }
 
-void DoOpenFile(const std::string& path, std::string* errs = nullptr)
+bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
 {
     if (!fs::is_regular_file(u8path(path))) {
         if (errs)
@@ -346,7 +359,7 @@ void DoOpenFile(const std::string& path, std::string* errs = nullptr)
             messageBox.buttons = ImRad::Ok;
             messageBox.OpenPopup();
         }
-        return;
+        return false;
     }
 
     File file;
@@ -369,7 +382,7 @@ void DoOpenFile(const std::string& path, std::string* errs = nullptr)
             messageBox.buttons = ImRad::Ok;
             messageBox.OpenPopup();
         }
-        return;
+        return false;
     }
     
     bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
@@ -402,6 +415,7 @@ void DoOpenFile(const std::string& path, std::string* errs = nullptr)
             messageBox.OpenPopup();
         }
     }
+    return true;
 }
 
 void OpenFile()
@@ -835,14 +849,17 @@ void LoadStyle()
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.5f, &cfg);
     strcpy(cfg.Name, "imrad.H3");
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.1f, &cfg);
-    //TODO
-    //cfg.OversampleH = 1;
-    //cfg.OversampleV = 1;
+    
     strcpy(cfg.Name, "imrad.pg");
     ctx.pgFont = io.Fonts->AddFontFromFileTTF((stylePath + pgFontName).c_str(), pgFontSize, &cfg);
     strcpy(cfg.Name, "imrad.pgb");
     ctx.pgbFont = io.Fonts->AddFontFromFileTTF((stylePath + pgbFontName).c_str(), pgFontSize, &cfg);
-    
+    strcpy(cfg.Name, "imrad.explorer");
+    io.Fonts->AddFontFromFileTTF((stylePath + "Roboto-Regular.ttf").c_str(), uiFontSize, &cfg);
+    cfg.MergeMode = true;
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
+    cfg.MergeMode = false;
+
     ctx.defaultStyleFont = nullptr;
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
@@ -1037,6 +1054,7 @@ void DockspaceUI()
         
         ImGui::DockBuilderDockWindow("FileTabs", dock_id_top);
         ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
+        ImGui::DockBuilderDockWindow("Explorer", dock_id_left);
         ImGui::DockBuilderDockWindow("Widgets", dock_id_right1);
         ImGui::DockBuilderDockWindow("Properties", dock_id_right2);
         ImGui::DockBuilderDockWindow("Events", dock_id_right2);
@@ -1348,11 +1366,6 @@ void ToolbarUI()
 
 void TabsUI()
 {
-    /*ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + TB_SIZE));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, TAB_SIZE));
-    ImGui::SetNextWindowViewport(viewport->ID);
-    */
     ImGuiWindowFlags window_flags = 0
         //| ImGuiWindowFlags_NoDocking
         | ImGuiWindowFlags_NoTitleBar
@@ -1435,6 +1448,167 @@ void TabsUI()
     else
         ImGui::PopStyleVar();
     ImGui::End();
+}
+
+void ReloadExplorer()
+{
+    explorerScrollBack = true;
+    explorerData.clear();
+    std::error_code ec;
+    std::ostringstream os;
+    os.imbue(std::locale(""));
+    for (fs::directory_iterator it(u8path(explorerPath), ec); it != fs::directory_iterator(); ++it)
+    {
+        if (u8string(it->path().stem())[0] == '.')
+            continue;
+        if (!it->is_directory() &&
+            (!explorerFilter && it->path().extension() != ".h" && it->path().extension() != ".hpp"))
+            continue;
+        ExplorerEntry entry;
+        entry.path = generic_u8string(it->path());
+        entry.folder = it->is_directory();
+        entry.fileName = u8string(it->path().filename());
+        entry.last_write_time = it->last_write_time().time_since_epoch() / std::chrono::seconds(1);
+        auto* tm = std::localtime(&entry.last_write_time);
+        os.str("");
+        os << std::put_time(tm, "%c");
+        entry.modified = os.str();
+        explorerData.push_back(std::move(entry));
+    }
+    stx::sort(explorerData, [](const ExplorerEntry& a, const ExplorerEntry& b) {
+        if (a.folder != b.folder)
+            return a.folder;
+        if (!explorerSorting.ColumnIndex) {
+            if (explorerSorting.SortDirection == ImGuiSortDirection_Ascending)
+                return path_cmp(a.fileName, b.fileName);
+            else
+                return path_cmp(b.fileName, a.fileName);
+        }
+        else {
+            if (explorerSorting.SortDirection == ImGuiSortDirection_Ascending)
+                return a.last_write_time < b.last_write_time;
+            else
+                return a.last_write_time > b.last_write_time;
+        }    
+        });
+    if (!u8path(explorerPath).relative_path().empty()) {
+        std::string ppath = u8string(u8path(explorerPath).parent_path());
+        explorerData.insert(explorerData.begin(), { ppath, true, ".." });
+    }
+}
+
+void ExplorerUI()
+{
+    if (explorerPath == "")
+        explorerPath = rootPath;
+    if (explorerData.empty())
+        ReloadExplorer();
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 4, 4 });
+    ImGui::Begin("Explorer");
+
+    ImGui::SetNextItemWidth(-ImGui::GetFrameHeight()-2);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
+    ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+    int fl = ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackCharFilter;
+    ImGui::InputText("##cwd", &explorerPath, fl, DefaultCharFilter);
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar();
+    if (ImGui::IsItemDeactivatedAfterEdit())
+       ReloadExplorer();
+
+    ImGui::SameLine(0, 2);
+    ImGui::PushStyleColor(ImGuiCol_Text, 0xff404040);
+    if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##ego"))
+        ReloadExplorer();
+    ImGui::PopStyleColor();
+
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0xffffffff);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0xffffffff);
+    if (explorerScrollBack) {
+        explorerScrollBack = false;
+        ImGui::SetNextWindowScroll({ 0, 0 });
+    }
+    float h = -ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.y;
+    if (ImGui::BeginTable("files", 2, ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { -1, h }))
+    {
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1);
+        ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 0);
+        ImGui::TableSetupScrollFreeze(0, 1);
+        auto* spec = ImGui::TableGetSortSpecs();
+        if (spec && spec->SpecsDirty) {
+            spec->SpecsDirty = false;
+            explorerSorting = *spec->Specs;
+            ReloadExplorer();
+        }
+        ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
+        ImGui::TableHeadersRow();
+        ImGui::PopItemFlag();
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+
+        ImGui::PushFont(ImRad::GetFontByName("imrad.explorer"));
+        int n = 0;
+        for (const auto& entry : explorerData)
+        {
+            ImGui::PushID(n++);
+            
+            std::string ext;
+            bool isHeader = false;
+            if (!entry.folder) {
+                size_t i = entry.path.rfind('.');
+                ext = i != std::string::npos ? entry.path.substr(i) : "";
+                isHeader = !entry.folder && (ext == ".h" || ext == ".hpp");
+            }
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                entry.folder ? 0xff40b0b0 : 
+                isHeader ? 0xffd06060 :
+                0xff609060
+            );
+            ImGui::Selectable(entry.folder ? ICON_FA_FOLDER : isHeader ? ICON_FA_FILE_LINES : ICON_FA_FILE, 
+                false, ImGuiSelectableFlags_SpanAllColumns);
+            ImGui::PopStyleColor();
+            if (ImRad::IsItemDoubleClicked() ||
+                (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
+            {
+                
+                if (entry.folder) {
+                    explorerPath = entry.path;
+                    ReloadExplorer();
+                    ImGui::PopID();
+                    break;
+                }
+                else if (isHeader) {
+                    std::string errors;
+                    if (!DoOpenFile(entry.path, &errors))
+                        ShellExec(entry.path);
+                }
+                else {
+                    ShellExec(entry.path);
+                }
+            }
+            ImGui::SameLine(0, 4);
+            ImGui::Selectable(entry.fileName.c_str(), false);
+            ImGui::TableNextColumn();
+            ImGui::Selectable(entry.modified.c_str(), false, ImGuiSelectableFlags_Disabled);
+            ImGui::TableNextColumn();
+            ImGui::PopID();
+        }
+        ImGui::PopFont();
+        ImGui::EndTable();
+    }
+    ImGui::PopStyleColor(2);
+
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
+    ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::Combo("##filter", &explorerFilter, "H Files (*.h,*.hpp)\0All Files (*.*)\0"))
+        ReloadExplorer();
+    ImGui::PopStyleColor(2);
+
+    ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 void HierarchyUI()
@@ -2237,6 +2411,16 @@ void AddINIHandler()
                     ActivateTab(i);
                 }
             }
+            else if (!strcmp((const char*)entry, "Explorer")) {
+                if (!strncmp(line, "Path=", 5))
+                    explorerPath = line + 5;
+                else if (sscanf(line, "Filter=%d", &explorerFilter) == 1)
+                    line;
+                else if (sscanf(line, "SortColumn=%hd", &explorerSorting.ColumnIndex) == 1)
+                    line;
+                else if (sscanf(line, "SortDir=%hhd", &explorerSorting.SortDirection) == 1)
+                    line;
+            }
             else if (!strcmp((const char*)entry, "UI")) {
                 if (!strncmp(line, "FontName=", 9))
                     uiFontName = line + 9;
@@ -2258,6 +2442,13 @@ void AddINIHandler()
                 buf->appendf("File%d=%s\n", i+1, fileTabs[i].fname.c_str());
             }
             buf->appendf("ActiveTab=%d\n", activeTab);
+            buf->append("\n");
+
+            buf->append("[ImRAD][Explorer]\n");
+            buf->appendf("Path=%s\n", explorerPath.c_str());
+            buf->appendf("Filter=%d\n", explorerFilter);
+            buf->appendf("SortColumn=%d\n", explorerSorting.ColumnIndex);
+            buf->appendf("SortDir=%d\n", explorerSorting.SortDirection);
             buf->append("\n");
 
             buf->append("[ImRAD][UI]\n");
@@ -2433,6 +2624,7 @@ int main(int argc, const char* argv[])
         ToolbarUI();
         TabsUI();
         HierarchyUI();
+        ExplorerUI();
         PropertyUI();
         PopupUI();
         Work();

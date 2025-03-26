@@ -90,6 +90,24 @@ namespace stx {
     }
 
     template <class C, class F>
+    decltype(auto) sort(C& c, F&& f)
+    {
+        return std::sort(std::begin(c), std::end(c), std::forward<F>(f));
+    }
+
+    template <class C>
+    decltype(auto) stable_sort(C& c)
+    {
+        return std::stable_sort(std::begin(c), std::end(c));
+    }
+
+    template <class C, class F>
+    decltype(auto) stable_sort(C& c, F&& f)
+    {
+        return std::stable_sort(std::begin(c), std::end(c), std::forward<F>(f));
+    }
+    
+    template <class C, class F>
     decltype(auto) for_each(C& c, F&& f)
     {
         return std::for_each(std::begin(c), std::end(c), std::forward<F>(f));

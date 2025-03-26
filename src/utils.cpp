@@ -6,6 +6,8 @@
 #include <Windows.h>
 #include <shellapi.h>
 #endif
+#undef min
+#undef max
 
 void ShellExec(const std::string& path)
 {
@@ -143,5 +145,26 @@ std::string generic_u8string(const fs::path& p)
     return std::string((const char*)p.generic_u8string().data());
 #else
     return p.generic_u8string();
+#endif
+}
+
+bool path_cmp(const std::string& a, const std::string& b)
+{
+#ifdef WIN32
+    size_t n = std::min(a.size(), b.size());
+    for (size_t i = 0; i < n; ++i)
+    {
+        int ca = a[i];
+        int cb = b[i];
+        if (ca >= 'a' && ca <= 'z')
+            ca += 'A' - 'a';
+        if (cb >= 'a' && cb <= 'z')
+            cb += 'A' - 'a';
+        if (ca != cb)
+            return ca < cb;
+    }
+    return b.size() > a.size();
+#else
+    return a < b;
 #endif
 }

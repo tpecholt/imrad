@@ -103,3 +103,4 @@ std::string Trim(std::string_view str);
 fs::path u8path(std::string_view s);
 std::string u8string(const fs::path& p);
 std::string generic_u8string(const fs::path& p);
+bool path_cmp(const std::string& a, const std::string& b);
