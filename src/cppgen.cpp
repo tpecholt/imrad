@@ -630,7 +630,7 @@ CppGen::ExportCpp(
                 preamble = false;
                 line.push_back(tok);
             }
-        }
+        } //if (!level)
         else if (tok == "{") {
             ++level;
         }
@@ -1005,14 +1005,20 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
         //currently we allow generated Close/Popup in event handler list
         if (stx::count(SPEC_FUN, name) && name != "Close" && name != "ClosePopup")
             return false;
-        
-        std::string type = line[0] + "(";
+
+        //primitive arguments parser
+        //doesn't handle function pointers or template types argument expressions
+        std::string argTypes;
         bool ignore = false;
         bool typeValid = false;
+        bool gotId = false;
+        int level = 0;
         for (size_t i = 3; i < line.size() - 1; ++i)
         {
-            if (line[i] == ",") { //todo: && !level
+            if (line[i] == "," && !level) {
                 ignore = false;
+                gotId = false;
+                argTypes += ",";
                 continue;
             }
             if (ignore)
@@ -1021,16 +1027,24 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
                 ignore = true;
                 continue;
             }
-            if (cpp::is_id(line[i]) && line[i] != "const" && typeValid) { //skip argument name
+            if (cpp::is_id(line[i]) && typeValid) { //skip argument name
                 ignore = true;
                 continue;
             }
-            type += line[i];
-            typeValid = type != "const" &&
+            argTypes += line[i];
+            if (line[i] == "const")
+                argTypes += " ";
+            if (cpp::is_id(line[i]))
+                gotId = true;
+            if (line[i] == "<")
+                ++level;
+            if (line[i] == ">")
+                --level;
+            typeValid = gotId && !level &&
                 (cpp::is_id(line[i]) || 
                 line[i] == ">" || line[i] == "&" || line[i] == "*");
         }
-        type += ")";
+        std::string type = line[0] + "(" + argTypes + ")";
 
         CreateNamedVar(name, type, "", flags, sname);
     }

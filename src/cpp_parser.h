@@ -13,7 +13,7 @@ namespace cpp
     
     inline bool is_id(std::string_view s)
     {
-        if (s.empty() || s == "true" || s == "false")
+        if (s.empty() || s == "true" || s == "false" || s == "const")
             return false;
         if (s[0] < 0 || (!std::isalpha(s[0]) && s[0] != '_'))
             return false;
@@ -72,6 +72,7 @@ namespace cpp
                 return *this;
             int in_comment = 0; //1 - //, 2 - /*
             bool in_string = false;
+            bool in_char = false;
             bool in_pre = false;
             bool in_num = false;
             bool first_n = true;
@@ -108,7 +109,7 @@ namespace cpp
                 {
                     if (line_mode) //receive verbatim
                         tok += c;
-                    else if (in_comment || in_string || in_pre)
+                    else if (in_comment || in_pre || in_string || in_char)
                         tok += c;
                     else if (tok.empty()) //skip initial ws
                         continue;
@@ -137,7 +138,12 @@ namespace cpp
                     {
                         break;
                     }
-                    else if (!in_comment && !in_string && !in_pre && !line_mode)
+                    else if (in_char && c == '\'')
+                    {
+                        break;
+                    }
+                    else if (!in_comment && !in_string && !in_char && !in_pre && 
+                        !line_mode)
                     {
                         if (!tok.compare(0, 2, "//")) {
                             tok = "";
@@ -155,6 +161,15 @@ namespace cpp
                                 break;
                             }
                             in_string = true;
+                        }
+                        else if (c == '\'')
+                        {
+                            if (tok.size() >= 2) {
+                                tok.resize(tok.size() - 1);
+                                in->putback(c);
+                                break;
+                            }
+                            in_char = true;
                         }
                         else if (c == '#')
                         {

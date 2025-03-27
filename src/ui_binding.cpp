@@ -105,8 +105,9 @@ void BindingDlg::Draw()
         /// @begin Table
         if (ImGui::BeginTable("table1", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 0, -48 }))
         {
-            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0);
-            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None, 0);
+            ImGui::TableSetupColumn("Name", 0, 0);
+            ImGui::TableSetupColumn("Type", 0, 0);
+            ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableHeadersRow();
 
             for (int i = 0; i < vars.size(); ++i)
@@ -157,8 +158,8 @@ void BindingDlg::Draw()
         /// @end Spacer
 
             bool exprValid = true;
-            if (type == "bool" || type == "float" || type == "int")
-                exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });
+            /*if (type == "bool" || type == "float" || type == "int")
+                exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });*/
             //combo.items requires carefully embedded nulls so disable editing here
             if (type == "std::vector<std::string>" && 
                 (expr.empty() || expr[0] != '{' || expr.find('{', 1) != std::string::npos || expr.back() != '}')) 
@@ -238,3 +239,4 @@ void BindingDlg::ResetLayout()
     hb5.Reset();
 }
 
+ 

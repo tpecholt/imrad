@@ -1222,18 +1222,20 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 15:
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size");
         ImGui::TableNextColumn();
-        ImGui::PushFont(size_x != Defaults().size_x || size_y != Defaults().size_y ?
+        fl = size_x != Defaults().size_x || size_y != Defaults().size_y;
+        ImGui::PushFont(!ImRad::IsItemDisabled() && fl ?
             ctx.pgbFont : ctx.pgFont);
         ImGui::TextUnformatted((size_x.to_arg("") + ", " + size_y.to_arg("")).c_str());
         ImGui::PopFont();
+        ImGui::EndDisabled();
         break;
     case 16:
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
-        //sometimes too many props are disabled so disable only value here to make it look better
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = size_x != Defaults().size_x ? InputBindable_Modified : 0;
         changed = InputBindable(&size_x, fl, ctx);
@@ -1242,10 +1244,9 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 17:
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
-        //sometimes too many props are disabled so disable only value here to make it look better
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || (kind == MainWindow && placement == Maximize));
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = size_y != Defaults().size_y ? InputBindable_Modified : 0;
         changed = InputBindable(&size_y, fl, ctx);

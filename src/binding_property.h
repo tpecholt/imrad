@@ -360,7 +360,7 @@ struct direct_val<std::string> : property_base
         val = cpp::parse_str_arg(s);
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
-        return cpp::to_str_arg(val);
+        return "\"" + cpp::escape(val) + "\"";
     }
     std::vector<std::string> used_variables() const {
         return {};

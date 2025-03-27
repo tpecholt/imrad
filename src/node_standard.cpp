@@ -1435,7 +1435,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     if (!tooltip.empty())
     {
-        os << ctx.ind << "if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))\n";
+        os << ctx.ind << "if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))\n";
         ctx.ind_up();
         os << ctx.ind << "ImGui::SetTooltip(" << tooltip.to_arg() << ");\n";
         ctx.ind_down();
@@ -1529,6 +1529,25 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         ctx.ind_down();
         os << ctx.ind << "}\n";
+        
+        //try to compensate row spacing with hidden leftmost widget
+        //in case next widget is hidden too spacing_x compensation may not be correct
+        /*auto* parent = ctx.parents.back();
+        size_t i = parent->FindChild(this)->second;
+        const auto* next = i + 1 < parent->children.size() ? 
+            dynamic_cast<Widget*>(parent->children[i + 1].get()) : nullptr;
+        if ((Behavior() & SnapSides) && l.Leftmost && 
+            next && next->sameLine)
+        {
+            os << ctx.ind << "else\n";
+            os << ctx.ind << "{\n";
+            ctx.ind_up();
+            if (spacing - defSpacing)
+                os << ctx.ind << "ImRad::Spacing(" << (spacing - defSpacing) << ");\n";
+            os << ctx.ind << "ImGui::Dummy({ -" << next->spacing << " * ImGui::GetStyle().ItemSpacing.x, 0 });\n";
+            ctx.ind_down();
+            os << ctx.ind << "}\n";
+        }*/
     }
 
     os << ctx.ind << "/// @end " << stype << "\n\n";
@@ -2168,14 +2187,14 @@ std::vector<UINode::Prop>
 Widget::Events()
 {
     return {
-        { "isItem.activated", &onItemActivated },
-        { "isItem.clicked", &onItemClicked },
-        { "isItem.contextMenuClicked", &onItemContextMenuClicked },
-        { "isItem.deactivated", &onItemDeactivated },
-        { "isItem.deactivatedAfterEdit", &onItemDeactivatedAfterEdit },
-        { "isItem.doubleClicked", &onItemDoubleClicked },
-        { "isItem.focused", &onItemFocused },
-        { "isItem.hovered", &onItemHovered },
+        { "item.activated", &onItemActivated },
+        { "item.clicked", &onItemClicked },
+        { "item.contextMenuClicked", &onItemContextMenuClicked },
+        { "item.deactivated", &onItemDeactivated },
+        { "item.deactivatedAfterEdit", &onItemDeactivatedAfterEdit },
+        { "item.doubleClicked", &onItemDoubleClicked },
+        { "item.focused", &onItemFocused },
+        { "item.hovered", &onItemHovered },
         { "dragDrop.source", &onDragDropSource },
         { "dragDrop.target", &onDragDropTarget },
     };
@@ -3149,7 +3168,8 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
     
     if (arrowDir != ImGuiDir_None)
     {
-        os << "ImGui::ArrowButton(\"##" << label.c_str() << "\", " << arrowDir.to_arg() << ")";
+        os << "ImGui::ArrowButton(\"##" << std::to_string((uint64_t)this) 
+            << "\", " << arrowDir.to_arg() << ")";
     }
     else if (small)
     {
@@ -3225,6 +3245,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         sit->callee == "ImGui::ArrowButton")
     {
         ctx.importLevel = sit->level;
+        label = "";
         if (sit->params.size() >= 2)
             arrowDir.set_from_arg(sit->params[1]);
     }
@@ -3353,6 +3374,8 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = arrowDir != Defaults().arrowDir ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&arrowDir, fl, ctx);
+        if (changed && arrowDir != ImGuiDir_None)
+            label = "";
         break;
     case 11:
         ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
