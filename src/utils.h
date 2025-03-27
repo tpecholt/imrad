@@ -92,7 +92,7 @@ inline void HashCombineData(ImU32& hash, T data)
 
 void ShellExec(const std::string& path);
 
-int InputTextCharExprFilter(ImGuiInputTextCallbackData* data);
+int DefaultCharFilter(ImGuiInputTextCallbackData* data);
 
 std::string CodeShortcut(std::string_view sh);
 std::string ParseShortcut(std::string_view line);

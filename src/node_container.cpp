@@ -57,11 +57,7 @@ bool Table::ColumnData::PropertyUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&,this] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 1:
         ImGui::Text("label");
@@ -300,11 +296,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&header, fl, ctx);
         break;
     case 8:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 9:
     {
@@ -1060,41 +1052,35 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&columnBorder, fl, ctx);
         break;
     case 8:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            int ch = CheckBoxFlags(&flags, Defaults().flags);
-            if (ch) {
-                changed = true;
-                //these flags are difficult to get right and there are asserts so fix it here
-                if (ch == ImGuiChildFlags_AutoResizeX || ch == ImGuiChildFlags_AutoResizeY) {
-                    if (flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY))
-                        flags |= ImGuiChildFlags_AlwaysAutoResize;
-                    else
-                        flags &= ~ImGuiChildFlags_AlwaysAutoResize;
-                }
-                if (ch == ImGuiChildFlags_AlwaysAutoResize) {
-                    if (flags & ImGuiChildFlags_AlwaysAutoResize) {
-                        if (!(flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY)))
-                            flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY;
-                    }
-                    else
-                        flags &= ~(ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
-                }
-                //
-                if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX))
-                    size_x = 0;
-                if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY))
-                    size_y = 0;
+    {
+        int ch = InputFlags("flags", &flags, Defaults().flags, ctx);
+        if (ch) {
+            changed = true;
+            //these flags are difficult to get right and there are asserts so fix it here
+            if (ch == ImGuiChildFlags_AutoResizeX || ch == ImGuiChildFlags_AutoResizeY) {
+                if (flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY))
+                    flags |= ImGuiChildFlags_AlwaysAutoResize;
+                else
+                    flags &= ~ImGuiChildFlags_AlwaysAutoResize;
             }
-            });
+            if (ch == ImGuiChildFlags_AlwaysAutoResize) {
+                if (flags & ImGuiChildFlags_AlwaysAutoResize) {
+                    if (!(flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY)))
+                        flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY;
+                }
+                else
+                    flags &= ~(ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
+            }
+            //
+            if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX))
+                size_x = 0;
+            if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY))
+                size_y = 0;
+        }
         break;
+    }
     case 9:
-        TreeNodeProp("windowFlags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&wflags, Defaults().flags);
-            });
+        changed = InputFlags("windowFlags", &wflags, Defaults().wflags, ctx);
         break;
     case 10:
         ImGui::Text("columnCount");
@@ -1524,11 +1510,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 6:
         ImGui::Text("label");
@@ -1701,11 +1683,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 2:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&]{
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 3:
         ImGui::Text("label");
@@ -1986,11 +1964,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 8:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 9:
         ImGui::Text("tabCount");

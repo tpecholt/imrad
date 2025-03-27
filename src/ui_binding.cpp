@@ -223,7 +223,7 @@ void BindingDlg::OnVarClicked()
 
 int BindingDlg::OnTextInputFilter(ImGuiInputTextCallbackData& data)
 {
-    return InputTextCharExprFilter(&data);
+    return DefaultCharFilter(&data);
 }
 
 void BindingDlg::Init()

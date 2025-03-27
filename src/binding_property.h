@@ -11,23 +11,6 @@
 #include "binding_type.h"
 
 
-template <class T>
-struct two_step
-{
-public:
-    T* access() { return &newVal; }
-    const T& value() { return val; }
-    const T& new_value() { return newVal; }
-    void commit(const T& v) { newVal = v; commit(); }
-    void commit() { val = newVal; }
-    void revert() { newVal = val; }
-private:
-    T val{};
-    T newVal{};
-}; 
-
-//------------------------------------------------------------
-
 struct property_base
 {
     virtual std::string to_arg(std::string_view a = "", std::string_view b = "") const = 0;
@@ -111,6 +94,9 @@ struct direct_val : property_base
 {
     direct_val(T v) : val(v) {}
     
+    void clear() {
+        ids.clear();
+    }
     direct_val& add(const char* id, T v) {
         ids.push_back({ id, v });
         return *this;
@@ -120,6 +106,11 @@ struct direct_val : property_base
         static std::string none;
         auto it = stx::find_if(ids, [this](const auto& id) { return id.second == val; });
         return it != ids.end() ? it->first : none;
+    }
+    void set_id(const std::string& v) {
+        auto it = stx::find_if(ids, [&v](const auto& id) { return id.first == v; });
+        if (it != ids.end())
+            val = it->second;
     }
 
     operator T&() { return val; }

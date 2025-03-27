@@ -1,4 +1,5 @@
 #include "node_window.h"
+#include "node_container.h"
 #include "stx.h"
 #include "imrad.h"
 #include "cppgen.h"
@@ -1145,45 +1146,27 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         break;
     case 9:
     {
-        //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(164, 164, 164, 255));
         ImGui::Text("kind");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(kind != Defaults().kind ? ctx.pgbFont : ctx.pgFont);
-        if (ImGui::BeginCombo("##kind", kind.get_id().c_str()))
-        {
-            ImGui::PopFont();
-            ImGui::PushFont(ctx.pgFont);
-            for (const auto& item : kind.get_ids())
-            {
-                if (ImGui::Selectable(item.first.c_str(), item.second == kind)) {
-                    changed = true;
-                    kind = item.second;
-                }
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::PopFont();
+        fl = kind != Defaults().kind ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&kind, fl, ctx);
         break;
     }
     case 10:
     {
-        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
-        TreeNodeProp("flags", font, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
-            bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
-            ImGui::PushFont(ImRad::GetFontByName(
-                flags != Defaults().flags ? "imrad.pgb" : "imrad.pg"));
-            changed = CheckBoxFlags(&flags, TopWindow::Defaults().flags);
-            ImGui::PopFont();
+        bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
+        bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        if (changed)
+        {
             bool flagsMB = flags & ImGuiWindowFlags_MenuBar;
             if (flagsMB && !hasMB)
                 children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
             else if (!flagsMB && hasMB)
                 children.erase(children.begin());
-            });
+
+        }
         break;
     }
     case 11:
@@ -1260,33 +1243,27 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("placement");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        auto tmp = placement;
-        bool isPopup = kind == Popup || kind == ModalPopup;
-        bool isPopupOrWindow = isPopup || kind == Window;
-        ImGui::PushFont(placement != Defaults().placement ? ctx.pgbFont : ctx.pgFont);
-        if (ImGui::BeginCombo("##placement", placement.get_id().c_str()))
-        {
-            ImGui::PopFont();
-            ImGui::PushFont(ctx.pgFont);
-            if (ImGui::Selectable("None", placement == None))
-                placement = None;
-            if (isPopupOrWindow && ImGui::Selectable("Left", placement == Left))
-                placement = Left;
-            if (isPopupOrWindow && ImGui::Selectable("Right", placement == Right))
-                placement = Right;
-            if (isPopupOrWindow && ImGui::Selectable("Top", placement == Top))
-                placement = Top;
-            if (isPopupOrWindow && ImGui::Selectable("Bottom", placement == Bottom))
-                placement = Bottom;
-            if (isPopup && ImGui::Selectable("Center", placement == Center))
-                placement = Center;
-            if (kind == MainWindow && ImGui::Selectable("Maximize", placement == Maximize))
-                placement = Maximize;
-
-            ImGui::EndCombo();
+        
+        placement.clear();
+        placement.add("None", None);
+        if (kind == Popup || kind == ModalPopup || kind == Window) {
+            placement.add$(Left);
+            placement.add$(Right);
+            placement.add$(Top);
+            placement.add$(Bottom);
         }
-        ImGui::PopFont();
-        changed = placement != tmp;
+        if (kind == Popup || kind == ModalPopup)
+            placement.add$(Center);
+        if (kind == MainWindow)
+            placement.add$(Maximize);
+        
+        if (placement.get_id() == "") {
+            //happens after kind change
+            changed = true;
+            placement = None;
+        }
+        fl = placement != Defaults().placement ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&placement, fl, ctx);
         ImGui::EndDisabled();
         break;
     }

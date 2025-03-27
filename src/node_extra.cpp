@@ -214,15 +214,8 @@ bool DockSpace::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("dockingEmptyBg", &style_emptyBg, ctx);
         break;
     case 2:
-    {
-        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
-        TreeNodeProp("flags", font, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
-    }
     default:
         return Widget::PropertyUI(i - 3, ctx);
     }
@@ -528,15 +521,8 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-    {
-        ImFont* font = flags != Defaults().flags ? ctx.pgbFont : ctx.pgFont;
-        TreeNodeProp("flags", font, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
-    }
     case 1:
         ImGui::Text("splitDir");
         ImGui::TableNextColumn();
@@ -555,27 +541,27 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
    case 3:
-        ImGui::Text("label");
-        ImGui::TableNextColumn();
-        ImGui::BeginDisabled(children.size());
-        ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
-        changed = InputDirectVal(&labels, InputDirectVal_Modified, ctx);
-        if (!ImRad::IsItemDisabled())
-        {
-            ImGui::SameLine(0, 0);
-            if (ImGui::Button("...", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
-            {
-                changed = true;
-                comboDlg.title = "Window Names";
-                comboDlg.value = labels;
-                comboDlg.font = nullptr;
-                comboDlg.OpenPopup([this](ImRad::ModalResult) {
-                    *labels.access() = comboDlg.value;
-                    });
-            }
-        }
-        ImGui::EndDisabled();
-        break;
+   {
+       ImGui::BeginDisabled(children.size());
+       ImGui::Text("labels");
+       ImGui::TableNextColumn();
+       ImGui::PushFont(labels.empty() ? ctx.pgFont : ctx.pgbFont);
+       size_t n = labels.empty() ? 0 : stx::count(*labels.access(), '\n') + 1;
+       std::string label = "[" + std::to_string(n) + "]";
+       if (ImRad::Selectable(label.c_str(), false, 0, { -ImGui::GetFrameHeight(), 0 }))
+       {
+           changed = true;
+           comboDlg.title = "Window Names";
+           comboDlg.value = labels;
+           comboDlg.font = nullptr;
+           comboDlg.OpenPopup([this](ImRad::ModalResult) {
+               *labels.access() = Trim(comboDlg.value);
+               });
+       }
+       ImGui::PopFont();
+       ImGui::EndDisabled();
+       break;
+    }
     }
     return changed;
 }

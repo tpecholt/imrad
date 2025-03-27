@@ -1970,27 +1970,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("contextMenu");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(contextMenu != Defaults().contextMenu ? ctx.pgbFont : ctx.pgFont);
-        if (ImGui::BeginCombo("##ctxm", contextMenu.c_str()))
-        {
-            ImGui::PopFont();
-            ImGui::PushFont(ImGui::GetFont());
-            if (ImGui::Selectable(" ", contextMenu.empty()))
-            {
-                changed = true;
-                contextMenu = "";
-            }
-            for (const std::string& cm : ctx.contextMenus)
-            {
-                if (ImGui::Selectable(cm.c_str(), cm == contextMenu.c_str()))
-                {
-                    changed = true;
-                    contextMenu = cm;
-                }
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::PopFont();
+        changed = InputDirectValContextMenu(&contextMenu, ctx);
         ImGui::EndDisabled();
         return changed;
     }
@@ -2155,9 +2135,9 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("nextColumn");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(nextColumn != Defaults().nextColumn ? ctx.pgbFont : ctx.pgFont);
-        int tmp = nextColumn;
-        if (ImGui::InputInt("##nextColumn", &tmp) && tmp >= 0) {
+        fl = nextColumn != Defaults().nextColumn ? InputDirectVal_Modified : 0;
+        direct_val<int> tmp = nextColumn;
+        if (InputDirectVal(&tmp, fl, ctx) && tmp >= 0) {
             changed = true;
             nextColumn = tmp;
             if (nextColumn) {
@@ -2165,7 +2145,6 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
                 spacing = 0;
             }
         }
-        ImGui::PopFont();
         ImGui::EndDisabled();
         return changed;
     }
@@ -3043,11 +3022,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
     case 6:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 7:
         ImGui::Text("label");
@@ -3408,28 +3383,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("dropDownMenu");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(ctx.pgbFont);
-        if (ImGui::BeginCombo("##ddm", dropDownMenu.c_str()))
-        {
-            ImGui::PopFont();
-            ImGui::PushFont(ImGui::GetFont());
-
-            if (ImGui::Selectable(" ", dropDownMenu.empty()))
-            {
-                changed = true;
-                dropDownMenu = "";
-            }
-            for (const std::string& cm : ctx.contextMenus)
-            {
-                if (ImGui::Selectable(cm.c_str(), cm == dropDownMenu.c_str()))
-                {
-                    changed = true;
-                    dropDownMenu = cm;
-                }
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::PopFont();
+        changed = InputDirectValContextMenu(&dropDownMenu, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 15, ctx);
@@ -3873,6 +3827,18 @@ Input::Input(UIContext& ctx)
     flags.add$(ImGuiInputTextFlags_CallbackCharFilter);
     flags.separator();
     flags.add$(ImGuiInputTextFlags_Multiline);
+
+    type.add("std::string", 0);
+    type.add("ImGuiTextFilter", 1);
+    type.add("int", 2);
+    type.add("int2", 3);
+    type.add("int3", 4);
+    type.add("int4", 5);
+    type.add("float", 6);
+    type.add("float2", 7);
+    type.add("float3", 8);
+    type.add("float4", 9);
+    type.add("double", 10);
     
     if (_imeClass.get_ids().empty()) 
     {
@@ -3892,14 +3858,14 @@ Input::Input(UIContext& ctx)
     }
 
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+        fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> Input::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Input>(*this);
     if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -3923,6 +3889,8 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
     std::string id = label;
     if (id.empty())
         id = "##" + fieldName.value();
+    std::string tid = type.get_id();
+
     if (flags & ImGuiInputTextFlags_Multiline)
     {
         ImVec2 size;
@@ -3930,7 +3898,7 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
         size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
         ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
     }
-    else if (type == "std::string" || type == "ImGuiTextFilter")
+    else if (tid == "std::string" || tid == "ImGuiTextFilter")
     {
         float w = size_x.eval_px(ImGuiAxis_X, ctx);
         if (w)
@@ -3945,23 +3913,23 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
         float w = size_x.eval_px(ImGuiAxis_X, ctx);
         if (w)
             ImGui::SetNextItemWidth(w);
-        if (type == "int")
+        if (tid == "int")
             ImGui::InputInt(id.c_str(), itmp, (int)step);
-        else if (type == "int2")
+        else if (tid == "int2")
             ImGui::InputInt2(id.c_str(), itmp);
-        else if (type == "int3")
+        else if (tid == "int3")
             ImGui::InputInt3(id.c_str(), itmp);
-        else if (type == "int4")
+        else if (tid == "int4")
             ImGui::InputInt4(id.c_str(), itmp);
-        else if (type == "float")
+        else if (tid == "float")
             ImGui::InputFloat(id.c_str(), ftmp, step, 0.f, format.c_str());
-        else if (type == "float2")
+        else if (tid == "float2")
             ImGui::InputFloat2(id.c_str(), ftmp, format.c_str());
-        else if (type == "float3")
+        else if (tid == "float3")
             ImGui::InputFloat3(id.c_str(), ftmp, format.c_str());
-        else if (type == "float4")
+        else if (tid == "float4")
             ImGui::InputFloat4(id.c_str(), ftmp, format.c_str());
-        else if (type == "double")
+        else if (tid == "double")
             ImGui::InputDouble(id.c_str(), dtmp, step, 0, format.c_str());
     }
 
@@ -3990,44 +3958,44 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     if (!(flags & ImGuiInputTextFlags_Multiline))
         os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
     
+    std::string tid = type.get_id();
     os << ctx.ind;
-    if (type == "ImGuiTextFilter" || !onChange.empty())
+    if (tid == "ImGuiTextFilter" || !onChange.empty())
         os << "if (";
 
-    std::string cap = type;
-    cap[0] = std::toupper(cap[0]);
+    std::string cap = (char)std::toupper(tid[0]) + tid.substr(1);
     std::string id = label.to_arg();
     std::string defIme = "ImRad::ImeText";
     if (label.empty())
         id = "\"##" + fieldName.value() + "\"";
     
-    if (type == "int")
+    if (tid == "int")
     {
         defIme = "ImRad::ImeNumber";
         os << "ImGui::InputInt(" << id << ", &"
             << fieldName.to_arg() << ", " << (int)step << ")";
     }
-    else if (type == "float")
+    else if (tid == "float")
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::InputFloat(" << id << ", &"
             << fieldName.to_arg() << ", " << step.to_arg() << ", 0.f, "
             << format.to_arg() << ")";
     }
-    else if (type == "double")
+    else if (tid == "double")
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::InputDouble(" << id << ", &"
             << fieldName.to_arg() << ", " << step.to_arg() << ", 0.0, "
             << format.to_arg() << ")";
     }
-    else if (!type.access()->compare(0, 3, "int"))
+    else if (!tid.compare(0, 3, "int"))
     {
         defIme = "ImRad::ImeNumber";
         os << "ImGui::Input"<< cap << "(" << id << ", &"
             << fieldName.to_arg() << ")";
     }
-    else if (!type.access()->compare(0, 5, "float"))
+    else if (!tid.compare(0, 5, "float"))
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::Input" << cap << "(" << id << ", &"
@@ -4044,7 +4012,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
     }
-    else if (type == "std::string")
+    else if (tid == "std::string")
     {
         if (!hint.empty())
             os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
@@ -4055,7 +4023,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
     }
-    else if (type == "ImGuiTextFilter")
+    else if (tid == "ImGuiTextFilter")
     {
         //.Draw function is deprecated see https://github.com/ocornut/imgui/issues/6395
         if (!hint.empty())
@@ -4070,7 +4038,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
         os << ")";
     }
 
-    if (type == "ImGuiTextFilter") {
+    if (tid == "ImGuiTextFilter") {
         os << ")\n" << ctx.ind << "{\n";
         ctx.ind_up();
         os << ctx.ind << fieldName.to_arg() << ".Build();\n";
@@ -4115,7 +4083,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::InputTextMultiline") ||
         (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::InputTextMultiline"))
     {
-        type = "std::string";
+        type.set_id("std::string");
 
         if (sit->params.size()) {
             label.set_from_arg(sit->params[0]);
@@ -4170,11 +4138,11 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         {
             std::string expr = sit->params[1 + i];
             if (!expr.compare(0, 1, "&")) {
-                type = "std::string";
+                type.set_id("std::string");
                 fieldName.set_from_arg(sit->params[1 + i].substr(1));
             }
             else if (!expr.compare(expr.size() - 9, 9, ".InputBuf")) {
-                type = "ImGuiTextFilter";
+                type.set_id("ImGuiTextFilter");
                 fieldName.set_from_arg(expr.substr(0, expr.size() - 9));
                 ++i;
             }
@@ -4208,8 +4176,9 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 12, "ImGui::Input")) ||
             (sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 12, "ImGui::Input")))
     {
-        type = sit->callee.substr(12);
-        type.access()->front() = std::tolower(std::string(type)[0]);
+        std::string tid = sit->callee.substr(12);
+        tid[0] = std::tolower(tid[0]);
+        type.set_id(tid);
 
         if (sit->params.size()) {
             label.set_from_arg(sit->params[0]);
@@ -4224,19 +4193,19 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 ctx.errors.push_back("Input: value variable '" + fn + "' doesn't exist");
         }
 
-        if (type == "int") 
+        if (tid == "int") 
         {
             if (sit->params.size() >= 3)
                 step.set_from_arg(sit->params[2]);
         }
-        if (type == "float") 
+        if (tid == "float")
         {
             if (sit->params.size() >= 3)
                 step.set_from_arg(sit->params[2]);
             if (sit->params.size() >= 5)
                 format.set_from_arg(sit->params[4]);
         }
-        else if (!type.access()->compare(0, 5, "float")) 
+        else if (!tid.compare(0, 5, "float"))
         {
             if (sit->params.size() >= 3)
                 format.set_from_arg(sit->params[2]);
@@ -4249,7 +4218,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         (!sit->callee.compare(sit->callee.size() - 5, 5, ".Draw") ||
         !sit->callee.compare(sit->callee.size() - 13, 13, ".DrawWithHint")))
     {
-        type = "ImGuiTextFilter";
+        type.set_id("ImGuiTextFilter");
         size_t i = sit->callee.rfind('.');
         fieldName.set_from_arg(sit->callee.substr(0, i));
         std::string fn = fieldName.c_str();
@@ -4278,13 +4247,14 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             _imeClass.set_from_arg(fl);
             _imeAction.set_from_arg(fl);
             //set imeClass to default
-            if (!type.access()->compare(0, 3, "int") && _imeClass == ImRad::ImeText)
+            std::string tid = type.get_id();
+            if (!tid.compare(0, 3, "int") && _imeClass == ImRad::ImeText)
                 _imeClass = 0;
-            else if (!type.access()->compare(0, 5, "float") && _imeClass == ImRad::ImeDecimal)
+            else if (!tid.compare(0, 5, "float") && _imeClass == ImRad::ImeDecimal)
                 _imeClass = 0;
-            else if (!type.access()->compare(0, 5, "double") && _imeClass == ImRad::ImeDecimal)
+            else if (!tid.compare(0, 5, "double") && _imeClass == ImRad::ImeDecimal)
                 _imeClass = 0;
-            else if ((type == "std::string" || type == "ImGuiTextFilter") && _imeClass == ImRad::ImeText)
+            else if ((tid == "std::string" || tid == "ImGuiTextFilter") && _imeClass == ImRad::ImeText)
                 _imeClass = 0;
 
             imeType = _imeClass | _imeAction;
@@ -4332,20 +4302,7 @@ Input::Properties()
 
 bool Input::PropertyUI(int i, UIContext& ctx)
 {
-    static const char* TYPES[] {
-        "std::string",
-        "ImGuiTextFilter",
-        "int",
-        "int2",
-        "int3",
-        "int4",
-        "float",
-        "float2",
-        "float3",
-        "float4",
-        "double",
-    };
-
+    std::string tid = type.get_id();
     bool changed = false;
     int fl;
     switch (i)
@@ -4389,11 +4346,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 6:
         ImGui::Text("label");
@@ -4405,26 +4358,16 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(type != Defaults().type ? ctx.pgbFont : ctx.pgFont);
-        if (ImGui::BeginCombo("##type", type.c_str()))
+        fl = type != Defaults().type ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&type, fl, ctx);
+        if (changed)
         {
-            ImGui::PopFont();
-            ImGui::PushFont(ImGui::GetFont());
-            for (const auto& tp : TYPES)
-            {
-                if (ImGui::Selectable(tp, type == tp)) {
-                    changed = true;
-                    type = tp;
-                    ctx.codeGen->ChangeVar(fieldName.c_str(), type, "");
-                }
-            }
-            ImGui::EndCombo();
+            ctx.codeGen->ChangeVar(fieldName.c_str(), type.get_id(), "");
         }
-        ImGui::PopFont();
         break;
     case 8:
         ImGui::BeginDisabled(
-            (type != "std::string" && type != "ImGuiTextFilter") ||
+            (tid != "std::string" && tid != "ImGuiTextFilter") ||
             (flags & ImGuiInputTextFlags_Multiline)
         );
         ImGui::Text("hint");
@@ -4460,12 +4403,12 @@ bool Input::PropertyUI(int i, UIContext& ctx)
     }
     case 10:
     {
-        ImGui::BeginDisabled(type != "int" && type != "float");
+        ImGui::BeginDisabled(tid != "int" && tid != "float");
         ImGui::Text("step");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::PushFont(step != Defaults().step ? ctx.pgbFont : ctx.pgFont);
-        if (type == "int")
+        if (tid == "int")
         {
             int st = (int)*step.access();
             changed = ImGui::InputInt("##step", &st);
@@ -4479,13 +4422,12 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         break;
     }
     case 11:
-        ImGui::BeginDisabled(type.access()->compare(0, 5, "float"));
+        ImGui::BeginDisabled(tid.compare(0, 5, "float"));
         ImGui::Text("format");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = format != Defaults().format ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&format, fl, ctx);
-        //changed = ImGui::InputText("##format", format.access());
         ImGui::EndDisabled();
         break;
     case 12:
@@ -4505,7 +4447,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, type, false, ctx);
+        changed = InputFieldRef(&fieldName, tid, false, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 15, ctx);
@@ -4740,11 +4682,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 6:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 7:
         ImGui::Text("label");
@@ -4805,15 +4743,25 @@ Slider::Slider(UIContext& ctx)
 {
     size_x = 200;
 
+    type.add("int", 0);
+    type.add("int2", 1);
+    type.add("int3", 2);
+    type.add("int4", 3);
+    type.add("float", 4);
+    type.add("float2", 5);
+    type.add("float3", 6);
+    type.add("float4", 7);
+    type.add("angle", 8);
+
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+        fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> Slider::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Slider>(*this);
     if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -4833,24 +4781,25 @@ ImDrawList* Slider::DoDraw(UIContext& ctx)
     std::string id = label;
     if (label.empty())
         id = "##" + fieldName.value();
+    std::string tid = type.get_id();
 
-    if (type == "int")
+    if (tid == "int")
         ImGui::SliderInt(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "int2")
+    else if (tid == "int2")
         ImGui::SliderInt2(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "int3")
+    else if (tid == "int3")
         ImGui::SliderInt3(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "int4")
+    else if (tid == "int4")
         ImGui::SliderInt4(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "float")
+    else if (tid == "float")
         ImGui::SliderFloat(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "float2")
+    else if (tid == "float2")
         ImGui::SliderFloat2(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "float3")
+    else if (tid == "float3")
         ImGui::SliderFloat3(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "float4")
+    else if (tid == "float4")
         ImGui::SliderFloat4(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
-    else if (type == "angle")
+    else if (tid == "angle")
         ImGui::SliderAngle(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
 
     return ImGui::GetWindowDrawList();
@@ -4868,7 +4817,7 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
     if (!format.empty())
         fmt = format.to_arg();
 
-    std::string cap = type;
+    std::string cap = type.get_id();
     cap[0] = std::toupper(cap[0]);
     std::string id = label.to_arg();
     if (label.empty())
@@ -4894,8 +4843,9 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 13, "ImGui::Slider")) || 
         (sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 13, "ImGui::Slider")))
     {
-        type = sit->callee.substr(13);
-        type.access()->front() = std::tolower(type.c_str()[0]);
+        std::string tid = sit->callee.substr(13);
+        tid[0] = std::tolower(tid[0]);
+        type.set_id(tid);
 
         if (sit->params.size()) {
             label.set_from_arg(sit->params[0]);
@@ -5012,29 +4962,20 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(type != Defaults().type ? ctx.pgbFont : ctx.pgFont);
-        if (ImGui::BeginCombo("##type", type.c_str()))
+        fl = type != Defaults().type ? InputDirectVal_Modified : 0;
+        if (InputDirectVal(&type, fl, ctx))
         {
-            ImGui::PopFont();
-            ImGui::PushFont(ImGui::GetFont());
-            for (const auto& tp : TYPES)
-            {
-                if (ImGui::Selectable(tp, type == tp)) {
-                    changed = true;
-                    type = tp;
-                    ctx.codeGen->ChangeVar(fieldName.c_str(), type == "angle" ? "float" : type, "");
-                }
-            }
-            ImGui::EndCombo();
+            changed = true;
+            std::string tid = type.get_id();
+            ctx.codeGen->ChangeVar(fieldName.c_str(), tid == "angle" ? "float" : tid, "");
         }
-        ImGui::PopFont();
         break;
     case 7:
         ImGui::Text("min");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::PushFont(min != Defaults().min ? ctx.pgbFont : ctx.pgFont);
-        if (type == "int") {
+        if (type.get_id() == "int") {
             int val = (int)min;
             changed = ImGui::InputInt("##min", &val);
             min = (float)val;
@@ -5049,7 +4990,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::PushFont(max != Defaults().max ? ctx.pgbFont : ctx.pgFont);
-        if (type == "int") {
+        if (type.get_id() == "int") {
             int val = (int)max;
             changed = ImGui::InputInt("##max", &val);
             max = (float)val;
@@ -5070,7 +5011,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, type, false, ctx);
+        changed = InputFieldRef(&fieldName, type.get_id(), false, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 11, ctx);
@@ -5452,11 +5393,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
-        TreeNodeProp("flags", ctx.pgbFont, "...", [&] {
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            changed = CheckBoxFlags(&flags, Defaults().flags);
-            });
+        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 6:
         ImGui::Text("label");

@@ -18,7 +18,7 @@ void ShellExec(const std::string& path)
 #endif
 }
 
-int InputTextCharExprFilter(ImGuiInputTextCallbackData* data)
+int DefaultCharFilter(ImGuiInputTextCallbackData* data)
 {
     //always map numpad decimal point to . (all expressions are in C)
     //int localeDP = *localeconv()->decimal_point;

@@ -329,7 +329,7 @@ struct Input : Widget
 {
     field_ref<> fieldName;
     direct_val<std::string> label = "";
-    direct_val<std::string> type = "std::string";
+    direct_val<int> type = 0;
     bindable<std::string> hint = "";
     direct_val<int> imeType = ImRad::ImeText;
     direct_val<float> step = 1;
@@ -383,7 +383,7 @@ struct Slider : Widget
 {
     direct_val<std::string> label = "";
     field_ref<> fieldName;
-    direct_val<std::string> type = "float";
+    direct_val<int> type = 0;
     direct_val<float> min = 0;
     direct_val<float> max = 1;
     direct_val<std::string> format = "";
