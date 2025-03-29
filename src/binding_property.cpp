@@ -78,18 +78,21 @@ float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
     }
 }
 
-color32 bindable<color32>::eval(int col, const UIContext& ctx) const 
+ImU32 bindable<color32>::eval(int defClr, const UIContext& ctx) const 
 {
-    if (empty())
-        return {};
+    if (empty()) //default color
+        return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
+    
+    int idx = style_color();
+    if (idx >= 0)
+        return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[idx]);
+    
+    ImU32 clr;
     std::istringstream is(str);
-    color32 val = ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[col]);
-    if (!(is >> val)) {
-        int idx = style_color();
-        if (idx >= 0)
-            val = ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[idx]);
-    }
-    return val;
+    if (is.get() == '0' && is.get() == 'x' && is >> std::hex >> clr)
+        return clr;
+    
+    return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
 }
 
 std::string bindable<font_name>::eval(const UIContext&) const

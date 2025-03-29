@@ -31,7 +31,7 @@ private:
     bool varTypeDisabled = false;
     bool varTypeArray = false;
     std::string hint;
-    color32 clr;
+    ImU32 clr;
 };
 
 extern NewFieldPopup newFieldPopup;

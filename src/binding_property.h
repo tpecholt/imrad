@@ -170,23 +170,18 @@ private:
 template <>
 struct direct_val<dimension> : property_base
 {
-    direct_val(dimension dim) : direct_val((float)dim) {}
     direct_val(float v) : val(v) {}
 
     operator float&() { return val; }
     operator const float() const { return val; }
-    bool operator== (dimension dv) const {
+    bool operator== (float dv) const {
         return val == dv;
     }
-    bool operator!= (dimension dv) const {
+    bool operator!= (float dv) const {
         return val != dv;
     }
-    direct_val& operator= (dimension v) {
+    direct_val& operator= (float v) {
         val = v;
-        return *this;
-    }
-    direct_val& operator= (float f) {
-        val = f;
         return *this;
     }
     float eval_px(const UIContext& ctx) const;
@@ -200,7 +195,7 @@ struct direct_val<dimension> : property_base
         if (factor == "*dp")
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 3)));
-            dimension v;
+            float v;
             if ((is >> v) && is.eof())
                 val = v;
         }
@@ -217,17 +212,16 @@ struct direct_val<dimension> : property_base
     }
     void rename_variable(const std::string& oldn, const std::string& newn)
     {}
-    float* access() { return &val.value; }
+    float* access() { return &val; }
     const char* c_str() const { return nullptr; }
 
 private:
-    dimension val;
+    float val;
 };
 
 template <>
 struct direct_val<pzdimension> : property_base
 {
-    direct_val(pzdimension dim) : direct_val((float)dim) {}
     direct_val(float v = -1) : val(v) {}
 
     operator float&() { return val; }
@@ -235,18 +229,14 @@ struct direct_val<pzdimension> : property_base
     bool empty() const { return val == -1; }
     void clear() { val = -1; }
     bool has_value() const { return !empty(); }
-    bool operator== (dimension dv) const {
+    bool operator== (float dv) const {
         return val == dv;
     }
-    bool operator!= (pzdimension dv) const {
+    bool operator!= (float dv) const {
         return val != dv;
     }
-    direct_val& operator= (pzdimension v) {
+    direct_val& operator= (float v) {
         val = v;
-        return *this;
-    }
-    direct_val& operator= (float f) {
-        val = f;
         return *this;
     }
     float eval_px(const UIContext& ctx) const;
@@ -260,7 +250,7 @@ struct direct_val<pzdimension> : property_base
         if (factor == "*dp")
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 3)));
-            dimension v;
+            float v;
             if ((is >> v) && is.eof())
                 val = v;
         }
@@ -277,30 +267,30 @@ struct direct_val<pzdimension> : property_base
     }
     void rename_variable(const std::string& oldn, const std::string& newn)
     {}
-    float* access() { return &val.value; }
+    float* access() { return &val; }
     const char* c_str() const { return nullptr; }
 
 private:
-    pzdimension val;
+    float val;
 };
 
 template <>
 struct direct_val<pzdimension2> : property_base
 {
-    direct_val(pzdimension2 dim = ImVec2{-1, -1}) : val(dim) {}
+    direct_val(ImVec2 dim = { -1, -1 }) : val(dim) {}
     
     operator ImVec2&() { return val; }
     operator const ImVec2() const { return val; }
     float& operator[] (int i) { return val[i]; }
     float operator[] (int i) const { return val[i]; }
 
-    bool operator== (pzdimension2 dv) const {
-        return val == dv;
+    bool operator== (ImVec2 dv) const {
+        return val[0] == dv[0] && val[1] == dv[1];
     }
-    bool operator!= (pzdimension2 dv) const {
-        return val != dv;
+    bool operator!= (ImVec2 dv) const {
+        return val[0] != dv[0] && val[1] != dv[1];
     }
-    direct_val& operator= (pzdimension2 v) {
+    direct_val& operator= (ImVec2 v) {
         val = v;
         return *this;
     }
@@ -329,11 +319,11 @@ struct direct_val<pzdimension2> : property_base
     }
     void rename_variable(const std::string& oldn, const std::string& newn)
     {}
-    ImVec2* access() { return &val.value; }
+    ImVec2* access() { return &val; }
     const char* c_str() const { return nullptr; }
 
 private:
-    pzdimension2 val;
+    ImVec2 val;
 };
 
 template <>
@@ -374,13 +364,9 @@ private:
 template <>
 struct direct_val<shortcut_> : property_base
 {
-    direct_val(const char* v, int f = 0) 
-        : sh(v), flags_(f)
-    {}
-    direct_val(const std::string& v, int f = 0)
-        : sh(v), flags_(f)
-    {}
-
+    direct_val(const std::string& v) : sh(v) {}
+    direct_val(const char* v) : sh(v) {}
+    
     int flags() const { return flags_; }
     void set_flags(int f) { flags_ = f; }
     //const std::string& value() const { return val; }
@@ -395,7 +381,7 @@ struct direct_val<shortcut_> : property_base
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         std::ostringstream os;
-        os << CodeShortcut(sh.value);
+        os << CodeShortcut(sh);
         std::vector<std::string> fl;
         if (flags_ & ImGuiInputFlags_RouteGlobal)
             fl.push_back("ImGuiInputFlags_RouteGlobal");
@@ -410,11 +396,11 @@ struct direct_val<shortcut_> : property_base
     }
     void rename_variable(const std::string& oldn, const std::string& newn)
     {}
-    std::string* access() { return &sh.value; }
-    const char* c_str() const { return sh.value.c_str(); }
-    bool empty() const { return sh.value.empty(); }
+    std::string* access() { return &sh; }
+    const char* c_str() const { return sh.c_str(); }
+    bool empty() const { return sh.empty(); }
 private:
-    shortcut_ sh;
+    std::string sh;
     int flags_;
 };
 
@@ -603,9 +589,6 @@ struct bindable<dimension> : property_base
 {
     bindable() {
     }
-    bindable(dimension val)
-        : bindable((float)val)
-    {}
     bindable(float val) 
     {
         std::ostringstream os;
@@ -625,7 +608,7 @@ struct bindable<dimension> : property_base
         if (empty())
             return false;
         std::istringstream is(str);
-        dimension val;
+        float val;
         if (!(is >> val) || val)
             return false;
         return is.eof() || is.tellg() == str.size();
@@ -637,16 +620,16 @@ struct bindable<dimension> : property_base
         if (empty())
             return false;
         std::istringstream is(str);
-        dimension val;
+        float val;
         if (!(is >> val))
             return false;
         return is.eof() || is.tellg() == str.size();
     }
-    dimension value() const {
+    float value() const {
         if (!has_value()) 
             return {};
         std::istringstream is(str);
-        dimension val{};
+        float val{};
         is >> val;
         return val;
     }
@@ -660,14 +643,14 @@ struct bindable<dimension> : property_base
         if (factor == "*fs" || factor == "*dp")
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 3)));
-            dimension val;
+            float val;
             if ((is >> val) && is.eof())
                 str = s.substr(0, s.size() - 3);
         }
         else if (s.size() && s.back() == 'x')
         {
             std::istringstream is(std::string(s.substr(0, s.size() - 1)));
-            dimension val;
+            float val;
             if ((is >> val) && is.eof())
                 str.pop_back();
             stretch(true);
@@ -849,7 +832,7 @@ struct bindable<font_name> : property_base
 {
     bindable() {
     }
-    bindable(const font_name& fn) {
+    bindable(std::string_view fn) {
         set_font_name(fn);
     }
     bool operator== (const bindable& b) const {
@@ -911,9 +894,10 @@ struct bindable<color32> : property_base
 {
     bindable() {
     }
-    bindable(color32 c) {
+    bindable(ImU32 c) {
         std::ostringstream os;
-        os << c;
+        if (c)
+            os << "0x" << std::hex << std::setw(2 * 4) << std::setfill('0') << c;
         str = os.str();
     }
     bool operator== (const bindable& b) const {
@@ -934,10 +918,10 @@ struct bindable<color32> : property_base
             return true;
         return is.tellg() == str.size();
     }*/
-    color32 eval(int col, const UIContext& ctx) const;
+    ImU32 eval(int col, const UIContext& ctx) const;
 
     bool has_style_color() const {
-        if (!str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_") && str.back() == ']')
+        if (!str.compare(0, 34, "ImGui::GetStyle().Colors[ImGuiCol_") && str.back() == ']') //compatibility
             return true;
         if (!str.compare(0, 34, "ImGui::GetStyleColorVec4(ImGuiCol_") && str.back() == ')')
             return true;

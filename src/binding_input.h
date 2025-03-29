@@ -290,16 +290,20 @@ inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx
         std::string buttonId = id + "But";
         std::string popupId = id + "DropDown";
     
-        if (IsHighlighted(id) || IsHighlighted(buttonId) || 
+        ImGui::SameLine(0, 0);
+        if (IsHighlighted(id) || IsHighlighted(buttonId) ||
             ImGui::IsPopupOpen(ImGui::GetID(popupId.c_str()), 0))
         {
-            ImGui::SameLine(0, 0);
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[val->flags() ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
             if (ImGui::ArrowButton(buttonId.c_str(), ImGuiDir_Down)) // { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
             {
                 ImGui::OpenPopup(popupId.c_str());
             }
             ImGui::PopStyleColor();
+        }
+        else
+        {
+            ImGui::InvisibleButton(buttonId.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() });
         }
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
@@ -489,7 +493,7 @@ inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ct
     ImGui::PopFont();
     ImGui::PopStyleColor();
 
-    static color32 COLORS[]{
+    static ImU32 COLORS[]{
         /* 5x5 palette
         IM_COL32(255, 255, 255, 255),
         IM_COL32(246, 246, 194, 255),
@@ -571,43 +575,24 @@ inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ct
     {
         lastOpen = id.c_str();
         *val->access() = lastColor;
-        //if (ImGui::Button("Automatic", { -ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
         bool autoSel = ImGui::ColorButton("tooltip", ctx.style.Colors[defStyleCol], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview);
         bool autoHover = ImGui::IsItemHovered();
         ImGui::SameLine(0, 0);
         ImGui::Selectable("  Automatic", false, ImGuiSelectableFlags_NoPadWithHalfSpacing);
-            //, { ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight(), 0 });
         autoHover = autoHover || ImGui::IsItemHovered();
         autoSel = autoSel || ImGui::IsItemClicked(ImGuiMouseButton_Left);
         if (autoSel)
         {
             changed = true;
             lastColor = "";
-            *val = color32();
+            *val = {};
         }
         if (autoHover)
         {
-            *val = color32();
+            *val = {};
         }
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 4, 4 });
-        /*ImGui::SameLine(0, 0);
-        const color32 trc({ 1, 1, 1, 0 });
-        ImGui::PushStyleColor(ImGuiCol_Button, trc);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, trc);
-        if (ImGui::ColorButton("##transparent", { 1, 1, 1, 0 }, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreview))
-        //if (ImGui::Button("##transparent", { 30, 30 }))
-        {
-            changed = true;
-            *val = trc;
-            lastColor = *val->access();
-        }
-        if (ImGui::IsItemHovered())
-        {
-            *val = trc;
-        }
-        ImGui::PopStyleColor(2);
-        */
         for (int i = 0; i < stx::ssize(COLORS); ++i)
         {
             ImGui::PushID(i);
@@ -617,12 +602,12 @@ inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ct
             if (ImGui::Button("##clr", { 30, 30 }))
             {
                 changed = true;
-                *val = i ? COLORS[i] : color32(0x00ffffff);
+                *val = i ? COLORS[i] : 0x00ffffff;
                 lastColor = *val->access();
             }
             if (ImGui::IsItemHovered())
             {
-                *val = i ? COLORS[i] : color32(0x00ffffff);
+                *val = i ? COLORS[i] : 0x00ffffff;
             }
             if (!i)
             {
