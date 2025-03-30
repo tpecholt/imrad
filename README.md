@@ -123,7 +123,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 
 3. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
 
-   ```sudo ./release-linux 0.8```
+   ```./release-linux 0.8```
 
 4. ImRAD will be installed into *./install/imrad-0.8*
 
