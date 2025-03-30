@@ -392,9 +392,9 @@ Table::Events()
 {
     auto props = Widget::Events();
     props.insert(props.begin(), {
+        { "table.setup", &onSetup },
         { "table.beginRow", &onBeginRow },
         { "table.endRow", &onEndRow }, 
-        { "table.sortSpecs", &onSortSpecs },
         });
     return props;
 }
@@ -405,23 +405,25 @@ bool Table::EventUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
+        ImGui::Text("Setup");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_Setup", &onSetup, 0, ctx);
+        break;
+    case 1:
+        ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("BeginRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_BeginRow", &onBeginRow, 0, ctx);
+        ImGui::EndDisabled();
         break;
-    case 1:
+    case 2:
+        ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("EndRow");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_EndRow", &onEndRow, 0, ctx);
-        break;
-    case 2:
-        ImGui::BeginDisabled(!(flags & ImGuiTableFlags_Sortable));
-        ImGui::Text("SortSpecs");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        changed = InputEvent(GetTypeName() + "_SortSpecs", &onSortSpecs, 0, ctx);
         ImGui::EndDisabled();
         break;
     default:
@@ -502,16 +504,12 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     }
     os << ctx.ind << "ImGui::TableSetupScrollFreeze(" << scrollFreeze_x.to_arg() << ", "
         << scrollFreeze_y.to_arg() << ");\n";
+    
+    if (!onSetup.empty()) 
+        os << ctx.ind << onSetup.to_arg() << "();\n";
+
     if (header)
         os << ctx.ind << "ImGui::TableHeadersRow();\n";
-
-    if (!onSortSpecs.empty() && (flags & ImGuiTableFlags_Sortable)) 
-    {
-        os << ctx.ind << "if (auto* specs = ImGui::TableGetSortSpecs())\n";
-        ctx.ind_up();
-        os << ctx.ind << onSortSpecs.to_arg() << "(*specs);\n";
-        ctx.ind_down();
-    }
 
     if (!itemCount.empty())
     {
@@ -537,7 +535,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     os << ");\n";
     os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
     
-    if (!onBeginRow.empty())
+    if (!onBeginRow.empty() && !itemCount.empty())
         os << ctx.ind << onBeginRow.to_arg() << "();\n";
 
     os << ctx.ind << "/// @separator\n\n";
@@ -547,7 +545,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
     os << "\n" << ctx.ind << "/// @separator\n";
     
-    if (!onEndRow.empty())
+    if (!onEndRow.empty() && !itemCount.empty())
         os << ctx.ind << onEndRow.to_arg() << "();\n";
 
     if (!itemCount.empty()) {
@@ -668,16 +666,19 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 2)
             rowHeight.set_from_arg(sit->params[1]);
     }
-    else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::TableGetSortSpecs")
-    {
-        onSortSpecs.set_from_arg(sit->callee2);
-    }
     else if (sit->kind == cpp::ForBlock)
     {
         itemCount.set_from_arg(sit->line);
     }
-    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 + !itemCount.empty() &&
+    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 &&
         columnData.size() &&
+        sit->callee.compare(0, 7, "ImGui::") &&
+        sit->callee.compare(0, 7, "ImRad::"))
+    {
+        onSetup.set_from_arg(sit->callee);
+    }
+    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 2 &&
+        //columnData.size() &&
         sit->callee.compare(0, 7, "ImGui::") &&
         sit->callee.compare(0, 7, "ImRad::"))
     {
@@ -686,8 +687,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         else
             onBeginRow.set_from_arg(sit->callee);
     }
-    else if (sit->kind == cpp::IfStmt && sit->level == ctx.importLevel + 1 + !itemCount.empty() &&
-        columnData.size() &&
+    else if (sit->kind == cpp::IfStmt && sit->level == ctx.importLevel + 2 &&
+        //columnData.size() &&
         !sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
     {
         rowFilter.set_from_arg(sit->cond.substr(2, sit->cond.size() - 3));
@@ -2442,9 +2443,7 @@ ImDrawList* MenuIt::DoDraw(UIContext& ctx)
     {
         std::string s = onChange.to_arg();
         if (s.empty())
-            s = "OnDraw not set";
-        else
-            s += "()";
+            s = "Draw event empty";
         ImGui::MenuItem(s.c_str(), nullptr, nullptr, false);
     }
     else //menuItem
@@ -2606,7 +2605,7 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
     else if (ownerDraw)
     {
         if (onChange.empty())
-            ctx.errors.push_back("MenuIt: ownerDraw is set but onChange is empty!");
+            ctx.errors.push_back("MenuIt: ownerDraw is set but Draw event is not assigned!");
         os << ctx.ind << onChange.to_arg() << "();\n";
     }
     else
@@ -2721,10 +2720,10 @@ MenuIt::Properties()
         { "appearance.padding", &style_padding },
         { "appearance.spacing", &style_spacing },
         { "appearance.rounding", &style_rounding },
-        { "appearance.ownerDraw", &ownerDraw },
         { "behavior.label", &label, true },
         { "behavior.shortcut", &shortcut },
         { "behavior.separator", &separator },
+        { "behavior.ownerDraw", &ownerDraw },
         { "bindings.checked##1", &checked },
         });
     return props;
@@ -2761,14 +2760,6 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 3:
-        ImGui::BeginDisabled(contextMenu);
-        ImGui::Text("ownerDraw");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = ImGui::Checkbox("##ownerDraw", ownerDraw.access());
-        ImGui::EndDisabled();
-        break;
-    case 4:
         ImGui::BeginDisabled(ownerDraw);
         ImGui::Text("label");
         ImGui::TableNextColumn();
@@ -2776,7 +2767,7 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         ImGui::EndDisabled();
         break;
-    case 5:
+    case 4:
         ImGui::BeginDisabled(ownerDraw || contextMenu || children.size());
         ImGui::Text("shortcut");
         ImGui::TableNextColumn();
@@ -2785,12 +2776,20 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&shortcut, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 6:
+    case 5:
         ImGui::BeginDisabled(contextMenu);
         ImGui::Text("separator");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = ImGui::Checkbox("##separator", separator.access());
+        ImGui::EndDisabled();
+        break;
+    case 6:
+        ImGui::BeginDisabled(contextMenu);
+        ImGui::Text("ownerDraw");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = ImGui::Checkbox("##ownerDraw", ownerDraw.access());
         ImGui::EndDisabled();
         break;
     case 7:
@@ -2827,7 +2826,7 @@ bool MenuIt::EventUI(int i, UIContext& ctx)
     {
         ImGui::BeginDisabled(children.size());
         std::string name = ownerDraw ? "Draw" : "Change";
-        ImGui::Text(("On" + name).c_str());
+        ImGui::Text("%s", name.c_str());
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_" + name, &onChange, 0, ctx);

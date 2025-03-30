@@ -1456,6 +1456,8 @@ void ReloadExplorer()
     explorerData.clear();
     std::error_code ec;
     std::ostringstream os;
+    auto fsnow = fs::file_time_type::clock::now();
+    auto snow = std::chrono::system_clock::now();
     os.imbue(std::locale(""));
     for (fs::directory_iterator it(u8path(explorerPath), ec); it != fs::directory_iterator(); ++it)
     {
@@ -1468,10 +1470,12 @@ void ReloadExplorer()
         entry.path = generic_u8string(it->path());
         entry.folder = it->is_directory();
         entry.fileName = u8string(it->path().filename());
-        entry.last_write_time = it->last_write_time().time_since_epoch() / std::chrono::seconds(1);
+        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            it->last_write_time() - fsnow + snow);
+        entry.last_write_time = std::chrono::system_clock::to_time_t(sctp);
         auto* tm = std::localtime(&entry.last_write_time);
         os.str("");
-        os << std::put_time(tm, "%c");
+        os << std::put_time(tm, "%x %X");
         entry.modified = os.str();
         explorerData.push_back(std::move(entry));
     }
@@ -1533,8 +1537,8 @@ void ExplorerUI()
     float h = -ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.y;
     if (ImGui::BeginTable("files", 2, ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { -1, h }))
     {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1);
-        ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 0);
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 140);
         ImGui::TableSetupScrollFreeze(0, 1);
         auto* spec = ImGui::TableGetSortSpecs();
         if (spec && spec->SpecsDirty) {
@@ -2412,14 +2416,15 @@ void AddINIHandler()
                 }
             }
             else if (!strcmp((const char*)entry, "Explorer")) {
+                int tmp;
                 if (!strncmp(line, "Path=", 5))
                     explorerPath = line + 5;
                 else if (sscanf(line, "Filter=%d", &explorerFilter) == 1)
                     line;
                 else if (sscanf(line, "SortColumn=%hd", &explorerSorting.ColumnIndex) == 1)
                     line;
-                else if (sscanf(line, "SortDir=%hhd", &explorerSorting.SortDirection) == 1)
-                    line;
+                else if (sscanf(line, "SortDir=%d", &tmp) == 1)
+                    explorerSorting.SortDirection = (ImGuiSortDirection)tmp;
             }
             else if (!strcmp((const char*)entry, "UI")) {
                 if (!strncmp(line, "FontName=", 9))

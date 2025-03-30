@@ -33,7 +33,7 @@ struct Table : Widget
     bindable<color32> style_childBg;
     event<> onBeginRow;
     event<> onEndRow;
-    event<void(ImGuiTableSortSpecs&)> onSortSpecs;
+    event<> onSetup;
 
     Table(UIContext&);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

@@ -10,7 +10,7 @@ mkdir install
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install ..
-sudo make -j8 install
+make -j8 install
 if [ "$?" -ne 0 ]; then 
 exit 1
 fi

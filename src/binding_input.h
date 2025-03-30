@@ -1132,7 +1132,7 @@ inline int InputFlags(const char* name, flags_helper* val, int defVal, UIContext
             ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) 
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
-            ImGui::SetTooltip(tip.c_str());
+            ImGui::SetTooltip("%s", tip.c_str());
             ImGui::PopStyleVar();
         }
     }

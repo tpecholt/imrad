@@ -90,7 +90,7 @@ inline void HashCombineData(ImU32& hash, T data)
     hash = ImHashData(&data, sizeof(data), hash);
 }
 
-void ShellExec(const std::string& path);
+bool ShellExec(const std::string& path);
 
 int DefaultCharFilter(ImGuiInputTextCallbackData* data);
 

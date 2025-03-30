@@ -1999,7 +1999,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         bool modified = size_x != Defaults().size_x || size_y != Defaults().size_y;
         ImGui::PushFont(modified ? ctx.pgbFont : ctx.pgFont);
-        ImGui::Text((size_x.to_arg("") + ", " + size_y.to_arg("")).c_str());
+        ImGui::Text("%s", (size_x.to_arg("") + ", " + size_y.to_arg("")).c_str());
         ImGui::PopFont();
         return changed;
     }

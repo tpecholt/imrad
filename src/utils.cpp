@@ -9,12 +9,12 @@
 #undef min
 #undef max
 
-void ShellExec(const std::string& path)
+bool ShellExec(const std::string& path)
 {
 #ifdef WIN32
-    ShellExecuteW(nullptr, L"open", u8path(path).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    return (uintptr_t)ShellExecuteW(nullptr, L"open", u8path(path).c_str(), nullptr, nullptr, SW_SHOWNORMAL) > 32;
 #else
-    system(("xdg-open " + path).c_str());
+    return system(("xdg-open " + path).c_str()) == 0;
 #endif
 }
 
@@ -150,7 +150,6 @@ std::string generic_u8string(const fs::path& p)
 
 bool path_cmp(const std::string& a, const std::string& b)
 {
-#ifdef WIN32
     size_t n = std::min(a.size(), b.size());
     for (size_t i = 0; i < n; ++i)
     {
@@ -164,7 +163,4 @@ bool path_cmp(const std::string& a, const std::string& b)
             return ca < cb;
     }
     return b.size() > a.size();
-#else
-    return a < b;
-#endif
 }
