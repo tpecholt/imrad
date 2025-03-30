@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.8
+// Generated with ImRAD 0.9
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_table_cols.h"
@@ -65,49 +65,61 @@ void TableCols::Draw()
         ImGui::EndDisabled();
         /// @end Selectable
 
-        // TODO: Add Draw calls of dependent popup windows here
-
-        /// @begin Table
-        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 7, 5 });
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffffffff);
-        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { 175, vb1.GetSize() }))
+        /// @begin Splitter
+        ImGui::BeginChild("splitter1", { -1, vb1.GetSize() });
         {
-            ImGui::TableSetupColumn("A", 0, 0);
-            ImGui::TableSetupScrollFreeze(0, 0);
+            ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);
+            ImGui::PushStyleColor(ImGuiCol_SeparatorHovered, 0x00000000);
+            ImRad::Splitter(true, 8, &sash, 10, 10);
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+            /// @separator
 
-            for (int i = 0; i < columns.size(); ++i)
+            /// @begin Table
+            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 7, 5 });
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffffffff);
+            if (ImGui::BeginTable("table2", 1, ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { sash, -1 }))
             {
-                ImGui::PushID(i);
-                ImGui::TableNextRow(0, 0);
-                ImGui::TableSetColumnIndex(0);
-                /// @separator
+                ImGui::TableSetupColumn("A", 0, 0);
+                ImGui::TableSetupScrollFreeze(0, 0);
 
-                /// @begin Selectable
-                ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_DontClosePopups, { 0, 0 }))
-                    Selectable_Change();
-                ImGui::PopStyleVar();
-                /// @end Selectable
+                for (int i = 0; i < columns.size(); ++i)
+                {
+                    ImGui::PushID(i);
+                    ImGui::TableNextRow(0, 0);
+                    ImGui::TableSetColumnIndex(0);
+                    /// @separator
+
+                    /// @begin Selectable
+                    ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
+                    if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_DontClosePopups, { 0, 0 }))
+                        Selectable_Change();
+                    ImGui::PopStyleVar();
+                    /// @end Selectable
 
 
-                /// @separator
-                ImGui::PopID();
+                    /// @separator
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
             }
-            ImGui::EndTable();
-        }
-        ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
-        vb1.AddSize(1, ImRad::VBox::Stretch(1));
-        /// @end Table
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar();
+            /// @end Table
 
-        /// @begin CustomWidget
-        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        Properties_Draw({ -1, vb1.GetSize() });
-        vb1.UpdateSize(0, ImRad::VBox::Stretch(1));
-        /// @end CustomWidget
+            /// @begin CustomWidget
+            ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+            Properties_Draw({ -1, -1 });
+            /// @end CustomWidget
+
+            /// @separator
+            ImGui::EndChild();
+        }
+        vb1.AddSize(1, ImRad::VBox::Stretch(1));
+        /// @end Splitter
 
         /// @begin Table
-        if (ImGui::BeginTable("table2", 3, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { 175, 0 }))
+        if (ImGui::BeginTable("table3", 3, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { 175, 0 }))
         {
             ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);
@@ -116,8 +128,6 @@ void TableCols::Draw()
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
 
             /// @begin Button
             ImRad::TableNextColumn(1);
@@ -144,7 +154,7 @@ void TableCols::Draw()
             /// @begin Button
             ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
             ImGui::BeginDisabled(sel<=0);
-            if (ImGui::ArrowButton("##1742563997520", ImGuiDir_Up))
+            if (ImGui::ArrowButton("##1930240685120", ImGuiDir_Up))
             {
                 UpButton_Change();
             }
@@ -156,7 +166,7 @@ void TableCols::Draw()
             /// @begin Button
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
             ImGui::BeginDisabled(sel+1==columns.size());
-            if (ImGui::ArrowButton("##1742564030000", ImGuiDir_Down))
+            if (ImGui::ArrowButton("##1930239780032", ImGuiDir_Down))
             {
                 DownButton_Change();
             }
@@ -274,7 +284,7 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
         
-        /*ImGui::TableNextRow();
+        ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, ImGui::GetStyle().FramePadding.y });
@@ -282,14 +292,14 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
             ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)));
         ImGui::PushStyleColor(ImGuiCol_NavCursor, 0x0);
-        ImGui::SetNextItemAllowOverlap();
+        ImGui::SetNextItemOpen(true);
         bool open = ImGui::TreeNodeEx("Behavior", ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_DefaultOpen);
         ImGui::PopStyleColor();
         ImGui::PopFont();
-        ImGui::PopStyleVar();*/
-        ImGui::Indent();
+        ImGui::PopStyleVar();
+        //ImGui::Indent();
         
-        if (sel >= 0) // && open)
+        if (sel >= 0 && open)
         {
             int n = (int)columns[sel].Properties().size();
             for (int i = 0; i < n; ++i)
@@ -300,8 +310,8 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
                 columns[sel].PropertyUI(i, *ctx);
             }
         }
-        /*if (open)
-            ImGui::TreePop();*/
+        if (open)
+            ImGui::TreePop();
 
         ImGui::EndTable();
         pgHeight = ImGui::GetItemRectSize().y;
@@ -309,8 +319,4 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(3);
-}
-
-void TableCols::Table_SortSpecs(ImGuiTableSortSpecs& args)
-{
 }

@@ -660,8 +660,7 @@ void NewWidget(const std::string& name)
     else if (name == "ContextMenu") 
     {
         activeButton = "";
-        auto popup = std::make_unique<MenuIt>(ctx);
-        popup->contextMenu = true;
+        auto popup = std::make_unique<ContextMenu>(ctx);
         auto item = std::make_unique<MenuIt>(ctx);
         item->label = "Item";
         popup->children.push_back(std::move(item));
@@ -1121,6 +1120,7 @@ void ToolbarUI()
         | ImGuiWindowFlags_NoMove
         | ImGuiWindowFlags_NoScrollbar
         | ImGuiWindowFlags_NoNavInputs
+        | ImGuiWindowFlags_NoSavedSettings
         ;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::Begin("TOOLBAR", nullptr, window_flags);

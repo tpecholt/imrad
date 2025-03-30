@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.8
+// Generated with ImRAD 0.9
 // visit https://github.com/tpecholt/imrad
 
 #pragma once
@@ -15,6 +15,7 @@ public:
 
     std::vector<Table::ColumnData> columns;
     UIContext * ctx;
+    float sash = 150;
     /// @end interface
 
 private:
@@ -28,7 +29,6 @@ private:
     void DownButton_Change();
     void Properties_Draw(const ImRad::CustomWidgetArgs& args);
     void Selectable_Change();
-    void Table_SortSpecs(ImGuiTableSortSpecs& args);
 
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;

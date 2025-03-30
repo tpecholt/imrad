@@ -601,6 +601,8 @@ Widget::Create(const std::string& name, UIContext& ctx)
         return std::make_unique<TreeNode>(ctx);
     else if (name == "MenuBar")
         return std::make_unique<MenuBar>(ctx);
+    else if (name == "ContextMenu")
+        return std::make_unique<ContextMenu>(ctx);
     else if (name == "MenuIt")
         return std::make_unique<MenuIt>(ctx);
     else if (name == "Splitter")
@@ -2718,7 +2720,8 @@ bool Text::PropertyUI(int i, UIContext& ctx)
     case 2:
         ImGui::Text("alignToFramePadding");
         ImGui::TableNextColumn();
-        changed = ImGui::Checkbox("##alignToFrame", alignToFrame.access());
+        fl = alignToFrame != Defaults().alignToFrame ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
     case 3:
         ImGui::Text("text");
@@ -5762,7 +5765,7 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
 void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (onDraw.empty()) {
-        ctx.errors.push_back("CustomWidget: OnDraw not set");
+        ctx.errors.push_back("CustomWidget: Draw event not set");
         return;
     }
     os << ctx.ind << onDraw.to_arg() << "({ " 

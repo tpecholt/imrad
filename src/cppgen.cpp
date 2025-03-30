@@ -117,6 +117,7 @@ bool CppGen::ExportUpdate(
         err += e + "\n";
 
     //export .h
+    m_error = "";
     auto hpath = u8path(fname).replace_extension(".h");
     if (!fs::exists(hpath) || fs::is_empty(hpath))
     {
@@ -138,8 +139,10 @@ bool CppGen::ExportUpdate(
     auto origNames = ExportH(fout, fprev, m_hname, node);
     m_hname = u8string(hpath.filename());
     fout.close();
+    err += m_error;
     
     //export .cpp
+    m_error = "";
     auto fpath = u8path(fname).replace_extension(".cpp");
     if (!fs::exists(fpath) || fs::is_empty(fpath))
     {
@@ -159,6 +162,7 @@ bool CppGen::ExportUpdate(
     fprev.seekg(0);
     fout.open(fpath, std::ios::trunc);
     ExportCpp(fout, fprev, origNames, params, node, code.str());
+    err += m_error;
     return true;
 }
 
@@ -476,6 +480,8 @@ CppGen::ExportH(
         }
         else if (!tok.compare(0, 2, "//")) {
             if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
+                if (tok.find(VER_STR) == std::string::npos)
+                    m_error += "'" + m_hname + "' was upgraded to " + VER_STR + "\n";
                 copy_content(-(int)tok.size());
                 out << "// " << GENERATED_WITH << VER_STR;
             }
@@ -559,6 +565,8 @@ CppGen::ExportCpp(
             }
             else if (!tok.compare(0, 2, "//")) {
                 if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
+                    if (tok.find(VER_STR) == std::string::npos)
+                        m_error += "'" + u8string(u8path(m_hname).replace_extension(".cpp")) + "' was upgraded to " + VER_STR + "\n";
                     copy_content(-(int)tok.size());
                     fout << "// " << GENERATED_WITH << VER_STR;
                 }

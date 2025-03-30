@@ -181,17 +181,34 @@ struct MenuBar : Widget
     const MenuBar& Defaults() { static MenuBar var(UIContext::Defaults()); return var; }
 };
 
+struct ContextMenu : Widget
+{
+    direct_val<std::string> label = "Item";
+    direct_val<pzdimension2> style_padding;
+    direct_val<pzdimension2> style_spacing;
+    direct_val<pzdimension> style_rounding;
+    
+    ContextMenu(UIContext& ctx);
+    auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
+    int Behavior() { return NoOverlayPos | NoContextMenu; }
+    ImDrawList* DoDraw(UIContext& ctx);
+    auto Properties()->std::vector<Prop>;
+    bool PropertyUI(int i, UIContext& ctx);
+    void DoExport(std::ostream& os, UIContext& ctx);
+    void ExportAllShortcuts(std::ostream& os, UIContext& ctx);
+    void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+    void CalcSizeEx(ImVec2 p1, UIContext& ctx);
+    const char* GetIcon() const { return ICON_FA_MESSAGE; }
+    const ContextMenu& Defaults() { static ContextMenu var(UIContext::Defaults()); return var; }
+};
+
 struct MenuIt : Widget
 {
-    bool contextMenu = false;
     direct_val<bool> ownerDraw = false;
     direct_val<std::string> label = "Item";
     direct_val<shortcut_> shortcut = "";
     direct_val<bool> separator = false;
     field_ref<bool> checked;
-    direct_val<pzdimension2> style_padding;
-    direct_val<pzdimension2> style_spacing;
-    direct_val<pzdimension> style_rounding;
     event<> onChange;
 
     MenuIt(UIContext& ctx);
@@ -208,7 +225,7 @@ struct MenuIt : Widget
     void ExportAllShortcuts(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
-    const char* GetIcon() const { return contextMenu ? ICON_FA_MESSAGE : ICON_FA_BARS; }
+    const char* GetIcon() const { return ICON_FA_BARS; }
     const MenuIt& Defaults() { static MenuIt var(UIContext::Defaults()); return var; }
 };
 

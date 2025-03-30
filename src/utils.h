@@ -7,7 +7,7 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-inline const std::string VER_STR = "ImRAD 0.8";
+inline const std::string VER_STR = "ImRAD 0.9";
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 
 
