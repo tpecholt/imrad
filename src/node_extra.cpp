@@ -214,7 +214,7 @@ bool DockSpace::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("dockingEmptyBg", &style_emptyBg, ctx);
         break;
     case 2:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 3, ctx);
@@ -521,13 +521,13 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 1:
         ImGui::Text("splitDir");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&splitDir, InputDirectVal_Modified, ctx);
+        changed = InputDirectValEnum(&splitDir, InputDirectVal_Modified, ctx);
         break;
    case 2:
         ImGui::Text("splitRatio");

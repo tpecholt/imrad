@@ -2,22 +2,22 @@
 #include "cppgen.h"
 #include <imgui.h>
 
-float direct_val<dimension>::eval_px(const UIContext& ctx) const
+float direct_val<dimension_t>::eval_px(const UIContext& ctx) const
 {
     return val * ctx.zoomFactor;
 }
 
-float direct_val<pzdimension>::eval_px(const UIContext& ctx) const 
+float direct_val<pzdimension_t>::eval_px(const UIContext& ctx) const 
 {
     return val * ctx.zoomFactor;
 }
 
-ImVec2 direct_val<pzdimension2>::eval_px(const UIContext& ctx) const
+ImVec2 direct_val<pzdimension2_t>::eval_px(const UIContext& ctx) const
 {
     return { val[0] * ctx.zoomFactor, val[1] * ctx.zoomFactor };
 }
 
-float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
+float bindable<dimension_t>::eval_px(int axis, const UIContext& ctx) const
 {
     if (empty()) {
         return 0;
@@ -78,7 +78,7 @@ float bindable<dimension>::eval_px(int axis, const UIContext& ctx) const
     }
 }
 
-ImU32 bindable<color32>::eval(int defClr, const UIContext& ctx) const 
+ImU32 bindable<color_t>::eval(int defClr, const UIContext& ctx) const 
 {
     if (empty()) //default color
         return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
@@ -95,7 +95,7 @@ ImU32 bindable<color32>::eval(int defClr, const UIContext& ctx) const
     return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
 }
 
-std::string bindable<font_name>::eval(const UIContext&) const
+std::string bindable<font_name_t>::eval(const UIContext&) const
 {
     if (!has_value())
         return "";

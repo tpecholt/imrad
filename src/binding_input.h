@@ -39,7 +39,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
     bool bound;
     if constexpr (std::is_same_v<T, std::string> ||
         std::is_same_v<T, std::vector<std::string>> ||
-        std::is_same_v<T, color32>)
+        std::is_same_v<T, color_t>)
     {
         bound = !val->used_variables().empty();
     }
@@ -87,7 +87,30 @@ enum
     InputDirectVal_ShortcutButton = 0x2,
 };
 
-inline bool InputDirectVal(direct_val<dimension>* val, int flags, UIContext& ctx)
+template <class T>
+bool InputDirectVal(direct_val<T, false>* val, int fl, UIContext& ctx)
+{
+    ImGui::PushFont((fl & InputDirectVal_Modified) && !ImRad::IsItemDisabled() ?
+        ctx.pgbFont : ctx.pgFont);
+    std::string id = "##" + std::to_string((uint64_t)val);
+    bool changed = false;
+    if constexpr (std::is_same_v<T, int>) {
+        bool high = IsHighlighted(id);
+        ImGui::PushID(id.c_str());
+        high |= IsHighlighted("+") || IsHighlighted("-");
+        ImGui::PopID();
+        changed = ImGui::InputInt(id.c_str(), val->access(), high ? 1 : 0);
+    }
+    else if constexpr (std::is_same_v<T, float>)
+        changed = ImGui::InputFloat(id.c_str(), val->access(), 0, 0, "%.f");
+    else
+        assert(false);
+
+    ImGui::PopFont();
+    return changed;
+}
+
+inline bool InputDirectVal(direct_val<dimension_t>* val, int flags, UIContext& ctx)
 {
     ImGui::PushFont((flags & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
@@ -96,7 +119,7 @@ inline bool InputDirectVal(direct_val<dimension>* val, int flags, UIContext& ctx
     return changed;
 }
 
-inline bool InputDirectVal(direct_val<pzdimension>* val, UIContext& ctx)
+inline bool InputDirectVal(direct_val<pzdimension_t>* val, UIContext& ctx)
 {
     ImGui::PushFont(val->has_value() ? ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
@@ -114,7 +137,7 @@ inline bool InputDirectVal(direct_val<pzdimension>* val, UIContext& ctx)
     return changed;
 }
 
-inline bool InputDirectVal(direct_val<pzdimension2>* val, UIContext& ctx)
+inline bool InputDirectVal(direct_val<pzdimension2_t>* val, UIContext& ctx)
 {
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
@@ -180,102 +203,7 @@ inline bool InputDirectVal(direct_val<std::string>* val, int fl, UIContext& ctx)
     return ch;
 }
 
-template <class T>
-inline bool InputDirectValEnum(direct_val<T>* val, int fl, UIContext& ctx)
-{
-    bool changed = false;
-    std::string id = "##" + std::to_string((uint64_t)val);
-    std::string value = val->get_id();
-    size_t pre = 0;
-    if (!value.compare(0, 5, "ImGui")) {
-        pre = value.find("_");
-        if (pre != std::string::npos && pre + 1 < value.size())
-            ++pre;
-        else
-            pre = 0;
-    }
-    ImGui::PushFont((fl & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
-    if (ImGui::BeginCombo(id.c_str(), val->get_id().c_str() + pre,
-            IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
-    {
-        ImGui::PopFont();
-        ImGui::PushFont(ImGui::GetFont());
-        changed = true;
-        for (const auto& item : val->get_ids())
-        {
-            if (!item.first.compare(0, 5, "ImGui")) {
-                pre = item.first.find("_");
-                if (pre != std::string::npos && pre + 1 < item.first.size())
-                    ++pre;
-                else
-                    pre = 0;
-            }
-            if (ImGui::Selectable(item.first.c_str() + pre, *val->access() == item.second))
-                *val->access() = item.second;
-        }
-        ImGui::EndCombo();
-    }
-    ImGui::PopFont();
-    return changed;
-}
-
-inline bool InputDirectValContextMenu(direct_val<std::string>* val, UIContext& ctx)
-{
-    bool changed = false;
-    ImGui::PushFont(ctx.pgbFont);
-    std::string id = "##" + std::to_string((uint64_t)val);
-    if (ImGui::BeginCombo(id.c_str(), val->c_str(),
-        IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
-    {
-        ImGui::PopFont();
-        ImGui::PushFont(ImGui::GetFont());
-
-        if (ImGui::Selectable(" ", val->empty()))
-        {
-            changed = true;
-            *val->access() = "";
-        }
-        for (const std::string& cm : ctx.contextMenus)
-        {
-            if (ImGui::Selectable(cm.c_str(), cm == val->c_str()))
-            {
-                changed = true;
-                *val->access() = cm;
-            }
-        }
-        ImGui::EndCombo();
-    }
-    ImGui::PopFont();
-    return changed;
-}
-
-template <class T>
-bool InputDirectVal(direct_val<T>* val, int fl, UIContext& ctx)
-{
-    if (val->get_ids().size())
-        return InputDirectValEnum(val, fl, ctx);
-
-    ImGui::PushFont((fl & InputDirectVal_Modified) && !ImRad::IsItemDisabled() ? 
-        ctx.pgbFont : ctx.pgFont);
-    std::string id = "##" + std::to_string((uint64_t)val);
-    bool changed = false;
-    if constexpr (std::is_same_v<T, int>) {
-        bool high = IsHighlighted(id);
-        ImGui::PushID(id.c_str());
-        high |= IsHighlighted("+") || IsHighlighted("-");
-        ImGui::PopID();
-        changed = ImGui::InputInt(id.c_str(), val->access(), high ? 1 : 0);
-    }
-    else if constexpr (std::is_same_v<T, float>)
-        changed = ImGui::InputFloat(id.c_str(), val->access(), 0, 0, "%.f");
-    else
-        assert(false);
-
-    ImGui::PopFont();
-    return changed;
-}
-
-inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx)
+inline bool InputDirectVal(direct_val<shortcut_t>* val, int flags, UIContext& ctx)
 {
     if (flags & InputDirectVal_ShortcutButton)
         ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - ImGui::GetFrameHeight());
@@ -323,6 +251,159 @@ inline bool InputDirectVal(direct_val<shortcut_>* val, int flags, UIContext& ctx
         ImGui::PopStyleVar(2);
     }
 
+    return changed;
+}
+
+
+inline bool InputDirectValContextMenu(direct_val<std::string>* val, UIContext& ctx)
+{
+    bool changed = false;
+    ImGui::PushFont(ctx.pgbFont);
+    std::string id = "##" + std::to_string((uint64_t)val);
+    if (ImGui::BeginCombo(id.c_str(), val->c_str(),
+        IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
+    {
+        ImGui::PopFont();
+        ImGui::PushFont(ImGui::GetFont());
+
+        if (ImGui::Selectable(" ", val->empty()))
+        {
+            changed = true;
+            *val->access() = "";
+        }
+        for (const std::string& cm : ctx.contextMenus)
+        {
+            if (ImGui::Selectable(cm.c_str(), cm == val->c_str()))
+            {
+                changed = true;
+                *val->access() = cm;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopFont();
+    return changed;
+}
+
+template <class T>
+inline bool InputDirectValEnum(direct_val<T, true>* val, int fl, UIContext& ctx)
+{
+    bool changed = false;
+    std::string id = "##" + std::to_string((uint64_t)val);
+    std::string value = val->get_id();
+    size_t pre = 0;
+    if (!value.compare(0, 5, "ImGui")) {
+        pre = value.find("_");
+        if (pre != std::string::npos && pre + 1 < value.size())
+            ++pre;
+        else
+            pre = 0;
+    }
+    ImGui::PushFont((fl & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
+    if (ImGui::BeginCombo(id.c_str(), val->get_id().c_str() + pre,
+        IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
+    {
+        ImGui::PopFont();
+        ImGui::PushFont(ImGui::GetFont());
+        changed = true;
+        for (const auto& item : val->get_ids())
+        {
+            if (!item.first.compare(0, 5, "ImGui")) {
+                pre = item.first.find("_");
+                if (pre != std::string::npos && pre + 1 < item.first.size())
+                    ++pre;
+                else
+                    pre = 0;
+            }
+            if (ImGui::Selectable(item.first.c_str() + pre, *val->access() == item.second))
+                *val->access() = item.second;
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopFont();
+    return changed;
+}
+
+template <class T>
+inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int defVal, UIContext& ctx)
+{
+    int changed = false;
+    ImVec2 pad = ImGui::GetStyle().FramePadding;
+    ImGui::Unindent();
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
+    ImGui::PushStyleColor(ImGuiCol_NavCursor, { 0, 0, 0, 0 });
+    ImGui::SetNextItemAllowOverlap();
+    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns)) {
+        ImGui::PopStyleVar();
+        ImGui::Indent();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
+        ImGui::Spacing();
+        for (const auto& id : val->get_ids())
+        {
+            if (id.first == "") {
+                ImGui::Separator();
+                continue;
+            }
+            if (defVal != -1) {
+                bool different = ((int)*val & id.second) != (defVal & id.second);
+                ImGui::PushFont(ImRad::GetFontByName(different ? "imrad.pgb" : "imrad.pg"));
+            }
+            size_t pre = 0;
+            if (!id.first.compare(0, 5, "ImGui")) {
+                pre = id.first.find('_');
+                if (pre != std::string::npos && pre + 1 < id.first.size())
+                    ++pre;
+                else
+                    pre = 0;
+            }
+            ImU64 flags = *val;
+            if (ImGui::CheckboxFlags(id.first.c_str() + pre, &flags, id.second)) {
+                changed = id.second;
+                *val->access() = (int)flags;
+            }
+            if (defVal != -1)
+                ImGui::PopFont();
+        }
+        ImGui::PopStyleVar();
+        ImGui::TreePop();
+        ImGui::Unindent();
+    }
+    else
+    {
+        ImGui::PopStyleVar();
+        ImGui::TableNextColumn();
+        std::string label, tip;
+        for (const auto& id : val->get_ids())
+        {
+            if (*val & id.second)
+            {
+                size_t pre = 0;
+                if (!id.first.compare(0, 5, "ImGui")) {
+                    size_t i = id.first.find('_');
+                    if (i != std::string::npos && i + 1 < id.first.size())
+                        pre = i + 1;
+                }
+                tip += id.first.substr(pre) + "\n";
+            }
+        }
+        if (tip == "")
+            tip = "None";
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        ImGui::PushFont(*val != defVal ? ctx.pgbFont : ctx.pgFont);
+        //float w = ImGui::GetContentRegionAvail().x;
+        ImGui::Text("...");
+        ImGui::PopFont();
+        if (//ImGui::GetItemRectSize().x > w &&
+            ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
+            ImGui::SetTooltip("%s", tip.c_str());
+            ImGui::PopStyleVar();
+        }
+    }
+    ImGui::Indent();
+    ImGui::PopStyleColor();
     return changed;
 }
 
@@ -416,7 +497,7 @@ inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
     return changed;
 }
 
-inline bool InputBindable(bindable<font_name>* val, UIContext& ctx)
+inline bool InputBindable(bindable<font_name_t>* val, UIContext& ctx)
 {
     std::string fn = val->empty() ? PARENT_STR :
         val->has_value() ? val->eval(ctx) : val->c_str();
@@ -450,7 +531,7 @@ inline bool InputBindable(bindable<font_name>* val, UIContext& ctx)
     return changed;
 }
 
-inline bool InputBindable(bindable<color32>* val, int defStyleCol, UIContext& ctx)
+inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ctx)
 {
     static std::string lastColor;
     static int lastStyleClr;
@@ -760,25 +841,34 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
     return changed;
 }
 
-inline bool InputBindable(bindable<dimension>* val, int flags, UIContext& ctx)
+inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
 {
-    if (flags & InputBindable_StretchButton) {
-        const auto& nextItemData = ImGui::GetCurrentContext()->NextItemData;
-        bool hasWidth = nextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth;
-        ImGui::SetNextItemWidth((hasWidth ? nextItemData.Width : 0) - ImGui::GetFrameHeight());
-    }
+    std::string id = "##" + std::to_string((uint64_t)val);
+    std::string butId = ICON_FA_LEFT_RIGHT + id;
+    if (flags & InputBindable_StretchButton)
+        ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - ImGui::GetFrameHeight());
     
     bool stretch = val->stretched();
-    std::string id = "##" + std::to_string((uint64_t)val);
     ImGui::PushFont(!ImRad::IsItemDisabled() && (flags & InputBindable_Modified) ? 
         ctx.pgbFont : ctx.pgFont);
     int fl = ImGuiInputTextFlags_CallbackCharFilter;
     if (val->has_value())
         fl |= ImGuiInputTextFlags_AutoSelectAll;
-    bool changed = ImGui::InputText(id.c_str(), val->access(), fl, DefaultCharFilter);
+    std::string tmp = *val->access();
+    bool active = ImGui::GetFocusID() == ImGui::GetID(id.c_str()) ||
+        ImGui::GetActiveID() == ImGui::GetID(id.c_str());
+    if (!active)
+        tmp = val->to_arg("");
+    bool changed = ImGui::InputText(id.c_str(), &tmp, fl, DefaultCharFilter);
+    if (changed) {
+        if (stretch && tmp.size() && tmp.back() == 'x')
+            val->set_from_arg(tmp);
+        else
+            *val->access() = tmp;
+    }
     ImGui::PopFont();
 
-    //disallow empty state except string values
+    //disallow empty state
     if (ImGui::IsItemDeactivatedAfterEdit())
     {
         if (!stretch && val->empty())
@@ -810,7 +900,7 @@ inline bool InputBindable(bindable<dimension>* val, int flags, UIContext& ctx)
 }
 
 template <class T, 
-    class = std::enable_if_t<!std::is_same_v<T, dimension>> >
+    class = std::enable_if_t<!std::is_same_v<T, dimension_t>> >
 inline bool InputBindable(bindable<T>* val, int flags, UIContext& ctx)
 {
     std::string id = "##" + std::to_string((uint64_t)val);
@@ -1045,98 +1135,5 @@ inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, 
         ImGui::InvisibleButton(id.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() });
     }
     
-    return changed;
-}
-
-inline int CheckBoxFlags(flags_helper* flags, int initial)
-{
-    int changed = false;
-    for (const auto& id : flags->get_ids())
-    {
-        if (id.first == "") {
-            ImGui::Separator();
-            continue;
-        }
-        
-        if (initial != -1) {
-            bool different = ((int)*flags & id.second) != (initial & id.second);
-            ImGui::PushFont(ImRad::GetFontByName(different ? "imrad.pgb" : "imrad.pg"));
-        }
-        size_t pre = 0;
-        if (!id.first.compare(0, 5, "ImGui")) {
-            pre = id.first.find('_');
-            if (pre != std::string::npos && pre + 1 < id.first.size())
-                ++pre;
-            else
-                pre = 0;
-        }
-        if (ImGui::CheckboxFlags(id.first.c_str() + pre, flags->access(), id.second))
-            changed = id.second;
-        if (initial != -1)
-            ImGui::PopFont();
-    }
-    return changed;
-}
-
-inline int InputFlags(const char* name, flags_helper* val, int defVal, UIContext& ctx)
-{
-    int changed = false;
-    ImVec2 pad = ImGui::GetStyle().FramePadding;
-    ImGui::Unindent();
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    ImGui::PushStyleColor(ImGuiCol_NavCursor, { 0, 0, 0, 0 });
-    //ImGui::SetNextItemAllowOverlap();
-    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns)) {
-        ImGui::PopStyleVar();
-        ImGui::Indent();
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
-        ImGui::TableNextColumn();
-        ImGui::Spacing();
-        changed = CheckBoxFlags(val, defVal);
-        ImGui::PopStyleVar();
-        ImGui::TreePop();
-        ImGui::Unindent();
-    }
-    else
-    {
-        ImGui::PopStyleVar();
-        ImGui::TableNextColumn();
-        std::string label, tip;
-        int plus = 0, minus = 0;
-        for (const auto& id : val->get_ids())
-        {
-            if (*val & id.second)
-            {
-                if (!(defVal & id.second))
-                    ++plus;
-                size_t pre = 0;
-                if (!id.first.compare(0, 5, "ImGui")) {
-                    size_t i = id.first.find('_');
-                    if (i != std::string::npos && i + 1 < id.first.size())
-                        pre = i + 1;
-                }
-                tip += id.first.substr(pre) + "\n";
-            }
-            else
-            {
-                if (defVal & id.second)
-                    ++minus;
-            }
-        }
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(*val != defVal ? ctx.pgbFont : ctx.pgFont);
-        float w = ImGui::GetContentRegionAvail().x;
-        ImGui::Selectable("...", false);
-        ImGui::PopFont();
-        if (//ImGui::GetItemRectSize().x > w &&
-            ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) 
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
-            ImGui::SetTooltip("%s", tip.c_str());
-            ImGui::PopStyleVar();
-        }
-    }
-    ImGui::Indent();
-    ImGui::PopStyleColor();
     return changed;
 }

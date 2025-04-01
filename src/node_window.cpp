@@ -394,7 +394,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::SetNextWindowSize({ (float)tmpWidth, (float)tmpHeight });\n";
         }
         
-        flags_helper fl = flags;
+        auto fl = flags;
         fl |= ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings;
         os << ctx.ind << "bool tmpOpen;\n";
         os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
@@ -446,7 +446,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::SetNextWindowSize(ioUserData->WorkRect().GetSize());";
         //signal designed size
         os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
-        flags_helper fl = flags;
+        auto fl = flags;
         fl |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
         os << ctx.ind << "bool tmpOpen;\n";
         os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
@@ -1150,14 +1150,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = kind != Defaults().kind ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&kind, fl, ctx);
+        changed = InputDirectValEnum(&kind, fl, ctx);
         break;
     }
     case 10:
     {
         bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
         bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         if (changed)
         {
             bool flagsMB = flags & ImGuiWindowFlags_MenuBar;
@@ -1263,7 +1263,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
             placement = None;
         }
         fl = placement != Defaults().placement ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&placement, fl, ctx);
+        changed = InputDirectValEnum(&placement, fl, ctx);
         ImGui::EndDisabled();
         break;
     }

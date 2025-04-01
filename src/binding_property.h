@@ -89,70 +89,44 @@ private:
 };
 
 //value only
+
+template <class T, bool E = std::is_enum_v<T>>
+struct direct_val;
+
 template <class T>
-struct direct_val : property_base 
+struct direct_val<T, false> : property_base 
 {
     direct_val(T v) : val(v) {}
     
-    void clear() {
-        ids.clear();
-    }
-    direct_val& add(const char* id, T v) {
-        ids.push_back({ id, v });
-        return *this;
-    }
-    const auto& get_ids() const { return ids; }
-    const std::string& get_id() const {
-        static std::string none;
-        auto it = stx::find_if(ids, [this](const auto& id) { return id.second == val; });
-        return it != ids.end() ? it->first : none;
-    }
-    void set_id(const std::string& v) {
-        auto it = stx::find_if(ids, [&v](const auto& id) { return id.first == v; });
-        if (it != ids.end())
-            val = it->second;
-    }
-
     operator T&() { return val; }
     operator const T&() const { return val; }
-    bool operator== (const T& dv) const {
-        return val == dv;
+    /*bool operator== (const direct_val& dv) const {
+        return val == dv.val;
     }
-    bool operator!= (const T& dv) const {
-        return val != dv;
-    }
+    bool operator!= (const direct_val& dv) const {
+        return val != dv.val;
+    }*/
     direct_val& operator= (const T& v) {
         val = v;
         return *this;
     }
-    void set_from_arg(std::string_view s) {
-        if (ids.size()) {
-            auto it = stx::find_if(ids, [&](const auto& id) { return id.first == s; });
-            val = it != ids.end() ? it->second : T();
+    bool set_from_arg(std::string_view str) {
+        std::istringstream is;
+        is.str(std::string(str));
+        if constexpr (std::is_enum_v<T>) {
+            int tmp;
+            is >> tmp;
+            val = (T)tmp;
         }
         else {
-            std::istringstream is;
-            is.str(std::string(s));
-            if constexpr (std::is_enum_v<T>) {
-                int tmp;
-                is >> tmp;
-                val = (T)tmp;
-            }
-            else {
-                is >> std::boolalpha >> val;
-            }
+            is >> std::boolalpha >> val;
         }
+        return is.good();
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
-        if (ids.size()) {
-            auto it = stx::find_if(ids, [this](const auto& id) { return id.second == val; });
-            return it != ids.end() ? it->first : "";
-        }
-        else {
-            std::ostringstream os;
-            os << std::boolalpha << val;
-            return os.str();
-        }
+        std::ostringstream os;
+        os << std::boolalpha << val;
+        return os.str();
     }
     std::vector<std::string> used_variables() const {
         return {};
@@ -164,11 +138,108 @@ struct direct_val : property_base
 
 private:
     T val;
-    std::vector<std::pair<std::string, T>> ids;
+};
+
+#define add$(f) add(#f, f)
+template <class T>
+struct direct_val<T, true> : property_base
+{
+    direct_val(int v = 0) : val(v) {}
+
+    void clear() {
+        ids.clear();
+    }
+    direct_val& add(const char* id, int v) {
+        ids.push_back({ id, v });
+        return *this;
+    }
+    direct_val& separator() {
+        ids.push_back({ "", 0 });
+        return *this;
+    }
+    auto find_id(int fl) const {
+        return stx::find_if(ids, [this](const auto& id) {
+            return id.first != "" && id.second == val;
+            });
+    }
+    const auto& get_ids() const { return ids; }
+    const std::string& get_id() const {
+        static std::string none;
+        auto it = find_id(val);
+        return it != ids.end() ? it->first : none;
+    }
+    void set_id(const std::string& v) {
+        auto it = stx::find_if(ids, [&v](const auto& id) { return id.first == v; });
+        if (it != ids.end())
+            val = it->second;
+    }
+
+    operator T() const { return (T)val; }
+    
+    direct_val& operator= (int v) {
+        val = v;
+        return *this;
+    }
+    direct_val& operator|= (int v) {
+        val |= v;
+        return *this;
+    }
+    direct_val& operator&= (int v) {
+        val &= v;
+        return *this;
+    }
+    bool set_from_arg(std::string_view str) {
+        bool ok = true;
+        val = {};
+        size_t i = 0;
+        while (true) {
+            std::string s;
+            size_t j = str.find('|', i);
+            if (j == std::string::npos)
+                s = str.substr(i);
+            else
+                s = str.substr(i, j - i);
+            auto id = stx::find_if(ids, [&](const auto& id) { return id.first == s; });
+            //assert(id != ids.end());
+            if (s == "0" || 
+                (!s.compare(0, 5, "ImGui") && !s.compare(s.size() - 5, 5, "_None")))
+                val;
+            else if (id != ids.end())
+                val |= id->second; 
+            else
+                ok = false;
+            if (j == std::string::npos)
+                break;
+            i = j + 1;
+        }
+        return ok;
+    }
+    std::string to_arg(std::string_view = "", std::string_view = "") const {
+        std::string str;
+        for (const auto& id : ids)
+            if ((val & id.second) && id.first != "")
+                str += id.first + " | ";
+        if (str != "")
+            str.resize(str.size() - 3);
+        else
+            str = "0";
+        return str;
+    }
+    std::vector<std::string> used_variables() const {
+        return {};
+    }
+    void rename_variable(const std::string& oldn, const std::string& newn)
+    {}
+    int* access() { return &val; }
+    const char* c_str() const { return nullptr; }
+
+private:
+    int val;
+    std::vector<std::pair<std::string, int>> ids;
 };
 
 template <>
-struct direct_val<dimension> : property_base
+struct direct_val<dimension_t> : property_base
 {
     direct_val(float v) : val(v) {}
 
@@ -220,7 +291,7 @@ private:
 };
 
 template <>
-struct direct_val<pzdimension> : property_base
+struct direct_val<pzdimension_t> : property_base
 {
     direct_val(float v = -1) : val(v) {}
 
@@ -275,7 +346,7 @@ private:
 };
 
 template <>
-struct direct_val<pzdimension2> : property_base
+struct direct_val<pzdimension2_t> : property_base
 {
     direct_val(ImVec2 dim = { -1, -1 }) : val(dim) {}
     
@@ -362,7 +433,7 @@ private:
 };
 
 template <>
-struct direct_val<shortcut_> : property_base
+struct direct_val<shortcut_t> : property_base
 {
     direct_val(const std::string& v) : sh(v) {}
     direct_val(const char* v) : sh(v) {}
@@ -402,83 +473,6 @@ struct direct_val<shortcut_> : property_base
 private:
     std::string sh;
     int flags_;
-};
-
-#define add$(f) add(#f, f)
-struct flags_helper : property_base
-{
-public:
-    flags_helper(int f) : f(f)
-    {}
-    flags_helper& operator= (int ff) {
-        f = ff;
-        return *this;
-    }
-    flags_helper& operator|= (int ff) {
-        f |= ff;
-        return *this;
-    }
-    flags_helper& operator&= (int ff) {
-        f &= ff;
-        return *this;
-    }
-    int operator& (int ff) {
-        return f & ff;
-    }
-    flags_helper& add(const char* id, int v) {
-        ids.push_back({ id, v });
-        return *this;
-    }
-    flags_helper& separator() {
-        ids.push_back({ "", 0 });
-        return *this;
-    }
-    operator int() const { return f; }
-    int* access() { return &f; }
-    std::string to_arg(std::string_view = "", std::string_view = "") const {
-        std::string str;
-        for (const auto& id : ids)
-            if ((f & id.second) && id.first != "")
-                str += id.first + " | ";
-        if (str != "")
-            str.resize(str.size() - 3);
-        else
-            str = "0";
-        return str;
-    }
-    void set_from_arg(std::string_view str) {
-        f = 0;
-        size_t i = 0;
-        while (true) {
-            std::string s;
-            size_t j = str.find('|', i);
-            if (j == std::string::npos)
-                s = str.substr(i);
-            else
-                s = str.substr(i, j - i);
-            auto id = stx::find_if(ids, [&](const auto& id) { return id.first == s; });
-            //assert(id != ids.end());
-            if (id != ids.end())
-                f |= id->second;
-            if (j == std::string::npos)
-                break;
-            i = j + 1;
-        }
-    }
-    const auto& get_ids() const { return ids; }
-    auto find_id(int fl) const {
-        for (auto id = ids.begin(); id != ids.end(); ++id)
-            if (id->second == fl && id->first != "") 
-                return id;
-        return ids.end();
-    }
-    std::vector<std::string> used_variables() const { return {}; }
-    void rename_variable(const std::string& oldn, const std::string& newn) {}
-    const char* c_str() const { return nullptr; }
-
-private:
-    int f;
-    std::vector<std::pair<std::string, int>> ids;
 };
 
 //value or binding expression
@@ -585,7 +579,7 @@ private:
 };
 
 template <>
-struct bindable<dimension> : property_base
+struct bindable<dimension_t> : property_base
 {
     bindable() {
     }
@@ -828,7 +822,7 @@ struct bindable<std::vector<std::string>> : bindable<std::string>
 };
 
 template <>
-struct bindable<font_name> : property_base
+struct bindable<font_name_t> : property_base
 {
     bindable() {
     }
@@ -890,7 +884,7 @@ private:
 };
 
 template <>
-struct bindable<color32> : property_base
+struct bindable<color_t> : property_base
 {
     bindable() {
     }
@@ -911,7 +905,7 @@ struct bindable<color32> : property_base
         if (empty())
             return false;
         std::istringstream is(str);
-        color32 val;
+        color_t val;
         if (!(is >> val))
             return false;
         if (is.eof())

@@ -4,18 +4,18 @@
 #include <sstream>
 
 //negative values allowed
-struct dimension {};
+struct dimension_t {};
 
 //positive or zero dimension (so that neg values represent empty value)
-struct pzdimension {};
+struct pzdimension_t {};
 
-struct pzdimension2 {};
+struct pzdimension2_t {};
 
-struct font_name {};
+struct font_name_t {};
 
-struct shortcut_ {};
+struct shortcut_t {};
 
-struct color32 {};
+struct color_t {};
 
 //------------------------------------------------------------------
 
@@ -40,9 +40,9 @@ std::string typeid_name()
         return "void";
     else if constexpr (std::is_same_v<T, std::string>)
         return "std::string";
-    else if constexpr (std::is_same_v<T, color32>)
+    else if constexpr (std::is_same_v<T, color_t>)
         return "color4";
-    else if constexpr (std::is_same_v<T, dimension>)
+    else if constexpr (std::is_same_v<T, dimension_t>)
         return "float";
     else if constexpr (std::is_same_v<T, int>)
         return "int";
@@ -54,9 +54,9 @@ std::string typeid_name()
         return "size_t";
     else if constexpr (std::is_same_v<T, bool>)
         return "bool";
-    else if constexpr (std::is_same_v<T, ImVec2> || std::is_same_v<T, pzdimension2>)
+    else if constexpr (std::is_same_v<T, ImVec2> || std::is_same_v<T, pzdimension2_t>)
         return "ImVec2";
-    else if constexpr (std::is_same_v<T, font_name>)
+    else if constexpr (std::is_same_v<T, font_name_t>)
         return "ImFont*";
     else if constexpr (std::is_same_v<T, std::vector<std::string>>)
         return "std::vector<std::string>";

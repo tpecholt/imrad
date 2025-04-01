@@ -11,8 +11,6 @@
 
 #define DRAW_STR(a) cpp::to_draw_str(a.value()).c_str()
 
-extern const color32 FIELD_REF_CLR;
-
 void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std::function<void()> f);
 
 
@@ -120,8 +118,8 @@ struct Widget : UINode
 
     direct_val<bool> sameLine = false;
     direct_val<int> nextColumn = 0;
-    bindable<dimension> size_x = 0;
-    bindable<dimension> size_y = 0;
+    bindable<dimension_t> size_x = 0;
+    bindable<dimension_t> size_y = 0;
     bindable<bool> visible;
     bindable<bool> disabled;
     bindable<std::string> tooltip = "";
@@ -129,22 +127,22 @@ struct Widget : UINode
     direct_val<ImGuiMouseCursor_> cursor = ImGuiMouseCursor_Arrow;
     direct_val<bool> tabStop = true;
     direct_val<bool> hasPos = false;
-    direct_val<dimension> pos_x = 0;
-    direct_val<dimension> pos_y = 0;
+    direct_val<dimension_t> pos_x = 0;
+    direct_val<dimension_t> pos_y = 0;
     direct_val<int> indent = 0;
     direct_val<int> spacing = 0;
     direct_val<bool> allowOverlap = false;
     data_loop itemCount;
-    bindable<font_name> style_font;
-    bindable<color32> style_text;
-    bindable<color32> style_frameBg;
-    bindable<color32> style_border;
-    bindable<color32> style_button;
-    bindable<color32> style_buttonHovered;
-    bindable<color32> style_buttonActive;
-    direct_val<pzdimension> style_frameRounding;
-    direct_val<pzdimension2> style_framePadding;
-    direct_val<pzdimension> style_frameBorderSize;
+    bindable<font_name_t> style_font;
+    bindable<color_t> style_text;
+    bindable<color_t> style_frameBg;
+    bindable<color_t> style_border;
+    bindable<color_t> style_button;
+    bindable<color_t> style_buttonHovered;
+    bindable<color_t> style_buttonActive;
+    direct_val<pzdimension_t> style_frameRounding;
+    direct_val<pzdimension2_t> style_framePadding;
+    direct_val<pzdimension_t> style_frameBorderSize;
     event<> onItemClicked;
     event<> onItemDoubleClicked;
     event<> onItemHovered;
@@ -200,7 +198,7 @@ struct Spacer : Widget
 struct Separator : Widget
 {
     bindable<std::string> label;
-    direct_val<pzdimension> style_thickness;
+    direct_val<pzdimension_t> style_thickness;
     direct_val<bool> style_outerPadding = true;
 
     Separator(UIContext&);
@@ -236,13 +234,13 @@ struct Text : Widget
 struct Selectable : Widget
 {
     bindable<std::string> label = "label";
-    flags_helper flags = ImGuiSelectableFlags_DontClosePopups;
+    direct_val<ImGuiSelectableFlags_> flags = ImGuiSelectableFlags_NoAutoClosePopups;
     direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignLeft;
     direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
     direct_val<bool> alignToFrame = false;
     direct_val<bool> readOnly = false;
     bindable<bool> selected = false;
-    bindable<color32> style_header;
+    bindable<color_t> style_header;
     event<> onChange;
 
     Selectable(UIContext& ctx);
@@ -266,7 +264,7 @@ struct Button : Widget
     direct_val<ImGuiDir> arrowDir = ImGuiDir_None;
     direct_val<bool> small = false;
     direct_val<ImRad::ModalResult> modalResult = ImRad::None;
-    direct_val<shortcut_> shortcut = "";
+    direct_val<shortcut_t> shortcut = "";
     direct_val<std::string> dropDownMenu = "";
     event<> onChange;
 
@@ -288,7 +286,7 @@ struct CheckBox : Widget
 {
     bindable<std::string> label = "label";
     field_ref<bool> fieldName;
-    bindable<color32> style_check;
+    bindable<color_t> style_check;
     event<> onChange;
 
     CheckBox(UIContext& ctx);
@@ -308,7 +306,7 @@ struct RadioButton : Widget
 {
     bindable<std::string> label = "label";
     direct_val<int> valueID = 0;
-    bindable<color32> style_check;
+    bindable<color_t> style_check;
     field_ref<int> fieldName;
     event<> onChange;
 
@@ -329,19 +327,20 @@ struct Input : Widget
 {
     field_ref<> fieldName;
     direct_val<std::string> label = "";
-    direct_val<int> type = 0;
+    direct_val<int, true> type = 0;
     bindable<std::string> hint = "";
     direct_val<int> imeType = ImRad::ImeText;
     direct_val<float> step = 1;
     direct_val<std::string> format = "%.3f";
-    flags_helper flags = 0;
+    direct_val<ImGuiInputTextFlags_> flags;
     direct_val<bool> initialFocus = false;
     field_ref<bool> forceFocus;
     event<> onChange;
     event<> onImeAction;
     event<int(ImGuiInputTextCallbackData&)> onCallback;
 
-    static flags_helper _imeClass, _imeAction;
+    static direct_val<ImRad::ImeType> _imeClass;
+    static direct_val<ImRad::ImeType> _imeAction;
     
     Input(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -362,7 +361,7 @@ struct Combo : Widget
     direct_val<std::string> label = "";
     field_ref<std::string> fieldName;
     bindable<std::vector<std::string>> items;
-    flags_helper flags = ImGuiComboFlags_None;
+    direct_val<ImGuiComboFlags_> flags;
     event<> onChange;
 
     Combo(UIContext& ctx);
@@ -383,7 +382,7 @@ struct Slider : Widget
 {
     direct_val<std::string> label = "";
     field_ref<> fieldName;
-    direct_val<int> type = 0;
+    direct_val<int, true> type = 0;
     direct_val<float> min = 0;
     direct_val<float> max = 1;
     direct_val<std::string> format = "";
@@ -407,7 +406,7 @@ struct ProgressBar : Widget
 {
     direct_val<bool> indicator = true;
     field_ref<float> fieldName;
-    bindable<color32> style_color;
+    bindable<color_t> style_color;
 
     ProgressBar(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -426,7 +425,7 @@ struct ColorEdit : Widget
     field_ref<> fieldName;
     direct_val<std::string> label = "";
     direct_val<std::string> type = "color3";
-    flags_helper flags = ImGuiColorEditFlags_None;
+    direct_val<ImGuiColorEditFlags_> flags;
     event<> onChange;
 
     ColorEdit(UIContext& ctx);

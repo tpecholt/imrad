@@ -1988,7 +1988,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = cursor != Defaults().cursor ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&cursor, fl, ctx);
+        changed = InputDirectValEnum(&cursor, fl, ctx);
         return changed;
     case 5:
         ImGui::Text("disabled");
@@ -3014,7 +3014,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = horizAlignment != Defaults().horizAlignment ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&horizAlignment, fl, ctx);
+        changed = InputDirectValEnum(&horizAlignment, fl, ctx);
         break;
     case 4:
         ImGui::BeginDisabled(size_y.has_value() && !size_y.eval_px(ImGuiAxis_Y, ctx));
@@ -3022,7 +3022,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = vertAlignment != Defaults().vertAlignment ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&vertAlignment, fl, ctx);
+        changed = InputDirectValEnum(&vertAlignment, fl, ctx);
         ImGui::EndDisabled();
         break;
     case 5:
@@ -3032,7 +3032,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
     case 6:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 7:
         ImGui::Text("label");
@@ -3358,7 +3358,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = arrowDir != Defaults().arrowDir ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&arrowDir, fl, ctx);
+        changed = InputDirectValEnum(&arrowDir, fl, ctx);
         if (changed && arrowDir != ImGuiDir_None)
             label = "";
         break;
@@ -3384,7 +3384,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = modalResult != Defaults().modalResult ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&modalResult, fl, ctx);
+        changed = InputDirectValEnum(&modalResult, fl, ctx);
         if (changed && modalResult == ImRad::Cancel)
             shortcut = "Escape";
         ImGui::EndDisabled();
@@ -3802,8 +3802,8 @@ bool RadioButton::EventUI(int i, UIContext& ctx)
 
 //---------------------------------------------------
 
-flags_helper Input::_imeClass = 0;
-flags_helper Input::_imeAction = 0;
+direct_val<ImRad::ImeType> Input::_imeClass = 0;
+direct_val<ImRad::ImeType> Input::_imeAction = 0;
 
 Input::Input(UIContext& ctx)
 {
@@ -4356,7 +4356,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 6:
         ImGui::Text("label");
@@ -4369,7 +4369,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = type != Defaults().type ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&type, fl, ctx);
+        changed = InputDirectValEnum(&type, fl, ctx);
         if (changed)
         {
             ctx.codeGen->ChangeVar(fieldName.c_str(), type.get_id(), "");
@@ -4692,7 +4692,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 6:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 7:
         ImGui::Text("label");
@@ -4973,7 +4973,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = type != Defaults().type ? InputDirectVal_Modified : 0;
-        if (InputDirectVal(&type, fl, ctx))
+        if (InputDirectValEnum(&type, fl, ctx))
         {
             changed = true;
             std::string tid = type.get_id();
@@ -5403,7 +5403,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 6:
         ImGui::Text("label");
@@ -5665,7 +5665,7 @@ bool Image::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = stretchPolicy != Defaults().stretchPolicy ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&stretchPolicy, fl, ctx);
+        changed = InputDirectValEnum(&stretchPolicy, fl, ctx);
         break;
     }
     case 2:

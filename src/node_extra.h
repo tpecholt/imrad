@@ -3,9 +3,9 @@
 
 struct DockSpace : Widget
 {
-    flags_helper flags = 0;
-    bindable<color32> style_preview;
-    bindable<color32> style_emptyBg;
+    direct_val<ImGuiDockNodeFlags_> flags;
+    bindable<color_t> style_preview;
+    bindable<color_t> style_emptyBg;
     
     DockSpace(UIContext& ctx);
     uint32_t CalcHash(UIContext& ctx);
@@ -23,7 +23,7 @@ struct DockSpace : Widget
 
 struct DockNode : Widget
 {
-    flags_helper flags = 0;
+    direct_val<ImGuiDockNodeFlags_> flags;
     direct_val<ImGuiDir> splitDir = ImGuiDir_None;
     bindable<float> splitRatio = 0;
     direct_val<std::string> labels = "";

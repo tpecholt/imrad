@@ -57,7 +57,7 @@ bool Table::ColumnData::PropertyUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 1:
         ImGui::Text("label");
@@ -70,7 +70,7 @@ bool Table::ColumnData::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = sizingPolicy != Defaults().sizingPolicy ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&sizingPolicy, fl, ctx);
+        changed = InputDirectValEnum(&sizingPolicy, fl, ctx);
         break;
     case 3:
         ImGui::Text("width");
@@ -296,7 +296,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&header, fl, ctx);
         break;
     case 8:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 9:
     {
@@ -495,7 +495,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::TableSetupColumn(" << cd.label.to_arg() << ", "
             << fl << ", ";
         if (cd.sizingPolicy == ImGuiTableColumnFlags_WidthFixed) {
-            direct_val<dimension> dim(cd.width);
+            direct_val<dimension_t> dim(cd.width);
             os << dim.to_arg(ctx.unit);
         }
         else
@@ -1055,7 +1055,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         break;
     case 8:
     {
-        int ch = InputFlags("flags", &flags, Defaults().flags, ctx);
+        int ch = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         if (ch) {
             changed = true;
             //these flags are difficult to get right and there are asserts so fix it here
@@ -1082,7 +1082,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         break;
     }
     case 9:
-        changed = InputFlags("windowFlags", &wflags, Defaults().wflags, ctx);
+        changed = InputDirectValFlags("windowFlags", &wflags, Defaults().wflags, ctx);
         break;
     case 10:
         ImGui::Text("columnCount");
@@ -1197,7 +1197,7 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_SeparatorActive, " << style_active.to_arg() << ");\n";
 
     bool axisX = true;
-    direct_val<dimension> th = ImGui::GetStyle().ItemSpacing.x;
+    direct_val<dimension_t> th = ImGui::GetStyle().ItemSpacing.x;
     if (children.size() == 2) {
         axisX = children[1]->sameLine;
         th = children[1]->cached_pos[!axisX] - children[0]->cached_pos[!axisX] - children[0]->cached_size[!axisX];
@@ -1512,7 +1512,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 6:
         ImGui::Text("label");
@@ -1685,7 +1685,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 2:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 3:
         ImGui::Text("label");
@@ -1966,7 +1966,7 @@ bool TabBar::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 8:
-        changed = InputFlags("flags", &flags, Defaults().flags, ctx);
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 9:
         ImGui::Text("tabCount");

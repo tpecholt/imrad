@@ -7,9 +7,9 @@ struct Table : Widget
     {
         direct_val<std::string> label = "";
         bindable<bool> visible;
-        direct_val<int> sizingPolicy = 0;
+        direct_val<ImGuiTableColumnFlags_> sizingPolicy = 0;
         direct_val<float> width = 0;
-        flags_helper flags = 0;
+        direct_val<ImGuiTableColumnFlags_> flags;
 
         ColumnData();
         ColumnData(const std::string& l, ImGuiTableColumnFlags_ sizingPolicy, float w = 0);
@@ -18,19 +18,19 @@ struct Table : Widget
         bool PropertyUI(int i, UIContext& ctx);
     };
 
-    flags_helper flags = ImGuiTableFlags_Borders;
+    direct_val<ImGuiTableFlags_> flags = ImGuiTableFlags_Borders;
     std::vector<ColumnData> columnData;
     direct_val<bool> header = true;
     bindable<bool> rowFilter;
-    bindable<dimension> rowHeight = 0;
+    bindable<dimension_t> rowHeight = 0;
     direct_val<int> scrollFreeze_x = 0;
     direct_val<int> scrollFreeze_y = 0;
     direct_val<bool> scrollWhenDragging = false;
-    direct_val<pzdimension2> style_cellPadding;
-    bindable<color32> style_headerBg;
-    bindable<color32> style_rowBg;
-    bindable<color32> style_rowBgAlt;
-    bindable<color32> style_childBg;
+    direct_val<pzdimension2_t> style_cellPadding;
+    bindable<color_t> style_headerBg;
+    bindable<color_t> style_rowBg;
+    bindable<color_t> style_rowBgAlt;
+    bindable<color_t> style_childBg;
     event<> onBeginRow;
     event<> onEndRow;
     event<> onSetup;
@@ -52,17 +52,17 @@ struct Table : Widget
 
 struct Child : Widget
 {
-    flags_helper flags = ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened;
-    flags_helper wflags = ImGuiWindowFlags_NoSavedSettings;
+    direct_val<ImGuiChildFlags_> flags = ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened;
+    direct_val<ImGuiWindowFlags_> wflags = ImGuiWindowFlags_NoSavedSettings;
     bindable<int> columnCount = 1;
     direct_val<bool> columnBorder = true;
     direct_val<bool> scrollWhenDragging = false;
-    direct_val<pzdimension2> style_padding;
-    direct_val<pzdimension2> style_spacing;
+    direct_val<pzdimension2_t> style_padding;
+    direct_val<pzdimension2_t> style_spacing;
     direct_val<bool> style_outerPadding = true;
-    direct_val<pzdimension> style_rounding;
-    direct_val<pzdimension> style_borderSize;
-    bindable<color32> style_bg;
+    direct_val<pzdimension_t> style_rounding;
+    direct_val<pzdimension_t> style_borderSize;
+    bindable<color_t> style_bg;
     
     Child(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -81,11 +81,11 @@ struct Child : Widget
 struct CollapsingHeader : Widget
 {
     bindable<std::string> label = "label";
-    flags_helper flags = 0;
+    direct_val<ImGuiTreeNodeFlags_> flags;
     bindable<bool> open;
-    bindable<color32> style_header;
-    bindable<color32> style_hovered;
-    bindable<color32> style_active;
+    bindable<color_t> style_header;
+    bindable<color_t> style_hovered;
+    bindable<color_t> style_active;
 
     CollapsingHeader(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -102,14 +102,14 @@ struct CollapsingHeader : Widget
 
 struct TabBar : Widget
 {
-    flags_helper flags = 0;
+    direct_val<ImGuiTabBarFlags_> flags;
     field_ref<int> activeTab;
-    bindable<color32> style_tab;
-    bindable<color32> style_tabDimmed;
-    bindable<color32> style_hovered;
-    bindable<color32> style_selected;
-    bindable<color32> style_dimmedSelected;
-    bindable<color32> style_overline;
+    bindable<color_t> style_tab;
+    bindable<color_t> style_tabDimmed;
+    bindable<color_t> style_hovered;
+    bindable<color_t> style_selected;
+    bindable<color_t> style_dimmedSelected;
+    bindable<color_t> style_overline;
     direct_val<bool> style_regularWidth = false;
 
     TabBar(UIContext& ctx);
@@ -122,7 +122,6 @@ struct TabBar : Widget
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_FOLDER_CLOSED; }
-    float CalcRegularWidth();
     const TabBar& Defaults() { static TabBar var(UIContext::Defaults()); return var; }
 };
 
@@ -150,7 +149,7 @@ struct TabItem : Widget
 
 struct TreeNode : Widget
 {
-    flags_helper flags = ImGuiTreeNodeFlags_None;
+    direct_val<ImGuiTreeNodeFlags_> flags;
     bindable<std::string> label = "Node";
     bindable<bool> open;
     bool lastOpen;
@@ -184,9 +183,9 @@ struct MenuBar : Widget
 struct ContextMenu : Widget
 {
     direct_val<std::string> label = "Item";
-    direct_val<pzdimension2> style_padding;
-    direct_val<pzdimension2> style_spacing;
-    direct_val<pzdimension> style_rounding;
+    direct_val<pzdimension2_t> style_padding;
+    direct_val<pzdimension2_t> style_spacing;
+    direct_val<pzdimension_t> style_rounding;
     
     ContextMenu(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
@@ -206,7 +205,7 @@ struct MenuIt : Widget
 {
     direct_val<bool> ownerDraw = false;
     direct_val<std::string> label = "Item";
-    direct_val<shortcut_> shortcut = "";
+    direct_val<shortcut_t> shortcut = "";
     direct_val<bool> separator = false;
     field_ref<bool> checked;
     event<> onChange;
@@ -231,11 +230,11 @@ struct MenuIt : Widget
 
 struct Splitter : Widget
 {
-    direct_val<dimension> min_size1 = 10;
-    direct_val<dimension> min_size2 = 10;
-    field_ref<dimension> position;
-    bindable<color32> style_active;
-    bindable<color32> style_bg;
+    direct_val<dimension_t> min_size1 = 10;
+    direct_val<dimension_t> min_size2 = 10;
+    field_ref<dimension_t> position;
+    bindable<color_t> style_active;
+    bindable<color_t> style_bg;
     
     Splitter(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
