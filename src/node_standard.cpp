@@ -1303,7 +1303,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     if (!tabStop)
     {
-        os << ctx.ind << "ImGui::PushTabStop(false);\n";
+        os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);\n";
     }
     if (!style_font.empty())
     {
@@ -1421,7 +1421,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     if (!tabStop)
     {
-        os << ctx.ind << "ImGui::PopTabStop();\n";
+        os << ctx.ind << "ImGui::PopItemFlag();\n";
     }
     if (!disabled.empty())
     {
@@ -1734,7 +1734,14 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->params.size())
                 disabled.set_from_arg(sit->params[0]);
         }
-        else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushTabStop")
+        else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushItemFlag")
+        {
+            if (sit->params.size() >= 2) {
+                if (sit->params[0] == "ImGuiItemFlags_NoNav")
+                    tabStop.set_from_arg(sit->params[0] != "false" ? "false" : "true");
+            }
+        }
+        else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushTabStop") //compatibility only
         {
             if (sit->params.size())
                 tabStop.set_from_arg(sit->params[0]);
