@@ -380,6 +380,7 @@ struct Combo : Widget
 
 struct Slider : Widget
 {
+    direct_val<ImGuiSliderFlags_> flags;
     direct_val<std::string> label = "";
     field_ref<> fieldName;
     direct_val<int, true> type = 0;

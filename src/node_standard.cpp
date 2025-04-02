@@ -4761,6 +4761,13 @@ Slider::Slider(UIContext& ctx)
 {
     size_x = 200;
 
+    flags.add$(ImGuiSliderFlags_ClampOnInput);
+    flags.add$(ImGuiSliderFlags_ClampZeroRange);
+    flags.add$(ImGuiSliderFlags_Logarithmic);
+    flags.add$(ImGuiSliderFlags_NoInput);
+    flags.add$(ImGuiSliderFlags_NoRoundToFormat);
+    //flags.add$(ImGuiSliderFlags_WrapAround); only works with DragXXX
+    
     type.add("int", 0);
     type.add("int2", 1);
     type.add("int3", 2);
@@ -4800,25 +4807,26 @@ ImDrawList* Slider::DoDraw(UIContext& ctx)
     if (label.empty())
         id = "##" + fieldName.value();
     std::string tid = type.get_id();
+    int fl = flags | ImGuiSliderFlags_NoInput;
 
     if (tid == "int")
-        ImGui::SliderInt(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderInt(id.c_str(), itmp, (int)min, (int)max, fmt, fl);
     else if (tid == "int2")
-        ImGui::SliderInt2(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderInt2(id.c_str(), itmp, (int)min, (int)max, fmt, fl);
     else if (tid == "int3")
-        ImGui::SliderInt3(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderInt3(id.c_str(), itmp, (int)min, (int)max, fmt, fl);
     else if (tid == "int4")
-        ImGui::SliderInt4(id.c_str(), itmp, (int)min, (int)max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderInt4(id.c_str(), itmp, (int)min, (int)max, fmt, fl);
     else if (tid == "float")
-        ImGui::SliderFloat(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderFloat(id.c_str(), ftmp, min, max, fmt, fl);
     else if (tid == "float2")
-        ImGui::SliderFloat2(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderFloat2(id.c_str(), ftmp, min, max, fmt, fl);
     else if (tid == "float3")
-        ImGui::SliderFloat3(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderFloat3(id.c_str(), ftmp, min, max, fmt, fl);
     else if (tid == "float4")
-        ImGui::SliderFloat4(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderFloat4(id.c_str(), ftmp, min, max, fmt, fl);
     else if (tid == "angle")
-        ImGui::SliderAngle(id.c_str(), ftmp, min, max, fmt, ImGuiSliderFlags_NoInput);
+        ImGui::SliderAngle(id.c_str(), ftmp, min, max, fmt, fl);
 
     return ImGui::GetWindowDrawList();
 }
@@ -4843,7 +4851,7 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
 
     os << "ImGui::Slider" << cap << "(" << id << ", &"
         << fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg() 
-        << ", " << fmt << ")";
+        << ", " << fmt << ", " << flags.to_arg() << ")";
     
     if (!onChange.empty()) {
         os << ")\n";
@@ -4883,6 +4891,11 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() > 4)
             format.set_from_arg(sit->params[4]);
 
+        if (sit->params.size() > 5) {
+            if (!flags.set_from_arg(sit->params[5]))
+                ctx.errors.push_back("Slider: unrecognized flags '" + sit->params[5] + "'");
+        }
+
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
     }
@@ -4904,6 +4917,7 @@ Slider::Properties()
         { "appearance.border", &style_border },
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.font", &style_font },
+        { "behavior.flags##slider", &flags },
         { "behavior.label", &label, true },
         { "behavior.type##slider", &type },
         { "behavior.min##slider", &min },
@@ -4971,12 +4985,15 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 5:
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        break;
+    case 6:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
-    case 6:
+    case 7:
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4988,7 +5005,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
             ctx.codeGen->ChangeVar(fieldName.c_str(), tid == "angle" ? "float" : tid, "");
         }
         break;
-    case 7:
+    case 8:
         ImGui::Text("min");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5003,7 +5020,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::PopFont();
         break;
-    case 8:
+    case 9:
         ImGui::Text("max");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5018,21 +5035,21 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::PopFont();
         break;
-    case 9:
+    case 10:
         ImGui::Text("format");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = format != Defaults().format ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&format, fl, ctx);
         break;
-    case 10:
+    case 11:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&fieldName, type.get_id(), false, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 11, ctx);
+        return Widget::PropertyUI(i - 12, ctx);
     }
     return changed;
 }
