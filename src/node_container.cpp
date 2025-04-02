@@ -2526,6 +2526,17 @@ bool ContextMenu::PropertyUI(int i, UIContext& ctx)
     return changed;
 }
 
+std::vector<UINode::Prop> 
+ContextMenu::Events()
+{
+    return {};
+}
+
+bool ContextMenu::EventUI(int i, UIContext& ctx)
+{
+    return false;
+}
+
 //---------------------------------------------------------
 
 MenuIt::MenuIt(UIContext& ctx)

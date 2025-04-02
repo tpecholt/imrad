@@ -193,6 +193,8 @@ struct ContextMenu : Widget
     ImDrawList* DoDraw(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
+    auto Events()->std::vector<Prop>;
+    bool EventUI(int i, UIContext& ctx);
     void DoExport(std::ostream& os, UIContext& ctx);
     void ExportAllShortcuts(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
