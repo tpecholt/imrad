@@ -121,6 +121,22 @@ std::string Trim(std::string_view str)
     return std::string(str.substr(i1, i2 - i1 + 1));
 }
 
+std::string Replace(std::string_view s, std::string_view sold, std::string_view snew)
+{
+    std::string out;
+    size_t i = 0;
+    while (i < s.size()) {
+        size_t j = s.find(sold, i);
+        if (j == std::string::npos)
+            break;
+        out += s.substr(i, j);
+        out += snew;
+        i = j + sold.size();
+    }
+    out += s.substr(i);
+    return out;
+}
+
 fs::path u8path(std::string_view s)
 {
 #if __cplusplus >= 202202L

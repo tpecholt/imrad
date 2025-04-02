@@ -99,6 +99,7 @@ std::string ParseShortcut(std::string_view line);
 
 bool IsAscii(std::string_view str);
 std::string Trim(std::string_view str);
+std::string Replace(std::string_view s, std::string_view sold, std::string_view snew);
 
 fs::path u8path(std::string_view s);
 std::string u8string(const fs::path& p);

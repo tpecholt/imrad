@@ -619,8 +619,10 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             is >> n;
         }*/
 
-        if (sit->params.size() >= 3)
-            flags.set_from_arg(sit->params[2]);
+        if (sit->params.size() >= 3) {
+            if (!flags.set_from_arg(sit->params[2]))
+                ctx.errors.push_back("Table: unrecognized flags in '" + sit->params[2] + "'");
+        }
 
         if (sit->params.size() >= 4) {
             auto size = cpp::parse_size(sit->params[3]);
@@ -639,7 +641,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         
         if (sit->params.size() >= 2) {
             cd.sizingPolicy.set_from_arg(sit->params[1]);
-            cd.flags.set_from_arg(sit->params[1]);
+            if (!cd.flags.set_from_arg(sit->params[1]))
+                ctx.errors.push_back("Table.Column: unrecognized flags in '" + sit->params[1] + "'");
             size_t i = sit->params[1].find("(");
             if (i != std::string::npos) {
                 size_t j = sit->params[1].find("? 0 :", i);
@@ -948,10 +951,14 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             }
         }
 
-        if (sit->params.size() >= 3)
-            flags.set_from_arg(sit->params[2]);
-        if (sit->params.size() >= 4)
-            wflags.set_from_arg(sit->params[3]);
+        if (sit->params.size() >= 3) {
+            if (!flags.set_from_arg(sit->params[2]))
+                ctx.errors.push_back("Child: unrecognized flags in '" + sit->params[2] + "'");
+        }
+        if (sit->params.size() >= 4) {
+            if (!wflags.set_from_arg(sit->params[3]))
+                ctx.errors.push_back("Child: unrecognized flags in '" + sit->params[3] + "'");
+        }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
     {
@@ -1443,8 +1450,10 @@ void CollapsingHeader::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 1)
             label.set_from_arg(sit->params[0]);
-        if (sit->params.size() >= 2)
-            flags.set_from_arg(sit->params[1]);
+        if (sit->params.size() >= 2) {
+            if (!flags.set_from_arg(sit->params[1]))
+                ctx.errors.push_back("CollapsingHeader: unrecognized flags in '" + sit->params[1] + "'");
+        }
     }
 }
 
@@ -1638,8 +1647,10 @@ void TreeNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 1)
             label.set_from_arg(sit->params[0]);
 
-        if (sit->params.size() >= 2)
-            flags.set_from_arg(sit->params[1]);
+        if (sit->params.size() >= 2) {
+            if (!flags.set_from_arg(sit->params[1]))
+                ctx.errors.push_back("TreeNode: unrecognized flags in '" + sit->params[1] + "'");
+        }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemOpen")
     {
@@ -1870,8 +1881,10 @@ void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         ctx.importLevel = sit->level;
 
-        if (sit->params.size() >= 2)
-            flags.set_from_arg(sit->params[1]);
+        if (sit->params.size() >= 2) {
+            if (!flags.set_from_arg(sit->params[1]))
+                ctx.errors.push_back("TabBar: unrecognized flags in '" + sit->params[1] + "'");
+        }
     }
     else if (sit->kind == cpp::ForBlock && sit->level == ctx.importLevel + 1)
     {

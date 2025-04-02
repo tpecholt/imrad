@@ -924,8 +924,10 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (i != std::string::npos)
                 title.access()->resize(i);
 
-            if (sit->params.size() >= 3)
-                flags.set_from_arg(sit->params[2]);
+            if (sit->params.size() >= 3) {
+                if (!flags.set_from_arg(sit->params[2]))
+                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[2] + '"');
+            }
         }
         else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
             sit->callee == "ImGui::BeginPopup")
@@ -936,8 +938,10 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (i != std::string::npos)
                 title.access()->resize(i);
 
-            if (sit->params.size() >= 2)
-                flags.set_from_arg(sit->params[1]);
+            if (sit->params.size() >= 2) {
+                if (!flags.set_from_arg(sit->params[1]))
+                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[1] + '"');
+            }
         }
         else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
         {
@@ -947,14 +951,18 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (i != std::string::npos)
                 title.access()->resize(i);
 
-            if (sit->params.size() >= 3)
-                flags.set_from_arg(sit->params[2]);
+            if (sit->params.size() >= 3) {
+                if (!flags.set_from_arg(sit->params[2]))
+                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[2] + '"');
+            }
         }
         else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
         {
             ctx.importLevel = sit->level;
-            if (sit->params.size() >= 3)
-                flags.set_from_arg(sit->params[2]);
+            if (sit->params.size() >= 3) {
+                if (!flags.set_from_arg(sit->params[2]))
+                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[2] + '"');
+            }
             
             if (hasGlfw) {
                 ctx.kind = kind = MainWindow;

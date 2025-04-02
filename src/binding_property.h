@@ -14,7 +14,7 @@
 struct property_base
 {
     virtual std::string to_arg(std::string_view a = "", std::string_view b = "") const = 0;
-    virtual void set_from_arg(std::string_view s) = 0;
+    virtual bool set_from_arg(std::string_view s) = 0;
     virtual const char* c_str() const = 0;
     virtual std::vector<std::string> used_variables() const = 0;
     virtual void rename_variable(const std::string& oldn, const std::string& newn) = 0;
@@ -35,8 +35,9 @@ struct field_ref : property_base
 
     T eval(const UIContext& ctx) const;
 
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         str = s;
+        return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         return str;
@@ -66,8 +67,9 @@ struct event : property_base
     bool empty() const {
         return str.empty();
     }
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         str = s;
+        return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         return str;
@@ -257,7 +259,7 @@ struct direct_val<dimension_t> : property_base
     }
     float eval_px(const UIContext& ctx) const;
 
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         std::istringstream is;
         is.str(std::string(s));
         is >> val;
@@ -270,6 +272,7 @@ struct direct_val<dimension_t> : property_base
             if ((is >> v) && is.eof())
                 val = v;
         }
+        return true;
     }
     std::string to_arg(std::string_view unit, std::string_view = "") const {
         std::ostringstream os;
@@ -312,7 +315,7 @@ struct direct_val<pzdimension_t> : property_base
     }
     float eval_px(const UIContext& ctx) const;
 
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         std::istringstream is;
         is.str(std::string(s));
         is >> val;
@@ -325,6 +328,7 @@ struct direct_val<pzdimension_t> : property_base
             if ((is >> v) && is.eof())
                 val = v;
         }
+        return true;
     }
     std::string to_arg(std::string_view unit, std::string_view = "") const {
         std::ostringstream os;
@@ -370,8 +374,9 @@ struct direct_val<pzdimension2_t> : property_base
     bool has_value() const { return !empty(); }
     ImVec2 eval_px(const UIContext& ctx) const;
 
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         val = cpp::parse_fsize(std::string(s));
+        return true;
     }
     std::string to_arg(std::string_view unit, std::string_view = "") const {
         bool hasv = has_value();
@@ -408,8 +413,9 @@ struct direct_val<std::string> : property_base
     //operator std::string_view() const { return val; }
     const std::string& value() const { return val; }
     
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         val = cpp::parse_str_arg(s);
+        return val != cpp::INVALID_TEXT;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         return "\"" + cpp::escape(val) + "\"";
@@ -442,13 +448,14 @@ struct direct_val<shortcut_t> : property_base
     void set_flags(int f) { flags_ = f; }
     //const std::string& value() const { return val; }
 
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         sh = ParseShortcut(s);
         flags_ = 0;
         if (s.find("ImGuiInputFlags_RouteGlobal") != std::string::npos)
             flags_ |= ImGuiInputFlags_RouteGlobal;
         if (s.find("ImGuiInputFlags_Repat") != std::string::npos)
             flags_ |= ImGuiInputFlags_Repeat;
+        return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         std::ostringstream os;
@@ -520,7 +527,7 @@ struct bindable : property_base
         return cpp::is_id(str);
     }
 
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         str = s;
         //try to remove trailing f
         if (std::is_same_v<T, float> && str.size() >= 3 && !str.compare(str.size() - 2, 2, ".f")) {
@@ -533,6 +540,7 @@ struct bindable : property_base
             if (!has_value())
                 str.push_back('f');
         }
+        return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         if (std::is_same_v<T, float> && has_value()) {
@@ -629,7 +637,7 @@ struct bindable<dimension_t> : property_base
     }
     float eval_px(int axis, const UIContext& ctx) const;
     
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         str = s;
         stretch(false);
         //strip unit calculation
@@ -649,6 +657,7 @@ struct bindable<dimension_t> : property_base
                 str.pop_back();
             stretch(true);
         }
+        return true;
     }
     std::string to_arg(std::string_view unit, std::string_view stretchCode = "") const {
         if (stretched())
@@ -733,9 +742,10 @@ struct bindable<std::string> : property_base
     }
     bool empty() const { return str.empty(); }
     const std::string& value() const { return str; }
-    void set_from_arg(std::string_view s)
+    bool set_from_arg(std::string_view s)
     {
         str = cpp::parse_str_arg(s);
+        return str != cpp::INVALID_TEXT;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {
@@ -844,8 +854,9 @@ struct bindable<font_name_t> : property_base
     void set_font_name(std::string_view fn) {
         str = "ImRad::GetFontByName(\"" + std::string(fn) + "\")";
     }
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         str = s;
+        return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         return str;
@@ -935,8 +946,9 @@ struct bindable<color_t> : property_base
         os << "ImGui::GetStyleColorVec4(ImGuiCol_" << ImGui::GetStyleColorName(i) << ")";
         str = os.str();
     }
-    void set_from_arg(std::string_view s) {
+    bool set_from_arg(std::string_view s) {
         str = s;
+        return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         return str;
@@ -986,18 +998,18 @@ struct data_loop : property_base
         return index.empty() ? std::string(s) : index.to_arg();
     }
 
-    void set_from_arg(std::string_view code) {
+    bool set_from_arg(std::string_view code) {
         if (code.compare(0, 4, "for("))
-            return;
+            return false;
         bool local = !code.compare(4, 3, "int") || !code.compare(4, 6, "size_t");
         auto i = code.find(";");
         if (i == std::string::npos)
-            return;
+            return false;
         code.remove_prefix(i + 1);
 
         i = code.find(";");
         if (i == std::string::npos)
-            return;
+            return false;
         code.remove_suffix(code.size() - i);
 
         i = code.find("<");
@@ -1007,6 +1019,7 @@ struct data_loop : property_base
             *index.access() = code.substr(0, i);
 
         limit.set_from_arg(code.substr(i + 1));
+        return true;
     }
     std::string to_arg(std::string_view forVarName, std::string_view = "") const {
         if (empty())

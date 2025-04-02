@@ -2756,7 +2756,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
 Selectable::Selectable(UIContext& ctx)
 {
     flags.add$(ImGuiSelectableFlags_AllowDoubleClick);
-    flags.add$(ImGuiSelectableFlags_DontClosePopups);
+    flags.add$(ImGuiSelectableFlags_NoAutoClosePopups);
     flags.add$(ImGuiSelectableFlags_NoPadWithHalfSpacing);
     flags.add$(ImGuiSelectableFlags_SpanAllColumns);
     
@@ -2907,8 +2907,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::Selectable")) //compatibility
     {
         if (sit->params.size() >= 1) {
-            label.set_from_arg(sit->params[0]);
-            if (label.value() == cpp::INVALID_TEXT)
+            if (!label.set_from_arg(sit->params[0]))
                 ctx.errors.push_back("Selectable: unable to parse label");
         }
         if (sit->params.size() >= 2) {
@@ -2917,8 +2916,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             else
                 selected.set_from_arg(sit->params[1]);
         }
-        if (sit->params.size() >= 3)
-            flags.set_from_arg(sit->params[2]);
+        if (sit->params.size() >= 3) {
+            std::string fl = Replace(sit->params[2], "ImGuiSelectableFlags_DontClosePopups", "ImGuiSelectableFlags_NoAutoClosePopups"); //compatibility
+            if (!flags.set_from_arg(fl))
+                ctx.errors.push_back("Selectable: unrecognized flags in '" + sit->params[2] + "'");
+        }
         if (sit->params.size() >= 4) {
             auto sz = cpp::parse_size(sit->params[3]);
             size_x.set_from_arg(sz.first);
@@ -4114,8 +4116,10 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             size_y.set_from_arg(size.second);
         }
 
-        if (sit->params.size() >= 4)
-            flags.set_from_arg(sit->params[3]);
+        if (sit->params.size() >= 4) {
+            if (!flags.set_from_arg(sit->params[3]))
+                ctx.errors.push_back("Input: unrecognized flags in '" + sit->params[3] + "'");
+        }
 
         if (sit->params.size() >= 5 &&
             !sit->params[4].compare(0, 22, "IMRAD_INPUTTEXT_EVENT("))
@@ -4160,8 +4164,11 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 ctx.errors.push_back("Input: value variable '" + fieldName.value() + "' doesn't exist");
         }
 
-        if (sit->params.size() > 2 + i)
-            flags.set_from_arg(sit->params[2 + i]);
+        if (sit->params.size() > 2 + i) 
+        {
+            if (!flags.set_from_arg(sit->params[2 + i]))
+                ctx.errors.push_back("Input: unrecognized flags in '" + sit->params[2 + i] + "'");
+        }
 
         if (sit->params.size() > 3 + i &&
             !sit->params[3 + i].compare(0, 22, "IMRAD_INPUTTEXT_EVENT("))
@@ -4613,7 +4620,8 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
 
         if (sit->params.size() >= 4) {
-            flags.set_from_arg(sit->params[3]);
+            if (!flags.set_from_arg(sit->params[3]))
+                ctx.errors.push_back("Combo: unrecognized flags in '" + sit->params[3] + "'");
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -5323,8 +5331,10 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 ctx.errors.push_back("ColorEdit: value variable '" + fn + "' doesn't exist");
         }
 
-        if (sit->params.size() >= 3)
-            flags.set_from_arg(sit->params[2]);
+        if (sit->params.size() >= 3) {
+            if (!flags.set_from_arg(sit->params[2]))
+                ctx.errors.push_back("ColorEdit: unrecognized flags in '" + sit->params[2] + "'");
+        }
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
