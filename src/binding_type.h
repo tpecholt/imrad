@@ -2,6 +2,9 @@
 #include <string>
 #include <imgui.h>
 #include <sstream>
+#ifndef WIN32
+#include <cxxabi.h>
+#endif
 
 //negative values allowed
 struct dimension_t {};
@@ -63,14 +66,16 @@ std::string typeid_name()
     else
     {
         std::string str = typeid(T).name();
-        if (str.size() >= 14 && !str.compare(str.size() - 14, 14, " __cdecl(void)"))
-            str = str.substr(0, str.size() - 14) + "()";
+#ifdef WIN32
         auto i = str.find(' ');
         if (i != std::string::npos)
-            str.erase(0, i + 1);
-        auto it = stx::find_if(str, [](char c) { return isalpha(c); });
-        if (it != str.end())
-            str.erase(0, it - str.begin());
+            str.erase(0, i + 1); //erase leading struct etc.
+#else
+        int status;
+        char* ptr = abi::__cxa_demangle(str.c_str(), nullptr, nullptr, &status);
+        str = ptr;
+        free(ptr);
+#endif      
         return str;
     }
 }
