@@ -121,6 +121,9 @@ void TopWindow::Draw(UIContext& ctx)
         if (!h)
             h = 480;
         ImGui::SetNextWindowSize({ w, h });
+        w = minSize_x.eval_px(ImGuiAxis_X, ctx);
+        h = minSize_y.eval_px(ImGuiAxis_Y, ctx);
+        ImGui::SetNextWindowSizeConstraints({ w, h }, { FLT_MAX, FLT_MAX });
     }
     
     if (style_titlePadding.has_value())
@@ -431,6 +434,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
                 os << ctx.ind << "glfwSetWindowSize(window, " << size_x.to_arg(ctx.unit)
                 << ", " << size_y.to_arg(ctx.unit) << ");\n";
             
+            os << ctx.ind << "glfwSetWindowSizeLimits(window, " <<
+                minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
+                ", GLFW_DONT_CARE, GLFW_DONT_CARE);\n";
+
             os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_RESIZABLE, "
                 << std::boolalpha << !(flags & ImGuiWindowFlags_NoResize) << ");\n";
             os << ctx.ind << "glfwSetWindowAttrib(window, GLFW_DECORATED, "
@@ -500,6 +507,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         //signal designed size
         os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
         
+        if (!autoSize)
+        {
+            os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
+                minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
+                " }, { FLT_MAX, FLTMAX });\n";
+        }
+
         if (style_titlePadding.has_value())
         {
             os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " <<
@@ -569,6 +583,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ");";
         //signal designed size
         os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
+
+        if (!autoSize)
+        {
+            os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
+                minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
+                " }, { FLT_MAX, FLTMAX });\n";
+        }
 
         //begin
         if (kind == ModalPopup)
@@ -866,6 +887,15 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 size_y.set_from_arg(size.second);
             }
         }
+        else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSizeConstraints")
+        {
+            if (sit->params.size())
+            {
+                auto size = cpp::parse_size(sit->params[0]);
+                minSize_x.set_from_arg(size.first);
+                minSize_y.set_from_arg(size.second);
+            }
+        }
         else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowTitle")
         {
             hasGlfw = true;
@@ -879,6 +909,15 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->params.size() >= 3) {
                 size_x.set_from_arg(sit->params[1]);
                 size_y.set_from_arg(sit->params[2]);
+            }
+        }
+        else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSizeLimits" &&
+            windowAppearingBlock)
+       {
+            hasGlfw = true;
+            if (sit->params.size() >= 3) {
+                minSize_x.set_from_arg(sit->params[1]);
+                minSize_y.set_from_arg(sit->params[2]);
             }
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "glfwMaximizeWindow")
@@ -1067,6 +1106,9 @@ TopWindow::Properties()
         { "layout.size.size", nullptr },
         { "layout.size.size_x", &size_x },
         { "layout.size.size_y", &size_y },
+        { "layout.minSize.size", nullptr },
+        { "layout.minSize.size_x", &minSize_x },
+        { "layout.minSize.size_y", &minSize_y },
         { "layout.placement", &placement },
     };
 }
@@ -1246,6 +1288,39 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 18:
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
+        ImGui::Text("minimumSize");
+        ImGui::TableNextColumn();
+        fl = minSize_x != Defaults().minSize_x || minSize_y != Defaults().minSize_y;
+        ImGui::PushFont(!ImRad::IsItemDisabled() && fl ?
+            ctx.pgbFont : ctx.pgFont);
+        ImGui::TextUnformatted((minSize_x.to_arg("") + ", " + minSize_y.to_arg("")).c_str());
+        ImGui::PopFont();
+        ImGui::EndDisabled();
+        break;
+    case 19:
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
+        ImGui::Text("size_x");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = minSize_x != Defaults().minSize_x ? InputBindable_Modified : 0;
+        changed = InputBindable(&minSize_x, fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("minSize_x", &minSize_x, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 20:
+        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
+        ImGui::Text("size_y");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = minSize_y != Defaults().minSize_y ? InputBindable_Modified : 0;
+        changed = InputBindable(&minSize_y, fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("minSize_y", &minSize_y, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 21:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");

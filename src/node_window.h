@@ -11,6 +11,8 @@ struct TopWindow : UINode
     bindable<std::string> title = "title";
     bindable<dimension_t> size_x = 640.f;
     bindable<dimension_t> size_y = 480.f;
+    bindable<dimension_t> minSize_x = 0;
+    bindable<dimension_t> minSize_y = 0;
     bindable<font_name_t> style_font;
     direct_val<pzdimension2_t> style_padding;
     direct_val<pzdimension2_t> style_spacing;
