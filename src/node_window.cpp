@@ -966,7 +966,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
             if (sit->params.size() >= 3) {
                 if (!flags.set_from_arg(sit->params[2]))
-                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[2] + '"');
+                    PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
             }
         }
         else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
@@ -980,7 +980,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
             if (sit->params.size() >= 2) {
                 if (!flags.set_from_arg(sit->params[1]))
-                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[1] + '"');
+                    PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
             }
         }
         else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
@@ -993,7 +993,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
             if (sit->params.size() >= 3) {
                 if (!flags.set_from_arg(sit->params[2]))
-                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[2] + '"');
+                    PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
             }
         }
         else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
@@ -1001,7 +1001,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             ctx.importLevel = sit->level;
             if (sit->params.size() >= 3) {
                 if (!flags.set_from_arg(sit->params[2]))
-                    ctx.errors.push_back("TopWindow: unrecognized flags in '" + sit->params[2] + '"');
+                    PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
             }
             
             if (hasGlfw) {

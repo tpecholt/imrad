@@ -481,7 +481,7 @@ CppGen::ExportH(
         else if (!tok.compare(0, 2, "//")) {
             if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
                 if (tok.find(VER_STR) == std::string::npos)
-                    m_error += "'" + m_hname + "' was upgraded to " + VER_STR + "\n";
+                    m_error += "\"" + m_hname + "\" was upgraded to " + VER_STR + "\n";
                 copy_content(-(int)tok.size());
                 out << "// " << GENERATED_WITH << VER_STR;
             }
@@ -566,7 +566,7 @@ CppGen::ExportCpp(
             else if (!tok.compare(0, 2, "//")) {
                 if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
                     if (tok.find(VER_STR) == std::string::npos)
-                        m_error += "'" + u8string(u8path(m_hname).replace_extension(".cpp")) + "' was upgraded to " + VER_STR + "\n";
+                        m_error += "\"" + u8string(u8path(m_hname).replace_extension(".cpp")) + "\" was upgraded to " + VER_STR + "\n";
                     copy_content(-(int)tok.size());
                     fout << "// " << GENERATED_WITH << VER_STR;
                 }
@@ -874,7 +874,7 @@ CppGen::Import(
     fpath = u8path(path).replace_extension("cpp");
     fin.open(fpath);
     if (!fin)
-        m_error += "Can't read " + u8string(fpath) + "\n";
+        m_error += "Can't read \"" + u8string(fpath) + "\"\n";
     else {
         auto node2 = ImportCode(fin, u8string(fpath.filename()), params);
         if (!node)
@@ -963,7 +963,7 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
             if (preamble && (i = tok.find(GENERATED_WITH)) != std::string::npos) {
                 std::string ver = tok.substr(i + GENERATED_WITH.size());
                 if (ver != VER_STR)
-                    m_error += "'" + fname + "' was saved in different version [" 
+                    m_error += "\"" + fname + "\" was saved in different version [" 
                         + ver + "]. Full compatibility is not guaranteed.\n";
             }
         }

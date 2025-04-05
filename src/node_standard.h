@@ -59,8 +59,8 @@ struct UINode
     void ResetLayout();
     auto GetTypeName()->std::string;
     auto GetParentIndexes(UIContext& ctx)->std::string;
+    void PushError(UIContext& ctx, const std::string& err);
     
-
     struct child_iterator;
 
     ImVec2 cached_pos;

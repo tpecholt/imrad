@@ -621,7 +621,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                ctx.errors.push_back("Table: unrecognized flags in '" + sit->params[2] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
         }
 
         if (sit->params.size() >= 4) {
@@ -953,11 +953,11 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                ctx.errors.push_back("Child: unrecognized flags in '" + sit->params[2] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
         }
         if (sit->params.size() >= 4) {
             if (!wflags.set_from_arg(sit->params[3]))
-                ctx.errors.push_back("Child: unrecognized flags in '" + sit->params[3] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
         }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
@@ -1184,9 +1184,9 @@ ImDrawList* Splitter::DoDraw(UIContext& ctx)
 void Splitter::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (children.size() != 2)
-        ctx.errors.push_back("Splitter: need exactly 2 children");
+        PushError(ctx, "need exactly 2 children");
     if (position.empty())
-        ctx.errors.push_back("Splitter: position is unassigned");
+        PushError(ctx, "position is unassigned");
 
     if (!style_bg.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
@@ -1452,7 +1452,7 @@ void CollapsingHeader::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             label.set_from_arg(sit->params[0]);
         if (sit->params.size() >= 2) {
             if (!flags.set_from_arg(sit->params[1]))
-                ctx.errors.push_back("CollapsingHeader: unrecognized flags in '" + sit->params[1] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
         }
     }
 }
@@ -1649,7 +1649,7 @@ void TreeNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 2) {
             if (!flags.set_from_arg(sit->params[1]))
-                ctx.errors.push_back("TreeNode: unrecognized flags in '" + sit->params[1] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
         }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemOpen")
@@ -1883,7 +1883,7 @@ void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 2) {
             if (!flags.set_from_arg(sit->params[1]))
-                ctx.errors.push_back("TabBar: unrecognized flags in '" + sit->params[1] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
         }
     }
     else if (sit->kind == cpp::ForBlock && sit->level == ctx.importLevel + 1)
@@ -2749,7 +2749,7 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
     else if (ownerDraw)
     {
         if (onChange.empty())
-            ctx.errors.push_back("MenuIt: ownerDraw is set but Draw event is not assigned!");
+            PushError(ctx, "ownerDraw is set but Draw event is not assigned!");
         os << ctx.ind << onChange.to_arg() << "();\n";
     }
     else
@@ -2815,7 +2815,7 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
     if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginPopup")
     {
-        ctx.errors.push_back("MenuIt: ContextMenu protocol changed. Please update 'MenuIt' tag manually");
+        PushError(ctx, "ContextMenu protocol changed. Please update \"MenuIt\" tag manually");
     }
     else if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::MenuItem") ||
         (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::MenuItem"))

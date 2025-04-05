@@ -390,7 +390,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         });
     if (!styleFound) {
         if (errs)
-            *errs += "Uknown style \"" + file.styleName + "\" used in '" + path + "'\n";
+            *errs += "Uknown style \"" + file.styleName + "\" used\n";
         else
             messageBox.error = "Unknown style \"" + file.styleName + "\" used\n" + messageBox.error; 
         file.styleName = DEFAULT_STYLE;
@@ -407,7 +407,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
 
     if (messageBox.error != "") {
         if (errs)
-            *errs += messageBox.error + "\n";
+            *errs += messageBox.error;
         else {
             messageBox.title = "CodeGen";
             messageBox.message = "Import finished with errors";
@@ -2417,7 +2417,13 @@ void AddINIHandler()
                         fileTabs.clear();
                         ActivateTab(-1);
                     }
-                    DoOpenFile(fname, &initErrors);
+                    std::string err;
+                    DoOpenFile(fname, &err);
+                    if (err != "") {
+                        initErrors += u8string(u8path(fname).filename()) + "\n\t";
+                        initErrors += Replace(Trim(err), "\n", "\n\t");
+                        initErrors += "\n";
+                    }
                 }
                 else if (sscanf(line, "ActiveTab=%d", &i) == 1) {
                     ActivateTab(i);

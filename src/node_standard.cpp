@@ -532,6 +532,29 @@ std::string UINode::GetTypeName()
     return name;
 }
 
+int GetTotalIndex(UINode* parent, UINode* child, int idx)
+{
+    std::string tname = child->GetTypeName();
+    for (const auto& ch : parent->children) {
+        if (ch.get() == child)
+            return idx;
+        idx = GetTotalIndex(ch.get(), child, idx);
+        if (ch->GetTypeName() == tname)
+            ++idx;
+    }
+    return idx;
+}
+
+void UINode::PushError(UIContext& ctx, const std::string& err)
+{
+    std::string name = GetTypeName();
+    if (this != ctx.parents[0]) {
+        int idx = GetTotalIndex(ctx.parents[0], this, 1);
+        name += " #" + std::to_string(idx);
+    }
+    ctx.errors.push_back(name + ": " + err);
+}
+
 std::string UINode::GetParentIndexes(UIContext& ctx)
 {
     std::string id;
@@ -1606,7 +1629,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (!w) {
                 //uknown control 
                 //create a placeholder not to break parsing and layout
-                ctx.errors.push_back("Encountered an unknown control '" + name + "'");
+                ctx.errors.push_back("Encountered an unknown control '" + name + "\"");
                 auto txt = std::make_unique<Text>(ctx);
                 txt->text = "???";
                 w = std::move(txt);
@@ -2683,7 +2706,7 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 1) {
             text.set_from_arg(sit->params[0]);
             if (text.value() == cpp::INVALID_TEXT)
-                ctx.errors.push_back("Text: unable to parse text");
+                PushError(ctx, "unable to parse text");
         }
     }
 }
@@ -2908,7 +2931,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 1) {
             if (!label.set_from_arg(sit->params[0]))
-                ctx.errors.push_back("Selectable: unable to parse label");
+                PushError(ctx, "unable to parse label");
         }
         if (sit->params.size() >= 2) {
             if (!sit->params[1].compare(0, 1, "&"))
@@ -2919,7 +2942,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 3) {
             std::string fl = Replace(sit->params[2], "ImGuiSelectableFlags_DontClosePopups", "ImGuiSelectableFlags_NoAutoClosePopups"); //compatibility
             if (!flags.set_from_arg(fl))
-                ctx.errors.push_back("Selectable: unrecognized flags in '" + sit->params[2] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
         }
         if (sit->params.size() >= 4) {
             auto sz = cpp::parse_size(sit->params[3]);
@@ -3508,7 +3531,7 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             std::string fn = fieldName.c_str();
             const auto* var = ctx.codeGen->GetVar(fn);
             if (!var)
-                ctx.errors.push_back("CheckBox: checked variable '" + fn + "' doesn't exist");
+                PushError(ctx, "checked variable \"" + fn + "\" doesn't exist");
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -3645,7 +3668,7 @@ ImDrawList* RadioButton::DoDraw(UIContext& ctx)
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (!ctx.codeGen->GetVar(fieldName.c_str()))
-        ctx.errors.push_back("RadioButon: value variable doesn't exist");
+        PushError(ctx, "value variable doesn't exist");
 
     if (!style_check.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_CheckMark, " << style_check.to_arg() << ");\n";
@@ -4107,7 +4130,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             fieldName.set_from_arg(sit->params[1].substr(1));
             std::string fn = fieldName.c_str();
             if (!ctx.codeGen->GetVar(fn))
-                ctx.errors.push_back("Input: value variable '" + fn + "' doesn't exist");
+                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
         }
 
         if (sit->params.size() >= 3) {
@@ -4118,7 +4141,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 4) {
             if (!flags.set_from_arg(sit->params[3]))
-                ctx.errors.push_back("Input: unrecognized flags in '" + sit->params[3] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
         }
 
         if (sit->params.size() >= 5 &&
@@ -4161,13 +4184,13 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 ++i;
             }
             if (!ctx.codeGen->GetVar(fieldName.value()))
-                ctx.errors.push_back("Input: value variable '" + fieldName.value() + "' doesn't exist");
+                PushError(ctx, "value variable \"" + fieldName.value() + "\" doesn't exist");
         }
 
         if (sit->params.size() > 2 + i) 
         {
             if (!flags.set_from_arg(sit->params[2 + i]))
-                ctx.errors.push_back("Input: unrecognized flags in '" + sit->params[2 + i] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2 + i] + "\"");
         }
 
         if (sit->params.size() > 3 + i &&
@@ -4207,7 +4230,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             fieldName.set_from_arg(sit->params[1].substr(1));
             std::string fn = fieldName.c_str();
             if (!ctx.codeGen->GetVar(fn))
-                ctx.errors.push_back("Input: value variable '" + fn + "' doesn't exist");
+                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
         }
 
         if (tid == "int") 
@@ -4240,7 +4263,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         fieldName.set_from_arg(sit->callee.substr(0, i));
         std::string fn = fieldName.c_str();
         if (!ctx.codeGen->GetVar(fn))
-            ctx.errors.push_back("Input: value variable '" + fn + "' doesn't exist");
+            PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
 
         if (sit->params.size()) {
             label.set_from_arg(sit->params[0]);
@@ -4612,7 +4635,7 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             fieldName.set_from_arg(sit->params[1].substr(1));
             std::string fn = fieldName.c_str();
             if (!ctx.codeGen->GetVar(fn))
-                ctx.errors.push_back("Combo: value variable '" + fn + "' doesn't exist");
+                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
         }
 
         if (sit->params.size() >= 3) {
@@ -4621,7 +4644,7 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 4) {
             if (!flags.set_from_arg(sit->params[3]))
-                ctx.errors.push_back("Combo: unrecognized flags in '" + sit->params[3] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -4893,7 +4916,7 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() > 5) {
             if (!flags.set_from_arg(sit->params[5]))
-                ctx.errors.push_back("Slider: unrecognized flags '" + sit->params[5] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[5] + "\"");
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -5345,12 +5368,12 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             fieldName.set_from_arg(sit->params[1].substr(9));
             std::string fn = fieldName.c_str();
             if (!ctx.codeGen->GetVar(fn))
-                ctx.errors.push_back("ColorEdit: value variable '" + fn + "' doesn't exist");
+                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
         }
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                ctx.errors.push_back("ColorEdit: unrecognized flags in '" + sit->params[2] + "'");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -5555,9 +5578,9 @@ ImDrawList* Image::DoDraw(UIContext& ctx)
 void Image::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (fieldName.empty())
-        ctx.errors.push_back("Image: texture field empty");
+        PushError(ctx, "texture field empty");
     if (fileName.empty())
-        ctx.errors.push_back("Image: fileName empty");
+        PushError(ctx, "fileName empty");
 
     os << ctx.ind << "if (!" << fieldName.to_arg() << ")\n";
     ctx.ind_up();
@@ -5759,7 +5782,7 @@ void Image::RefreshTexture(UIContext& ctx)
             messageBox.OpenPopup();
         }
         else
-            ctx.errors.push_back("Image: can't read " + fname);
+            PushError(ctx, "can't read \"" + fname + "\"");
     }
 }
 
@@ -5799,7 +5822,7 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
 void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (onDraw.empty()) {
-        ctx.errors.push_back("CustomWidget: Draw event not set");
+        PushError(ctx, "Draw event not set");
         return;
     }
     os << ctx.ind << onDraw.to_arg() << "({ " 

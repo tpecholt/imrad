@@ -162,7 +162,7 @@ void DockSpace::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                ctx.errors.push_back("DockSpace: unrecognized flags in '" + sit->params[2] + '"');
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
         }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::CalcItemSize")
@@ -423,7 +423,7 @@ void DockNode::DoExport(std::ostream& os, UIContext& ctx)
     if (children.empty())
     {
         if (labels.empty())
-            ctx.errors.push_back("DockNode: label not set");
+            PushError(ctx, "label not set");
 
         std::istringstream is(labels);
         std::string label;
@@ -498,7 +498,7 @@ void DockNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (i != std::string::npos) {
             std::string fl = sit->line.substr(i + 11, sit->line.size() - i - 11);
             if (!flags.set_from_arg(fl))
-                ctx.errors.push_back("DockNode: unrecognized flags in '" + fl + "'");
+                PushError(ctx, "unrecognized flag in \"" + fl + "\"");
         }
     }
 }

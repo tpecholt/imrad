@@ -3,7 +3,7 @@
 
 MessageBox messageBox;
 
-std::string WordWrap(std::string& str, float multilineWidth) 
+std::string WordWrap(const std::string& str, float multilineWidth) 
 {
     float textSize = 0;
     std::string tmpStr = "";
@@ -45,17 +45,92 @@ void MessageBox::OpenPopup(std::function<void(ImRad::ModalResult)> f)
     ImGui::OpenPopup(ID);
 }
 
+int TreeNode(const std::string& str, size_t& i, int level, bool skip)
+{
+    struct ScopeGuard {
+        ScopeGuard(std::function<void()> f) : func(f) {}
+        ~ScopeGuard() { func(); }
+        std::function<void()> func;
+    };
+    for (int n = 0; i < str.size(); ++n)
+    {
+        ImGui::PushID(n);
+        ScopeGuard g([] { ImGui::PopID(); });
+
+        size_t j = str.find("\n", i);
+        int nlevel = 0;
+        std::string label;
+        if (j == std::string::npos) {
+            label = str.substr(i);
+            i = str.size();
+        }
+        else {
+            label = str.substr(i, j - i);
+            i = j + 1;
+            for (nlevel = 0; i < str.size() && str[i] == '\t'; ++i)
+                ++nlevel;
+        }
+        
+        if (nlevel > level) {
+            bool open = true;
+            if (!skip) {
+                ImGui::PushStyleColor(ImGuiCol_Text, !level ? 0xff2040c0 : 0xff000000);
+                open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
+                ImGui::PopStyleColor();
+            }
+            nlevel = TreeNode(str, i, nlevel, skip || !open);
+            if (nlevel < level) {
+                if (!skip && open)
+                    ImGui::TreePop();
+                return nlevel;
+            }
+        }
+        else if (nlevel < level) {
+            if (!skip)
+                ImGui::TreePop();
+            return nlevel;
+        }
+        else if (!skip) {
+            ImVec2 pad = ImGui::GetStyle().FramePadding;
+            if (!level) {
+                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                if (ImGui::TreeNodeEx("", 0))
+                    ImGui::TreePop();
+                ImGui::PopItemFlag();
+                ImGui::SameLine();
+            }
+            else {
+                ImGui::Text("-");
+                ImGui::SameLine(0, pad.x * 3);
+            }
+            float w = ImGui::GetContentRegionAvail().x - pad.x;
+            label = WordWrap(label, w);
+            ImGui::Text("%s", label.c_str());
+        }
+    }
+    return 0;
+}
+
 void MessageBox::Draw()
 {
+    const float BWIDTH = 90;
+    const float BHEIGHT = 30;
+
     ID = ImGui::GetID("###MessageBox");
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     //todo: ImGuiCond_Appearing won't center
-    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
     bool open = true;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
-    if (ImGui::BeginPopupModal((title + "###MessageBox").c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize))
+    int fl = error != "" ? 0 : ImGuiWindowFlags_AlwaysAutoResize;
+    if (ImGui::BeginPopupModal((title + "###MessageBox").c_str(), &open, fl))
     {
         wasOpen = ID;
+        /*bool resizing = ImGui::IsWindowAppearing() ||
+            std::abs(ImGui::GetWindowSize().x - lastSize.x) >= 1 ||
+            std::abs(ImGui::GetWindowSize().y - lastSize.y) >= 1;
+        lastSize = ImGui::GetWindowSize();*/
+
         if (error != "")
         {
             ImGui::Spacing();
@@ -67,11 +142,30 @@ void MessageBox::Draw()
             ImGui::Spacing();
             ImGui::Spacing();
             ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(164, 164, 164, 255));
-            if (ImGui::IsWindowAppearing())
-                error = WordWrap(error, 500);
-            ImGui::InputTextMultiline("##err", &error, { 500, 300 }, ImGuiInputTextFlags_ReadOnly);
+            ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(192, 192, 192, 255));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, sp.y });
+            ImGui::BeginChild("##errors", { -1.f, -BHEIGHT - 3.f*sp.y }, ImGuiChildFlags_Borders);
+            ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing.x / 2);
+            size_t i = 0;
+            TreeNode(error, i, 0, false);
+            ImGui::PopStyleVar();
+            ImGui::EndChild();
+            ImGui::PopStyleVar();
             ImGui::PopStyleColor();
+
+            /*if (resizing)
+            {
+                float sw = ImGui::GetStyle().ScrollbarSize;
+                float w = ImGui::CalcItemSize({ -sp.x - sw, 0 }, 0, 0).x;
+                wrappedError = WordWrap(error, w);
+            }
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(192, 192, 192, 255));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
+            ImGui::InputTextMultiline("##err", &wrappedError, { -1.f, -BHEIGHT - 3 * sp.y }, ImGuiInputTextFlags_ReadOnly);
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar(2);*/
         }
         else
         {
@@ -82,7 +176,6 @@ void MessageBox::Draw()
         ImGui::Spacing();
         ImGui::Spacing();
 
-        const float BWIDTH = 90;
         int n = (bool)(buttons & ImRad::Ok) + (bool)(buttons & ImRad::Cancel) + (bool)(buttons & ImRad::Yes) + (bool)(buttons & ImRad::No);
         float w = (n * BWIDTH) + (n - 1) * ImGui::GetStyle().ItemSpacing.x;
         float x = (ImGui::GetContentRegionAvail().x + ImGui::GetStyle().FramePadding.x - w) / 2.f;
@@ -93,7 +186,7 @@ void MessageBox::Draw()
             if (ImGui::IsWindowAppearing())
                 ImGui::SetKeyboardFocusHere();
             ImGui::SetCursorPos({ x, y });
-            if (ImGui::Button("OK", { BWIDTH, 30 }) ||
+            if (ImGui::Button("OK", { BWIDTH, BHEIGHT }) ||
                 (buttons == ImRad::Ok && ImGui::IsKeyPressed(ImGuiKey_Escape)))
             {
                 ImGui::CloseCurrentPopup();
@@ -104,7 +197,7 @@ void MessageBox::Draw()
         if (buttons & ImRad::Yes)
         {
             ImGui::SetCursorPos({ x, y });
-            if (ImGui::Button("Yes", { BWIDTH, 30 })) {
+            if (ImGui::Button("Yes", { BWIDTH, BHEIGHT })) {
                 ImGui::CloseCurrentPopup();
                 callback(ImRad::Yes);
             }
@@ -113,7 +206,7 @@ void MessageBox::Draw()
         if (buttons & ImRad::No)
         {
             ImGui::SetCursorPos({ x, y });
-            if (ImGui::Button("No", { BWIDTH, 30 })) {
+            if (ImGui::Button("No", { BWIDTH, BHEIGHT })) {
                 ImGui::CloseCurrentPopup();
                 callback(ImRad::No);
             }
@@ -122,7 +215,7 @@ void MessageBox::Draw()
         if (buttons & ImRad::Cancel)
         {
             ImGui::SetCursorPos({ x, y });
-            if (ImGui::Button("Cancel", { BWIDTH, 30 }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if (ImGui::Button("Cancel", { BWIDTH, BHEIGHT }) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                 ImGui::CloseCurrentPopup();
                 callback(ImRad::Cancel); //currently used in Save File Confirmation upon Exit
             }
