@@ -49,9 +49,10 @@ void NewFieldPopup::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 12, 12 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 10 });
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
+    ImGui::SetNextWindowSizeConstraints({ 400, 350 }, { FLT_MAX, FLT_MAX });
     bool tmp = true;
-    if (ImGui::BeginPopupModal(title.c_str(), &tmp, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal(title.c_str(), &tmp, 0))
     {
         if (requestClose) {
             ImGui::CloseCurrentPopup();
@@ -66,6 +67,7 @@ void NewFieldPopup::Draw()
         {
             ImGui::Text("Old name:");
             ImGui::BeginDisabled(true);
+            ImGui::SetNextItemWidth(-1);
             ImGui::InputText("##varOldName", &varOldName, ImGuiInputTextFlags_CharsNoBlank);
             ImGui::EndDisabled();
         }
@@ -75,6 +77,7 @@ void NewFieldPopup::Draw()
             ImGui::BeginDisabled(varTypeDisabled);
             if (ImGui::IsWindowAppearing() && varType == "")
                 ImGui::SetKeyboardFocusHere();
+            ImGui::SetNextItemWidth(-1);
             if (ImGui::InputText("##varType", &varType, ImGuiInputTextFlags_CharsNoBlank))
                 change = true;
             ImGui::EndDisabled();
@@ -86,6 +89,7 @@ void NewFieldPopup::Draw()
             "Field name:");
         if (ImGui::IsWindowAppearing() && varType != "")
             ImGui::SetKeyboardFocusHere();
+        ImGui::SetNextItemWidth(-1);
         if (ImGui::InputText("##varName", &varName, ImGuiInputTextFlags_CharsNoBlank))
             change = true;
 
@@ -93,6 +97,7 @@ void NewFieldPopup::Draw()
         {
             ImGui::Spacing();
             ImGui::Text("Initial value:");
+            ImGui::SetNextItemWidth(-1);
             if (ImGui::InputText("##init", &varInit, ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter))
                 change = true;
         }
@@ -115,6 +120,7 @@ void NewFieldPopup::Draw()
 
         ImGui::Spacing();
 
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetContentRegionAvail().y - 30);
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 2 * 100));
         ImGui::BeginDisabled(hint != "");
         if (ImGui::Button("OK", { 100, 30 }))
@@ -159,7 +165,6 @@ void NewFieldPopup::Draw()
             }
         }
         ImGui::EndDisabled();
-        ImGui::SetItemDefaultFocus();
 
         ImGui::SameLine();
         if (ImGui::Button("Cancel", { 100, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))

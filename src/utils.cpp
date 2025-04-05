@@ -129,7 +129,7 @@ std::string Replace(std::string_view s, std::string_view sold, std::string_view 
         size_t j = s.find(sold, i);
         if (j == std::string::npos)
             break;
-        out += s.substr(i, j);
+        out += s.substr(i, j - i);
         out += snew;
         i = j + sold.size();
     }

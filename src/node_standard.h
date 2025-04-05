@@ -57,7 +57,8 @@ struct UINode
     auto GetAllChildren() -> std::vector<UINode*>;
     void CloneChildrenFrom(const UINode& node, UIContext& ctx);
     void ResetLayout();
-    auto GetParentId(UIContext& ctx) -> std::string;
+    auto GetTypeName()->std::string;
+    auto GetParentIndexes(UIContext& ctx)->std::string;
     
 
     struct child_iterator;
@@ -178,7 +179,6 @@ struct Widget : UINode
     virtual void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     virtual const char* GetIcon() const { return ""; }
-    virtual std::string GetTypeName();
 };
 
 struct Spacer : Widget

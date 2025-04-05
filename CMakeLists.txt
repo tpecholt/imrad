@@ -47,6 +47,7 @@ include(cmake/freetype.cmake)
 
 include(ExternalProject)
 set(NFD_PREFIX 3rdparty/nativefiledialog)
+set(NFD_BUILD_TESTS OFF)
 ExternalProject_Add(nativefiledialog
   PREFIX ${NFD_PREFIX}
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${NFD_PREFIX}

@@ -310,7 +310,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     //provide stable ID when title changes
     bindable<std::string> titleId = title;
-    *titleId.access() += "###" + ctx.codeGen->GetName();
+    if (titleId.access()->find("##") == std::string::npos)
+        *titleId.access() += "###" + ctx.codeGen->GetName();
     std::string tit = titleId.to_arg();
     bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
     bool autoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
@@ -1256,7 +1257,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         break;
     case 15:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
-        ImGui::Text("size");
+        ImGui::Text(kind == Activity ? "designSize" : "size");
         ImGui::TableNextColumn();
         fl = size_x != Defaults().size_x || size_y != Defaults().size_y;
         ImGui::PushFont(!ImRad::IsItemDisabled() && fl ?

@@ -517,7 +517,22 @@ UINode::GetAllChildren()
     return chs;
 }
 
-std::string UINode::GetParentId(UIContext& ctx)
+//this must return exact class id
+std::string UINode::GetTypeName()
+{
+    std::string name = typeid(*this).name();
+    //erase "struct"
+    auto i = name.rfind(' ');
+    if (i != std::string::npos)
+        name.erase(0, i + 1);
+    //erase encoded name length
+    auto it = stx::find_if(name, [](char c) { return isalpha(c); });
+    if (it != name.end())
+        name.erase(0, it - name.begin());
+    return name;
+}
+
+std::string UINode::GetParentIndexes(UIContext& ctx)
 {
     std::string id;
     UINode* node = ctx.parents.back();
@@ -1228,7 +1243,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         std::ostringstream osv;
         osv << ctx.codeGen->VBOX_NAME;
-        osv << GetParentId(ctx);
+        osv << GetParentIndexes(ctx);
         osv << (l.colId + 1);
         vbName = osv.str();
         ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
@@ -1243,7 +1258,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         std::ostringstream osv;
         osv << ctx.codeGen->HBOX_NAME;
-        osv << GetParentId(ctx);
+        osv << GetParentIndexes(ctx);
         osv << (l.rowId + 1);
         hbName = osv.str();
         ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
@@ -2259,21 +2274,6 @@ bool Widget::EventUI(int i, UIContext& ctx)
         return false;
     }
     return changed;
-}
-
-//this must return exact class id
-std::string Widget::GetTypeName()
-{
-    std::string name = typeid(*this).name();
-    //erase "struct"
-    auto i = name.rfind(' ');
-    if (i != std::string::npos)
-        name.erase(0, i + 1);
-    //erase encoded name length
-    auto it = stx::find_if(name, [](char c) { return isalpha(c); });
-    if (it != name.end())
-        name.erase(0, it - name.begin());
-    return name;
 }
 
 void Widget::TreeUI(UIContext& ctx)

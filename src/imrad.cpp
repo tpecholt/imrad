@@ -1618,10 +1618,12 @@ void ExplorerUI()
 void HierarchyUI()
 {
     //ImGui::PushFont(ctx.defaultFont); icons are FA
+    ImGui::PushStyleVarX(ImGuiStyleVar_WindowPadding, 0);
     ImGui::Begin("Hierarchy");
     if (activeTab >= 0 && fileTabs[activeTab].rootNode) 
         fileTabs[activeTab].rootNode->TreeUI(ctx);
     ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 bool BeginPropGroup(const std::string& cat, bool& open)
@@ -1831,6 +1833,12 @@ void PropertyRowsUI(bool pr)
             pgHeight = ImGui::GetItemRectSize().y;
         else
             pgeHeight = ImGui::GetItemRectSize().y;
+
+        if (props.empty()) {
+            ImGui::Spacing();
+            ImGui::Indent();
+            ImGui::TextDisabled("%s", "Not available");
+        }
 
         //copy changes to other widgets
         for (size_t i = 1; i < ctx.selected.size(); ++i)
@@ -2443,10 +2451,19 @@ void AddINIHandler()
     ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) 
         {
             buf->append("[ImRAD][Recent]\n");
+            int active = activeTab;
+            int count = 0;
             for (int i = 0; i < fileTabs.size(); ++i) {
-                buf->appendf("File%d=%s\n", i+1, fileTabs[i].fname.c_str());
+                if (fileTabs[i].fname != "") {
+                    buf->appendf("File%d=%s\n", i + 1, fileTabs[i].fname.c_str());
+                    ++count;
+                }
+                else if (i < active)
+                    --active;
             }
-            buf->appendf("ActiveTab=%d\n", activeTab);
+            if (active == count)
+                active = count - 1;
+            buf->appendf("ActiveTab=%d\n", active);
             buf->append("\n");
 
             buf->append("[ImRAD][Explorer]\n");

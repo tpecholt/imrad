@@ -641,8 +641,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         
         if (sit->params.size() >= 2) {
             cd.sizingPolicy.set_from_arg(sit->params[1]);
-            if (!cd.flags.set_from_arg(sit->params[1]))
-                ctx.errors.push_back("Table.Column: unrecognized flags in '" + sit->params[1] + "'");
+            cd.flags.set_from_arg(sit->params[1]);
+            
             size_t i = sit->params[1].find("(");
             if (i != std::string::npos) {
                 size_t j = sit->params[1].find("? 0 :", i);
@@ -2347,6 +2347,28 @@ void MenuBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     auto* win = dynamic_cast<TopWindow*>(ctx.root);
     if (win)
         win->flags |= ImGuiWindowFlags_MenuBar;
+}
+
+std::vector<UINode::Prop>
+MenuBar::Properties()
+{
+    return {};
+}
+
+bool MenuBar::PropertyUI(int i, UIContext& ctx)
+{
+    return false;
+}
+
+std::vector<UINode::Prop>
+MenuBar::Events()
+{
+    return {};
+}
+
+bool MenuBar::EventUI(int i, UIContext& ctx)
+{
+    return false;
 }
 
 //---------------------------------------------------------

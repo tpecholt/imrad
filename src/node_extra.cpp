@@ -315,11 +315,9 @@ ImDrawList* DockNode::DoDraw(UIContext& ctx)
         while (std::getline(is, label))
         {
             std::string id = label + "###" + label + std::to_string((uint64_t)this);
-            //ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
-            //ImGui::PushStyleColor(ImGuiCol_TabSelected, 0xff00ff80);
+            //ImGuiWindowFlags_NoSavedSettings can't be used
             if (ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
             {
-                //ImGui::PopStyleVar();
                 dl = ImGui::GetWindowDrawList();
                 
                 if (!ctx.beingResized)
@@ -350,7 +348,6 @@ ImDrawList* DockNode::DoDraw(UIContext& ctx)
                 }
             }
             ImGui::End();
-            //ImGui::PopStyleColor();
         }
     }
     else
