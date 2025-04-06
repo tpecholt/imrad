@@ -512,7 +512,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
                 minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
-                " }, { FLT_MAX, FLTMAX });\n";
+                " }, { FLT_MAX, FLT_MAX });\n";
         }
 
         if (style_titlePadding.has_value())
@@ -589,7 +589,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
                 minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
-                " }, { FLT_MAX, FLTMAX });\n";
+                " }, { FLT_MAX, FLT_MAX });\n";
         }
 
         //begin

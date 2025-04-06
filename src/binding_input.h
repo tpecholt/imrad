@@ -1090,7 +1090,8 @@ inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, 
     }
 
     ImGui::SameLine(0, 0);
-    if (IsHighlighted(inputId) || IsHighlighted(id))
+    if (!ImRad::IsItemDisabled() && 
+        (IsHighlighted(inputId) || IsHighlighted(id)))
     {
         ImGui::SetNextWindowSizeConstraints({ realWidth + ImGui::GetFrameHeight(), 0 }, { FLT_MAX, FLT_MAX });
         if (ImGui::BeginCombo(id.c_str(), val->c_str(), ImGuiComboFlags_HeightLarge | ImGuiComboFlags_NoPreview))

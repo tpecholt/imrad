@@ -2762,7 +2762,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("text", &text, ctx);
         break;
     case 4:
-        ImGui::Text("wrap");
+        ImGui::Text("wrapped");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = wrap != Defaults().wrap ? InputDirectVal_Modified : 0;

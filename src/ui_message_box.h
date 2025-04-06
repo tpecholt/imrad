@@ -13,7 +13,6 @@ public:
 public:
     std::string title = "title";
     std::string message;
-    std::string error;
     int buttons = ImRad::Ok;
 
 private:

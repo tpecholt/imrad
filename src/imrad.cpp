@@ -30,6 +30,7 @@
 #include "utils.h"
 #include "ui_new_field.h"
 #include "ui_message_box.h"
+#include "ui_error_box.h"
 #include "ui_class_wizard.h"
 #include "ui_table_cols.h"
 #include "ui_about_dlg.h"
@@ -148,7 +149,7 @@ void DoReloadFile()
         return;
 
     std::map<std::string, std::string> params;
-    tab.rootNode = tab.codeGen.Import(tab.fname, params, messageBox.error);
+    tab.rootNode = tab.codeGen.Import(tab.fname, params, errorBox.error);
     auto pit = params.find("style");
     tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
     pit = params.find("unit");
@@ -157,18 +158,18 @@ void DoReloadFile()
         return st.first == tab.styleName;
         });
     if (!styleFound) {
-        messageBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + messageBox.error;
+        errorBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + errorBox.error;
         tab.styleName = DEFAULT_STYLE;
     }
     tab.modified = false;
     ctx.mode = UIContext::NormalSelection;
     ctx.selected = { tab.rootNode.get() };
 
-    if (messageBox.error != "" && programState != Shutdown)
+    if (errorBox.error != "" && programState != Shutdown)
     {
-        messageBox.title = "Reload";
-        messageBox.buttons = ImRad::Ok;
-        messageBox.OpenPopup();
+        errorBox.title = "Reload";
+        errorBox.message = "Errors occured";
+        errorBox.OpenPopup();
     }
 }
 
@@ -356,7 +357,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
     std::error_code err;
     file.time[1] = fs::last_write_time(u8path(file.codeGen.AltFName(file.fname)), err);
     std::map<std::string, std::string> params;
-    file.rootNode = file.codeGen.Import(file.fname, params, messageBox.error);
+    file.rootNode = file.codeGen.Import(file.fname, params, errorBox.error);
     auto pit = params.find("style");
     file.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
     pit = params.find("unit");
@@ -365,10 +366,9 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         if (errs)
             *errs += "Unsuccessful import of '" + path + "'\n";
         else {
-            messageBox.title = "CodeGen";
-            messageBox.message = "Unsuccessful import because of errors";
-            messageBox.buttons = ImRad::Ok;
-            messageBox.OpenPopup();
+            errorBox.title = "CodeGen";
+            errorBox.message = "Unsuccessful import because of errors";
+            errorBox.OpenPopup();
         }
         return false;
     }
@@ -380,7 +380,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         if (errs)
             *errs += "Uknown style \"" + file.styleName + "\" used\n";
         else
-            messageBox.error = "Unknown style \"" + file.styleName + "\" used\n" + messageBox.error; 
+            errorBox.error = "Unknown style \"" + file.styleName + "\" used\n" + errorBox.error;
         file.styleName = DEFAULT_STYLE;
     }
 
@@ -393,14 +393,13 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
     fileTabs[idx] = std::move(file);
     ActivateTab(idx);
 
-    if (messageBox.error != "") {
+    if (errorBox.error != "") {
         if (errs)
-            *errs += messageBox.error;
+            *errs += errorBox.error;
         else {
-            messageBox.title = "CodeGen";
-            messageBox.message = "Import finished with errors";
-            messageBox.buttons = ImRad::Ok;
-            messageBox.OpenPopup();
+            errorBox.title = "CodeGen";
+            errorBox.message = "Import finished with errors";
+            errorBox.OpenPopup();
         }
     }
     return true;
@@ -502,13 +501,12 @@ void DoSaveFile(int flags)
         { "style", tab.styleName },
         { "unit", tab.unit },
     };
-    if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, messageBox.error))
+    if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, errorBox.error))
     {
         DoCancelShutdown();
-        messageBox.title = "CodeGen";
-        messageBox.message = "Unsuccessful export due to errors";
-        messageBox.buttons = ImRad::Ok;
-        messageBox.OpenPopup();
+        errorBox.title = "CodeGen";
+        errorBox.message = "Unsuccessful export due to errors";
+        errorBox.OpenPopup();
         return;
     }
 
@@ -516,12 +514,11 @@ void DoSaveFile(int flags)
     tab.modified = false;
     tab.time[0] = fs::last_write_time(u8path(tab.fname), err);
     tab.time[1] = fs::last_write_time(u8path(tab.codeGen.AltFName(tab.fname)), err);
-    if (messageBox.error != "" && programState != Shutdown)
+    if (errorBox.error != "" && programState != Shutdown)
     {
-        messageBox.title = "CodeGen";
-        messageBox.message = "Export finished with errors";
-        messageBox.buttons = ImRad::Ok;
-        messageBox.OpenPopup([=](ImRad::ModalResult) {
+        errorBox.title = "CodeGen";
+        errorBox.message = "Export finished with errors";
+        errorBox.OpenPopup([=](ImRad::ModalResult) {
             if (flags)
                 DoCloseFile(flags);
             });
@@ -1495,15 +1492,16 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     }
     if (!topLevel)
         ImGui::Unindent();
-    ImGui::PushStyleColor(ImGuiCol_NavCursor, 0x0);
     ImGui::SetNextItemAllowOverlap();
+    //see https://github.com/ocornut/imgui/issues/8551
+    ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true); 
     if (!forceSameRow)
         open = ImGui::TreeNodeEx(str.c_str(), flags);
     else {
         open = ImGui::TreeNodeEx(("###TreeNode." + cat).c_str(), flags);
         ImGui::SameLine(0, 0);
     }
-    ImGui::PopStyleColor();
+    ImGui::PopItemFlag();
     if (!topLevel && !forceSameRow)
         ImGui::Indent();
     ImGui::PopFont();
@@ -1544,18 +1542,36 @@ void PropertyRowsUI(bool pr)
             }
     }
 
+    //header
+    if (pr)
+    {
+        std::string header;
+        if (ctx.selected.size() == 1)
+            header = ctx.selected[0]->GetTypeName();
+        else
+            header = std::to_string(ctx.selected.size()) + " selected";
+        ImGui::Dummy({ 1, 1 }); //ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("  %s", header.c_str());
+    }
+    //clear bg
     ImVec2 pgMin = ImGui::GetCursorScreenPos();
-    uint32_t borderClr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight));
     ImGui::GetWindowDrawList()->AddRectFilled(
-        pgMin,
-        { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMin.y + (pr ? pgHeight : pgeHeight)},
-        borderClr
+        { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMin.y },
+        ImGui::GetCurrentWindow()->InnerRect.Max,
+        0xfffafafa
     );
-    ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable;
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        { pgMin.x, pgMin.y + (pr ? pgHeight : pgeHeight) },
+        { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, ImGui::GetCurrentWindow()->InnerRect.Max.y },
+        0xfffafafa
+    );
+    ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true); //ImGuiChildFlags_NavFlattened emulation
+    ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
     if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
     {
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::PushItemFlag(ImGuiItemFlags_NoNav, false); //Pop+Push doesn't work here
 
         //determine common properties for a selection set
         std::vector<std::string_view> pnames;
@@ -1663,6 +1679,7 @@ void PropertyRowsUI(bool pr)
             catOpen.pop_back();
         }
 
+        ImGui::PopItemFlag();
         ImGui::PopID();
         ImGui::PopFont();
         ImGui::PopStyleVar();
@@ -1692,11 +1709,11 @@ void PropertyRowsUI(bool pr)
             }
         }
     }
+    ImGui::PopItemFlag();
 }
 
 void PropertyUI()
 {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0xfffafafa);
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight, 0xffe5e5e5);
     ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Button);
     clr.w *= 0.5f;
@@ -1718,7 +1735,7 @@ void PropertyUI()
     ImGui::End();
     
     ImGui::PopStyleVar();
-    ImGui::PopStyleColor(3);
+    ImGui::PopStyleColor(2);
 }
 
 void PopupUI()
@@ -1730,6 +1747,8 @@ void PopupUI()
     comboDlg.Draw();
 
     messageBox.Draw();
+
+    errorBox.Draw();
 
     classWizard.Draw();
 
@@ -1869,11 +1888,10 @@ void Work()
 
     if (initErrors != "")
     {
-        messageBox.title = "Startup";
-        messageBox.message = "Errors occured";
-        messageBox.buttons = ImRad::Ok;
-        messageBox.error = initErrors;
-        messageBox.OpenPopup();
+        errorBox.title = "Startup";
+        errorBox.message = "Errors occured";
+        errorBox.error = initErrors;
+        errorBox.OpenPopup();
         initErrors = "";
     }
     else if (showError != "")

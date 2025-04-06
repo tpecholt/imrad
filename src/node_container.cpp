@@ -1187,6 +1187,10 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
         PushError(ctx, "need exactly 2 children");
     if (position.empty())
         PushError(ctx, "position is unassigned");
+    if (children.empty() || position.empty() ||
+        (!stx::count(children[0]->size_x.used_variables(), position.value()) &&
+        !stx::count(children[0]->size_y.used_variables(), position.value())))
+        PushError(ctx, "first child doesn't reference \"" + position.value() + "\" in its size");
 
     if (!style_bg.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";

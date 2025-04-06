@@ -57,7 +57,7 @@ struct UINode
     auto GetAllChildren() -> std::vector<UINode*>;
     void CloneChildrenFrom(const UINode& node, UIContext& ctx);
     void ResetLayout();
-    auto GetTypeName()->std::string;
+    virtual auto GetTypeName()->std::string;
     auto GetParentIndexes(UIContext& ctx)->std::string;
     void PushError(UIContext& ctx, const std::string& err);
     
