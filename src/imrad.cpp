@@ -38,6 +38,7 @@
 #include "ui_horiz_layout.h"
 #include "ui_input_name.h"
 #include "ui_settings_dlg.h"
+#include "ui_explorer.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -65,14 +66,6 @@ struct File
     std::string styleName;
     std::string unit;
 };
-struct ExplorerEntry 
-{
-    std::string path;
-    bool folder;
-    std::string fileName;
-    std::time_t last_write_time;
-    std::string modified;
-};
 
 enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
@@ -87,11 +80,6 @@ UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
-std::string explorerPath;
-int explorerFilter = 0;
-std::vector<ExplorerEntry> explorerData;
-ImGuiTableColumnSortSpecs explorerSorting;
-bool explorerScrollBack = false;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 std::string styleName;
 bool reloadStyle = true;
@@ -1450,171 +1438,6 @@ void TabsUI()
     ImGui::End();
 }
 
-void ReloadExplorer()
-{
-    explorerScrollBack = true;
-    explorerData.clear();
-    std::error_code ec;
-    std::ostringstream os;
-    auto fsnow = fs::file_time_type::clock::now();
-    auto snow = std::chrono::system_clock::now();
-    os.imbue(std::locale(""));
-    for (fs::directory_iterator it(u8path(explorerPath), ec); it != fs::directory_iterator(); ++it)
-    {
-        if (u8string(it->path().stem())[0] == '.')
-            continue;
-        if (!it->is_directory() &&
-            (!explorerFilter && it->path().extension() != ".h" && it->path().extension() != ".hpp"))
-            continue;
-        ExplorerEntry entry;
-        entry.path = generic_u8string(it->path());
-        entry.folder = it->is_directory();
-        entry.fileName = u8string(it->path().filename());
-        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-            it->last_write_time() - fsnow + snow);
-        entry.last_write_time = std::chrono::system_clock::to_time_t(sctp);
-        auto* tm = std::localtime(&entry.last_write_time);
-        os.str("");
-        os << std::put_time(tm, "%x %X");
-        entry.modified = os.str();
-        explorerData.push_back(std::move(entry));
-    }
-    stx::sort(explorerData, [](const ExplorerEntry& a, const ExplorerEntry& b) {
-        if (a.folder != b.folder)
-            return a.folder;
-        if (!explorerSorting.ColumnIndex) {
-            if (explorerSorting.SortDirection == ImGuiSortDirection_Ascending)
-                return path_cmp(a.fileName, b.fileName);
-            else
-                return path_cmp(b.fileName, a.fileName);
-        }
-        else {
-            if (explorerSorting.SortDirection == ImGuiSortDirection_Ascending)
-                return a.last_write_time < b.last_write_time;
-            else
-                return a.last_write_time > b.last_write_time;
-        }    
-        });
-    if (!u8path(explorerPath).relative_path().empty()) {
-        std::string ppath = u8string(u8path(explorerPath).parent_path());
-        explorerData.insert(explorerData.begin(), { ppath, true, ".." });
-    }
-}
-
-void ExplorerUI()
-{
-    if (explorerPath == "")
-        explorerPath = rootPath;
-    if (explorerData.empty())
-        ReloadExplorer();
-    
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 4, 4 });
-    ImGui::Begin("Explorer");
-
-    ImGui::SetNextItemWidth(-ImGui::GetFrameHeight()-2);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
-    ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
-    int fl = ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackCharFilter;
-    ImGui::InputText("##cwd", &explorerPath, fl, DefaultCharFilter);
-    ImGui::PopStyleColor(2);
-    ImGui::PopStyleVar();
-    if (ImGui::IsItemDeactivatedAfterEdit())
-       ReloadExplorer();
-
-    ImGui::SameLine(0, 2);
-    ImGui::PushStyleColor(ImGuiCol_Text, 0xff404040);
-    if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##ego"))
-        ReloadExplorer();
-    ImGui::PopStyleColor();
-
-    ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0xffffffff);
-    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0xffffffff);
-    if (explorerScrollBack) {
-        explorerScrollBack = false;
-        ImGui::SetNextWindowScroll({ 0, 0 });
-    }
-    float h = -ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.y;
-    if (ImGui::BeginTable("files", 2, ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { -1, h }))
-    {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 140);
-        ImGui::TableSetupScrollFreeze(0, 1);
-        auto* spec = ImGui::TableGetSortSpecs();
-        if (spec && spec->SpecsDirty) {
-            spec->SpecsDirty = false;
-            explorerSorting = *spec->Specs;
-            ReloadExplorer();
-        }
-        ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
-        ImGui::TableHeadersRow();
-        ImGui::PopItemFlag();
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-
-        ImGui::PushFont(ImRad::GetFontByName("imrad.explorer"));
-        int n = 0;
-        for (const auto& entry : explorerData)
-        {
-            ImGui::PushID(n++);
-            
-            std::string ext;
-            bool isHeader = false;
-            if (!entry.folder) {
-                size_t i = entry.path.rfind('.');
-                ext = i != std::string::npos ? entry.path.substr(i) : "";
-                isHeader = !entry.folder && (ext == ".h" || ext == ".hpp");
-            }
-            ImGui::PushStyleColor(ImGuiCol_Text,
-                entry.folder ? 0xff40b0b0 : 
-                isHeader ? 0xffd06060 :
-                0xff609060
-            );
-            ImGui::Selectable(entry.folder ? ICON_FA_FOLDER : isHeader ? ICON_FA_FILE_LINES : ICON_FA_FILE, 
-                false, ImGuiSelectableFlags_SpanAllColumns);
-            ImGui::PopStyleColor();
-            if (ImRad::IsItemDoubleClicked() ||
-                (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
-            {
-                
-                if (entry.folder) {
-                    explorerPath = entry.path;
-                    ReloadExplorer();
-                    ImGui::PopID();
-                    break;
-                }
-                else if (isHeader) {
-                    std::string errors;
-                    if (!DoOpenFile(entry.path, &errors))
-                        ShellExec(entry.path);
-                }
-                else {
-                    ShellExec(entry.path);
-                }
-            }
-            ImGui::SameLine(0, 4);
-            ImGui::Selectable(entry.fileName.c_str(), false);
-            ImGui::TableNextColumn();
-            ImGui::Selectable(entry.modified.c_str(), false, ImGuiSelectableFlags_Disabled);
-            ImGui::TableNextColumn();
-            ImGui::PopID();
-        }
-        ImGui::PopFont();
-        ImGui::EndTable();
-    }
-    ImGui::PopStyleColor(2);
-
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
-    ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
-    ImGui::SetNextItemWidth(-1);
-    if (ImGui::Combo("##filter", &explorerFilter, "H Files (*.h,*.hpp)\0All Files (*.*)\0"))
-        ReloadExplorer();
-    ImGui::PopStyleColor(2);
-
-    ImGui::End();
-    ImGui::PopStyleVar();
-}
-
 void HierarchyUI()
 {
     //ImGui::PushFont(ctx.defaultFont); icons are FA
@@ -1624,6 +1447,22 @@ void HierarchyUI()
         fileTabs[activeTab].rootNode->TreeUI(ctx);
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+void ExplorerUI()
+{
+    ExplorerUI([](const std::string& fpath) {
+        std::string errors;
+        if (!DoOpenFile(fpath, &errors)) {
+            ShellExec(fpath);
+        }
+        else if (errors.size()) {
+            errorBox.title = "CodeGen";
+            errorBox.message = "Import finished with errors";
+            errorBox.error = errors;
+            errorBox.OpenPopup();
+        }
+        });
 }
 
 bool BeginPropGroup(const std::string& cat, bool& open)
