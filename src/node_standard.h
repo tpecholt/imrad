@@ -127,6 +127,8 @@ struct Widget : UINode
     direct_val<std::string> contextMenu = "";
     direct_val<ImGuiMouseCursor_> cursor = ImGuiMouseCursor_Arrow;
     direct_val<bool> tabStop = true;
+    direct_val<bool> initialFocus = false;
+    field_ref<bool> forceFocus;
     direct_val<bool> hasPos = false;
     direct_val<dimension_t> pos_x = 0;
     direct_val<dimension_t> pos_y = 0;
@@ -333,8 +335,6 @@ struct Input : Widget
     direct_val<float> step = 1;
     direct_val<std::string> format = "%.3f";
     direct_val<ImGuiInputTextFlags_> flags;
-    direct_val<bool> initialFocus = false;
-    field_ref<bool> forceFocus;
     event<> onChange;
     event<> onImeAction;
     event<int(ImGuiInputTextCallbackData&)> onCallback;

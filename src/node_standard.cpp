@@ -1488,6 +1488,26 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
     
+    if (initialFocus)
+    {
+        os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
+        ctx.ind_up();
+        os << ctx.ind << "ImGui::SetKeyboardFocusHere(-1);\n";
+        ctx.ind_down();
+    }
+    if (!forceFocus.empty())
+    {
+        os << ctx.ind << "if (" << forceFocus.to_arg() << ")\n" << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << "//forceFocus\n";
+        os << ctx.ind << "if (ImGui::IsItemFocused())\n";
+        ctx.ind_up();
+        os << ctx.ind << forceFocus.to_arg() << " = false;\n";
+        ctx.ind_down();
+        os << ctx.ind << "ImGui::SetKeyboardFocusHere(-1);\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+    }
     if (!onDragDropSource.empty())
     {
         os << ctx.ind << "if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))\n";
@@ -1666,7 +1686,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         }
         else if (sit->kind == cpp::IfBlock || sit->kind == cpp::IfCallBlock)
         {
-            ifBlockIt = sit; //could be visible block
+            ifBlockIt = sit; //could be visible or forceFocus block
         }
         else if (sit->kind == cpp::CallExpr && 
             (sit->callee == "ImGui::NextColumn" || sit->callee == "ImGui::TableNextColumn")) //compatibility
@@ -1817,6 +1837,11 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             else
                 DoImport(sit, ctx);
         }
+        else if (sit->kind == cpp::IfCallThenCall &&
+            sit->callee == "ImGui::IsWindowAppearing" && sit->callee2 == "ImGui::SetKeyboardFocusHere")
+        {
+            initialFocus = true;
+        }
         else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemHovered")
         {
             if (sit->callee2 == "ImGui::SetTooltip")
@@ -1869,6 +1894,10 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->kind == cpp::Comment && sit->line == "//visible")
             {
                 visible.set_from_arg(ifBlockIt->cond);
+            }
+            else if (sit->kind == cpp::Comment && sit->line == "//forceFocus")
+            {
+                forceFocus.set_from_arg(ifBlockIt->cond);
             }
             else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImGui::BeginDragDropSource")
             {
@@ -1928,6 +1957,8 @@ Widget::Properties()
         { "common.tooltip", &tooltip },
         { "common.contextMenu", &contextMenu },
         { "common.cursor", &cursor },
+        { "common.initialFocus", &initialFocus },
+        { "common.forceFocus##1", &forceFocus },
         { "common.disabled", &disabled },
     };
     if ((Behavior() & (HasSizeX | HasSizeY)) == (HasSizeX | HasSizeY))
@@ -2029,6 +2060,19 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&cursor, fl, ctx);
         return changed;
     case 5:
+        ImGui::Text("initialFocus");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = initialFocus != Defaults().initialFocus ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&initialFocus, fl, ctx);
+        break;
+    case 6:
+        ImGui::Text("forceFocus");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&forceFocus, true, ctx);
+        break;
+    case 7:
         ImGui::Text("disabled");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2038,7 +2082,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("disabled", &disabled, ctx);
         return changed;
     }
-    i -= 6;
+    i -= 8;
 
     if (!i && (sizeX && sizeY))
     {
@@ -3973,23 +4017,6 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
 
 void Input::DoExport(std::ostream& os, UIContext& ctx)
 {
-    if (initialFocus)
-    {
-        os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
-        ctx.ind_up();
-        os << ctx.ind << "ImGui::SetKeyboardFocusHere();\n";
-        ctx.ind_down();
-    }
-    if (!forceFocus.empty())
-    {
-        os << ctx.ind << "if (" << forceFocus.to_arg() << ")\n" << ctx.ind << "{\n";
-        ctx.ind_up();
-        os << ctx.ind << forceFocus.to_arg() << " = false;\n";
-        os << ctx.ind << "ImGui::SetKeyboardFocusHere();\n";
-        ctx.ind_down();
-        os << ctx.ind << "}\n";
-    }
-
     if (!(flags & ImGuiInputTextFlags_Multiline))
         os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
     
@@ -4305,15 +4332,6 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         onImeAction.set_from_arg(sit->callee);
     }
-    else if (sit->kind == cpp::IfCallThenCall &&
-            sit->callee == "ImGui::IsWindowAppearing" && sit->callee2 == "ImGui::SetKeyboardFocusHere")
-    {
-        initialFocus = true;
-    }
-    else if (sit->kind == cpp::IfBlock) //todo: weak condition
-    {
-        forceFocus.set_from_arg(sit->cond);
-    }
 }
 
 std::vector<UINode::Prop>
@@ -4333,8 +4351,6 @@ Input::Properties()
         { "behavior.imeType##input", &imeType },
         { "behavior.step##input", &step },
         { "behavior.format##input", &format },
-        { "behavior.initial_focus", &initialFocus },
-        { "behavior.force_focus##1", &forceFocus },
         { "bindings.value##1", &fieldName },
     });
     return props;
@@ -4471,26 +4487,13 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 12:
-        ImGui::Text("initialFocus");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = initialFocus != Defaults().initialFocus ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&initialFocus, fl, ctx);
-        break;
-    case 13:
-        ImGui::Text("forceFocus");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&forceFocus, true, ctx);
-        break;
-    case 14:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&fieldName, tid, false, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 15, ctx);
+        return Widget::PropertyUI(i - 13, ctx);
     }
     return changed;
 }
