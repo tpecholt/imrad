@@ -331,7 +331,7 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::Unindent();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    ImGui::PushStyleColor(ImGuiCol_NavCursor, { 0, 0, 0, 0 });
+    //ImGui::PushStyleColor(ImGuiCol_NavCursor, { 0, 0, 0, 0 });
     ImGui::SetNextItemAllowOverlap();
     if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns)) {
         ImGui::PopStyleVar();
@@ -376,7 +376,7 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
         std::string label, tip;
         for (const auto& id : val->get_ids())
         {
-            if (*val & id.second)
+            if (id.first != "" && (*val & id.second) == id.second)
             {
                 size_t pre = 0;
                 if (!id.first.compare(0, 5, "ImGui")) {
@@ -403,7 +403,7 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
         }
     }
     ImGui::Indent();
-    ImGui::PopStyleColor();
+    //ImGui::PopStyleColor();
     return changed;
 }
 

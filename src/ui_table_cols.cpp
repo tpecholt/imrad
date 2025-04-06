@@ -38,6 +38,7 @@ void TableCols::Draw()
     ID = ImGui::GetID("###TableCols");
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8, 5 });
     ImGui::SetNextWindowSize({ 550, 480 }, ImGuiCond_FirstUseEver); //{ 550, 480 }
+    ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Table Columns###TableCols", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNavInputs))
     {
@@ -59,7 +60,7 @@ void TableCols::Draw()
         ImRad::Spacing(1);
         ImGui::BeginDisabled(true);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 1.f });
-        ImRad::Selectable("Columns:", false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
+        ImRad::Selectable("Columns:", false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
         ImGui::PopStyleVar();
         vb1.AddSize(1, ImRad::VBox::ItemSize);
         ImGui::EndDisabled();
@@ -92,7 +93,7 @@ void TableCols::Draw()
 
                     /// @begin Selectable
                     ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                    if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_DontClosePopups, { 0, 0 }))
+                    if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 }))
                         Selectable_Change();
                     ImGui::PopStyleVar();
                     /// @end Selectable
@@ -118,69 +119,54 @@ void TableCols::Draw()
         vb1.AddSize(1, ImRad::VBox::Stretch(1));
         /// @end Splitter
 
-        /// @begin Table
-        if (ImGui::BeginTable("table3", 3, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { 175, 0 }))
+        /// @begin Button
+        if (ImGui::Button("\xef\x83\xbe", { 37, 0 }))
         {
-            ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
-            ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);
-            ImGui::TableSetupColumn("right-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
-            ImGui::TableSetupScrollFreeze(0, 0);
-            ImGui::TableNextRow(0, 0);
-            ImGui::TableSetColumnIndex(0);
-            /// @separator
-
-            /// @begin Button
-            ImRad::TableNextColumn(1);
-            if (ImGui::Button("\xef\x83\xbe", { 37, 0 }))
-            {
-                AddButton_Change();
-            }
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-                ImGui::SetTooltip("Add new column");
-            /// @end Button
-
-            /// @begin Button
-            ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-            ImGui::BeginDisabled(sel<0);
-            if (ImGui::Button("\xef\x8b\xad", { 37, 0 }))
-            {
-                RemoveButton_Change();
-            }
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-                ImGui::SetTooltip("Remove column");
-            /// @end Button
-
-            /// @begin Button
-            ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-            ImGui::BeginDisabled(sel<=0);
-            if (ImGui::ArrowButton("##1930240685120", ImGuiDir_Up))
-            {
-                UpButton_Change();
-            }
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-                ImGui::SetTooltip("Move column up");
-            /// @end Button
-
-            /// @begin Button
-            ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-            ImGui::BeginDisabled(sel+1==columns.size());
-            if (ImGui::ArrowButton("##1930239780032", ImGuiDir_Down))
-            {
-                DownButton_Change();
-            }
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-                ImGui::SetTooltip("Move column down");
-            /// @end Button
-
-
-            /// @separator
-            ImGui::EndTable();
+            AddButton_Change();
         }
         vb1.AddSize(1, ImRad::VBox::ItemSize);
-        /// @end Table
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Add new column");
+        /// @end Button
+
+        /// @begin Button
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::BeginDisabled(sel<0);
+        if (ImGui::Button("\xef\x8b\xad", { 37, 0 }))
+        {
+            RemoveButton_Change();
+        }
+        vb1.UpdateSize(0, ImRad::VBox::ItemSize);
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Remove column");
+        /// @end Button
+
+        /// @begin Button
+        ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::BeginDisabled(sel<=0);
+        if (ImGui::ArrowButton("##2835906304048", ImGuiDir_Up))
+        {
+            UpButton_Change();
+        }
+        vb1.UpdateSize(0, ImRad::VBox::ItemSize);
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Move column up");
+        /// @end Button
+
+        /// @begin Button
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::BeginDisabled(sel+1==columns.size());
+        if (ImGui::ArrowButton("##2835906322560", ImGuiDir_Down))
+        {
+            DownButton_Change();
+        }
+        vb1.UpdateSize(0, ImRad::VBox::ItemSize);
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Move column down");
+        /// @end Button
 
         /// @begin Spacer
         hb4.BeginLayout();

@@ -218,13 +218,24 @@ struct direct_val<T, true> : property_base
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
         std::string str;
-        for (const auto& id : ids)
-            if ((val & id.second) && id.first != "")
-                str += id.first + " | ";
-        if (str != "")
-            str.resize(str.size() - 3);
-        else
-            str = "0";
+        bool simpleEnum = false;
+        for (const auto& id : ids) {
+            if (id.first != "" && !id.second)
+                simpleEnum = true;
+        }
+        if (simpleEnum) {
+            auto it = stx::find_if(ids, [this](const auto& id) { return id.second == val; });
+            str = it == ids.end() ? "0" : it->first;
+        }
+        else {
+            for (const auto& id : ids)
+                if ((val & id.second) == id.second && id.first != "")
+                    str += id.first + " | ";
+            if (str != "")
+                str.resize(str.size() - 3);
+            else
+                str = "0";
+        }
         return str;
     }
     std::vector<std::string> used_variables() const {

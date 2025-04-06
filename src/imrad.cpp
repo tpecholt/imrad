@@ -1052,25 +1052,44 @@ void DockspaceUI()
     if (fileTabs.empty())
     {
         std::pair<std::string, std::string> help[]{
-            { "Create a New File", "  Ctrl + N" },
-            { "Open File", "  Ctrl + O" }
+            { "Create a New File", "Ctrl+N" },
+            { "Open File", "Ctrl+O" }
         };
         float lh = 2 * ImGui::GetTextLineHeight();
-        for (size_t i = 0; i < std::size(help); ++i) {
+        for (size_t i = 0; i < std::size(help); ++i) 
+        {
             ImVec2 size = ImGui::CalcTextSize((help[i].first + help[i].second).c_str());
             ImGui::SetCursorScreenPos({
                 viewport->WorkSize.x / 2.5f,
                 (viewport->WorkSize.y - (std::size(help) - 1) * lh) / 2 + i * lh
                 });
             ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-            clr.w = 0.5f;
+            clr.w = 0.75f;
             ImGui::PushStyleColor(ImGuiCol_Text, clr);
-            ImGui::TextUnformatted(help[i].first.c_str());
+            ImGui::Selectable(help[i].first.c_str(), false, 0, { 150, 0 });
             ImGui::PopStyleColor();
-            ImGui::SameLine(0, 0);
             clr.w = 1.f;
             ImGui::PushStyleColor(ImGuiCol_Text, clr);
-            ImGui::TextUnformatted(help[i].second.c_str());
+            for (size_t c = 0; c < help[i].second.size(); )
+            {
+                bool first = !c;
+                std::string sub;
+                size_t j = help[i].second.find('+', c);
+                if (j != std::string::npos) {
+                    sub = help[i].second.substr(c, j - c);
+                    c = j + 1;
+                }
+                else {
+                    sub = help[i].second.substr(c);
+                    c = j;
+                }
+                ImGui::SameLine(0, 0);
+                if (!first) {
+                    ImGui::Text(" + ");
+                    ImGui::SameLine(0, 0);
+                }
+                ImGui::Selectable(sub.c_str(), true, 0, { ImGui::CalcTextSize(sub.c_str()).x, 0 });
+            }
             ImGui::PopStyleColor();
         }
     }
@@ -1407,6 +1426,8 @@ void TabsUI()
                 ImGui::Separator();
                 if (ImGui::MenuItem("Copy Full Path"))
                     ImGui::SetClipboardText(("\"" + tab.fname + "\"").c_str());
+                if (ImGui::MenuItem("Open Containing Folder"))
+                    ShellExec(u8string(u8path(tab.fname).parent_path()));
 
                 ImGui::EndPopup();
             }
@@ -1543,16 +1564,23 @@ void PropertyRowsUI(bool pr)
     }
 
     //header
-    if (pr)
+    /*if (pr)
     {
         std::string header;
         if (ctx.selected.size() == 1)
             header = ctx.selected[0]->GetTypeName();
         else
             header = std::to_string(ctx.selected.size()) + " selected";
-        ImGui::Dummy({ 1, 1 }); //ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("  %s", header.c_str());
-    }
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffeafafa); // ImGui::GetStyleColorVec4(ImGuiCol_TabUnfocusedActive)); // 0xffc0c0c0);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 4 });
+        if (ImGui::BeginChild("##typeChld", { -1, 0 }, ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysUseWindowPadding, 0)) {
+            ImGui::Text("%s", header.c_str());
+            ImGui::EndChild();
+        }
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+    }*/
     //clear bg
     ImVec2 pgMin = ImGui::GetCursorScreenPos();
     ImGui::GetWindowDrawList()->AddRectFilled(
@@ -1715,6 +1743,7 @@ void PropertyRowsUI(bool pr)
 void PropertyUI()
 {
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight, 0xffe5e5e5);
+    ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, 0xfffafafa);
     ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Button);
     clr.w *= 0.5f;
     ImGui::PushStyleColor(ImGuiCol_Button, clr);
@@ -1735,7 +1764,7 @@ void PropertyUI()
     ImGui::End();
     
     ImGui::PopStyleVar();
-    ImGui::PopStyleColor(2);
+    ImGui::PopStyleColor(3);
 }
 
 void PopupUI()

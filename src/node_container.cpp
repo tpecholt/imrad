@@ -113,7 +113,7 @@ Table::Table(UIContext& ctx)
     flags.separator();
     flags.add$(ImGuiTableFlags_SizingFixedFit);
     flags.add$(ImGuiTableFlags_SizingFixedSame);
-    flags.add$(ImGuiTableFlags_SizingStretchProp);
+    //flags.add$(ImGuiTableFlags_SizingStretchProp); combined flag, looks confusing
     flags.add$(ImGuiTableFlags_SizingStretchSame);
     flags.separator();
     flags.add$(ImGuiTableFlags_PadOuterX);
