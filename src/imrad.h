@@ -834,15 +834,29 @@ inline Texture LoadTextureFromFile(
 Texture LoadTextureFromFile(std::string_view filename);
 #endif
 
+inline std::filesystem::path u8path(std::string_view s)
+{
+#if __cplusplus >= 202002L
+    return std::filesystem::path((const char8_t*)s.data(), (const char8_t*)s.data() + s.size());
+#else
+    return std::filesystem::u8path(s);
+#endif
+}
+
+inline std::string u8string(const std::filesystem::path& p)
+{
+#if __cplusplus >= 202002L
+    return std::string((const char*)p.u8string().data());
+#else
+    return p.u8string();
+#endif
+}
+
 //For debugging pruposes
 inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, const std::map<std::string, std::string>& extra = {})
 {
     const ImGuiStyle* style = src ? src : &ImGui::GetStyle();
-#if __cplusplus >= 202002L
-    std::filesystem::path stylePath((const char8_t*)spath.data(), spath.size());
-#else
-    std::filesystem::path stylePath = std::filesystem::u8path(spath);
-#endif
+    auto stylePath = u8path(spath);
     std::ofstream fout(stylePath);
     if (!fout)
         throw std::runtime_error("can't write '" + stylePath.string() + "'");
@@ -909,11 +923,7 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
     *style = ImGuiStyle();
     auto& io = ImGui::GetIO();
 
-#if __cplusplus >= 202002L
-    std::filesystem::path stylePath((const char8_t*)spath.data(), spath.size());
-#else
-    std::filesystem::path stylePath = std::filesystem::u8path(spath);
-#endif
+    auto stylePath = u8path(spath);
     std::ifstream fin(stylePath);
     if (!fin)
         throw std::runtime_error("Can't read " + stylePath.string());
@@ -990,13 +1000,11 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
                 static std::vector<std::unique_ptr<ImWchar[]>> rngs;
 
                 is >> std::quoted(fname);
-#if __cplusplus >= 202202L
-                std::filesystem::path fpath((const char8_t*)fname.data(), fname.size());
-#else
-                std::filesystem::path fpath = std::filesystem::u8path(fname);
-#endif
+                auto fpath = u8path(fname);
+#ifndef ANDROID
                 if (fpath.is_relative())
                     fpath = stylePath.parent_path() / fpath;
+#endif
                 std::string tmp;
                 while (is >> tmp)
                 {
@@ -1022,20 +1030,15 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
                 cfg.GlyphOffset = { goffset.x * fontScaling, goffset.y * fontScaling };
 #ifdef ANDROID
                 void* font_data;
-                int font_data_size = GetAssetData(fname.c_str(), &font_data);
+                int font_data_size = GetAssetData(u8string(fpath).c_str(), &font_data);
                 ImFont* fnt = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, size * fontScaling);
 #else
-#if __cplusplus >= 202202L
-                std::string fp8((const char*)fpath.u8string().data());
-#else
-                std::string fp8 = fpath.u8string();
-#endif
                 if (!std::ifstream(fpath))
-                    throw std::runtime_error("Can't read '" + fp8 + "'");
-                ImFont* fnt = io.Fonts->AddFontFromFileTTF(fp8.c_str(), size * fontScaling, &cfg);
+                    throw std::runtime_error("Can't read '" + u8string(fpath) + "'");
+                ImFont* fnt = io.Fonts->AddFontFromFileTTF(u8string(fpath).c_str(), size * fontScaling, &cfg);
 #endif
                 if (!fnt)
-                    throw std::runtime_error("Can't load " + fp8);
+                    throw std::runtime_error("Can't load " + u8string(fpath));
                 if (!cfg.MergeMode && fontMap)
                     (*fontMap)[lastFont == "" ? "" : key] = fnt;
             

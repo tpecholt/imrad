@@ -1,15 +1,19 @@
 project (imrad)
 
 file(GLOB_RECURSE SRC "*.cpp" "*.h")
-	
+
 if (WIN32)
   set(SRC ${SRC} "app.rc")
 endif()
 
+if (MSVC)
+  string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus")
+endif()
+
 add_executable(imrad WIN32
    ${SRC}
-) 	
-	
+)
+
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 

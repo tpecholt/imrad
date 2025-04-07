@@ -139,8 +139,8 @@ std::string Replace(std::string_view s, std::string_view sold, std::string_view 
 
 fs::path u8path(std::string_view s)
 {
-#if __cplusplus >= 202202L
-    return fs::path((const char8_t*)s.data(), s.size());
+#if __cplusplus >= 202002L
+    return fs::path((const char8_t*)s.data(), (const char8_t*)s.data() + s.size());
 #else
     return fs::u8path(s);
 #endif
@@ -148,7 +148,7 @@ fs::path u8path(std::string_view s)
 
 std::string u8string(const fs::path& p)
 {
-#if __cplusplus >= 202202L
+#if __cplusplus >= 202002L
     return std::string((const char*)p.u8string().data());
 #else
     return p.u8string();
@@ -157,7 +157,7 @@ std::string u8string(const fs::path& p)
 
 std::string generic_u8string(const fs::path& p)
 {
-#if __cplusplus >= 202202L
+#if __cplusplus >= 202002L
     return std::string((const char*)p.generic_u8string().data());
 #else
     return p.generic_u8string();
