@@ -16,6 +16,7 @@ struct Table : Widget
         const ColumnData& Defaults() const { static ColumnData cd; return cd; }
         auto Properties()->std::vector<Prop>;
         bool PropertyUI(int i, UIContext& ctx);
+        std::string SizingPolicyString();
     };
 
     direct_val<ImGuiTableFlags_> flags = ImGuiTableFlags_Borders;

@@ -1952,14 +1952,14 @@ Widget::Properties()
 {
     //some properties are left up to the subclass
     std::vector<UINode::Prop> props{
-        { "common.visible", &visible },
-        { "common.tabStop", &tabStop },
-        { "common.tooltip", &tooltip },
         { "common.contextMenu", &contextMenu },
         { "common.cursor", &cursor },
-        { "common.initialFocus", &initialFocus },
-        { "common.forceFocus##1", &forceFocus },
         { "common.disabled", &disabled },
+        { "common.forceFocus##1", &forceFocus },
+        { "common.initialFocus", &initialFocus },
+        { "common.tabStop", &tabStop },
+        { "common.tooltip", &tooltip },
+        { "common.visible", &visible },
     };
     if ((Behavior() & (HasSizeX | HasSizeY)) == (HasSizeX | HasSizeY))
     {
@@ -2019,30 +2019,6 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
     switch (i)
     {
     case 0:
-        ImGui::Text("visible");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = visible != Defaults().visible ? InputBindable_Modified : 0;
-        changed = InputBindable(&visible, fl, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("visible", &visible, ctx);
-        return changed;
-    case 1:
-        ImGui::Text("tabStop");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = tabStop != Defaults().tabStop ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&tabStop, fl, ctx);
-        return changed;
-    case 2:
-        ImGui::Text("tooltip");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&tooltip, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("tooltip", &tooltip, ctx);
-        return changed;
-    case 3:
     {
         ImGui::BeginDisabled(Behavior() & NoContextMenu);
         ImGui::Text("contextMenu");
@@ -2052,27 +2028,14 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         return changed;
     }
-    case 4:
+    case 1:
         ImGui::Text("cursor");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = cursor != Defaults().cursor ? InputDirectVal_Modified : 0;
         changed = InputDirectValEnum(&cursor, fl, ctx);
         return changed;
-    case 5:
-        ImGui::Text("initialFocus");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = initialFocus != Defaults().initialFocus ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&initialFocus, fl, ctx);
-        break;
-    case 6:
-        ImGui::Text("forceFocus");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&forceFocus, true, ctx);
-        break;
-    case 7:
+    case 2:
         ImGui::Text("disabled");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2080,6 +2043,43 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         changed = InputBindable(&disabled, fl, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("disabled", &disabled, ctx);
+        return changed;
+    case 3:
+        ImGui::Text("forceFocus");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&forceFocus, true, ctx);
+        break;
+    case 4:
+        ImGui::Text("initialFocus");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = initialFocus != Defaults().initialFocus ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&initialFocus, fl, ctx);
+        break;
+    case 5:
+        ImGui::Text("tabStop");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = tabStop != Defaults().tabStop ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&tabStop, fl, ctx);
+        return changed;
+    case 6:
+        ImGui::Text("tooltip");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&tooltip, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("tooltip", &tooltip, ctx);
+        return changed;
+    case 7:
+        ImGui::Text("visible");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = visible != Defaults().visible ? InputBindable_Modified : 0;
+        changed = InputBindable(&visible, fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("visible", &visible, ctx);
         return changed;
     }
     i -= 8;

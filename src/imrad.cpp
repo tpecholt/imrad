@@ -149,7 +149,8 @@ void DoReloadFile()
         return;
 
     std::map<std::string, std::string> params;
-    tab.rootNode = tab.codeGen.Import(tab.fname, params, errorBox.error);
+    std::string error;
+    tab.rootNode = tab.codeGen.Import(tab.fname, params, error);
     auto pit = params.find("style");
     tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
     pit = params.find("unit");
@@ -158,17 +159,18 @@ void DoReloadFile()
         return st.first == tab.styleName;
         });
     if (!styleFound) {
-        errorBox.error = "Unknown style \"" + tab.styleName + "\" used\n" + errorBox.error;
+        error = "Unknown style \"" + tab.styleName + "\" used\n" + error;
         tab.styleName = DEFAULT_STYLE;
     }
     tab.modified = false;
     ctx.mode = UIContext::NormalSelection;
     ctx.selected = { tab.rootNode.get() };
 
-    if (errorBox.error != "" && programState != Shutdown)
+    if (error != "" && programState != Shutdown)
     {
         errorBox.title = "Reload";
         errorBox.message = "Errors occured";
+        errorBox.error = error;
         errorBox.OpenPopup();
     }
 }
@@ -357,7 +359,8 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
     std::error_code err;
     file.time[1] = fs::last_write_time(u8path(file.codeGen.AltFName(file.fname)), err);
     std::map<std::string, std::string> params;
-    file.rootNode = file.codeGen.Import(file.fname, params, errorBox.error);
+    std::string error;
+    file.rootNode = file.codeGen.Import(file.fname, params, error);
     auto pit = params.find("style");
     file.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
     pit = params.find("unit");
@@ -368,6 +371,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         else {
             errorBox.title = "CodeGen";
             errorBox.message = "Unsuccessful import because of errors";
+            errorBox.error = error;
             errorBox.OpenPopup();
         }
         return false;
@@ -380,7 +384,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         if (errs)
             *errs += "Uknown style \"" + file.styleName + "\" used\n";
         else
-            errorBox.error = "Unknown style \"" + file.styleName + "\" used\n" + errorBox.error;
+            error = "Unknown style \"" + file.styleName + "\" used\n" + error;
         file.styleName = DEFAULT_STYLE;
     }
 
@@ -393,12 +397,13 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
     fileTabs[idx] = std::move(file);
     ActivateTab(idx);
 
-    if (errorBox.error != "") {
+    if (error != "") {
         if (errs)
-            *errs += errorBox.error;
+            *errs += error;
         else {
             errorBox.title = "CodeGen";
             errorBox.message = "Import finished with errors";
+            errorBox.error = error;
             errorBox.OpenPopup();
         }
     }
@@ -501,11 +506,13 @@ void DoSaveFile(int flags)
         { "style", tab.styleName },
         { "unit", tab.unit },
     };
-    if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, errorBox.error))
+    std::string error;
+    if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, error))
     {
         DoCancelShutdown();
         errorBox.title = "CodeGen";
         errorBox.message = "Unsuccessful export due to errors";
+        errorBox.error = error;
         errorBox.OpenPopup();
         return;
     }
@@ -514,10 +521,11 @@ void DoSaveFile(int flags)
     tab.modified = false;
     tab.time[0] = fs::last_write_time(u8path(tab.fname), err);
     tab.time[1] = fs::last_write_time(u8path(tab.codeGen.AltFName(tab.fname)), err);
-    if (errorBox.error != "" && programState != Shutdown)
+    if (error != "" && programState != Shutdown)
     {
         errorBox.title = "CodeGen";
         errorBox.message = "Export finished with errors";
+        errorBox.error = error;
         errorBox.OpenPopup([=](ImRad::ModalResult) {
             if (flags)
                 DoCloseFile(flags);
@@ -2380,7 +2388,7 @@ std::string GetRootPath()
 {
 #ifdef WIN32
     wchar_t tmp[1024];
-    int n = GetModuleFileNameW(NULL, tmp, sizeof(tmp));
+    int n = GetModuleFileNameW(NULL, tmp, std::size(tmp));
     return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
     //test utf8 path: return u8string(L"c:/work/dežo/latest");
 #elif __APPLE__

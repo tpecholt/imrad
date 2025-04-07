@@ -38,6 +38,17 @@ Table::ColumnData::ColumnData(const std::string& l, ImGuiTableColumnFlags_ polic
     width = w;
 }
 
+std::string
+Table::ColumnData::SizingPolicyString()
+{
+    if (sizingPolicy & ImGuiTableColumnFlags_WidthFixed)
+        return "(Fixed)";
+    else if (sizingPolicy & ImGuiTableColumnFlags_WidthStretch)
+        return "(Stretch)";
+    else
+        return "";
+}
+
 std::vector<UINode::Prop>
 Table::ColumnData::Properties()
 {
@@ -478,10 +489,13 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImRad::ScrollWhenDragging(true);\n";
     }
 
+    int hasNoPolicy = 0;
     for (const auto& cd : columnData)
     {
         std::string fl;
-        if (cd.sizingPolicy)
+        if (!cd.sizingPolicy)
+            ++hasNoPolicy;
+        else     
             fl += cd.sizingPolicy.to_arg() + " | ";
         if (cd.flags)
             fl += cd.flags.to_arg() + " | ";
@@ -502,6 +516,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             os << cd.width;
         os << ");\n";
     }
+    if (hasNoPolicy && hasNoPolicy != columnData.size())
+        PushError(ctx, "either specify sizingPolicy for all columns or none");
+
     os << ctx.ind << "ImGui::TableSetupScrollFreeze(" << scrollFreeze_x.to_arg() << ", "
         << scrollFreeze_y.to_arg() << ");\n";
     

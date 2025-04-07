@@ -27,6 +27,7 @@ void TableCols::ClosePopup(ImRad::ModalResult mr)
 void TableCols::Init()
 {
     sel = columns.size() ? 0 : -1;
+    CheckErrors();
 }
 
 void TableCols::Draw()
@@ -98,6 +99,13 @@ void TableCols::Draw()
                     ImGui::PopStyleVar();
                     /// @end Selectable
 
+                    /// @begin Text
+                    ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                    ImGui::TextUnformatted(ImRad::Format("{}", columns[i].SizingPolicyString()).c_str());
+                    ImGui::PopStyleColor();
+                    /// @end Text
+
 
                     /// @separator
                     ImGui::PopID();
@@ -145,7 +153,7 @@ void TableCols::Draw()
         /// @begin Button
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(sel<=0);
-        if (ImGui::ArrowButton("##2835906304048", ImGuiDir_Up))
+        if (ImGui::ArrowButton("##2166441554064", ImGuiDir_Up))
         {
             UpButton_Change();
         }
@@ -158,7 +166,7 @@ void TableCols::Draw()
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(sel+1==columns.size());
-        if (ImGui::ArrowButton("##2835906322560", ImGuiDir_Down))
+        if (ImGui::ArrowButton("##2166605759360", ImGuiDir_Down))
         {
             DownButton_Change();
         }
@@ -168,10 +176,21 @@ void TableCols::Draw()
             ImGui::SetTooltip("Move column down");
         /// @end Button
 
+        /// @begin Selectable
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
+        ImRad::Selectable(ImRad::Format("{}##error", error).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
+        ImGui::PopStyleVar();
+        vb1.UpdateSize(0, ImRad::VBox::ItemSize);
+        ImGui::PopStyleColor();
+        /// @end Selectable
+
         /// @begin Spacer
         hb4.BeginLayout();
+        ImRad::Spacing(2);
         ImRad::Dummy({ hb4.GetSize(), 0 });
-        vb1.AddSize(1, ImRad::VBox::ItemSize);
+        vb1.AddSize(3, ImRad::VBox::ItemSize);
         hb4.AddSize(0, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
@@ -293,7 +312,8 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::AlignTextToFramePadding();
-                columns[sel].PropertyUI(i, *ctx);
+                if (columns[sel].PropertyUI(i, *ctx))
+                    CheckErrors();
             }
         }
         if (open)
@@ -305,4 +325,15 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(3);
+}
+
+void TableCols::CheckErrors()
+{
+    error = "";
+    int noPolicy = 0;
+    for (const auto& cd : columns)
+        if (!(cd.sizingPolicy & ImGuiTableColumnFlags_WidthMask_))
+            ++noPolicy;
+    if (noPolicy && noPolicy != columns.size())
+        error = "specify sizingPolicy either for all columns or none";
 }

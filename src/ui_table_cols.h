@@ -15,7 +15,8 @@ public:
 
     std::vector<Table::ColumnData> columns;
     UIContext * ctx;
-    float sash = 150;
+    float sash = 180;
+    std::string error;
     /// @end interface
 
 private:
@@ -23,6 +24,7 @@ private:
     void ResetLayout();
     void Init();
 
+    void CheckErrors();
     void AddButton_Change();
     void RemoveButton_Change();
     void UpButton_Change();
