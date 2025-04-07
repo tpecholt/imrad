@@ -47,8 +47,8 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
         bound = !val->empty(); //the default value is usually empty
     else
         bound = !val->empty() && !val->has_value();
-    
-    ImGui::PushStyleColor(ImGuiCol_Button, bound ? 0xff0080ff : 0xffc0c0c0); 
+
+    ImGui::PushStyleColor(ImGuiCol_Button, bound ? 0xff0080ff : 0xffc0c0c0);
     float sp = (ImGui::GetFrameHeight() - 12) / 2;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sp);
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + sp);
@@ -69,7 +69,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
             });
         return true;
     }
-    
+
     return false;
 }
 
@@ -81,7 +81,7 @@ inline bool BindingButton(const char* label, bindable<T>* val, UIContext& ctx)
 
 //---------------------------------------------------------------------------------
 
-enum 
+enum
 {
     InputDirectVal_Modified = 0x1,
     InputDirectVal_ShortcutButton = 0x2,
@@ -126,7 +126,7 @@ inline bool InputDirectVal(direct_val<pzdimension_t>* val, UIContext& ctx)
     std::string tmp = val->has_value() ? std::to_string((int)*val->access()) : "";
     std::string hint = ImGui::GetActiveID() == ImGui::GetCurrentWindow()->GetID(id.c_str()) ? "" : PARENT_STR;
     bool changed = ImGui::InputTextWithHint(id.c_str(), hint.c_str(), &tmp, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_AutoSelectAll);
-    if (changed) 
+    if (changed)
     {
         std::istringstream is(tmp);
         is >> *val->access();
@@ -170,17 +170,17 @@ inline bool InputDirectVal(direct_val<bool>* val, int fl, UIContext& ctx)
 {
     std::string id = "##" + std::to_string((uint64_t)val);
     bool val1 = *val;
-    
+
     ImGui::PushStyleColor(ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(
         (fl & InputDirectVal_Modified) ? ImGuiCol_Text : ImGuiCol_TextDisabled));
-    
+
     if ((fl & InputDirectVal_Modified) && !val1) {
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2);
         ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyleColorVec4(ImGuiCol_Text));
     }
 
     bool changed = ImGui::Checkbox(id.c_str(), val->access());
-    
+
     if ((fl & InputDirectVal_Modified) && !val1) {
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
@@ -193,7 +193,7 @@ inline bool InputDirectVal(direct_val<bool>* val, int fl, UIContext& ctx)
 inline bool InputDirectVal(direct_val<std::string>* val, int fl, UIContext& ctx)
 {
     ImGui::PushFont(
-        !IsAscii(*val->access()) ? ctx.defaultStyleFont : 
+        !IsAscii(*val->access()) ? ctx.defaultStyleFont :
         (fl & InputDirectVal_Modified) ? ctx.pgbFont :
         ctx.pgFont
     );
@@ -217,7 +217,7 @@ inline bool InputDirectVal(direct_val<shortcut_t>* val, int flags, UIContext& ct
     {
         std::string buttonId = id + "But";
         std::string popupId = id + "DropDown";
-    
+
         ImGui::SameLine(0, 0);
         if (IsHighlighted(id) || IsHighlighted(buttonId) ||
             ImGui::IsPopupOpen(ImGui::GetID(popupId.c_str()), 0))
@@ -409,13 +409,13 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
 
 //-------------------------------------------------------------------------------
 
-enum 
+enum
 {
     InputBindable_StretchButton = 0x1,
     InputBindable_StretchButtonDisabled = InputBindable_StretchButton | 0x2,
     InputBindable_Modified = 0x10,
     InputBindable_ShowVariables = 0x20,
-}; 
+};
 
 inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
 {
@@ -429,13 +429,13 @@ inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
 
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
-    
+
     if (!(flags & InputBindable_ShowVariables))
     {
         ImGui::PushFont((flags & InputBindable_Modified) ? ctx.pgbFont : ctx.pgFont);
         changed = ImGui::InputText(id.c_str(), val->access());
         ImGui::PopFont();
-        
+
         /*if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip) &&
             ImGui::CalcTextSize(val->c_str()).x > ImGui::GetItemRectSize().x)
         {
@@ -493,7 +493,7 @@ inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
         }
         ImGui::PopFont();
     }
-    
+
     return changed;
 }
 
@@ -503,7 +503,7 @@ inline bool InputBindable(bindable<font_name_t>* val, UIContext& ctx)
         val->has_value() ? val->eval(ctx) : val->c_str();
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
-    if (ImGui::BeginCombo(id.c_str(), nullptr, 
+    if (ImGui::BeginCombo(id.c_str(), nullptr,
         ImGuiComboFlags_CustomPreview | (IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton)))
     {
         for (const auto& f : ctx.fontNames)
@@ -535,11 +535,11 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
 {
     static std::string lastColor;
     static int lastStyleClr;
-    
+
     auto nextData = ImGui::GetCurrentContext()->NextItemData; //copy
     int styleClr = val->style_color();
-    ImVec4 buttonClr = val->empty() ? 
-        ctx.style.Colors[defStyleCol] : 
+    ImVec4 buttonClr = val->empty() ?
+        ctx.style.Colors[defStyleCol] :
         ImGui::ColorConvertU32ToFloat4(val->eval(defStyleCol, ctx));
     std::string id = "##" + std::to_string((uint64_t)val);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -550,7 +550,7 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
         ImGui::OpenPopup(id.c_str());
     }
     ImGui::PopStyleColor();
-    
+
     ImGui::SameLine();
     ImVec2 sz{ 0, 0 };
     if (nextData.HasFlags & ImGuiNextItemDataFlags_HasWidth)
@@ -741,13 +741,13 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
         *val->access() = lastColor;
     }
     ImGui::PopStyleVar();
-    
+
     return changed;
 }
 
 inline bool InputBindable(bindable<std::string>* val, UIContext& ctx)
 {
-    ImGui::PushFont((ImRad::IsItemDisabled() || !IsAscii(*val->access())) ? 
+    ImGui::PushFont((ImRad::IsItemDisabled() || !IsAscii(*val->access())) ?
         ctx.defaultStyleFont : ctx.pgbFont
     );
     std::string id = "##" + std::to_string((uint64_t)val);
@@ -776,13 +776,13 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
     ImRad::Selectable(label.c_str(), false, 0, { -2 * ImGui::GetFrameHeight(), 0 });
     ImGui::PopItemFlag();
     ImGui::PopFont();
-    
+
     bool high = IsHighlighted(label) || IsHighlighted(id);
     ImGui::SameLine(0, 0);
     ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
     ImGui::SetNextWindowSizeConstraints({ w, 0 }, { FLT_MAX, FLT_MAX });
     if (high && ImGui::BeginCombo(id.c_str(), nullptr, ImGuiComboFlags_NoPreview))*/
-    if (ImGui::BeginCombo(id.c_str(), label.c_str(), 
+    if (ImGui::BeginCombo(id.c_str(), label.c_str(),
             IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
     {
         ImGui::PopFont();
@@ -847,9 +847,9 @@ inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
     std::string butId = ICON_FA_LEFT_RIGHT + id;
     if (flags & InputBindable_StretchButton)
         ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - ImGui::GetFrameHeight());
-    
+
     bool stretch = val->stretched();
-    ImGui::PushFont(!ImRad::IsItemDisabled() && (flags & InputBindable_Modified) ? 
+    ImGui::PushFont(!ImRad::IsItemDisabled() && (flags & InputBindable_Modified) ?
         ctx.pgbFont : ctx.pgFont);
     int fl = ImGuiInputTextFlags_CallbackCharFilter;
     if (val->has_value())
@@ -879,27 +879,35 @@ inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
         }
     }
 
-    if (flags & InputBindable_StretchButton) {
+    if (flags & InputBindable_StretchButton)
+    {
         ImGui::SameLine(0, 0);
-        ImGui::PushFont(ImGui::GetDefaultFont());
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[stretch ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-        ImGui::BeginDisabled((flags & InputBindable_StretchButtonDisabled) == InputBindable_StretchButtonDisabled);
-        if (ImGui::Button((ICON_FA_LEFT_RIGHT + id).c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        if (IsHighlighted(id) || IsHighlighted(butId))
         {
-            changed = true;
-            stretch = !stretch;
-            *val = stretch ? 1.0f : 0.f;
-            val->stretch(stretch);
-        };
-        ImGui::EndDisabled();
-        ImGui::PopStyleColor();
-        ImGui::PopFont();
+            ImGui::PushFont(ImGui::GetDefaultFont());
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[stretch ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+            ImGui::BeginDisabled((flags & InputBindable_StretchButtonDisabled) == InputBindable_StretchButtonDisabled);
+            if (ImGui::Button(butId.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+            {
+                changed = true;
+                stretch = !stretch;
+                *val = stretch ? 1.0f : 0.f;
+                val->stretch(stretch);
+            };
+            ImGui::EndDisabled();
+            ImGui::PopStyleColor();
+            ImGui::PopFont();
+        }
+        else
+        {
+            ImGui::InvisibleButton(butId.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() });
+        }
     }
 
     return changed;
 }
 
-template <class T, 
+template <class T,
     class = std::enable_if_t<!std::is_same_v<T, dimension_t>> >
 inline bool InputBindable(bindable<T>* val, int flags, UIContext& ctx)
 {
@@ -946,7 +954,7 @@ inline bool InputFieldRef(field_ref<T>* val, const std::string& type, bool allow
             *val->access() = "";
             changed = true;
         }
-        
+
         if (!val->empty() && ImGui::Selectable("Rename..."))
         {
             auto vars = val->used_variables();
@@ -958,7 +966,7 @@ inline bool InputFieldRef(field_ref<T>* val, const std::string& type, bool allow
                 root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
                 });
         }
-        
+
         if (ImGui::Selectable("New Variable..."))
         {
             newFieldPopup.varType = type;
@@ -969,7 +977,7 @@ inline bool InputFieldRef(field_ref<T>* val, const std::string& type, bool allow
                 ctx.setPropValue = newFieldPopup.varName;
                 });
         }
-        
+
         ImGui::Separator();
         const auto& vars = ctx.codeGen->GetVars();
         for (const auto& v : vars)
@@ -980,7 +988,7 @@ inline bool InputFieldRef(field_ref<T>* val, const std::string& type, bool allow
                 changed = true;
             }
         }
-    
+
         ImGui::EndCombo();
     }
     ImGui::PopFont();
@@ -1011,8 +1019,8 @@ inline bool InputDataSize(bindable<int>* val, bool allowEmpty, UIContext& ctx)
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
     ImGui::PushFont(ctx.pgbFont);
-    
-    if (ImGui::BeginCombo(id.c_str(), val->c_str(), 
+
+    if (ImGui::BeginCombo(id.c_str(), val->c_str(),
             IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
     {
         ImGui::PopFont();
@@ -1059,7 +1067,7 @@ inline bool InputDataSize(bindable<int>* val, bool allowEmpty, UIContext& ctx)
 template <class FuncSig>
 inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, UIContext& ctx)
 {
-    if (val == ctx.setProp) 
+    if (val == ctx.setProp)
     {
         //commit dialog request
         ctx.setProp = nullptr;
@@ -1090,7 +1098,7 @@ inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, 
     }
 
     ImGui::SameLine(0, 0);
-    if (!ImRad::IsItemDisabled() && 
+    if (!ImRad::IsItemDisabled() &&
         (IsHighlighted(inputId) || IsHighlighted(id)))
     {
         ImGui::SetNextWindowSizeConstraints({ realWidth + ImGui::GetFrameHeight(), 0 }, { FLT_MAX, FLT_MAX });
@@ -1135,6 +1143,6 @@ inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, 
     {
         ImGui::InvisibleButton(id.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() });
     }
-    
+
     return changed;
 }

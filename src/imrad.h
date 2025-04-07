@@ -6,7 +6,7 @@
 #include <fstream> //Save/LoadStyle
 #include <filesystem> //Save/LoadStyle
 #include <iomanip> //std::quoted
-#include <sstream> 
+#include <sstream>
 #include <map>
 #include <imgui.h>
 #include <imgui_internal.h> //CurrentItemFlags, GetCurrentWindow, PushOverrideID
@@ -62,9 +62,9 @@ enum Alignment {
 };
 
 enum ImeType {
-    ImeText = 1, 
-    ImeNumber = 2, 
-    ImeDecimal = 3, 
+    ImeText = 1,
+    ImeNumber = 2,
+    ImeDecimal = 3,
     ImePhone = 4,
     ImeEmail = 5,
 
@@ -100,10 +100,10 @@ struct IOUserData
     float dimBgRatio = 1;
     bool kbdShown = false;
     std::string activeActivity;
-    //from UI 
+    //from UI
     int imeType = ImeText;
 
-    ImRect WorkRect() const 
+    ImRect WorkRect() const
     {
         return {
             displayOffsetMin.x,
@@ -113,13 +113,13 @@ struct IOUserData
     }
 };
 
-struct Animator 
+struct Animator
 {
     //todo: configure
-    static inline const float DurOpenPopup = 0.4f; 
+    static inline const float DurOpenPopup = 0.4f;
     static inline const float DurClosePopup = 0.3f;
 
-    void StartAlways(float *v, float s, float e, float dur) 
+    void StartAlways(float *v, float s, float e, float dur)
     {
         Var nvar{ 0, v, s, e, dur, false };
         for (auto& var : vars)
@@ -129,7 +129,7 @@ struct Animator
             }
         vars.push_back(nvar);
     }
-    void StartOnce(float *v, float s, float e, float dur) 
+    void StartOnce(float *v, float s, float e, float dur)
     {
         Var nvar{ 0, v, s, e, dur, true };
         for (auto& var : vars)
@@ -139,7 +139,7 @@ struct Animator
             }
         vars.push_back(nvar);
     }
-    bool IsDone() const 
+    bool IsDone() const
     {
         for (const auto& var : vars)
             if (var.oneShot || std::abs(*var.var - var.end) / std::abs(var.end - var.start) > 0.01)
@@ -147,7 +147,7 @@ struct Animator
         return true;
     }
     //to be called from withing Begin
-    void Tick() 
+    void Tick()
     {
         wsize = ImGui::GetCurrentWindow()->Size; //cache actual windows size
         size_t j = 0;
@@ -168,13 +168,13 @@ struct Animator
         }
         vars.resize(j);
     }
-    ImVec2 GetWindowSize() const 
+    ImVec2 GetWindowSize() const
     {
         return wsize;
     }
 
 private:
-    struct Var 
+    struct Var
     {
         float time;
         float* var = nullptr;
@@ -201,12 +201,12 @@ struct BoxLayout
     {
         prevItems.clear();
     }
-    void BeginLayout() 
+    void BeginLayout()
     {
         pos1 = HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
         std::swap(prevItems, items);
         items.clear();
-        
+
         float avail = HORIZ ? ImGui::GetContentRegionAvail().x : ImGui::GetContentRegionAvail().y;
         float total = 0;
         float stretchTotal = 0;
@@ -233,7 +233,7 @@ struct BoxLayout
         }
     }
     //call after a widget call
-    void AddSize(int sp, float size) 
+    void AddSize(int sp, float size)
     {
         float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
         if (size == ItemSize)
@@ -375,7 +375,7 @@ inline bool Splitter(bool split_horiz, float thickness, float* position, float m
     ImRect bb;
     bb.Min = window->DC.CursorPos;
     bb.Min[!split_horiz] += *position;
-    
+
     bb.Max = bb.Min;
     ImVec2 sz(thickness, splitter_long_axis_size);
     if (!split_horiz)
@@ -383,7 +383,7 @@ inline bool Splitter(bool split_horiz, float thickness, float* position, float m
     sz = CalcItemSize(sz, 0.0f, 0.0f);
     bb.Max[0] += sz[0];
     bb.Max[1] += sz[1];
-    
+
     float tmp = ImGui::GetContentRegionAvail().x - *position - thickness;
     return SplitterBehavior(bb, id, split_horiz ? ImGuiAxis_X : ImGuiAxis_Y, position, &tmp, min_size1, min_size2, 0.0f);
 }
@@ -395,7 +395,7 @@ inline bool IsItemDoubleClicked()
 
 inline bool IsItemContextMenuClicked()
 {
-    return ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) && 
+    return ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) &&
         ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
 }
 
@@ -413,7 +413,7 @@ inline bool IsItemDisabled()
 //Push/PopID like TabControl
 inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
 {
-    //RootWindow skips child window parents 
+    //RootWindow skips child window parents
     ImGui::PushOverrideID(ImGui::GetCurrentWindow()->RootWindow->ID);
     //todo: for drop down menu use button's BL corner
     ImGui::OpenPopup(str_id, flags);
@@ -494,7 +494,7 @@ inline void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data)
 {
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
     wnd->WorkRect.Max = data.workRectMax;
-    if (data.hasSize) 
+    if (data.hasSize)
     {
         ImVec2 pad = wnd->WindowPadding;
         if (wnd->DC.CursorMaxPos.x > data.maxPos.x)
@@ -768,7 +768,7 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
                     break;
                 if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
                     s += arg;
-                else if constexpr (std::is_same_v<std::decay_t<A1>, const char*> || 
+                else if constexpr (std::is_same_v<std::decay_t<A1>, const char*> ||
                                     std::is_same_v<std::decay_t<A1>, char*>)
                     s += arg;
                 else if constexpr (std::is_same_v<std::decay_t<A1>, char>)
@@ -790,8 +790,8 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
 inline Texture LoadTextureFromFile(
     std::string_view filename,
-    int minFilter = GL_LINEAR, 
-    int magFilter = GL_LINEAR, 
+    int minFilter = GL_LINEAR,
+    int magFilter = GL_LINEAR,
     int wrapS = GL_CLAMP_TO_EDGE, // This is required on WebGL for non power-of-two textures
     int wrapT = GL_CLAMP_TO_EDGE // Same
 ) {
@@ -818,8 +818,8 @@ inline Texture LoadTextureFromFile(
     // Setup filtering parameters for display
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS); 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
 
     // Upload pixels into texture
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
@@ -860,19 +860,19 @@ inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, c
     std::ofstream fout(stylePath);
     if (!fout)
         throw std::runtime_error("can't write '" + stylePath.string() + "'");
-    
+
     fout << "[colors]\n";
     for (int i = 0; i < ImGuiCol_COUNT; ++i) {
         fout << ImGui::GetStyleColorName(i) << " = ";
         const auto& clr = style->Colors[i];
-        fout << int(clr.x * 255) << " " << int(clr.y * 255) << " " 
+        fout << int(clr.x * 255) << " " << int(clr.y * 255) << " "
             << int(clr.z * 255) << " " << int(clr.w * 255) << "\n";
     }
 
     fout << "\n[variables]\n";
 #define WRITE_FLT(a) fout << #a " = " << style->a << "\n"
 #define WRITE_VEC(a) fout << #a " = " << style->a.x << " " << style->a.y << "\n"
-    
+
     WRITE_FLT(Alpha);
     WRITE_FLT(DisabledAlpha);
     WRITE_VEC(WindowPadding);
@@ -900,7 +900,7 @@ inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, c
 
     fout << "\n[fonts]\n";
     fout << "Default = \"Roboto-Medium.ttf\" size 20\n";
-    
+
     std::string lastSection;
     for (const auto& kv : extra)
     {
@@ -931,7 +931,7 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
     std::string cat;
     int lastClr = -1;
     std::string lastFont;
-    while (std::getline(fin, line)) 
+    while (std::getline(fin, line))
     {
         if (line.empty() || line[0] == ';' || line[0] == '#')
             continue;
@@ -946,7 +946,7 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
             std::string key = line.substr(i1, i2 - i1);
             i1 = line.find_first_not_of("=\t ", i2);
             std::istringstream is(line.substr(i1));
-            
+
             if (cat == "colors")
             {
                 for (int i = lastClr + 1; i != lastClr; i = (i + 1) % ImGuiCol_COUNT)
@@ -965,7 +965,7 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
             {
 #define READ_FLT(a) if (key == #a) is >> style->a;
 #define READ_VEC(a) if (key == #a) is >> style->a.x >> style->a.y;
-                
+
                 READ_FLT(Alpha);
                 READ_FLT(DisabledAlpha);
                 READ_VEC(WindowPadding);
@@ -1041,7 +1041,7 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
                     throw std::runtime_error("Can't load " + u8string(fpath));
                 if (!cfg.MergeMode && fontMap)
                     (*fontMap)[lastFont == "" ? "" : key] = fnt;
-            
+
                 lastFont = key;
             }
             else if (extra)

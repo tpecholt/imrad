@@ -15,7 +15,7 @@ Table::ColumnData::ColumnData()
     sizingPolicy.add$(ImGuiTableColumnFlags_None);
     sizingPolicy.add$(ImGuiTableColumnFlags_WidthFixed);
     sizingPolicy.add$(ImGuiTableColumnFlags_WidthStretch);
-    
+
     flags.add$(ImGuiTableColumnFlags_AngledHeader);
     flags.add$(ImGuiTableColumnFlags_DefaultHide);
     flags.add$(ImGuiTableColumnFlags_DefaultSort);
@@ -184,10 +184,10 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
 
         ImGui::TableNextRow(0, rh);
         ImGui::TableSetColumnIndex(0);
-        
+
         for (const auto& child : child_iterator(children, false))
             child->Draw(ctx);
-        
+
         int n = itemCount.limit.value();
         for (int r = ImGui::TableGetRowIndex() + 1; r < header + n; ++r)
             ImGui::TableNextRow(0, rh);
@@ -405,7 +405,7 @@ Table::Events()
     props.insert(props.begin(), {
         { "table.setup", &onSetup },
         { "table.beginRow", &onBeginRow },
-        { "table.endRow", &onEndRow }, 
+        { "table.endRow", &onEndRow },
         });
     return props;
 }
@@ -476,8 +476,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     }
 
     os << ctx.ind << "if (ImGui::BeginTable("
-        << "\"table" << ctx.varCounter << "\", " 
-        << columnData.size() << ", " 
+        << "\"table" << ctx.varCounter << "\", "
+        << columnData.size() << ", "
         << flags.to_arg() << ", "
         << "{ " << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }"
         << "))\n"
@@ -495,7 +495,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         std::string fl;
         if (!cd.sizingPolicy)
             ++hasNoPolicy;
-        else     
+        else
             fl += cd.sizingPolicy.to_arg() + " | ";
         if (cd.flags)
             fl += cd.flags.to_arg() + " | ";
@@ -505,7 +505,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             fl.resize(fl.size() - 3);
         else
             fl = "0";
-        
+
         os << ctx.ind << "ImGui::TableSetupColumn(" << cd.label.to_arg() << ", "
             << fl << ", ";
         if (cd.sizingPolicy == ImGuiTableColumnFlags_WidthFixed) {
@@ -521,8 +521,8 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
     os << ctx.ind << "ImGui::TableSetupScrollFreeze(" << scrollFreeze_x.to_arg() << ", "
         << scrollFreeze_y.to_arg() << ");\n";
-    
-    if (!onSetup.empty()) 
+
+    if (!onSetup.empty())
         os << ctx.ind << onSetup.to_arg() << "();\n";
 
     if (header)
@@ -540,10 +540,10 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "continue;\n";
             ctx.ind_down();
         }
-        
+
         os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME) << ");\n";
     }
-    
+
     os << ctx.ind << "ImGui::TableNextRow(0, ";
     if (!rowHeight.empty())
         os << rowHeight.to_arg(ctx.unit);
@@ -551,7 +551,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         os << "0";
     os << ");\n";
     os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
-    
+
     if (!onBeginRow.empty() && !itemCount.empty())
         os << ctx.ind << onBeginRow.to_arg() << "();\n";
 
@@ -561,7 +561,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         child->Export(os, ctx);
 
     os << "\n" << ctx.ind << "/// @separator\n";
-    
+
     if (!onEndRow.empty() && !itemCount.empty())
         os << ctx.ind << onEndRow.to_arg() << "();\n";
 
@@ -581,7 +581,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
         for (auto& child : child_iterator(children, true))
             child->Export(os, ctx);
-    
+
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
     }
@@ -655,11 +655,11 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         ColumnData cd;
         cd.label.set_from_arg(sit->params[0]);
-        
+
         if (sit->params.size() >= 2) {
             cd.sizingPolicy.set_from_arg(sit->params[1]);
             cd.flags.set_from_arg(sit->params[1]);
-            
+
             size_t i = sit->params[1].find("(");
             if (i != std::string::npos) {
                 size_t j = sit->params[1].find("? 0 :", i);
@@ -667,7 +667,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 cd.visible.set_from_arg(Trim(expr));
             }
         }
-        
+
         columnData.push_back(std::move(cd));
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableSetupScrollFreeze")
@@ -747,7 +747,7 @@ std::unique_ptr<Widget> Child::Clone(UIContext& ctx)
     return sel;
 }
 
-int Child::Behavior() 
+int Child::Behavior()
 {
     int fl = Widget::Behavior() | SnapInterior;
     if (!(flags & ImGuiWindowFlags_AlwaysAutoResize) || !(flags & ImGuiChildFlags_AutoResizeX))
@@ -759,7 +759,7 @@ int Child::Behavior()
 
 ImDrawList* Child::DoDraw(UIContext& ctx)
 {
-    if (flags & ImGuiWindowFlags_AlwaysAutoResize) 
+    if (flags & ImGuiWindowFlags_AlwaysAutoResize)
     {
         ctx.isAutoSize = true;
         HashCombineData(ctx.layoutHash, true);
@@ -773,7 +773,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
         ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, style_borderSize.eval_px(ctx));
     if (!style_bg.empty())
         ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ImGuiCol_ChildBg, ctx));
-    
+
     ImVec2 sz;
     sz.x = size_x.eval_px(ImGuiAxis_X, ctx);
     sz.y = size_y.eval_px(ImGuiAxis_Y, ctx);
@@ -781,22 +781,22 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
         sz.x = 30;
     if (!sz.y && children.empty())
         sz.y = 30;
-    
+
     ImRad::IgnoreWindowPaddingData data;
     if (!style_outerPadding)
         ImRad::PushIgnoreWindowPadding(&sz, &data);
-    
+
     //after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
     //only way how to disable scrollbars when using !style_outer_padding is to use
     //ImGuiWindowFlags_NoScrollbar
-    
+
     int wfl = wflags | ImGuiWindowFlags_NoSavedSettings;
     ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child of child causes scrolling which doesn't go back
     ImGui::BeginChild("", sz, flags, wfl);
 
     if (style_spacing.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
-    
+
     if (columnCount.has_value() && columnCount.value() >= 2)
         ImGui::Columns(columnCount.value(), "columns", columnBorder);
 
@@ -804,13 +804,13 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
     {
         children[i]->Draw(ctx);
     }
-        
+
     if (style_spacing.has_value())
         ImGui::PopStyleVar();
-    
+
     ImGui::EndChild();
 
-    if (!style_outerPadding) 
+    if (!style_outerPadding)
         ImRad::PopIgnoreWindowPadding(data);
 
     if (!style_bg.empty())
@@ -821,7 +821,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (style_borderSize.has_value())
         ImGui::PopStyleVar();
-    
+
     return ImGui::GetWindowDrawList();
 }
 
@@ -853,7 +853,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, " << style_borderSize.to_arg(ctx.unit) << ");\n";
     if (!style_bg.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
-    
+
     os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", ";
     if (szvar != "")
         os << szvar << ", ";
@@ -884,7 +884,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
     }
-    
+
     os << ctx.ind << "/// @separator\n\n";
 
     for (auto& child : child_iterator(children, false))
@@ -901,7 +901,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
     if (style_spacing.has_value())
         os << ctx.ind << "ImGui::PopStyleVar();\n";
-    
+
     if (child_iterator(children, true)) {
         os << ctx.ind << "/// @separator\n\n";
 
@@ -947,7 +947,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         else if (sit->params.size() == 2 && sit->params[0] == "ImGuiStyleVar_ChildBorderSize")
             style_borderSize.set_from_arg(sit->params[1]);
     }
-    else if (sit->kind == cpp::Other && 
+    else if (sit->kind == cpp::Other &&
         (!sit->line.compare(0, 10, "ImVec2 _sz") || !sit->line.compare(0, 9, "ImVec2 sz"))) //sz for compatibility
     {
         style_outerPadding = false;
@@ -1152,7 +1152,7 @@ Splitter::Splitter(UIContext& ctx)
 {
     size_x = size_y = -1;
 
-    if (ctx.createVars) 
+    if (ctx.createVars)
         position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
 }
 
@@ -1171,11 +1171,11 @@ ImDrawList* Splitter::DoDraw(UIContext& ctx)
     ImVec2 size;
     size.x = size_x.eval_px(ImGuiAxis_X, ctx);
     size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
-    
+
     if (!style_bg.empty())
         ImGui::PushStyleColor(ImGuiCol_ChildBg, style_bg.eval(ImGuiCol_ChildBg, ctx));
     ImGui::BeginChild("splitter", size);
-    
+
     ImGuiAxis axis = ImGuiAxis_X;
     float th = 0, pos = 0;
     if (children.size() == 2) {
@@ -1183,14 +1183,14 @@ ImDrawList* Splitter::DoDraw(UIContext& ctx)
         pos = children[0]->cached_pos[axis] + children[0]->cached_size[axis];
         th = children[1]->cached_pos[axis] - children[0]->cached_pos[axis] - children[0]->cached_size[axis];
     }
-    
+
     ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);
     ImRad::Splitter(axis == ImGuiAxis_X, th, &pos, min_size1, min_size2);
     ImGui::PopStyleColor();
 
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->Draw(ctx);
-    
+
     ImGui::EndChild();
     if (!style_bg.empty())
         ImGui::PopStyleColor();
@@ -1211,14 +1211,14 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
 
     if (!style_bg.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
-    
+
     os << ctx.ind << "ImGui::BeginChild(\"splitter" << ctx.varCounter << "\", { "
-        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
         << " });\n" << ctx.ind << "{\n";
     ctx.ind_up();
     ++ctx.varCounter;
-    
+
     os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);\n";
     os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_SeparatorHovered, 0x00000000);\n";
     if (!style_active.empty())
@@ -1231,8 +1231,8 @@ void Splitter::DoExport(std::ostream& os, UIContext& ctx)
         th = children[1]->cached_pos[!axisX] - children[0]->cached_pos[!axisX] - children[0]->cached_size[!axisX];
     }
 
-    os << ctx.ind << "ImRad::Splitter(" 
-        << std::boolalpha << axisX 
+    os << ctx.ind << "ImRad::Splitter("
+        << std::boolalpha << axisX
         << ", " << th.to_arg(ctx.unit)
         << ", &" << position.to_arg()
         << ", " << min_size1.to_arg(ctx.unit)
@@ -1382,7 +1382,7 @@ ImDrawList* CollapsingHeader::DoDraw(UIContext& ctx)
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, style_hovered.eval(ImGuiCol_HeaderHovered, ctx));
     if (!style_active.empty())
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, style_active.eval(ImGuiCol_HeaderActive, ctx));
-    
+
     //automatically expand to show selected child and collapse to save space
     //in the window and avoid potential scrolling
     if (ctx.selected.size() == 1)
@@ -1618,7 +1618,7 @@ void TreeNode::CalcSizeEx(ImVec2 p1, UIContext& ctx)
     cached_pos = p1;
     cached_size = ImGui::GetItemRectSize();
     ImVec2 sp = ImGui::GetStyle().ItemSpacing;
-    
+
     if (flags & (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_SpanFullWidth))
     {
         //todo cached_size.x = ImGui::GetContentRegionAvail().x - p1.x + sp.x;
@@ -1786,7 +1786,7 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_framePadding.eval_px(ctx));
 
     std::string id = "##" + std::to_string((uintptr_t)this);
-    //add tab names in order so that when tab order changes in designer we get a 
+    //add tab names in order so that when tab order changes in designer we get a
     //different id which will force ImGui to recalculate tab positions and
     //render tabs correctly
     for (const auto& child : children)
@@ -1796,7 +1796,7 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
     {
         for (const auto& child : children)
             child->Draw(ctx);
-            
+
         ImGui::EndTabBar();
     }
 
@@ -1859,7 +1859,7 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
         //os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
     }
     os << ctx.ind << "/// @separator\n\n";
-    
+
     for (const auto& child : children)
         child->Export(os, ctx);
 
@@ -1870,7 +1870,7 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
         os << ctx.ind << "}\n";
     }
-    
+
     os << ctx.ind << "ImGui::EndTabBar();\n";
     ctx.ind_down();
     os << ctx.ind << "}\n";
@@ -2052,11 +2052,11 @@ ImDrawList* TabItem::DoDraw(UIContext& ctx)
         ImGui::SetNextItemWidth(tabw);
     }
     //float padx = ImGui::GetCurrentTabBar()->FramePadding.x;
-    if (tabw) { 
+    if (tabw) {
         float w = ImGui::CalcTextSize(DRAW_STR(label)).x;
         //hack: ImGui::GetCurrentTabBar()->FramePadding.x = std::max(0.f, (tabw - w) / 2);
     }
-    
+
     bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
     bool tmp = true;
     if (ImGui::BeginTabItem(DRAW_STR(label), closeButton ? &tmp : nullptr, sel ? ImGuiTabItemFlags_SetSelected : 0))
@@ -2135,7 +2135,7 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
     if (tb->style_regularWidth) {
         os << ctx.ind << "ImGui::SetNextItemWidth(_tabWidth);\n";
     }
-    
+
     std::string var = "_open" + std::to_string(ctx.varCounter);
     if (closeButton) {
         os << ctx.ind << "bool " << var << " = true;\n";
@@ -2186,7 +2186,7 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "if (!" << var << ")\n";
         ctx.ind_up();
-        /*if (idx != "") no need to activate, user can check itemCount.index 
+        /*if (idx != "") no need to activate, user can check itemCount.index
             os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";*/
         os << ctx.ind << onClose.to_arg() << "();\n";
         ctx.ind_down();
@@ -2204,7 +2204,7 @@ void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
     assert(ctx.parents.back() == this);
     auto* tb = dynamic_cast<TabBar*>(ctx.parents[ctx.parents.size() - 2]);
-    
+
     if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
     {
         tb->style_regularWidth = true;
@@ -2346,7 +2346,7 @@ void MenuBar::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind << "if (ImGui::BeginMenuBar())\n";
     os << ctx.ind << "{\n";
     ctx.ind_up();
-    
+
     for (const auto& child : children) {
         MenuIt* it = dynamic_cast<MenuIt*>(child.get());
         if (it) it->ExportAllShortcuts(os, ctx);
@@ -2569,7 +2569,7 @@ bool ContextMenu::PropertyUI(int i, UIContext& ctx)
     return changed;
 }
 
-std::vector<UINode::Prop> 
+std::vector<UINode::Prop>
 ContextMenu::Events()
 {
     return {};
@@ -2600,10 +2600,10 @@ std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
 ImDrawList* MenuIt::DoDraw(UIContext& ctx)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
-    
+
     if (separator)
         ImGui::Separator();
-    
+
     if (children.size()) //submenu
     {
         assert(ctx.parents.back() == this);
@@ -2708,7 +2708,7 @@ void MenuIt::DoDrawTools(UIContext& ctx)
             ctx.selected[0] = children[0].get();
     }
     ImGui::EndDisabled();
-    
+
     ImGui::SameLine();
     ImGui::BeginDisabled(idx + 1 == parent->children.size());
     if (ImGui::Button(vertical ? ICON_FA_ANGLE_DOWN : ICON_FA_ANGLE_RIGHT, bsize)) {
@@ -2748,7 +2748,7 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 {
     assert(ctx.parents.back() == this);
     const UINode* par = ctx.parents[ctx.parents.size() - 2];
-    
+
     if (separator)
         os << ctx.ind << "ImGui::Separator();\n";
 
@@ -2823,11 +2823,11 @@ void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
 void MenuIt::ExportAllShortcuts(std::ostream& os, UIContext& ctx)
 {
     ExportShortcut(os, ctx);
-    
-    for (const auto& child : children) 
+
+    for (const auto& child : children)
     {
         auto* it = dynamic_cast<MenuIt*>(child.get());
-        if (it) 
+        if (it)
             it->ExportAllShortcuts(os, ctx);
     }
 }

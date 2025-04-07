@@ -9,7 +9,7 @@ namespace stx {
     {
         return std::find(std::begin(c), std::end(c), val);
     }
-    
+
     template <class C, class T>
     decltype(auto) rfind(C& c, const T& val)
     {
@@ -22,7 +22,7 @@ namespace stx {
             return c.begin();
         return c.end();
     }
-    
+
     template <class C, class F>
     decltype(auto) find_if(C& c, F&& val)
     {
@@ -34,7 +34,7 @@ namespace stx {
     {
         return std::count(std::begin(c), std::end(c), val);
     }
-    
+
     template <class C, class F>
     decltype(auto) count_if(const C& c, F&& val)
     {
@@ -70,7 +70,7 @@ namespace stx {
     {
         return c.erase(std::remove(std::begin(c), std::end(c), val), c.end());
     }
-    
+
     template <class C, class F>
     decltype(auto) erase_if(C& c, F&& fun)
     {
@@ -106,7 +106,7 @@ namespace stx {
     {
         return std::stable_sort(std::begin(c), std::end(c), std::forward<F>(f));
     }
-    
+
     template <class C, class F>
     decltype(auto) for_each(C& c, F&& f)
     {
@@ -131,7 +131,7 @@ namespace stx {
             s.resize(s.size() - sep.size());
         return s;
     }
-    
+
     template <class C>
     std::string join(const C& c, std::string_view sep)
     {

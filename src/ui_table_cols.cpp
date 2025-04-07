@@ -288,7 +288,7 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
         );
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
-        
+
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
@@ -303,7 +303,7 @@ void TableCols::Properties_Draw(const ImRad::CustomWidgetArgs& args)
         ImGui::PopFont();
         ImGui::PopStyleVar();
         //ImGui::Indent();
-        
+
         if (sel >= 0 && open)
         {
             int n = (int)columns[sel].Properties().size();

@@ -2,8 +2,8 @@
 #include "binding_property.h"
 #include "cppgen.h"
 
-template <class T> 
-T field_ref<T>::eval(const UIContext &ctx) const 
+template <class T>
+T field_ref<T>::eval(const UIContext &ctx) const
 {
     if (empty())
         return {};

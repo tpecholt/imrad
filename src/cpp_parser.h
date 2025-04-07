@@ -10,7 +10,7 @@
 namespace cpp
 {
     inline const std::string INVALID_TEXT = "???";
-    
+
     inline bool is_id(std::string_view s)
     {
         if (s.empty() || s == "true" || s == "false" || s == "const")
@@ -121,8 +121,8 @@ namespace cpp
                 else
                 {
                     tok += c;
-                    if (line_mode && 
-                        tok.size() >= 3 && 
+                    if (line_mode &&
+                        tok.size() >= 3 &&
                         std::all_of(tok.begin(), tok.end() - 3, [](char c){ return std::isspace(c); }) &&
                         !tok.compare(tok.size() - 3, 3, "///"))
                     {
@@ -142,7 +142,7 @@ namespace cpp
                     {
                         break;
                     }
-                    else if (!in_comment && !in_string && !in_char && !in_pre && 
+                    else if (!in_comment && !in_string && !in_char && !in_pre &&
                         !line_mode)
                     {
                         if (!tok.compare(0, 2, "//")) {
@@ -196,11 +196,11 @@ namespace cpp
                             if (in->peek() != '/' && in->peek() != '*')
                                 break;
                         }
-                        else if (c == '{' || c == '}' || c == '(' || c == ')' || 
+                        else if (c == '{' || c == '}' || c == '(' || c == ')' ||
                             c == '[' || c == ']' || c == '<' || c == '>' ||
                             c == ';' || c == ':' || c == '.' || c == ',' ||
                             c == '?' || c == '+' || c == '-' || c == '%' ||
-                            c == '*' || c == '^' || c == '&' || c == '|' || 
+                            c == '*' || c == '^' || c == '&' || c == '|' ||
                             c == '~' || c == '=' || c == '!')
                         {
                             if (tok.size() >= 2) { //output token before operator
@@ -295,13 +295,13 @@ namespace cpp
                 return *this;
             if (tokens.size() == 1 && iter.get_line_mode())
                 ++iter;
-            else if (tokens.size() == 1 && 
+            else if (tokens.size() == 1 &&
                 (tokens[0].front() == '#' || !tokens[0].compare(0, 2, "//")))
                 ++iter;
             tokens.clear();
             int parenthesis = 0;
             int eat_level = 0;
-            while (iter != token_iterator()) 
+            while (iter != token_iterator())
             {
                 if (iter.get_line_mode()) {
                     tokens.push_back(*iter);
@@ -420,7 +420,7 @@ namespace cpp
                     data.callee = data.callee2 = "";
                     data.params.clear();
                     data.params2.clear();
-                    data.cond = stx::join(tokens.begin() + b + 1, tokens.begin() + e, ""); 
+                    data.cond = stx::join(tokens.begin() + b + 1, tokens.begin() + e, "");
                     if (parse_call(b + 1, e, callee1, params1)) {
                         if (block) {
                             data.kind = IfCallBlock;
@@ -588,7 +588,7 @@ namespace cpp
         buf.resize(n);
         in.read(buf.data(), n);
         out += buf;
-        
+
         code = out;
     }
 
@@ -857,7 +857,7 @@ namespace cpp
                     //should be handled by {
                     lit = "error";
                     args.clear();
-                    goto error; 
+                    goto error;
                 }
                 break;
             case '{':
@@ -903,7 +903,7 @@ error:
 
     //1. limits length of lengthy {} expression (like in case it contains ?:)
     //2. trims {{, }} into {, }
-    //3. errors out on incorrect format string 
+    //3. errors out on incorrect format string
     inline std::string to_draw_str(std::string_view s, int n = 25)
     {
         std::string out;
@@ -985,7 +985,7 @@ error:
             std::istringstream is(str.substr(1, str.size() - 2));
             is >> fsize.x;
             is.clear();
-            int c = is.get(); 
+            int c = is.get();
             while (c != EOF && c != ',') //ignore suffixes like 0.5f and *fs
                 c = is.get();
             is >> fsize.y;

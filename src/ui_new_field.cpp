@@ -82,10 +82,10 @@ void NewFieldPopup::Draw()
                 change = true;
             ImGui::EndDisabled();
         }
-        
+
         ImGui::Spacing();
-        ImGui::Text(mode == RenameWindow ? "New name:" : 
-            mode == NewEvent ? "Method name:" : 
+        ImGui::Text(mode == RenameWindow ? "New name:" :
+            mode == NewEvent ? "Method name:" :
             "Field name:");
         if (ImGui::IsWindowAppearing() && varType != "")
             ImGui::SetKeyboardFocusHere();
@@ -108,7 +108,7 @@ void NewFieldPopup::Draw()
                 std::string stype = (char)std::toupper(varName[0]) + varName.substr(1);
                 if (stype.back() == 's' || stype.back() == 'S')
                     stype.pop_back();
-                varType = "std::vector<" + stype + ">"; 
+                varType = "std::vector<" + stype + ">";
             }
 
             CheckVarName();
@@ -126,7 +126,7 @@ void NewFieldPopup::Draw()
         if (ImGui::Button("OK", { 100, 30 }))
         {
             CheckVarName();
-            
+
             if (mode == NewField || mode == NewStruct || mode == NewEvent)
             {
                 std::string type = mode == NewStruct ? "struct" : varType;

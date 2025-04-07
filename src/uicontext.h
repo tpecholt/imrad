@@ -13,11 +13,11 @@ struct ImGuiWindow;
 struct UIContext
 {
     //set from outside
-    enum Mode { 
-        NormalSelection, RectSelection, SnapInsert, SnapMove, PickPoint, 
-        ItemDragging, 
-        ItemSizingLeft = 0x100, ItemSizingRight = 0x200, 
-        ItemSizingTop = 0x400, ItemSizingBottom = 0x800, 
+    enum Mode {
+        NormalSelection, RectSelection, SnapInsert, SnapMove, PickPoint,
+        ItemDragging,
+        ItemSizingLeft = 0x100, ItemSizingRight = 0x200,
+        ItemSizingTop = 0x400, ItemSizingBottom = 0x800,
         ItemSizingMask = ItemSizingLeft | ItemSizingRight | ItemSizingTop | ItemSizingBottom,
     };
     Mode mode = NormalSelection;
@@ -47,7 +47,7 @@ struct UIContext
     bool snapSameLine;
     bool snapUseNextSpacing;
     bool snapSetNextSameLine;
-    
+
     //recursive info
     int importState = 0; //0 - no import, 1 - within begin/end/separator, 2 - user code import
     UINode* hovered = nullptr;

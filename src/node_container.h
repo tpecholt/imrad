@@ -3,7 +3,7 @@
 
 struct Table : Widget
 {
-    struct ColumnData 
+    struct ColumnData
     {
         direct_val<std::string> label = "";
         bindable<bool> visible;
@@ -64,7 +64,7 @@ struct Child : Widget
     direct_val<pzdimension_t> style_rounding;
     direct_val<pzdimension_t> style_borderSize;
     bindable<color_t> style_bg;
-    
+
     Child(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     int Behavior();
@@ -191,7 +191,7 @@ struct ContextMenu : Widget
     direct_val<pzdimension2_t> style_padding;
     direct_val<pzdimension2_t> style_spacing;
     direct_val<pzdimension_t> style_rounding;
-    
+
     ContextMenu(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     int Behavior() { return NoOverlayPos | NoContextMenu; }
@@ -242,7 +242,7 @@ struct Splitter : Widget
     field_ref<dimension_t> position;
     bindable<color_t> style_active;
     bindable<color_t> style_bg;
-    
+
     Splitter(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     int Behavior() { return Widget::Behavior() | SnapInterior | HasSizeX | HasSizeY | NoOverlayPos; }

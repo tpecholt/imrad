@@ -156,7 +156,7 @@ void HorizLayout::Draw()
             ioUserData->imeType = ImRad::ImeNumber;
         /// @end Input
 
-        
+
         /// @begin Text
         ImRad::Spacing(2);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -166,7 +166,7 @@ void HorizLayout::Draw()
         ImGui::PopStyleColor();
         /// @end Text
 
-        
+
         /// @begin Button
         ImRad::Spacing(2);
         ImGui::BeginDisabled(selected.empty()||alignment<0);
@@ -238,7 +238,7 @@ void HorizLayout::ExpandSelection(std::vector<UINode*>& selected, UINode* root)
         if (!(ch->Behavior() & UINode::SnapSides) ||
             !(pch->Behavior() & UINode::SnapSides))
             break;
-        if (!existingLayout && 
+        if (!existingLayout &&
             (!ch->sameLine || ch->nextColumn))
             break;
         selected.insert(selected.begin(), pch.get());
@@ -264,7 +264,7 @@ void HorizLayout::Work()
     bool existingLayout = table && !table->header && !(table->flags & ImGuiTableFlags_Borders);
     float realPadding = padding * ctx->style.ItemSpacing.x;
     float realSpacing = spacing * ctx->style.ItemSpacing.x;
-    
+
     if (alignment == 0) //left alignment
     {
         //remove table
@@ -327,7 +327,7 @@ void HorizLayout::Work()
             table->columnData.push_back({ "left-margin", ImGuiTableColumnFlags_WidthFixed, realPadding });
         if (alignment == 1 || alignment == 2) //center, right
             table->columnData.push_back({ "left-stretch", ImGuiTableColumnFlags_WidthStretch });
-        
+
         for (size_t i = 0; i < selected.size(); ++i)
         {
             //reparent items

@@ -41,7 +41,7 @@ void ReloadExplorer()
         messageBox.OpenPopup();
         return;
     }
-    
+
     scrollBack = true;
     std::ostringstream os;
     auto fsnow = fs::file_time_type::clock::now();
@@ -94,7 +94,7 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
 {
     if (explorerPath == "")
         explorerPath = u8string(fs::current_path());
-    
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 4, 4 });
     ImGui::Begin("Explorer");
     if (ImGui::IsWindowAppearing()) {
@@ -223,7 +223,7 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
     }
     ImGui::PopItemFlag();
     ImGui::PopStyleColor();
-    
+
     ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0xffffffff);
     ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0xffffffff);
     if (scrollBack) {
@@ -281,7 +281,7 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
                     ImGui::PopID();
                     break;
                 }
-                else 
+                else
                     openFileFunc(entry.path);
             }
             ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);

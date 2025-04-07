@@ -161,8 +161,8 @@ void BindingDlg::Draw()
             /*if (type == "bool" || type == "float" || type == "int")
                 exprValid = stx::count_if(expr, [](char c) { return !std::isspace(c); });*/
             //combo.items requires carefully embedded nulls so disable editing here
-            if (type == "std::vector<std::string>" && 
-                (expr.empty() || expr[0] != '{' || expr.find('{', 1) != std::string::npos || expr.back() != '}')) 
+            if (type == "std::vector<std::string>" &&
+                (expr.empty() || expr[0] != '{' || expr.find('{', 1) != std::string::npos || expr.back() != '}'))
                 exprValid = false;
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
@@ -239,4 +239,4 @@ void BindingDlg::ResetLayout()
     hb5.Reset();
 }
 
- 
+

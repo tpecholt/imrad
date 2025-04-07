@@ -19,7 +19,7 @@ public:
     CppGen* codeGen;
     UINode* root;
     bool* modified;
-    
+
 private:
     void Refresh();
     void FindUsed(UINode* node, std::vector<std::string>& used);
@@ -31,7 +31,7 @@ private:
     std::vector<std::string> used;
     size_t stypeIdx;
     int selRow;
-    
+
 private:
     ImGuiID ID;
     bool requestClose;

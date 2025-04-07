@@ -87,9 +87,9 @@ std::string CppGen::AltFName(const std::string& path)
 }
 
 bool CppGen::ExportUpdate(
-    const std::string& fname, 
-    TopWindow* node, 
-    const std::map<std::string, std::string>& params, 
+    const std::string& fname,
+    TopWindow* node,
+    const std::map<std::string, std::string>& params,
     std::string& err
 )
 {
@@ -140,7 +140,7 @@ bool CppGen::ExportUpdate(
     m_hname = u8string(hpath.filename());
     fout.close();
     err += m_error;
-    
+
     //export .cpp
     m_error = "";
     auto fpath = u8path(fname).replace_extension(".cpp");
@@ -199,11 +199,11 @@ void CppGen::CreateCpp(std::ostream& out)
 }
 
 //follows fprev and overwrites generated members/functions only
-std::array<std::string, 3> 
+std::array<std::string, 3>
 CppGen::ExportH(
-    std::ostream& fout, 
-    std::istream& fprev, 
-    const std::string& origHName, 
+    std::ostream& fout,
+    std::istream& fprev,
+    const std::string& origHName,
     TopWindow* node
 )
 {
@@ -233,7 +233,7 @@ CppGen::ExportH(
         fprev.ignore(ignore_last);
         fpos = pos;
     };
-    
+
     for (cpp::token_iterator iter(fprev); iter != cpp::token_iterator(); ++iter)
     {
         std::string tok = *iter;
@@ -342,12 +342,12 @@ CppGen::ExportH(
                 ignore_section = "impl";
                 copy_content(-(int)tok.size());
                 out << "/// @begin impl\n";
-                
+
                 //write special members
                 bool found = false;
                 if (hasLayout)
                 {
-                    found = true; 
+                    found = true;
                     out << INDENT << "void ResetLayout();\n";
                 }
                 if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
@@ -404,13 +404,13 @@ CppGen::ExportH(
                 {
                     out << INDENT << "bool isOpen = true;\n";
                 }
-                
+
                 //other fields
                 for (const auto& var : m_fields[""])
                 {
                     if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
                         continue;
-                    if (!IsFunType(var.type)) 
+                    if (!IsFunType(var.type))
                     {
                         out << INDENT << var.type << " " << var.name;
                         if (var.init != "")
@@ -500,7 +500,7 @@ CppGen::ExportH(
             line.push_back(tok);
         }
     }
-    
+
     //copy remaining code
     fprev.clear(); //clear EOF flag
     fprev.seekg(0, std::ios::end);
@@ -517,12 +517,12 @@ CppGen::ExportH(
 }
 
 //follows fprev and overwrites generated members/functions only
-void 
+void
 CppGen::ExportCpp(
-    std::ostream& fout, 
-    std::istream& fprev, 
+    std::ostream& fout,
+    std::istream& fprev,
     const std::array<std::string, 3>& origNames, //name, vname, old header name
-    const std::map<std::string, std::string>& params, 
+    const std::map<std::string, std::string>& params,
     TopWindow* node,
     const std::string& code
 )
@@ -581,7 +581,7 @@ CppGen::ExportCpp(
                 ++level;
                 auto name = IsMemFun(line);
                 //rewrite generated functions
-                if (name == "Init") 
+                if (name == "Init")
                 {
                     std::ostringstream tmp;
                     if (WriteStub(tmp, name, node->kind, animPos)) {
@@ -597,7 +597,7 @@ CppGen::ExportCpp(
                         fout << "/* void " << m_name << "::" << name << "() REMOVED\n{";
                     }
                 }
-                else if (stx::count(SPEC_FUN, name)) 
+                else if (stx::count(SPEC_FUN, name))
                 {
                     if (WriteStub(fout, name, node->kind, animPos, params, code)) {
                         funs.insert(name);
@@ -713,8 +713,8 @@ std::vector<std::string> CppGen::GetLayoutVars()
 //we always replace code of all generated functions because parameters and code depend
 //on kind and other things
 bool CppGen::WriteStub(
-    std::ostream& fout, 
-    const std::string& id, 
+    std::ostream& fout,
+    const std::string& id,
     TopWindow::Kind kind,
     TopWindow::Placement animPos,
     const std::map<std::string, std::string>& params,
@@ -725,7 +725,7 @@ bool CppGen::WriteStub(
     //immediate call
     //CloseCurrentPopup has to be called from the popup Draw code so that's why
     //defered call
-    if (id == "OpenPopup" && 
+    if (id == "OpenPopup" &&
         (kind == TopWindow::ModalPopup || kind == TopWindow::Popup))
     {
         if (kind == TopWindow::ModalPopup) {
@@ -738,7 +738,7 @@ bool CppGen::WriteStub(
             fout << "::OpenPopup()\n{\n";
             fout << INDENT << "modalResult = ImRad::None;\n";
         }
-        
+
         if (animPos != TopWindow::Placement::None)
         {
             if (animPos == TopWindow::Left || animPos == TopWindow::Right)
@@ -748,7 +748,7 @@ bool CppGen::WriteStub(
             if (kind == TopWindow::ModalPopup)
                 fout << INDENT << "animator.StartAlways(&ioUserData->dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
         }
-        else if (kind == TopWindow::ModalPopup) 
+        else if (kind == TopWindow::ModalPopup)
         {
             fout << INDENT << "ioUserData->dimBgRatio = 1.f;\n";
         }
@@ -758,8 +758,8 @@ bool CppGen::WriteStub(
         fout << "}";
         return true;
     }
-    else if (id == "ClosePopup" && 
-        (kind == TopWindow::ModalPopup || kind == TopWindow::Popup))    
+    else if (id == "ClosePopup" &&
+        (kind == TopWindow::ModalPopup || kind == TopWindow::Popup))
     {
         if (kind == TopWindow::ModalPopup) {
             fout << "::ClosePopup(ImRad::ModalResult mr)\n{\n";
@@ -770,7 +770,7 @@ bool CppGen::WriteStub(
             fout << "::ClosePopup()\n{\n";
             fout << INDENT << "modalResult = ImRad::Cancel;\n";
         }
-        
+
         if (animPos != TopWindow::Placement::None)
         {
             if (animPos == TopWindow::Left || animPos == TopWindow::Right)
@@ -784,7 +784,7 @@ bool CppGen::WriteStub(
         {
             fout << INDENT << "ioUserData->dimBgRatio = 0.f;\n";
         }
-        
+
         fout << "}";
         return true;
     }
@@ -814,7 +814,7 @@ bool CppGen::WriteStub(
         fout << "}";
         return true;
     }
-    else if (id == "Init" && 
+    else if (id == "Init" &&
         (kind == TopWindow::ModalPopup || kind == TopWindow::Popup || kind == TopWindow::Activity))
     {
         fout << "::Init()\n{\n";
@@ -841,17 +841,17 @@ bool CppGen::WriteStub(
 
         for (const auto& p : params)
             fout << INDENT << "/// @" << p.first << " " << p.second << "\n";
-        
+
         fout << code << "}";
         return true;
     }
     return false;
 }
 
-std::unique_ptr<TopWindow> 
+std::unique_ptr<TopWindow>
 CppGen::Import(
-    const std::string& path, 
-    std::map<std::string, std::string>& params, 
+    const std::string& path,
+    std::map<std::string, std::string>& params,
     std::string& err
 )
 {
@@ -880,7 +880,7 @@ CppGen::Import(
         if (!node)
             node = std::move(node2);
     }
-    
+
     if (m_name == "")
         m_error += "No window class found!\n";
     if (m_vname == "")
@@ -895,12 +895,12 @@ CppGen::Import(
     return node;
 }
 
-std::unique_ptr<TopWindow> 
+std::unique_ptr<TopWindow>
 CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::string, std::string>& params)
 {
     std::unique_ptr<TopWindow> node;
     cpp::token_iterator iter(fin);
-    bool in_class = false; 
+    bool in_class = false;
     bool in_interface = false;
     bool in_impl = false;
     bool in_fun = false;
@@ -910,7 +910,7 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
     while (iter != cpp::token_iterator())
     {
         std::string tok = *iter;
-        
+
         if (tok == "{") {
             if (line.size() && (line[0] == "class" || line[0] == "struct")) {
                 scope.push_back(line[1]);
@@ -957,13 +957,13 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
         else if (in_class && tok == "/// @end impl") {
             in_impl = false;
         }
-        else if (!tok.compare(0, 2, "//")) 
+        else if (!tok.compare(0, 2, "//"))
         {
             size_t i;
             if (preamble && (i = tok.find(GENERATED_WITH)) != std::string::npos) {
                 std::string ver = tok.substr(i + GENERATED_WITH.size());
                 if (ver != VER_STR)
-                    m_error += "\"" + fname + "\" was saved in different version [" 
+                    m_error += "\"" + fname + "\" was saved in different version ["
                         + ver + "]. Full compatibility is not guaranteed.\n";
             }
         }
@@ -972,8 +972,8 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
         else if (tok == ";") {
             if (in_class) {
                 ParseFieldDecl(
-                    scope.size()==1 ? "" : scope.back(), 
-                    line, 
+                    scope.size()==1 ? "" : scope.back(),
+                    line,
                     in_interface ? Var::Interface : in_impl ? Var::Impl : Var::UserCode
                 );
             }
@@ -1003,10 +1003,10 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
         return false;
     if (line[0] == "enum" || line[0] == "template")
         return false;
-    
+
     //parse event declaration
-    if (line.size() >= 4 && 
-        cpp::is_id(line[0]) && 
+    if (line.size() >= 4 &&
+        cpp::is_id(line[0]) &&
         cpp::is_id(line[1]) && line[2] == "(" && line.back() == ")")
     {
         std::string name = line[1];
@@ -1049,7 +1049,7 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
             if (line[i] == ">")
                 --level;
             typeValid = gotId && !level &&
-                (cpp::is_id(line[i]) || 
+                (cpp::is_id(line[i]) ||
                 line[i] == ">" || line[i] == "&" || line[i] == "*");
         }
         std::string type = line[0] + "(" + argTypes + ")";
@@ -1158,10 +1158,10 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
 {
     if (!IsMemDrawFun(line))
         return {};
-    
+
     auto pos1 = iter.stream().tellg();
     cpp::stmt_iterator sit(iter);
-    while (sit != cpp::stmt_iterator()) 
+    while (sit != cpp::stmt_iterator())
     {
         if (sit->line == "/// @begin TopWindow")
             break;
@@ -1176,7 +1176,7 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
         ++sit;
     }
     iter.stream().seekg(pos1); //reparse to capture potential userCodeBefore
-    iter = cpp::token_iterator(iter.stream(), true); 
+    iter = cpp::token_iterator(iter.stream(), true);
     sit = cpp::stmt_iterator(iter);
     UIContext ctx;
     ctx.codeGen = this;
@@ -1279,7 +1279,7 @@ void CppGen::RemovePrefixedVars(const std::string& prefix, const std::string& sc
     auto vit = m_fields.find(scope);
     if (vit == m_fields.end())
         return;
-    stx::erase_if(vit->second, [&](const auto& var) 
+    stx::erase_if(vit->second, [&](const auto& var)
     {
         if (var.flags & Var::UserCode)
             return false;
@@ -1319,7 +1319,7 @@ CppGen::Var* CppGen::FindVar(const std::string& name, const std::string& scope)
     return const_cast<Var*>(GetVar(name, scope));
 }
 
-const std::vector<CppGen::Var>& 
+const std::vector<CppGen::Var>&
 CppGen::GetVars(const std::string& scope)
 {
     static std::vector<CppGen::Var> dummy;
@@ -1342,7 +1342,7 @@ std::vector<std::string> CppGen::GetStructTypes()
 //    id
 //    id[*]
 //    id[*].id
-CppGen::VarExprResult 
+CppGen::VarExprResult
 CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const std::string& scope)
 {
     std::string type = DecorateType(type_);
@@ -1356,7 +1356,7 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
         if (j == std::string::npos)
             return SyntaxError;
         std::string id2;
-        if (j + 1 < name.size()) 
+        if (j + 1 < name.size())
         {
             if (name[j + 1] != '.')
                 return SyntaxError;
@@ -1381,7 +1381,7 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
             var = FindVar(id2, stype); //id1 exists => id2 has to exist
             if (!var)
                 return New;
-            else if (var->type != type) 
+            else if (var->type != type)
                 return ConflictError;
         }
         return Existing;
@@ -1476,7 +1476,7 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
                 if (!CreateNamedVar(id, "std::vector<" + stype + ">", init, Var::Interface, scope))
                     return false;
                 if (!leaf)
-                    m_fields[stype]; 
+                    m_fields[stype];
             }
             scope = stype;
         }
@@ -1491,7 +1491,7 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 //type=="[]" accepts all arrays
 //type==void() accepts all functions of this type
 //vector, array, span element types are matched recursively
-std::vector<std::pair<std::string, std::string>> //(name, type) 
+std::vector<std::pair<std::string, std::string>> //(name, type)
 CppGen::GetVarExprs(const std::string& type_, bool recurse)
 {
     std::string type = DecorateType(type_);

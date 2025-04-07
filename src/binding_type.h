@@ -38,7 +38,7 @@ std::string typeid_name()
         return typeid_name<std::remove_reference_t<T>>() + "&&";
     else if constexpr (std::is_function_v<T>)
         return typeid_func_name<T>::str();
-    
+
     else if constexpr (std::is_same_v<T, void>)
         return "void";
     else if constexpr (std::is_same_v<T, std::string>)
@@ -75,7 +75,7 @@ std::string typeid_name()
         char* ptr = abi::__cxa_demangle(str.c_str(), nullptr, nullptr, &status);
         str = ptr;
         free(ptr);
-#endif      
+#endif
         return str;
     }
 }

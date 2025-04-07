@@ -1,10 +1,10 @@
 #include "uicontext.h"
 #include "cppgen.h"
 
-UIContext& UIContext::Defaults() 
+UIContext& UIContext::Defaults()
 {
-    static UIContext ctx; 
-    ctx.createVars = false; 
+    static UIContext ctx;
+    ctx.createVars = false;
     return ctx;
 }
 

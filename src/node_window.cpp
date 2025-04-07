@@ -45,7 +45,7 @@ TopWindow::TopWindow(UIContext& ctx)
     flags.add$(ImGuiWindowFlags_NoScrollbar);
     flags.add$(ImGuiWindowFlags_NoScrollWithMouse);
     flags.add$(ImGuiWindowFlags_NoTitleBar);
-    
+
     placement.add$(None);
     placement.add$(Left);
     placement.add$(Right);
@@ -69,9 +69,9 @@ void TopWindow::Draw(UIContext& ctx)
     ctx.snapParent = nullptr;
     ctx.kind = kind;
     ctx.contextMenus.clear();
-    
+
     std::string cap = title.value();
-    cap += "###TopWindow" + std::to_string((size_t)this); //don't clash 
+    cap += "###TopWindow" + std::to_string((size_t)this); //don't clash
     int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
     if (ctx.mode != UIContext::NormalSelection)
         fl |= ImGuiWindowFlags_NoResize; //so that window resizing doesn't interfere with snap
@@ -102,14 +102,14 @@ void TopWindow::Draw(UIContext& ctx)
 
     ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
     ImGui::SetNextWindowPos(ctx.designAreaMin + ImVec2{ 20, 20 }); // , ImGuiCond_Always, { 0.5, 0.5 });
-    
-    if (kind == MainWindow && placement == Maximize) 
+
+    if (kind == MainWindow && placement == Maximize)
     {
         ImGui::SetNextWindowSize(ctx.designAreaMax - ctx.designAreaMin - ImVec2{ 40, 40 });
     }
     else if (fl & ImGuiWindowFlags_AlwaysAutoResize)
     {
-        //prevent autosized window to collapse 
+        //prevent autosized window to collapse
         ImGui::SetNextWindowSizeConstraints({ 30, 30 }, { FLT_MAX, FLT_MAX });
     }
     else
@@ -125,13 +125,13 @@ void TopWindow::Draw(UIContext& ctx)
         h = minSize_y.eval_px(ImGuiAxis_Y, ctx);
         ImGui::SetNextWindowSizeConstraints({ w, h }, { FLT_MAX, FLT_MAX });
     }
-    
+
     if (style_titlePadding.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, style_titlePadding.eval_px(ctx));
-    
+
     bool tmp;
     ImGui::Begin(cap.c_str(), &tmp, fl);
-    
+
     if (style_titlePadding.has_value())
         ImGui::PopStyleVar();
 
@@ -139,7 +139,7 @@ void TopWindow::Draw(UIContext& ctx)
 
     ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
     assert(ctx.rootWin);
-    for (int i = 0; i < 4; ++i) 
+    for (int i = 0; i < 4; ++i)
     {
         if (ImGui::GetActiveID() == ImGui::GetWindowResizeCornerID(ctx.rootWin, i) ||
             ImGui::GetActiveID() == ImGui::GetWindowResizeBorderID(ctx.rootWin, (ImGuiDir)i))
@@ -168,7 +168,7 @@ void TopWindow::Draw(UIContext& ctx)
 
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->Draw(ctx);
-    
+
     if (dimAll)
         ImGui::PopStyleVar();
     ImGui::GetCurrentContext()->NavCursorVisible = true;
@@ -176,7 +176,7 @@ void TopWindow::Draw(UIContext& ctx)
 
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->DrawTools(ctx);
-    
+
     //use all client area to allow snapping close to the border
     auto pad = ImGui::GetStyle().WindowPadding - ImVec2(3+1, 3);
     auto mi = ImGui::GetWindowContentRegionMin() - pad;
@@ -249,8 +249,8 @@ void TopWindow::Draw(UIContext& ctx)
         ctx.snapParent = this;
         ctx.snapIndex = children.size();
     }
-    
-    if ((ctx.mode == UIContext::SnapInsert || ctx.mode == UIContext::SnapMove) && 
+
+    if ((ctx.mode == UIContext::SnapInsert || ctx.mode == UIContext::SnapMove) &&
         !ctx.snapParent && ImGui::IsWindowHovered())
     {
         DrawSnap(ctx);
@@ -300,7 +300,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     ctx.kind = kind;
     ctx.errors.clear();
     ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
-    
+
     ctx.codeGen->RemovePrefixedVars(std::string(ctx.codeGen->HBOX_NAME));
     ctx.codeGen->RemovePrefixedVars(std::string(ctx.codeGen->VBOX_NAME));
 
@@ -323,14 +323,14 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "const float dp = ioUserData->dpiScale;\n";
     }
-    
+
     if (kind == Popup || kind == ModalPopup)
     {
         os << ctx.ind << "ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
     }
     else if (kind == Activity)
     {
-        if (initialActivity) 
+        if (initialActivity)
         {
             os << ctx.ind << "if (ioUserData->activeActivity == \"\")\n";
             ctx.ind_up();
@@ -391,20 +391,20 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
         os << ctx.ind << "glfwSetWindowTitle(window, " << title.to_arg() << ");\n";
         os << ctx.ind << "ImGui::SetNextWindowPos({ 0, 0 });\n";
-        if (!autoSize) 
+        if (!autoSize)
         {
             os << ctx.ind << "int tmpWidth, tmpHeight;\n";
             os << ctx.ind << "glfwGetWindowSize(window, &tmpWidth, &tmpHeight);\n";
             os << ctx.ind << "ImGui::SetNextWindowSize({ (float)tmpWidth, (float)tmpHeight });\n";
         }
-        
+
         auto fl = flags;
         fl |= ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings;
         os << ctx.ind << "bool tmpOpen;\n";
         os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
-        
+
         if (autoSize)
         {
             os << ctx.ind << "if (ImGui::IsWindowAppearing())\n" << ctx.ind << "{\n";
@@ -434,7 +434,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             else
                 os << ctx.ind << "glfwSetWindowSize(window, " << size_x.to_arg(ctx.unit)
                 << ", " << size_y.to_arg(ctx.unit) << ");\n";
-            
+
             os << ctx.ind << "glfwSetWindowSizeLimits(window, " <<
                 minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
                 ", GLFW_DONT_CARE, GLFW_DONT_CARE);\n";
@@ -507,7 +507,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ");";
         //signal designed size
         os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
-        
+
         if (!autoSize)
         {
             os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
@@ -616,7 +616,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "{\n";
             ctx.ind_up();
         }
-        
+
         //animation
         if (animate)
         {
@@ -699,7 +699,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             ctx.ind_down();
         }
     }
-    
+
     if (!onWindowAppearing.empty())
     {
         os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
@@ -709,7 +709,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     }
 
     os << ctx.ind << "/// @separator\n\n";
-    
+
     //at next import comment becomes userCode
     /*if (userCodeMid != "")
         os << userCodeMid << "\n";*/
@@ -718,9 +718,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     for (const auto& ch : children)
         ch->Export(os, ctx);
-        
+
     os << ctx.ind << "/// @separator\n";
-    
+
     if (kind == Popup || kind == ModalPopup)
     {
         os << ctx.ind << "ImGui::EndPopup();\n";
@@ -771,12 +771,12 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
     ctx.kind = kind = Window;
     bool hasGlfw = false;
     bool windowAppearingBlock = false;
-    
+
     while (sit != cpp::stmt_iterator())
     {
         bool parseCommentSize = false;
         bool parseCommentPos = false;
-        
+
         if (sit->kind == cpp::Comment && !sit->line.compare(0, 20, "/// @begin TopWindow"))
         {
             ctx.importState = 1;
@@ -821,7 +821,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 sit.enable_parsing(true);
             }
         }
-        else if ((ctx.importState == 2 || ctx.importState == 3) && 
+        else if ((ctx.importState == 2 || ctx.importState == 3) &&
                 (sit->kind != cpp::Comment || sit->line.compare(0, 5, "/// @")))
         {
             if (ctx.importState == 3 && sit->line.size() && sit->line.back() == '}') { //reached end of Draw
@@ -841,7 +841,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             windowAppearingBlock = true;
         }
-        else if (sit->kind == cpp::Other && sit->line == "else" && 
+        else if (sit->kind == cpp::Other && sit->line == "else" &&
             sit->level == ctx.importLevel + 1)
         {
             windowAppearingBlock = false;
@@ -903,7 +903,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->params.size() >= 2)
                 title.set_from_arg(sit->params[1]);
         }
-        else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSize" && 
+        else if (sit->kind == cpp::CallExpr && sit->callee == "glfwSetWindowSize" &&
             windowAppearingBlock)
         {
             hasGlfw = true;
@@ -1003,7 +1003,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 if (!flags.set_from_arg(sit->params[2]))
                     PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
             }
-            
+
             if (hasGlfw) {
                 ctx.kind = kind = MainWindow;
                 //reset sizes from earlier SetNextWindowSize
@@ -1018,7 +1018,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
             }
         }
-        
+
         ++sit;
 
         if (sit->kind == cpp::Comment && parseCommentSize)
@@ -1327,7 +1327,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("placement");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        
+
         placement.clear();
         placement.add("None", None);
         if (kind == Popup || kind == ModalPopup || kind == Window) {
@@ -1340,7 +1340,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
             placement.add$(Center);
         if (kind == MainWindow)
             placement.add$(Maximize);
-        
+
         if (placement.get_id() == "") {
             //happens after kind change
             changed = true;

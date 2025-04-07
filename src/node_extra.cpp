@@ -23,7 +23,7 @@ ImDrawList* DockSpace::DoDraw(UIContext& ctx)
     ImGuiID dockId = ImGui::GetID(("DockSpace" + std::to_string((uintptr_t)this)).c_str());
     ImVec2 sz{ size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
     ImVec2 dockSize = ImGui::CalcItemSize(sz, ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y);
-    
+
     ImU32 hash = CalcHash(ctx);
     if (hash != ctx.prevDockspaceHash || ctx.beingResized)
     {
@@ -32,8 +32,8 @@ ImDrawList* DockSpace::DoDraw(UIContext& ctx)
         //ImGui::DockBuilderRemoveNode(dockId); not needed
         ImGuiID rootId = ImGui::DockBuilderAddNode(dockId, ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(rootId, dockSize);
-        
-        for (auto& child : children) 
+
+        for (auto& child : children)
         {
             auto* node = dynamic_cast<DockNode*>(child.get());
             rootId = node->SplitNode(rootId, ctx);
@@ -53,7 +53,7 @@ ImDrawList* DockSpace::DoDraw(UIContext& ctx)
     if (!style_emptyBg.empty())
         ImGui::PopStyleColor();
 
-    for (auto& child : children) 
+    for (auto& child : children)
         child->Draw(ctx);
 
     return ImGui::GetWindowDrawList();
@@ -236,7 +236,7 @@ DockNode::DockNode(UIContext& ctx)
     flags.add$(ImGuiDockNodeFlags_NoTabBar);
     flags.add$(ImGuiDockNodeFlags_NoUndocking);
     flags.add$(ImGuiDockNodeFlags_NoWindowMenuButton);
-    
+
     //splitDir.add$(ImGuiDir_None);
     splitDir.add$(ImGuiDir_Left);
     splitDir.add$(ImGuiDir_Right);
@@ -268,7 +268,7 @@ ImGuiID DockNode::SplitNode(ImGuiID parentId, UIContext& ctx)
             ImGui::DockBuilderDockWindow(id.c_str(), nodeId);
         }
     }
-    
+
     ImGuiID splitId = nodeId;
     for (const auto& child : children)
     {
@@ -319,7 +319,7 @@ ImDrawList* DockNode::DoDraw(UIContext& ctx)
             if (ImGui::Begin(id.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
             {
                 dl = ImGui::GetWindowDrawList();
-                
+
                 if (!ctx.beingResized)
                 {
                     ImGui::SetCursorScreenPos({
@@ -370,7 +370,7 @@ void DockNode::DoDrawTools(UIContext& ctx)
 
     ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
     ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
-    
+
     ImGui::BeginDisabled(children.size());
     if (ImGui::Button("Split 2x"))
     {
@@ -394,13 +394,13 @@ void DockNode::DoDrawTools(UIContext& ctx)
             auto chnode = std::make_unique<DockNode>(ctx);
             chnode->splitDir = splitDir;
             chnode->splitRatio = DEFAULT_SPLIT_RATIO;
-            size_t i = stx::find_if(pnode->children, [this](const auto& node) { 
-                return node.get() == this; 
+            size_t i = stx::find_if(pnode->children, [this](const auto& node) {
+                return node.get() == this;
                 }) - pnode->children.begin();
             pnode->children.insert(pnode->children.begin() + i + 1, std::move(chnode));
         }
     }
-    
+
     ImGui::EndDisabled();
 
     ImGui::End();
@@ -409,11 +409,11 @@ void DockNode::DoDrawTools(UIContext& ctx)
 void DockNode::DoExport(std::ostream& os, UIContext& ctx)
 {
     std::string nodeIdVar = "nodeId" + std::to_string(ctx.varCounter++);
-    
-    os << ctx.ind << "ImGuiID " << nodeIdVar << " = ImGui::DockBuilderSplitNode(" 
-        << ctx.parentVarName << ", " << splitDir.to_arg() << ", " << splitRatio.to_arg() 
+
+    os << ctx.ind << "ImGuiID " << nodeIdVar << " = ImGui::DockBuilderSplitNode("
+        << ctx.parentVarName << ", " << splitDir.to_arg() << ", " << splitRatio.to_arg()
         << ", nullptr" << ", &" << ctx.parentVarName << ");\n";
-    
+
     if (flags)
     {
         os << ctx.ind << "ImGui::DockBuilderGetNode(" << nodeIdVar << ")->LocalFlags = "

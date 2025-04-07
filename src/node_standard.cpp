@@ -218,7 +218,7 @@ void UINode::DrawSnap(UIContext& ctx)
     float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
 
     //snap interior (first child)
-    if ((snapOp & SnapInterior) && 
+    if ((snapOp & SnapInterior) &&
         mind >= 3 && //allow snapping sides with zero border
         !stx::count_if(children, [](const auto& ch) { return ch->Behavior() & SnapSides; }))
     {
@@ -230,7 +230,7 @@ void UINode::DrawSnap(UIContext& ctx)
 
     if (!level || !(snapOp & SnapSides))
         return;
-    
+
     //snap side
     UINode* parent = ctx.parents[ctx.parents.size() - 2];
     const auto& pchildren = parent->children;
@@ -247,10 +247,10 @@ void UINode::DrawSnap(UIContext& ctx)
         m.x > clip->cached_pos.x + clip->cached_size.x ||
         m.y > clip->cached_pos.y + clip->cached_size.y)
         return;
-        
+
     int ncols = parent->ColumnCount(ctx);
     int col = 0;
-    if (ncols > 1) 
+    if (ncols > 1)
     {
         for (size_t j = 0; j <= i; ++j)
             col = (col + pchildren[j]->nextColumn) % ncols;
@@ -272,18 +272,18 @@ void UINode::DrawSnap(UIContext& ctx)
     else if (lastItem && d2.x < 0 && d2.y < 0)
         snapDir = ImGuiDir_Down;
 
-    if (snapDir == ImGuiDir_None) 
+    if (snapDir == ImGuiDir_None)
     {
-        if (ImRect(cached_pos, cached_pos + cached_size).Contains(m)) 
+        if (ImRect(cached_pos, cached_pos + cached_size).Contains(m))
         {
-            //end of search with no result (interpreted by TopWindow) 
+            //end of search with no result (interpreted by TopWindow)
             //children were already snapped so we can safely end search here
             ctx.snapParent = parent;
             ctx.snapIndex = -1;
         }
         return;
     }
-    
+
     ImVec2 p;
     float w = 0, h = 0;
     //snapRight and snapDown will extend the checked area to the next widget
@@ -382,7 +382,7 @@ void UINode::DrawSnap(UIContext& ctx)
         for (size_t j = i + 1; j < pchildren.size(); ++j)
         {
             const auto& ch = pchildren[j];
-            if (ncols > 1 && ch->nextColumn) 
+            if (ncols > 1 && ch->nextColumn)
                 break;
             if (!ch->sameLine)
                 break;
@@ -489,14 +489,14 @@ std::vector<UINode*>
 UINode::FindInRect(const ImRect& r)
 {
     std::vector<UINode*> sel;
-    
+
     if (cached_size.x && cached_size.y && //skip contextMenu
         cached_pos.x > r.Min.x &&
         cached_pos.y > r.Min.y &&
         cached_pos.x + cached_size.x < r.Max.x &&
         cached_pos.y + cached_size.y < r.Max.y)
         sel.push_back(this);
-    
+
     for (const auto& child : children) {
         auto chsel = child->FindInRect(r);
         sel.insert(sel.end(), chsel.begin(), chsel.end());
@@ -594,7 +594,7 @@ void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
 
 //----------------------------------------------------
 
-std::unique_ptr<Widget> 
+std::unique_ptr<Widget>
 Widget::Create(const std::string& name, UIContext& ctx)
 {
     if (name == "Text")
@@ -679,8 +679,8 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 {
     Layout l;
     l.colId = l.rowId = -1;
-    
-    if (hasPos || !(Behavior() & SnapSides)) 
+
+    if (hasPos || !(Behavior() & SnapSides))
     {
         l.flags |= Layout::Topmost | Layout::Leftmost;
         return l;
@@ -694,23 +694,23 @@ Widget::Layout Widget::GetLayout(UINode* parent)
     bool vlay = false;
     int colId = 0;
     int rowId = 0;
-    for (const auto& child : parent->children) 
+    for (const auto& child : parent->children)
     {
         if (child->hasPos || !(child->Behavior() & SnapSides)) //ignore MenuBar etc.
             continue;
-        
-        if ((!child->sameLine || child->nextColumn) && !firstWidget) 
+
+        if ((!child->sameLine || child->nextColumn) && !firstWidget)
         {
             if (colId == l.colId)
                 l.flags |= vlay * Layout::VLayout;
             if (rowId == l.rowId)
                 l.flags |= hlay * Layout::HLayout;
-            ++rowId; 
+            ++rowId;
             topmost = child->nextColumn;
             leftmost = true;
             bottommost = false;
             hlay = false;
-            if (child->nextColumn) 
+            if (child->nextColumn)
             {
                 vlay = false;
                 colId += child->nextColumn;
@@ -724,7 +724,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
             vlay = true;
         if (child->size_x.stretched())
             hlay = true;
-        
+
         if (child.get() == this) {
             l.colId = colId;
             l.rowId = rowId;
@@ -759,7 +759,7 @@ void Widget::Draw(UIContext& ctx)
             ImRad::NextColumn(nextColumn);
     }
 
-    if (hasPos) 
+    if (hasPos)
     {
         ImRect r = ImGui::GetCurrentWindow()->InnerRect;
         ImVec2 pos{ pos_x.eval_px(ctx), pos_y.eval_px(ctx) };
@@ -769,7 +769,7 @@ void Widget::Draw(UIContext& ctx)
             pos.y += r.GetHeight();
         ImGui::SetCursorScreenPos(r.Min + pos);
     }
-    else if (l.flags & (Layout::HLayout | Layout::VLayout)) 
+    else if (l.flags & (Layout::HLayout | Layout::VLayout))
     {
         ImRad::VBox* vbox = nullptr;
         ImRad::HBox *hbox = nullptr;
@@ -797,10 +797,10 @@ void Widget::Draw(UIContext& ctx)
                 hbox->BeginLayout();
             //ImGui::SetCursorPosX(hbox); //currently not needed but may be useful if we upgrade layouts
         }
-        if (!(l.flags & Layout::Leftmost)) 
+        if (!(l.flags & Layout::Leftmost))
         {
             //we need to provide correct spacing and don't use SetCursorX
-            //becausein that case after hbox.Reset() hbox.GetPos() will return CursorPos with 
+            //becausein that case after hbox.Reset() hbox.GetPos() will return CursorPos with
             //a wrong spacing and it will be used in autosized window contentSize
             ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
         }
@@ -810,24 +810,24 @@ void Widget::Draw(UIContext& ctx)
         if (hbox)
             ctx.stretchSize.x = hbox->GetSize();
     }
-    else 
+    else
     {
         if (sameLine) {
             ImGui::SameLine(0, spacing * ImGui::GetStyle().ItemSpacing.x);
         }
         else {
-            ImRad::Spacing(spacing - defSpacing); 
+            ImRad::Spacing(spacing - defSpacing);
         }
         if (indent)
             ImGui::Indent(indent * ImGui::GetStyle().IndentSpacing / 2);
     }
-    
+
     ImGui::PushID(this);
     ctx.parents.push_back(this);
     auto lastHovered = ctx.hovered;
     auto p1 = ImGui::GetCursorScreenPos();
 
-    if (style_font.has_value()) 
+    if (style_font.has_value())
         ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
     if (!style_text.empty())
         ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ImGuiCol_Text, ctx));
@@ -852,7 +852,7 @@ void Widget::Draw(UIContext& ctx)
     ImDrawList* drawList = DoDraw(ctx);
     ImGui::EndDisabled();
     CalcSizeEx(p1, ctx);
-    
+
     if (!style_text.empty())
         ImGui::PopStyleColor();
     if (!style_border.empty())
@@ -876,7 +876,7 @@ void Widget::Draw(UIContext& ctx)
 
     if (!hasPos)
         HashCombineData(ctx.layoutHash, ImGui::GetItemID());
-    if (l.flags & Layout::VLayout) 
+    if (l.flags & Layout::VLayout)
     {
         auto& vbox = parent->vbox[l.colId];
         float sizeY = ImRad::VBox::ItemSize;
@@ -929,7 +929,7 @@ void Widget::Draw(UIContext& ctx)
     if (ctx.mode == UIContext::NormalSelection &&
         hovered && !ImGui::GetTopMostAndVisiblePopupModal())
     {
-        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.  
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) //this works even for non-items like TabControl etc.
         {
             if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
             {
@@ -1002,7 +1002,7 @@ void Widget::Draw(UIContext& ctx)
                     ctx.lastSize /= ctx.zoomFactor;
                 }
             }
-            else if ((hasPos || (Behavior() & SnapSides)) && 
+            else if ((hasPos || (Behavior() & SnapSides)) &&
                 ctx.hovered == this)
             {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
@@ -1037,7 +1037,7 @@ void Widget::Draw(UIContext& ctx)
     {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     }
-    else if (ctx.mode == UIContext::ItemDragging && 
+    else if (ctx.mode == UIContext::ItemDragging &&
             allowed && ctx.dragged == this)
     {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
@@ -1071,7 +1071,7 @@ void Widget::Draw(UIContext& ctx)
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         else if (ctx.mode & (UIContext::ItemSizingTop | UIContext::ItemSizingBottom))
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-        
+
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
         {
             *ctx.modified = true;
@@ -1131,7 +1131,7 @@ void Widget::Draw(UIContext& ctx)
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
         }
     }
-    
+
     if (hasPos)
     {
         ImU32 clr = ctx.colors[UIContext::Selected];
@@ -1197,7 +1197,7 @@ void Widget::Draw(UIContext& ctx)
         DrawInteriorRect(ctx);
     }
 
-    
+
     ctx.parents.pop_back();
     ImGui::PopID();
 }
@@ -1205,7 +1205,7 @@ void Widget::Draw(UIContext& ctx)
 void Widget::DrawTools(UIContext& ctx)
 {
     ctx.parents.push_back(this);
-    
+
     if (ctx.selected.size() == 1 && ctx.selected[0] == this)
     {
         ImGui::PushFont(nullptr);
@@ -1220,7 +1220,7 @@ void Widget::DrawTools(UIContext& ctx)
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ctx.appStyle->Colors[ImGuiCol_ButtonActive]);
 
         DoDrawTools(ctx);
-    
+
         ImGui::PopStyleColor(6);
         ImGui::PopStyleVar(3);
         ImGui::PopFont();
@@ -1229,7 +1229,7 @@ void Widget::DrawTools(UIContext& ctx)
     //for (const auto& child : children) defend against insertions within the loop
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->DrawTools(ctx);
-    
+
     ctx.parents.pop_back();
 }
 
@@ -1249,7 +1249,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
     if (userCodeBefore != "")
         os << userCodeBefore << "\n";
-    
+
     std::string stype = GetTypeName();
     os << ctx.ind << "/// @begin " << stype << "\n";
 
@@ -1465,7 +1465,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::EndDisabled();\n";
     }
-    
+
     if (cursor != ImGuiMouseCursor_Arrow)
     {
         os << ctx.ind << "if (ImGui::IsItemHovered())\n";
@@ -1487,7 +1487,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImRad::OpenWindowPopup(" << contextMenu.to_arg() << ");\n";
         ctx.ind_down();
     }
-    
+
     if (initialFocus)
     {
         os << ctx.ind << "if (ImGui::IsWindowAppearing())\n";
@@ -1589,14 +1589,14 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         ctx.ind_down();
         os << ctx.ind << "}\n";
-        
+
         //try to compensate row spacing with hidden leftmost widget
         //in case next widget is hidden too spacing_x compensation may not be correct
         /*auto* parent = ctx.parents.back();
         size_t i = parent->FindChild(this)->second;
-        const auto* next = i + 1 < parent->children.size() ? 
+        const auto* next = i + 1 < parent->children.size() ?
             dynamic_cast<Widget*>(parent->children[i + 1].get()) : nullptr;
-        if ((Behavior() & SnapSides) && l.Leftmost && 
+        if ((Behavior() & SnapSides) && l.Leftmost &&
             next && next->sameLine)
         {
             os << ctx.ind << "else\n";
@@ -1624,7 +1624,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
     userCodeBefore = ctx.userCode;
     spacing = -1;
     int ignoreLevel = -1;
-    
+
     while (sit != cpp::stmt_iterator())
     {
         cpp::stmt_iterator ifBlockIt;
@@ -1639,7 +1639,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             else
                 ignoreLevel = -1;
         }
-        
+
         if (sit->kind == cpp::Comment && !sit->line.compare(0, 11, "/// @begin "))
         {
             ctx.importState = 1;
@@ -1647,7 +1647,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             std::string name = sit->line.substr(11);
             auto w = Widget::Create(name, ctx);
             if (!w) {
-                //uknown control 
+                //uknown control
                 //create a placeholder not to break parsing and layout
                 ctx.errors.push_back("Encountered an unknown control '" + name + "\"");
                 auto txt = std::make_unique<Text>(ctx);
@@ -1688,7 +1688,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             ifBlockIt = sit; //could be visible or forceFocus block
         }
-        else if (sit->kind == cpp::CallExpr && 
+        else if (sit->kind == cpp::CallExpr &&
             (sit->callee == "ImGui::NextColumn" || sit->callee == "ImGui::TableNextColumn")) //compatibility
         {
             nextColumn = 1;
@@ -1703,7 +1703,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             screenPosIt = sit;
         }
-        else if (sit->kind == cpp::CallExpr && 
+        else if (sit->kind == cpp::CallExpr &&
             !sit->callee.compare(0, ctx.codeGen->VBOX_NAME.size(), ctx.codeGen->VBOX_NAME) &&
             (sit->callee.find(".AddSize") != std::string::npos ||
              sit->callee.find(".UpdateSize") != std::string::npos))
@@ -1731,7 +1731,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 }
             }
         }
-        else if (sit->kind == cpp::CallExpr && 
+        else if (sit->kind == cpp::CallExpr &&
             !sit->callee.compare(0, ctx.codeGen->HBOX_NAME.size(), ctx.codeGen->HBOX_NAME) &&
             sit->callee.find(".AddSize") != std::string::npos)
         {
@@ -1761,9 +1761,9 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SameLine")
         {
             sameLine = true;
-            spacing = 1; 
+            spacing = 1;
             if (sit->params.size() == 2)
-                spacing.set_from_arg(sit->params[1]);    
+                spacing.set_from_arg(sit->params[1]);
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Spacing") //compatibility
         {
@@ -1886,7 +1886,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             DoImport(sit, ctx);
         }
-        
+
         ++sit;
 
         if (ifBlockIt != cpp::stmt_iterator() && sit != cpp::stmt_iterator())
@@ -1938,7 +1938,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         }
     }
 
-    if (spacing < 0) 
+    if (spacing < 0)
     {
         Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
         spacing = (l.flags & Layout::Topmost) ? 0 : 1; //default ImGui spacing
@@ -1966,7 +1966,7 @@ Widget::Properties()
         props.insert(props.end(), {
             { "layout.size.size", nullptr },
             { "layout.size.size_x", &size_x },
-            { "layout.size.size_y", &size_y } 
+            { "layout.size.size_y", &size_y }
         });
     }
     else
@@ -1997,7 +1997,7 @@ Widget::Properties()
     {
         //##1 because indent, sameLine work differently for first in a row and other widgets
         props.insert(props.end(), {
-            { "layout.indent##1", &indent }, 
+            { "layout.indent##1", &indent },
             { sameLine && !nextColumn ? "layout.spacing_x" : "layout.spacing_y", &spacing },
             { "layout.sameLine##1", &sameLine },
             { "layout.nextColumn##1", &nextColumn },
@@ -2108,7 +2108,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         return changed;
     }
     i -= sizeX;
-    
+
     if (!i && sizeY)
     {
         ImGui::Text("size_y");
@@ -2121,14 +2121,14 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         return changed;
     }
     i -= sizeY;
-    
+
     if (overlayPos)
     {
         switch (i)
         {
         case 0:
             ImGui::BeginDisabled(Behavior() & NoOverlayPos);
-            ImGui::Text("overlayPos"); 
+            ImGui::Text("overlayPos");
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
             fl = hasPos != Defaults().hasPos ? InputDirectVal_Modified : 0;
@@ -2184,7 +2184,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         }
         i -= 3;
     }
-    
+
     switch (i)
     {
     case 0:
@@ -2380,7 +2380,7 @@ void Widget::TreeUI(UIContext& ctx)
     ImGui::SameLine(0, 0);
 
     ctx.parents.push_back(this);
-    
+
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
     ImGui::SetNextItemOpen(true, ImGuiCond_Always);
     //we keep all items open, OpenOnDoubleClick is to block flickering
@@ -2450,7 +2450,7 @@ void Widget::TreeUI(UIContext& ctx)
         {
             for (auto& child : children)
                 child->TreeUI(ctx);
-        }    
+        }
         ImGui::TreePop();
     }
     else {
@@ -2479,19 +2479,19 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
     if (!size.y)
         size.y = 20;*/
     ImVec2 r = ImGui::CalcItemSize(size, 20, 20);
-    
-    if (!ctx.beingResized) 
+
+    if (!ctx.beingResized)
     {
         auto* dl = ImGui::GetWindowDrawList();
         ImVec2 p = ImGui::GetCursorScreenPos();
-        ImU32 clr = 0x007f7f7f; //reduces contrast 
+        ImU32 clr = 0x007f7f7f; //reduces contrast
         clr |= int(0x5f * ImGui::GetStyle().Alpha) << 24;
         //dl->AddRect(p, p + size, clr);
-        
+
         float th = 2;
         ImVec2 xuv{ std::round(r.x / 5 / ctx.zoomFactor), 0 };
         ImVec2 yuv{ 0, std::round(r.y / 5 / ctx.zoomFactor) };
-        
+
         dl->PushTextureID(ctx.dashTexId);
         dl->PrimReserve(4*6, 4*4);
         dl->PrimRectUV(p, { p.x + r.x, p.y + th }, { 0, 0 }, xuv, clr);
@@ -2539,9 +2539,9 @@ Separator::Separator(UIContext& ctx)
 {
 }
 
-std::unique_ptr<Widget> Separator::Clone(UIContext& ctx) 
-{ 
-    return std::unique_ptr<Widget>(new Separator(*this)); 
+std::unique_ptr<Widget> Separator::Clone(UIContext& ctx)
+{
+    return std::unique_ptr<Widget>(new Separator(*this));
 }
 
 ImDrawList* Separator::DoDraw(UIContext& ctx)
@@ -2554,7 +2554,7 @@ ImDrawList* Separator::DoDraw(UIContext& ctx)
         ImGui::SeparatorText(DRAW_STR(label));
     else if (style_thickness.has_value())
         ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal, style_thickness);
-    else 
+    else
         ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
 
     if (!style_outerPadding && !sameLine)
@@ -2582,7 +2582,7 @@ void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 void Separator::DoExport(std::ostream& os, UIContext& ctx)
 {
     std::string datavar;
-    if (!style_outerPadding && !sameLine) 
+    if (!style_outerPadding && !sameLine)
     {
         datavar = "_data" + std::to_string(ctx.varCounter);
         ++ctx.varCounter;
@@ -2590,7 +2590,7 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImRad::PushIgnoreWindowPadding(nullptr, &" << datavar << ")\n";
     }
 
-    if (label.empty()) 
+    if (label.empty())
     {
         os << ctx.ind << "ImGui::SeparatorEx("
             << (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal");
@@ -2623,7 +2623,7 @@ void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 2)
             style_thickness.set_from_arg(sit->params[1]);
     }
-    else if (sit->kind == cpp::CallExpr && 
+    else if (sit->kind == cpp::CallExpr &&
         (sit->callee == "ImRad::PushIgnoreWindowPadding" || sit->callee == "ImGui::PushClipRect")) //PushClipRect for compatibility
     {
         style_outerPadding = false;
@@ -2689,7 +2689,7 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
     if (alignToFrame)
         ImGui::AlignTextToFramePadding();
 
-    if (wrap) 
+    if (wrap)
     {
         //float x1 = ImGui::GetCursorPosX();
         //float w = wrap_x.value();
@@ -2701,7 +2701,7 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
         //ImGui::SameLine(x1 + w);
         //ImGui::NewLine();
     }
-    else 
+    else
     {
         ImGui::TextUnformatted(DRAW_STR(text));
     }
@@ -2826,7 +2826,7 @@ Selectable::Selectable(UIContext& ctx)
     flags.add$(ImGuiSelectableFlags_NoAutoClosePopups);
     flags.add$(ImGuiSelectableFlags_NoPadWithHalfSpacing);
     flags.add$(ImGuiSelectableFlags_SpanAllColumns);
-    
+
     horizAlignment.add("AlignLeft", ImRad::AlignLeft);
     horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
     horizAlignment.add("AlignRight", ImRad::AlignRight);
@@ -2859,7 +2859,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
 
     if (!style_header.empty())
         ImGui::PushStyleColor(ImGuiCol_Header, style_header.eval(ImGuiCol_Header, ctx));
-    
+
     if (readOnly)
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); //won't affect text color
 
@@ -2889,25 +2889,25 @@ void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
     assert(ctx.parents.back() == this);
     const auto* parent = ctx.parents[ctx.parents.size() - 2];
-    size_t idx = stx::find_if(parent->children, [this](const auto& ch) { 
-        return ch.get() == this; 
+    size_t idx = stx::find_if(parent->children, [this](const auto& ch) {
+        return ch.get() == this;
         }) - parent->children.begin();
     bool explicitWidth = size_x.has_value() && !size_x.zero();
     if (!(flags & ImGuiSelectableFlags_SpanAllColumns) &&
         !explicitWidth &&
-        idx + 1 < parent->children.size() && 
-        parent->children[idx + 1]->sameLine) 
+        idx + 1 < parent->children.size() &&
+        parent->children[idx + 1]->sameLine)
     {
-        //when size.x=0 ItemRect spans to the right edge even anoter widget 
+        //when size.x=0 ItemRect spans to the right edge even anoter widget
         //is on the same line. Fix it here so next widget can be selected
         cached_size.x = ImGui::CalcTextSize(label.c_str(), nullptr, true).x;
         cached_size.x += ImGui::GetStyle().ItemSpacing.x;
     }
-    
+
     if (!(flags & ImGuiSelectableFlags_NoPadWithHalfSpacing)) {
         //ItemRect has ItemSpacing padding by default. Adjust pos to make
         //the rectangle look centered
-        cached_pos.x -= ImGui::GetStyle().ItemSpacing.x / 2; 
+        cached_pos.x -= ImGui::GetStyle().ItemSpacing.x / 2;
         //cached_pos.y -= ImGui::GetStyle().ItemSpacing.y / 2;
     }
     else {
@@ -2935,18 +2935,18 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind;
     if (!onChange.empty())
         os << "if (";
-    
+
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
     if (selected.has_single_variable())
         os << "&" << selected.to_arg();
     else
         os << selected.to_arg();
-    
+
     os << ", " << flags.to_arg() << ", { "
-        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
-        << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) 
+        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
+        << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
         << " })";
-    
+
     if (!onChange.empty()) {
         os << ")\n";
         ctx.ind_up();
@@ -3006,7 +3006,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 horizAlignment = ImRad::AlignHCenter;
             else if (a.x == 1.f)
                 horizAlignment = ImRad::AlignRight;
-            
+
             if (a.y == 0.5f)
                 vertAlignment = ImRad::AlignVCenter;
             else if (a.y == 1.f)
@@ -3172,7 +3172,7 @@ Button::Button(UIContext& ctx)
     modalResult.add$(ImRad::Retry);
     modalResult.add$(ImRad::Ignore);
     modalResult.add$(ImRad::All);
-    
+
     arrowDir.add$(ImGuiDir_None);
     arrowDir.add$(ImGuiDir_Left);
     arrowDir.add$(ImGuiDir_Right);
@@ -3185,8 +3185,8 @@ std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
     return std::make_unique<Button>(*this);
 }
 
-int Button::Behavior() 
-{ 
+int Button::Behavior()
+{
     int fl = Widget::Behavior();
     if (!small)
         fl |= HasSizeX | HasSizeY;
@@ -3205,11 +3205,11 @@ ImDrawList* Button::DoDraw(UIContext& ctx)
         size.x = size_x.eval_px(ImGuiAxis_X, ctx);
         size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
         ImGui::Button(DRAW_STR(label), size);
-                      
+
         //if (ctx.modalPopup && text.value() == "OK")
             //ImGui::SetItemDefaultFocus();
     }
-    
+
     return ImGui::GetWindowDrawList();
 }
 
@@ -3219,10 +3219,10 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind;
     if (!onChange.empty() || closePopup || dropDownMenu != "")
         os << "if (";
-    
+
     if (arrowDir != ImGuiDir_None)
     {
-        os << "ImGui::ArrowButton(\"##" << std::to_string((uint64_t)this) 
+        os << "ImGui::ArrowButton(\"##" << std::to_string((uint64_t)this)
             << "\", " << arrowDir.to_arg() << ")";
     }
     else if (small)
@@ -3232,7 +3232,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
     else
     {
         os << "ImGui::Button(" << label.to_arg() << ", { "
-            << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+            << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
             << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
             << " })";
     }
@@ -3248,7 +3248,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
     {
         os << ")\n" << ctx.ind << "{\n";
         ctx.ind_up();
-            
+
         if (!onChange.empty())
             os << ctx.ind << onChange.to_arg() << "();\n";
         if (closePopup)
@@ -3256,7 +3256,7 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
         if (dropDownMenu != "")
             os << ctx.ind << "ImRad::OpenWindowPopup(" << dropDownMenu.to_arg() << ");\n";
 
-        ctx.ind_down();            
+        ctx.ind_down();
         os << ctx.ind << "}\n";
     }
     else
@@ -3272,7 +3272,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         ctx.importLevel = sit->level;
         label.set_from_arg(sit->params[0]);
-        
+
         if (sit->params.size() >= 2) {
             auto size = cpp::parse_size(sit->params[1]);
             size_x.set_from_arg(size.first);
@@ -3303,7 +3303,7 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 2)
             arrowDir.set_from_arg(sit->params[1]);
     }
-    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1) 
+    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1)
     {
         if (sit->callee == "ClosePopup" && ctx.kind == TopWindow::ModalPopup) {
             if (sit->params.size())
@@ -3541,7 +3541,7 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
         << label.to_arg() << ", "
         << "&" << fieldName.c_str()
         << ")";
-    
+
     if (!onChange.empty()) {
         os << ")\n";
         ctx.ind_up();
@@ -3568,7 +3568,7 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size())
             label.set_from_arg(sit->params[0]);
-        
+
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
         {
             fieldName.set_from_arg(sit->params[1].substr(1));
@@ -3589,7 +3589,7 @@ CheckBox::Properties()
     auto props = Widget::Properties();
     props.insert(props.begin(), {
         { "appearance.text", &style_text },
-        { "appearance.check", &style_check }, 
+        { "appearance.check", &style_check },
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.font", &style_font },
         { "behavior.label", &label, true },
@@ -3700,7 +3700,7 @@ ImDrawList* RadioButton::DoDraw(UIContext& ctx)
 {
     if (!style_check.empty())
         ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
-    
+
     ImGui::RadioButton(DRAW_STR(label), valueID==0);
 
     if (!style_check.empty())
@@ -3716,7 +3716,7 @@ void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 
     if (!style_check.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_CheckMark, " << style_check.to_arg() << ");\n";
-    
+
     os << ctx.ind;
     if (!onChange.empty())
         os << "if (";
@@ -3747,7 +3747,7 @@ void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 2)
             style_check.set_from_arg(sit->params[1]);
     }
-    else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) && 
+    else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) &&
         sit->callee == "ImGui::RadioButton")
     {
         if (sit->params.size())
@@ -3918,8 +3918,8 @@ Input::Input(UIContext& ctx)
     type.add("float3", 8);
     type.add("float4", 9);
     type.add("double", 10);
-    
-    if (_imeClass.get_ids().empty()) 
+
+    if (_imeClass.get_ids().empty())
     {
         _imeClass.add("Default", 0);
         _imeClass.add$(ImRad::ImeText);
@@ -3949,8 +3949,8 @@ std::unique_ptr<Widget> Input::Clone(UIContext& ctx)
     return sel;
 }
 
-int Input::Behavior() 
-{ 
+int Input::Behavior()
+{
     int b = Widget::Behavior() | HasSizeX;
     if (flags & ImGuiInputTextFlags_Multiline)
         b |= HasSizeY;
@@ -4019,7 +4019,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (!(flags & ImGuiInputTextFlags_Multiline))
         os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
-    
+
     std::string tid = type.get_id();
     os << ctx.ind;
     if (tid == "ImGuiTextFilter" || !onChange.empty())
@@ -4030,7 +4030,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     std::string defIme = "ImRad::ImeText";
     if (label.empty())
         id = "\"##" + fieldName.value() + "\"";
-    
+
     if (tid == "int")
     {
         defIme = "ImRad::ImeNumber";
@@ -4124,13 +4124,13 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     ctx.ind_up();
     int cls = imeType & 0xff;
     int action = imeType & (~0xff);
-    os << ctx.ind << "ioUserData->imeType = " 
+    os << ctx.ind << "ioUserData->imeType = "
         << (cls ? _imeClass.find_id(cls)->first : defIme);
     if (action)
         os << " | " << _imeAction.find_id(action)->first;
     os << ";\n";
     ctx.ind_down();
-    
+
     if (!onImeAction.empty()) {
         os << ctx.ind << "if (ImRad::IsItemImeAction())\n";
         ctx.ind_up();
@@ -4152,7 +4152,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             if (!label.access()->compare(0, 2, "##"))
                 label = "";
         }
-        
+
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
             fieldName.set_from_arg(sit->params[1].substr(1));
             std::string fn = fieldName.c_str();
@@ -4191,7 +4191,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             if (!label.access()->compare(0, 2, "##"))
                 label = "";
         }
-        
+
         size_t i = 0;
         if (sit->callee == "ImGui::InputTextWithHint") {
             hint = cpp::parse_str_arg(sit->params[1]);
@@ -4214,7 +4214,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 PushError(ctx, "value variable \"" + fieldName.value() + "\" doesn't exist");
         }
 
-        if (sit->params.size() > 2 + i) 
+        if (sit->params.size() > 2 + i)
         {
             if (!flags.set_from_arg(sit->params[2 + i]))
                 PushError(ctx, "unrecognized flag in \"" + sit->params[2 + i] + "\"");
@@ -4260,7 +4260,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
         }
 
-        if (tid == "int") 
+        if (tid == "int")
         {
             if (sit->params.size() >= 3)
                 step.set_from_arg(sit->params[2]);
@@ -4303,7 +4303,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemWidth")
     {
-        if (sit->params.size()) 
+        if (sit->params.size())
             size_x.set_from_arg(sit->params[0]);
     }
     else if (sit->kind == cpp::IfCallStmt && sit->callee == "ImGui::IsItemActive")
@@ -4574,7 +4574,7 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
     std::string id = label;
     if (id.empty())
         id = std::string("##") + fieldName.c_str();
-    
+
     auto vars = items.used_variables();
     if (vars.empty())
     {
@@ -4602,8 +4602,8 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
     std::string id = label.to_arg();
     if (label.empty())
         id = std::string("\"##") + fieldName.c_str() + "\"";
-    
-    os << "ImRad::Combo(" << id << ", &" << fieldName.to_arg() 
+
+    os << "ImRad::Combo(" << id << ", &" << fieldName.to_arg()
         << ", " << items.to_arg() << ", " << flags.to_arg() << ")";
 
     if (!onChange.empty()) {
@@ -4793,7 +4793,7 @@ Slider::Slider(UIContext& ctx)
     flags.add$(ImGuiSliderFlags_NoInput);
     flags.add$(ImGuiSliderFlags_NoRoundToFormat);
     //flags.add$(ImGuiSliderFlags_WrapAround); only works with DragXXX
-    
+
     type.add("int", 0);
     type.add("int2", 1);
     type.add("int3", 2);
@@ -4876,9 +4876,9 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
         id = "\"##" + fieldName.value() + "\"";
 
     os << "ImGui::Slider" << cap << "(" << id << ", &"
-        << fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg() 
+        << fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg()
         << ", " << fmt << ", " << flags.to_arg() << ")";
-    
+
     if (!onChange.empty()) {
         os << ")\n";
         ctx.ind_up();
@@ -4892,7 +4892,7 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
 
 void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-    if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 13, "ImGui::Slider")) || 
+    if ((sit->kind == cpp::CallExpr && !sit->callee.compare(0, 13, "ImGui::Slider")) ||
         (sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 13, "ImGui::Slider")))
     {
         std::string tid = sit->callee.substr(13);
@@ -4913,7 +4913,7 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() > 3)
             max.set_from_arg(sit->params[3]);
-        
+
         if (sit->params.size() > 4)
             format.set_from_arg(sit->params[4]);
 
@@ -5148,14 +5148,14 @@ ImDrawList* ProgressBar::DoDraw(UIContext& ctx)
 void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
 {
     if (!style_color.empty())
-        os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_PlotHistogram, " 
+        os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_PlotHistogram, "
             << style_color.to_arg() << ");\n";
 
     std::string fmt = indicator ? "nullptr" : "\"\"";
-    
-    os << ctx.ind << "ImGui::ProgressBar(" 
+
+    os << ctx.ind << "ImGui::ProgressBar("
         << fieldName.to_arg() << ", { "
-        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
         << fmt << ");\n";
 
@@ -5303,7 +5303,7 @@ std::unique_ptr<Widget> ColorEdit::Clone(UIContext& ctx)
 ImDrawList* ColorEdit::DoDraw(UIContext& ctx)
 {
     ImVec4 ftmp = {};
-    
+
     std::string id = label;
     if (id.empty())
         id = "##" + fieldName.value();
@@ -5331,7 +5331,7 @@ void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
     std::string id = label.to_arg();
     if (label.empty())
         id = "\"##" + fieldName.value() + "\"";
-    
+
     if (type == "color3")
     {
         os << "ImGui::ColorEdit3(" << id << ", (float*)&"
@@ -5360,7 +5360,7 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         (sit->kind == cpp::IfCallThenCall && !sit->callee.compare(0, 16, "ImGui::ColorEdit")))
     {
         type = sit->callee.substr(16, 1) == "3" ? "color3" : "color4";
-        
+
         if (sit->params.size()) {
             label.set_from_arg(sit->params[0]);
             if (!label.access()->compare(0, 2, "##"))
@@ -5532,7 +5532,7 @@ Image::Image(UIContext& ctx)
     stretchPolicy.add("Scale", StretchPolicy::Scale);
     stretchPolicy.add("FitIn", StretchPolicy::FitIn);
     stretchPolicy.add("FitOut", StretchPolicy::FitOut);
-    
+
     if (ctx.createVars)
         *fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
 }
@@ -5591,14 +5591,14 @@ void Image::DoExport(std::ostream& os, UIContext& ctx)
     ctx.ind_down();
 
     os << ctx.ind << "ImGui::Image(" << fieldName.to_arg() << ".id, { ";
-    
+
     if (size_x.zero())
         os << "(float)" << fieldName.to_arg() << ".w";
     else
         os << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]);
-    
+
     os << ", ";
-    
+
     if (size_y.zero())
         os << "(float)" << fieldName.to_arg() << ".h";
     else
@@ -5700,12 +5700,12 @@ bool Image::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
         changed = InputBindable(&fileName, ctx);
-        if (ImGui::IsItemDeactivatedAfterEdit() || 
+        if (ImGui::IsItemDeactivatedAfterEdit() ||
             (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
             RefreshTexture(ctx);
         ImGui::SameLine(0, 0);
         if (ImGui::Button("...", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }) &&
-            PickFileName(ctx)) 
+            PickFileName(ctx))
         {
             changed = true;
             RefreshTexture(ctx);
@@ -5757,13 +5757,13 @@ bool Image::PickFileName(UIContext& ctx)
 void Image::RefreshTexture(UIContext& ctx)
 {
     tex.id = 0;
-    
+
     if (fileName.empty() ||
         !fileName.used_variables().empty())
         return;
 
     std::string fname = fileName.value();
-    if (u8path(fname).is_relative()) 
+    if (u8path(fname).is_relative())
     {
         if (ctx.workingDir.empty() && !ctx.importState) {
             messageBox.title = "Warning";
@@ -5776,7 +5776,7 @@ void Image::RefreshTexture(UIContext& ctx)
     }
 
     tex = ImRad::LoadTextureFromFile(fname);
-    if (!tex) 
+    if (!tex)
     {
         if (!ctx.importState) {
             messageBox.title = "Error";
@@ -5828,8 +5828,8 @@ void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
         PushError(ctx, "Draw event not set");
         return;
     }
-    os << ctx.ind << onDraw.to_arg() << "({ " 
-        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", " 
+    os << ctx.ind << onDraw.to_arg() << "({ "
+        << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
         << " });\n";
 }

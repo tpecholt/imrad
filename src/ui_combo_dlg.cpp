@@ -80,7 +80,7 @@ void ComboDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     requestOpen = true;
     requestClose = false;
-    
+
 // Add your init code here
 }
 

@@ -6,7 +6,7 @@ struct DockSpace : Widget
     direct_val<ImGuiDockNodeFlags_> flags;
     bindable<color_t> style_preview;
     bindable<color_t> style_emptyBg;
-    
+
     DockSpace(UIContext& ctx);
     uint32_t CalcHash(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

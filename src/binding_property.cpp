@@ -7,7 +7,7 @@ float direct_val<dimension_t>::eval_px(const UIContext& ctx) const
     return val * ctx.zoomFactor;
 }
 
-float direct_val<pzdimension_t>::eval_px(const UIContext& ctx) const 
+float direct_val<pzdimension_t>::eval_px(const UIContext& ctx) const
 {
     return val * ctx.zoomFactor;
 }
@@ -40,7 +40,7 @@ float bindable<dimension_t>::eval_px(int axis, const UIContext& ctx) const
         //experimental - currently parses:
         //num*dp
         //cond ? num1*dp : num2*dp
-        //extracts min value as that may be the preferrable one when some widgets show/hide 
+        //extracts min value as that may be the preferrable one when some widgets show/hide
         //e.g. -1 vs -20 or 20 vs 50
         std::istringstream is(str);
         int state = 1; //0 - skip, 1 - number, 2 - *, 3 - dp
@@ -78,20 +78,20 @@ float bindable<dimension_t>::eval_px(int axis, const UIContext& ctx) const
     }
 }
 
-ImU32 bindable<color_t>::eval(int defClr, const UIContext& ctx) const 
+ImU32 bindable<color_t>::eval(int defClr, const UIContext& ctx) const
 {
     if (empty()) //default color
         return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
-    
+
     int idx = style_color();
     if (idx >= 0)
         return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[idx]);
-    
+
     ImU32 clr;
     std::istringstream is(str);
     if (is.get() == '0' && is.get() == 'x' && is >> std::hex >> clr)
         return clr;
-    
+
     return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
 }
 

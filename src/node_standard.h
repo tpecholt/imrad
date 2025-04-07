@@ -60,7 +60,7 @@ struct UINode
     virtual auto GetTypeName()->std::string;
     auto GetParentIndexes(UIContext& ctx)->std::string;
     void PushError(UIContext& ctx, const std::string& err);
-    
+
     struct child_iterator;
 
     ImVec2 cached_pos;
@@ -103,7 +103,7 @@ struct UINode::child_iterator
 private:
     children_type& children;
     bool freePos;
-}; 
+};
 
 //--------------------------------------------------------------------
 
@@ -220,7 +220,7 @@ struct Text : Widget
     bindable<std::string> text = "text";
     direct_val<bool> alignToFrame = false;
     direct_val<bool> wrap = false;
-    
+
     Text(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     ImDrawList* DoDraw(UIContext& ctx);
@@ -341,7 +341,7 @@ struct Input : Widget
 
     static direct_val<ImRad::ImeType> _imeClass;
     static direct_val<ImRad::ImeType> _imeAction;
-    
+
     Input(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     ImDrawList* DoDraw(UIContext& ctx);
@@ -449,7 +449,7 @@ struct Image : Widget
     field_ref<ImRad::Texture> fieldName;
     enum StretchPolicy { None, Scale, FitIn, FitOut };
     direct_val<StretchPolicy> stretchPolicy = Scale;
-    
+
     ImRad::Texture tex;
 
     Image(UIContext& ctx);
@@ -469,7 +469,7 @@ struct Image : Widget
 struct CustomWidget : Widget
 {
     event<void(const ImRad::CustomWidgetArgs&)> onDraw;
-    
+
     CustomWidget(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     ImDrawList* DoDraw(UIContext& ctx);

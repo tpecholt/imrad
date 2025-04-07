@@ -10,7 +10,7 @@ ClassWizard classWizard;
 
 //todo: need to call our own copy otherwise ImGui thinks messageBox is not ClassWizard's child
 //and hides CW when OpenPopup
-//static MessageBox msgBox; 
+//static MessageBox msgBox;
 
 void ClassWizard::OpenPopup()
 {
@@ -28,7 +28,7 @@ void ClassWizard::Refresh()
 {
     className = codeGen->GetName();
     varName = codeGen->GetVName();
-    
+
     std::string stype = className;
     if (stypeIdx < stypes.size())
         stype = stypes[stypeIdx];
@@ -38,13 +38,13 @@ void ClassWizard::Refresh()
     stypeIdx = stx::find(stypes, stype) - stypes.begin();
     if (stypeIdx == stypes.size())
         stypeIdx = 0;
-    
+
     fields = codeGen->GetVars(stypeIdx ? stypes[stypeIdx] : "");
     stx::erase_if(fields, [](CppGen::Var& var) {
         //CppGen exports user code as-is so no modification allowed here
         if (var.flags & CppGen::Var::UserCode)
             return true;
-        //skip member functions 
+        //skip member functions
         if (var.type.back() == ')')
             return true;
         return false;
@@ -170,7 +170,7 @@ void ClassWizard::Draw()
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, 1);
             ImGui::TableSetupColumn("Init", ImGuiTableColumnFlags_WidthStretch, 1);
             ImGui::TableHeadersRow();
-        
+
             for (int i = 0; i < fields.size(); ++i)
             {
                 ImGui::TableNextRow();
@@ -179,14 +179,14 @@ void ClassWizard::Draw()
                 /// @separator
 
                 const auto& var = fields[i];
-                
+
                 //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 255, 255));
                 //ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, IM_COL32(192, 192, 192, 255));
-                
+
                 bool unused = !stx::count(used, var.name);
                 if (unused)
                     ImGui::PushStyleColor(ImGuiCol_Text, 0xff400040);
-                
+
                 const char* icon =
                     (var.flags & CppGen::Var::Impl) ? ICON_FA_LOCK :
                     (var.flags & CppGen::Var::Interface) ? ICON_FA_CUBE :
@@ -221,7 +221,7 @@ void ClassWizard::Draw()
 
                 if (unused)
                     ImGui::PopStyleColor();
-                
+
                 /// @separator
                 ImGui::PopID();
             }
@@ -272,7 +272,7 @@ void ClassWizard::Draw()
         if (ImGui::Button("Remove Field", { BWIDTH, 0 }))
         {
             std::string name = fields[selRow].name;
-            if (!stypeIdx && stx::count(used, name)) 
+            if (!stypeIdx && stx::count(used, name))
             {
                 messageBox.title = "Remove variable";
                 messageBox.message = "Remove used variable '" + name + "' ?";
@@ -285,7 +285,7 @@ void ClassWizard::Draw()
                     }
                     });
             }
-            else 
+            else
             {
                 *modified = true;
                 codeGen->RemoveVar(name, stypeIdx ? stypes[stypeIdx] : "");

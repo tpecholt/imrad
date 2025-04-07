@@ -96,10 +96,10 @@ template <class T, bool E = std::is_enum_v<T>>
 struct direct_val;
 
 template <class T>
-struct direct_val<T, false> : property_base 
+struct direct_val<T, false> : property_base
 {
     direct_val(T v) : val(v) {}
-    
+
     operator T&() { return val; }
     operator const T&() const { return val; }
     /*bool operator== (const direct_val& dv) const {
@@ -177,7 +177,7 @@ struct direct_val<T, true> : property_base
     }
 
     operator T() const { return (T)val; }
-    
+
     direct_val& operator= (int v) {
         val = v;
         return *this;
@@ -203,11 +203,11 @@ struct direct_val<T, true> : property_base
                 s = str.substr(i, j - i);
             auto id = stx::find_if(ids, [&](const auto& id) { return id.first == s; });
             //assert(id != ids.end());
-            if (s == "0" || 
+            if (s == "0" ||
                 (!s.compare(0, 5, "ImGui") && !s.compare(s.size() - 5, 5, "_None")))
                 val;
             else if (id != ids.end())
-                val |= id->second; 
+                val |= id->second;
             else
                 ok = false;
             if (j == std::string::npos)
@@ -364,7 +364,7 @@ template <>
 struct direct_val<pzdimension2_t> : property_base
 {
     direct_val(ImVec2 dim = { -1, -1 }) : val(dim) {}
-    
+
     operator ImVec2&() { return val; }
     operator const ImVec2() const { return val; }
     float& operator[] (int i) { return val[i]; }
@@ -423,7 +423,7 @@ struct direct_val<std::string> : property_base
     operator const std::string&() const { return val; }
     //operator std::string_view() const { return val; }
     const std::string& value() const { return val; }
-    
+
     bool set_from_arg(std::string_view s) {
         val = cpp::parse_str_arg(s);
         return val != cpp::INVALID_TEXT;
@@ -454,7 +454,7 @@ struct direct_val<shortcut_t> : property_base
 {
     direct_val(const std::string& v) : sh(v) {}
     direct_val(const char* v) : sh(v) {}
-    
+
     int flags() const { return flags_; }
     void set_flags(int f) { flags_ = f; }
     //const std::string& value() const { return val; }
@@ -513,7 +513,7 @@ struct bindable : property_base
     }
     bool empty() const { return str.empty(); }
     bool has_value() const {
-        if (empty()) 
+        if (empty())
             return false;
         std::istringstream is(str);
         T val;
@@ -602,7 +602,7 @@ struct bindable<dimension_t> : property_base
 {
     bindable() {
     }
-    bindable(float val) 
+    bindable(float val)
     {
         std::ostringstream os;
         os << val;
@@ -614,8 +614,8 @@ struct bindable<dimension_t> : property_base
     bool operator!= (const bindable& b) const {
         return str != b.str || grow != b.grow;
     }
-    bool empty() const { 
-        return str.empty(); 
+    bool empty() const {
+        return str.empty();
     }
     bool zero() const {
         if (empty())
@@ -639,7 +639,7 @@ struct bindable<dimension_t> : property_base
         return is.eof() || is.tellg() == str.size();
     }
     float value() const {
-        if (!has_value()) 
+        if (!has_value())
             return {};
         std::istringstream is(str);
         float val{};
@@ -647,7 +647,7 @@ struct bindable<dimension_t> : property_base
         return val;
     }
     float eval_px(int axis, const UIContext& ctx) const;
-    
+
     bool set_from_arg(std::string_view s) {
         str = s;
         stretch(false);
@@ -713,9 +713,9 @@ struct bindable<dimension_t> : property_base
     }
     const char* c_str() const { return str.c_str(); }
     std::string* access() { return &str; }
-    
-    void stretch(bool s) { 
-        grow = s; 
+
+    void stretch(bool s) {
+        grow = s;
         std::ostringstream os;
         if (grow) {
             auto val = value();

@@ -93,7 +93,7 @@ GLFWcursor* curWait = nullptr;
 float pgHeight = 0, pgeHeight = 0;
 ImRad::IOUserData ioUserData;
 
-struct TB_Button 
+struct TB_Button
 {
     std::string label;
     std::string name;
@@ -190,7 +190,7 @@ void ReloadFile()
     tab.time[0] = time1;
     tab.time[1] = time2;
 
-    if (programState != Shutdown) 
+    if (programState != Shutdown)
     {
         std::string fn = u8string(u8path(tab.fname).filename());
         messageBox.title = "Reload";
@@ -252,12 +252,12 @@ void CopyFileReplace(const std::string& from, const std::string& to, std::vector
     std::ofstream fout(u8path(to));
     if (!fout)
         throw std::runtime_error("can't write to " + to);
-    
+
     std::string line;
-    while (std::getline(fin, line)) 
+    while (std::getline(fin, line))
     {
         size_t i = 0;
-        while (true) 
+        while (true)
         {
             i = line.find("${", i);
             if (i == std::string::npos)
@@ -301,7 +301,7 @@ void DoNewTemplate(int type, const std::string& name)
             if (name.find('.') == std::string::npos)
                 throw std::runtime_error("invalid package name");
             std::string lib = name.substr(name.rfind('.') + 1);
-            
+
             std::vector<std::pair<std::string, std::string>> repl{
                 { "JAVA_PACKAGE", name },
                 { "JNI_PACKAGE", jni },
@@ -376,7 +376,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         }
         return false;
     }
-    
+
     bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
         return st.first == file.styleName;
         });
@@ -417,11 +417,11 @@ void OpenFile()
     nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, nullptr);
     if (result != NFD_OKAY)
         return;
-    
+
     ctx.mode = UIContext::NormalSelection;
     ctx.selected.clear();
     auto it = stx::find_if(fileTabs, [&](const File& f) { return f.fname == outPath; });
-    if (it != fileTabs.end()) 
+    if (it != fileTabs.end())
     {
         ActivateTab(int(it - fileTabs.begin()));
         if (it->modified) {
@@ -560,7 +560,7 @@ bool SaveFileAs(int flags)
             //copy files first so CppGen can parse it and preserve user content as with Save
             fs::copy_file(oldName, newName, fs::copy_options::overwrite_existing);
             fs::copy_file(
-                oldName.replace_extension(".cpp"), 
+                oldName.replace_extension(".cpp"),
                 newName.replace_extension(".cpp"),
                 fs::copy_options::overwrite_existing);
         }
@@ -569,7 +569,7 @@ bool SaveFileAs(int flags)
             fs::remove(newName.replace_extension(".cpp"));
         }
     }
-    catch (std::exception& e) 
+    catch (std::exception& e)
     {
         DoCancelShutdown();
         messageBox.title = "error";
@@ -621,7 +621,7 @@ void ShowCode()
     ctx.ind = "";
     auto* root = fileTabs[activeTab].rootNode.get();
     root->Export(fout, ctx);
-    
+
     if (ctx.errors.size()) {
         fout << "\n// Export finished with errors:\n";
         for (const std::string& e : ctx.errors)
@@ -633,16 +633,16 @@ void ShowCode()
 
 void NewWidget(const std::string& name)
 {
-    if (name == "") 
+    if (name == "")
     {
         activeButton = "";
         ctx.selected.clear();
         ctx.mode = UIContext::NormalSelection;
     }
-    else if (name == "MenuBar") 
+    else if (name == "MenuBar")
     {
-        if (ctx.root->children.empty() || 
-            !dynamic_cast<MenuBar*>(ctx.root->children[0].get())) 
+        if (ctx.root->children.empty() ||
+            !dynamic_cast<MenuBar*>(ctx.root->children[0].get()))
         {
             dynamic_cast<TopWindow*>(ctx.root)->flags |= ImGuiWindowFlags_MenuBar;
             ctx.root->children.insert(ctx.root->children.begin(), std::make_unique<MenuBar>(ctx));
@@ -650,7 +650,7 @@ void NewWidget(const std::string& name)
         }
         ctx.mode = UIContext::NormalSelection;
     }
-    else if (name == "ContextMenu") 
+    else if (name == "ContextMenu")
     {
         activeButton = "";
         auto popup = std::make_unique<ContextMenu>(ctx);
@@ -668,7 +668,7 @@ void NewWidget(const std::string& name)
         ctx.mode = UIContext::NormalSelection;
         ctx.selected = { ctx.root->children[i]->children[0].get() };
     }
-    else 
+    else
     {
         activeButton = name;
         ctx.selected.clear();
@@ -677,7 +677,7 @@ void NewWidget(const std::string& name)
     }
 }
 
-void StyleColors() 
+void StyleColors()
 {
     ImGui::StyleColorsLight();
     ImGuiStyle& style = ImGui::GetStyle();
@@ -765,10 +765,10 @@ void StyleColors()
 
 void GetStyles()
 {
-    styleNames = { 
-        { "Classic", "" }, 
-        { "Light", "" }, 
-        { "Dark", "" } 
+    styleNames = {
+        { "Classic", "" },
+        { "Light", "" },
+        { "Dark", "" }
     };
     for (fs::directory_iterator it(u8path(rootPath + "/style/")); it != fs::directory_iterator(); ++it)
     {
@@ -778,7 +778,7 @@ void GetStyles()
     }
 }
 
-const std::array<ImU32, UIContext::Color::COUNT>& 
+const std::array<ImU32, UIContext::Color::COUNT>&
 GetCtxColors(const std::string& styleName)
 {
     static const std::array<ImU32, UIContext::Color::COUNT> classic{
@@ -818,11 +818,11 @@ void LoadStyle()
 {
     if (!reloadStyle)
         return;
-    
+
     reloadStyle = false;
     auto& io = ImGui::GetIO();
     std::string stylePath = rootPath + "/style/";
-    
+
     glfwSetCursor(window, curWait);
     io.Fonts->Clear();
 
@@ -841,7 +841,7 @@ void LoadStyle()
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.5f, &cfg);
     strcpy(cfg.Name, "imrad.H3");
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.1f, &cfg);
-    
+
     strcpy(cfg.Name, "imrad.pg");
     ctx.pgFont = io.Fonts->AddFontFromFileTTF((stylePath + pgFontName).c_str(), pgFontSize, &cfg);
     strcpy(cfg.Name, "imrad.pgb");
@@ -856,7 +856,7 @@ void LoadStyle()
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
     ctx.style = ImGuiStyle();
-    
+
     if (activeTab >= 0)
     {
         std::string styleName = fileTabs[activeTab].styleName;
@@ -892,7 +892,7 @@ void LoadStyle()
             try {
                 auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
                 ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
-            
+
                 ctx.defaultStyleFont = fontMap[""];
                 for (const auto& f : fontMap) {
                     ctx.fontNames.push_back(f.first);
@@ -931,19 +931,19 @@ void LoadStyle()
 void DoCloneStyle(const std::string& name)
 {
     auto FormatClr = [](ImU32 c) {
-        std::ostringstream os; 
-        os << (c & 0xff) << " " << 
-            ((c >> 8) & 0xff) << " " << 
+        std::ostringstream os;
+        os << (c & 0xff) << " " <<
+            ((c >> 8) & 0xff) << " " <<
             ((c >> 16) & 0xff) << " " <<
-            ((c >> 24) & 0xff); 
+            ((c >> 24) & 0xff);
         return os.str();
     };
 
     std::string from = fileTabs[activeTab].styleName;
     std::string path = rootPath + "/style/" + name + ".ini";
-    try 
+    try
     {
-        if (from == "Classic" || from == "Dark" || from == "Light") 
+        if (from == "Classic" || from == "Dark" || from == "Light")
         {
             ImGuiStyle style;
             if (from == "Dark")
@@ -966,7 +966,7 @@ void DoCloneStyle(const std::string& name)
 #undef SET_CLR
             ImRad::SaveStyle(path, &style, extra);
         }
-        else 
+        else
         {
             fs::copy_file(u8path(rootPath + "/style/" + from + ".ini"), u8path(path), fs::copy_options::overwrite_existing);
         }
@@ -980,7 +980,7 @@ void DoCloneStyle(const std::string& name)
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
     }
-    catch (std::exception& e) 
+    catch (std::exception& e)
     {
         messageBox.title = "error";
         messageBox.message = e.what();
@@ -1043,7 +1043,7 @@ void DockspaceUI()
         ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 230.f / (viewport->Size.y - TB_SIZE), &dock_id_right1, &dock_id_right2);
         float vh = viewport->Size.y - TB_SIZE;
         ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, TAB_SIZE / vh, nullptr, &dockspace_id);
-        
+
         ImGui::DockBuilderDockWindow("FileTabs", dock_id_top);
         ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
         ImGui::DockBuilderDockWindow("Explorer", dock_id_left);
@@ -1064,7 +1064,7 @@ void DockspaceUI()
             { "Open File", "Ctrl+O" }
         };
         float lh = 2 * ImGui::GetTextLineHeight();
-        for (size_t i = 0; i < std::size(help); ++i) 
+        for (size_t i = 0; i < std::size(help); ++i)
         {
             ImVec2 size = ImGui::CalcTextSize((help[i].first + help[i].second).c_str());
             ImGui::SetCursorScreenPos({
@@ -1104,9 +1104,9 @@ void DockspaceUI()
     else
     {
         float sp = ImGui::GetStyle().ItemSpacing.x;
-        ImGui::SetCursorScreenPos({ 
-            ctx.designAreaMin.x + sp, 
-            ctx.designAreaMax.y - ImGui::GetTextLineHeight() - sp 
+        ImGui::SetCursorScreenPos({
+            ctx.designAreaMin.x + sp,
+            ctx.designAreaMax.y - ImGui::GetTextLineHeight() - sp
             });
         ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         clr.w = 0.5f;
@@ -1163,7 +1163,7 @@ void ToolbarUI()
             NewFile(TopWindow::ModalPopup);
         if (ImGui::MenuItem(ICON_FA_MOBILE_SCREEN "  Activity", "\tAndroid"))
             NewFile(TopWindow::Activity);
-        
+
         ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_FILE_PEN "  main.cpp", "\tGLFW"))
             NewTemplate(0);
@@ -1180,9 +1180,9 @@ void ToolbarUI()
         OpenFile();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Open File (Ctrl+O)");
-    
+
     ImGui::BeginDisabled(activeTab < 0);
-    
+
     ImGui::SameLine();
     float cx = ImGui::GetCursorPosX();
     //ImGui::BeginDisabled(activeTab >= 0 && !fileTabs[activeTab].modified);
@@ -1192,12 +1192,12 @@ void ToolbarUI()
     //ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Save File (Ctrl+S)");
-    
+
     ImGui::SameLine(0, 0);
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
     ImGui::SameLine(0, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 2, ImGui::GetStyle().FramePadding.y });
-    if (ImGui::Button(ICON_FA_CARET_DOWN)) 
+    if (ImGui::Button(ICON_FA_CARET_DOWN))
         ImGui::OpenPopup("SaveMenu");
     ImGui::PopStyleVar();
     ImGui::SetNextWindowPos({ cx, ImGui::GetCursorPosY() });
@@ -1261,7 +1261,7 @@ void ToolbarUI()
     }
     ImGui::SameLine();
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-    
+
     ImGui::SameLine();
     ImGui::BeginDisabled(activeTab < 0);
     if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
@@ -1270,7 +1270,7 @@ void ToolbarUI()
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Preview Code (Ctrl+P)");
     ImGui::EndDisabled();
-    
+
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CUBES))
     {
@@ -1281,7 +1281,7 @@ void ToolbarUI()
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Class Wizard");
-    
+
     ImGui::SameLine();
     bool showHelper = activeTab >= 0 &&
         ctx.selected.size() >= 1 &&
@@ -1301,7 +1301,7 @@ void ToolbarUI()
     ImGui::SameLine();
 
     ImGui::EndDisabled();
-    
+
     ImGui::SameLine();
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
@@ -1309,7 +1309,7 @@ void ToolbarUI()
     if (ImGui::Button(ICON_FA_GEAR))
     {
         std::vector<std::string> fontNames;
-        for (const auto& entry : fs::directory_iterator(u8path(rootPath + "/style/"))) 
+        for (const auto& entry : fs::directory_iterator(u8path(rootPath + "/style/")))
         {
             if (entry.is_regular_file() && entry.path().extension() == ".ttf")
                 fontNames.push_back(u8string(entry.path().stem()));
@@ -1327,7 +1327,7 @@ void ToolbarUI()
             pgFontName = settingsDlg.pgFontName + ".ttf";
             pgbFontName = settingsDlg.pgbFontName + ".ttf";
             pgFontSize = std::stof(settingsDlg.pgFontSize);
-            
+
             ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
             reloadStyle = true;
         });
@@ -1405,12 +1405,12 @@ void TabsUI()
             if (tab.modified)
                 fname += " *";
             bool notClosed = true;
-            
+
             if (ImGui::BeginTabItem(fname.c_str(), &notClosed, i == activeTab ? ImGuiTabItemFlags_SetSelected : 0))
                 ImGui::EndTabItem();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && tab.fname != "")
                 ImGui::SetTooltip("%s", tab.fname.c_str());
-            
+
             std::string popupId = "TabPopup" + std::to_string(i);
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
             if (ImGui::BeginPopup(popupId.c_str()))
@@ -1469,7 +1469,7 @@ void HierarchyUI()
     //ImGui::PushFont(ctx.defaultFont); icons are FA
     ImGui::PushStyleVarX(ImGuiStyleVar_WindowPadding, 0);
     ImGui::Begin("Hierarchy");
-    if (activeTab >= 0 && fileTabs[activeTab].rootNode) 
+    if (activeTab >= 0 && fileTabs[activeTab].rootNode)
         fileTabs[activeTab].rootNode->TreeUI(ctx);
     ImGui::End();
     ImGui::PopStyleVar();
@@ -1523,7 +1523,7 @@ bool BeginPropGroup(const std::string& cat, bool& open)
         ImGui::Unindent();
     ImGui::SetNextItemAllowOverlap();
     //see https://github.com/ocornut/imgui/issues/8551
-    ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true); 
+    ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
     if (!forceSameRow)
         open = ImGui::TreeNodeEx(str.c_str(), flags);
     else {
@@ -1720,7 +1720,7 @@ void PropertyRowsUI(bool pr)
         ImGui::PopFont();
         ImGui::PopStyleVar();
         ImGui::EndTable();
-        
+
         if (pr)
             pgHeight = ImGui::GetItemRectSize().y;
         else
@@ -1756,7 +1756,7 @@ void PropertyUI()
     clr.w *= 0.5f;
     ImGui::PushStyleColor(ImGuiCol_Button, clr);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
-    
+
     ImGui::Begin("Events");
     if (!ctx.selected.empty())
     {
@@ -1770,7 +1770,7 @@ void PropertyUI()
         PropertyRowsUI(1);
     }
     ImGui::End();
-    
+
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
 }
@@ -1794,7 +1794,7 @@ void PopupUI()
     aboutDlg.Draw();
 
     bindingDlg.Draw();
-    
+
     horizLayout.Draw();
 
     inputName.Draw();
@@ -1806,20 +1806,20 @@ void Draw()
         return;
     if (reloadStyle) //eliminates flicker
         return;
-    
+
     auto& tab = fileTabs[activeTab];
     auto tmpStyle = ImGui::GetStyle();
     ImGui::GetStyle() = ctx.style;
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
     ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
     ImGui::PushFont(ctx.defaultStyleFont);
-    
+
     ctx.appStyle = &tmpStyle;
     ctx.workingDir = u8string(u8path(tab.fname).parent_path());
     ctx.unit = tab.unit;
     ctx.modified = &tab.modified;
     tab.rootNode->Draw(ctx);
-    
+
     if (ctx.isAutoSize && ctx.layoutHash != ctx.prevLayoutHash)
     {
         ctx.root->ResetLayout();
@@ -1868,7 +1868,7 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
 }
 
 //discarding result will delete widgets permanently
-std::vector<std::unique_ptr<Widget>> 
+std::vector<std::unique_ptr<Widget>>
 RemoveSelected()
 {
     auto& tab = fileTabs[activeTab];
@@ -1958,8 +1958,8 @@ void Work()
         {
             ctx.mode = UIContext::SnapInsert;
         }
-        else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && 
-            ctx.snapParent) 
+        else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+            ctx.snapParent)
         {
             assert(activeButton != "");
             newNode->hasPos = true;
@@ -1989,20 +1989,20 @@ void Work()
             activeButton = "";
         }
         else if (ctx.mode == UIContext::SnapInsert && //todo: SnapMove
-            ImGui::GetIO().KeyCtrl && activeButton != "" && 
+            ImGui::GetIO().KeyCtrl && activeButton != "" &&
             (newNode->Behavior() & UINode::SnapSides))
         {
             ctx.mode = UIContext::PickPoint;
         }
         else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))  //MouseReleased to avoid confusing RectSelection
         {
-            if (!ctx.snapParent && ctx.mode == UIContext::SnapMove) 
+            if (!ctx.snapParent && ctx.mode == UIContext::SnapMove)
             {
                 ctx.mode = UIContext::NormalSelection;
                 ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
                 return;
             }
-            else if (!ctx.snapParent) 
+            else if (!ctx.snapParent)
             {
                 return;
             }
@@ -2010,7 +2010,7 @@ void Work()
             int n;
             std::unique_ptr<Widget>* newNodes;
             std::vector<std::unique_ptr<Widget>> tmpMoved;
-            if (ctx.mode == UIContext::SnapMove) 
+            if (ctx.mode == UIContext::SnapMove)
             {
                 assert(ctx.selected.size() == 1);
                 auto pinfo = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
@@ -2029,12 +2029,12 @@ void Work()
                 n = (int)tmpMoved.size();
                 newNodes = tmpMoved.data();
             }
-            else if (activeButton != "") 
+            else if (activeButton != "")
             {
                 n = 1;
                 newNodes = &newNode;
             }
-            else 
+            else
             {
                 n = (int)clipboard.size();
                 newNodes = clipboard.data();
@@ -2066,7 +2066,7 @@ void Work()
                     newNodes[0]->nextColumn = next->nextColumn;
                     newNodes[0]->spacing = next->spacing;
                     newNodes[0]->indent = next->indent;
-                    next->nextColumn = 0; 
+                    next->nextColumn = 0;
                     next->spacing = 1;
                     next->indent = 0;
                 }
@@ -2100,7 +2100,7 @@ void Work()
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
         }
     }
-    else 
+    else
     {
         if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
             ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
@@ -2215,7 +2215,7 @@ void Work()
                 (ctx.selected[0]->Behavior() & UINode::SnapSides))
             {
                 auto pos = ctx.root->FindChild(ctx.selected[0]);
-                if (!pos) 
+                if (!pos)
                     return;
                 UINode* parent = pos->first;
                 auto* child = parent->children[pos->second].get();
@@ -2347,8 +2347,8 @@ void AddINIHandler()
                     pgFontSize = (float)std::atof(line + 11);
             }
         };
-    ini_handler.ApplyAllFn = nullptr; 
-    ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) 
+    ini_handler.ApplyAllFn = nullptr;
+    ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf)
         {
             buf->append("[ImRAD][Recent]\n");
             int active = activeTab;
@@ -2411,12 +2411,12 @@ int WINAPI wWinMain(
     HINSTANCE   hPrevInstance,
     PWSTR       lpCmdLine,
     int         nCmdShow
-) 
+)
 {
 #else
-int main(int argc, const char* argv[]) 
+int main(int argc, const char* argv[])
 {
-#endif    
+#endif
     rootPath = GetRootPath();
 
     // Setup window
@@ -2475,19 +2475,19 @@ int main(int argc, const char* argv[])
     g.ConfigNavWindowingKeyNext = g.ConfigNavWindowingKeyPrev = ImGuiKey_None; //disable imgui ctrl+tab menu
     ImGui::GetIO().IniFilename = INI_FILE_NAME;
     AddINIHandler();
-    ImGuiIO& io = ImGui::GetIO(); 
+    ImGuiIO& io = ImGui::GetIO();
     io.UserData = &ioUserData;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    
+
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     ctx.dashTexId = ImRad::LoadTextureFromFile(
         (rootPath + "/style/dash.png").c_str(), GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT).id;
-    
+
     GetStyles();
     programState = (ProgramState)-1;
     bool lastVisible = true;
@@ -2501,7 +2501,7 @@ int main(int argc, const char* argv[])
         {
             programState = Run;
         }
-        else if (programState == Shutdown) 
+        else if (programState == Shutdown)
         {
             if (fileTabs.empty()) //Work() will close the tabs
                 break;
@@ -2513,7 +2513,7 @@ int main(int argc, const char* argv[])
                 glfwSetWindowShouldClose(window, false);
             }
             else
-            {    
+            {
                 programState = Shutdown;
                 ctx.mode = UIContext::NormalSelection;
                 //save state before files close
@@ -2551,7 +2551,7 @@ int main(int argc, const char* argv[])
         PopupUI();
         Work();
         Draw(); //last
-        
+
         //ImGui::ShowDemoWindow();
 
         // Rendering
