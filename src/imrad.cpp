@@ -1609,9 +1609,18 @@ void PropertyRowsUI(bool pr)
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
         ImGui::PushItemFlag(ImGuiItemFlags_NoNav, false); //Pop+Push doesn't work here
 
+        //find parent for widget::PropertyUI
+        if (ctx.selected.size() && ctx.root) {
+            ctx.parents.clear();
+            auto pinfo = ctx.root->FindChild(ctx.selected[0]);
+            if (pinfo) {
+                ctx.parents = { pinfo->first, ctx.selected[0] };
+            }
+        }
         //determine common properties for a selection set
+        //todo: remember to clear out differing values
+        //todo: combine enabled state
         std::vector<std::string_view> pnames;
-        std::vector<std::string> pvals;
         for (auto* node : ctx.selected)
         {
             std::vector<std::string_view> pn;
@@ -1619,7 +1628,9 @@ void PropertyRowsUI(bool pr)
             for (auto& p : props) {
                 if (ctx.selected.size() == 1 ||
                     (p.name.size() > 3 && p.name.compare(p.name.size() - 3, 3, "##1")))
+                {
                     pn.push_back(p.name);
+                }
             }
             stx::sort(pn);
             if (node == ctx.selected[0])

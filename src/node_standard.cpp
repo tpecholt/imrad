@@ -548,7 +548,7 @@ int GetTotalIndex(UINode* parent, UINode* child, int idx)
 void UINode::PushError(UIContext& ctx, const std::string& err)
 {
     std::string name = GetTypeName();
-    if (this != ctx.parents[0]) {
+    if (this != ctx.root) {
         int idx = GetTotalIndex(ctx.parents[0], this, 1);
         name += " #" + std::to_string(idx);
     }

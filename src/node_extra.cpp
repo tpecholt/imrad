@@ -2,7 +2,7 @@
 #include "binding_input.h"
 #include "ui_combo_dlg.h"
 
-const float DEFAULT_SPLIT_RATIO = 0.3f;
+const float DOCKSPACE_SPLIT_RATIO = 0.3f;
 
 DockSpace::DockSpace(UIContext& ctx)
 {
@@ -85,7 +85,7 @@ void DockSpace::DoDrawTools(UIContext& ctx)
         if (ImGui::Button(DIRNAME[dir])) {
             auto node = std::make_unique<DockNode>(ctx);
             node->splitDir = ImGuiDir(dir);
-            node->splitRatio = DEFAULT_SPLIT_RATIO;
+            node->splitRatio = DOCKSPACE_SPLIT_RATIO;
             //ctx.selected = { node.get() };
             children.push_back(std::move(node));
         }
@@ -255,7 +255,7 @@ ImGuiID DockNode::SplitNode(ImGuiID parentId, UIContext& ctx)
 {
     float ratio = splitRatio.eval(ctx);
     if (!ratio)
-        ratio = DEFAULT_SPLIT_RATIO;
+        ratio = DOCKSPACE_SPLIT_RATIO;
     ImGui::DockBuilderSplitNode(parentId, splitDir, ratio, &nodeId, &parentId);
     ImGui::DockBuilderGetNode(nodeId)->LocalFlags = flags | ImGuiDockNodeFlags_NoWindowMenuButton;
 
@@ -361,46 +361,65 @@ ImDrawList* DockNode::DoDraw(UIContext& ctx)
 
 void DockNode::DoDrawTools(UIContext& ctx)
 {
-    if (ctx.parents.empty())
+    if (ctx.parents.size() < 2)
         return;
 
     assert(ctx.parents.back() == this);
     auto* parent = ctx.parents[ctx.parents.size() - 2];
-    DockNode* pnode = dynamic_cast<DockNode*>(parent);
 
     ImGui::SetNextWindowPos(cached_pos, 0, { 0, 1.f });
     ImGui::Begin("extra", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
 
-    ImGui::BeginDisabled(children.size());
-    if (ImGui::Button("Split 2x"))
+    bool splitSibling = children.size();
+    ImGuiDir oppositeDir = splitDir == ImGuiDir_Left || splitDir == ImGuiDir_Right ?
+        ImGuiDir_Up : ImGuiDir_Left;
+    if (ImGui::Button(splitSibling ? "Split Same" : "Split 2x"))
     {
-        if (!pnode) //parent is DockSpace => split in 2
+        if (!splitSibling) //split in 2
         {
-            ImGuiDir newSplitDir = splitDir == ImGuiDir_Left || splitDir == ImGuiDir_Right ?
-                ImGuiDir_Up : ImGuiDir_Left;
             auto chnode = std::make_unique<DockNode>(ctx);
-            chnode->splitDir = newSplitDir;
-            chnode->splitRatio = DEFAULT_SPLIT_RATIO;
+            chnode->splitDir = oppositeDir;
+            chnode->splitRatio = 0.5f;
             ctx.selected = { chnode.get() };
             children.push_back(std::move(chnode));
 
             chnode = std::make_unique<DockNode>(ctx);
-            chnode->splitDir = newSplitDir;
+            chnode->splitDir = oppositeDir;
             chnode->splitRatio = 0;
             children.push_back(std::move(chnode));
         }
-        else //parent is DockNode => insert 1 sibling
+        else //insert 1 sibling
         {
+            DockNode* last = children.size() ? dynamic_cast<DockNode*>(children.back().get()) : nullptr;
             auto chnode = std::make_unique<DockNode>(ctx);
-            chnode->splitDir = splitDir;
-            chnode->splitRatio = DEFAULT_SPLIT_RATIO;
-            size_t i = stx::find_if(pnode->children, [this](const auto& node) {
-                return node.get() == this;
-                }) - pnode->children.begin();
-            pnode->children.insert(pnode->children.begin() + i + 1, std::move(chnode));
+            chnode->splitDir = last ? last->splitDir : oppositeDir;
+            chnode->splitRatio = DOCKSPACE_SPLIT_RATIO;
+            children.push_back(std::move(chnode));
         }
     }
 
+    size_t i = stx::find_if(parent->children, [this](const auto& node) {
+        return node.get() == this;
+        }) - parent->children.begin();
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!parent || !i);
+    if (ImGui::Button("Node Up"))
+    {
+        auto self = std::move(parent->children[i]);
+        parent->children.erase(parent->children.begin() + i);
+        parent->children.insert(parent->children.begin() + i - 1, std::move(self));
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!parent || i + 1 == parent->children.size());
+    if (ImGui::Button("Node Down"))
+    {
+        auto self = std::move(parent->children[i]);
+        parent->children.erase(parent->children.begin() + i);
+        parent->children.insert(parent->children.begin() + i + 1, std::move(self));
+    }
     ImGui::EndDisabled();
 
     ImGui::End();
@@ -511,13 +530,18 @@ DockNode::Properties()
         { "behavior.flags##docknode", &flags },
         { "behavior.splitDir##docknode", &splitDir },
         { "behavior.splitRatio##docknode", &splitRatio },
-        { "behavior.labels##docknode", &labels, true },
+        { "behavior.labels##1", &labels, true },
         });
     return props;
 }
 
 bool DockNode::PropertyUI(int i, UIContext& ctx)
 {
+    DockNode* parentNode = nullptr;
+    if (ctx.parents.size()) {
+        assert(ctx.parents.back() == this);
+        parentNode = dynamic_cast<DockNode*>(ctx.parents[ctx.parents.size() - 2]);
+    }
     bool changed = false;
     int fl;
     switch (i)
@@ -526,13 +550,16 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 1:
+        ImGui::BeginDisabled(parentNode && parentNode->children.back().get() == this);
         ImGui::Text("splitDir");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectValEnum(&splitDir, InputDirectVal_Modified, ctx);
+        ImGui::EndDisabled();
         break;
    case 2:
-        ImGui::Text("splitRatio");
+       ImGui::BeginDisabled(parentNode && parentNode->children.back().get() == this);
+       ImGui::Text("splitRatio");
         ImGui::TableNextColumn();
         ImGui::BeginDisabled(splitDir == ImGuiDir_None);
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -541,15 +568,20 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("splitRatio", &splitRatio, ctx);
         ImGui::EndDisabled();
+        ImGui::EndDisabled();
         break;
    case 3:
    {
        ImGui::BeginDisabled(children.size());
        ImGui::Text("labels");
        ImGui::TableNextColumn();
-       ImGui::PushFont(labels.empty() ? ctx.pgFont : ctx.pgbFont);
+       ImGui::PushFont(ImRad::IsItemDisabled() && !labels.empty() ? ctx.pgbFont : ctx.pgFont);
        size_t n = labels.empty() ? 0 : stx::count(*labels.access(), '\n') + 1;
-       std::string label = "[" + std::to_string(n) + "]";
+       std::string label;
+       if (!labels.empty())
+           label = "[" + std::to_string(n) + "]";
+       else if (!ImRad::IsItemDisabled())
+           label = "...";
        if (ImRad::Selectable(label.c_str(), false, 0, { -ImGui::GetFrameHeight(), 0 }))
        {
            changed = true;
