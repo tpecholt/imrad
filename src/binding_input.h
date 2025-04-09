@@ -90,7 +90,7 @@ enum
 template <class T>
 bool InputDirectVal(direct_val<T, false>* val, int fl, UIContext& ctx)
 {
-    ImGui::PushFont((fl & InputDirectVal_Modified) && !ImRad::IsItemDisabled() ?
+    ImGui::PushFont(!ImRad::IsItemDisabled() && (fl & InputDirectVal_Modified) ?
         ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = false;
@@ -112,7 +112,8 @@ bool InputDirectVal(direct_val<T, false>* val, int fl, UIContext& ctx)
 
 inline bool InputDirectVal(direct_val<dimension_t>* val, int flags, UIContext& ctx)
 {
-    ImGui::PushFont((flags & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() && (flags & InputDirectVal_Modified) ?
+        ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = ImGui::InputFloat(id.c_str(), val->access(), 0, 0, "%.0f");
     ImGui::PopFont();
@@ -141,7 +142,8 @@ inline bool InputDirectVal(direct_val<pzdimension2_t>* val, UIContext& ctx)
 {
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
-    ImGui::PushFont(val->has_value() ? ctx.pgbFont : ctx.pgFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() && val->has_value() ?
+        ctx.pgbFont : ctx.pgFont);
     ImGui::PushMultiItemsWidths(2, ImGui::CalcItemWidth());
     for (int i = 0; i < 2; ++i)
     {
@@ -194,7 +196,7 @@ inline bool InputDirectVal(direct_val<std::string>* val, int fl, UIContext& ctx)
 {
     ImGui::PushFont(
         !IsAscii(*val->access()) ? ctx.defaultStyleFont :
-        (fl & InputDirectVal_Modified) ? ctx.pgbFont :
+        !ImRad::IsItemDisabled() && (fl & InputDirectVal_Modified) ? ctx.pgbFont :
         ctx.pgFont
     );
     std::string id = "##" + std::to_string((uint64_t)val);
@@ -209,7 +211,7 @@ inline bool InputDirectVal(direct_val<shortcut_t>* val, int flags, UIContext& ct
         ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - ImGui::GetFrameHeight());
 
     std::string id = "##" + std::to_string((uint64_t)val);
-    ImGui::PushFont(ctx.pgbFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() ? ctx.pgbFont : ctx.pgFont);
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter);
     ImGui::PopFont();
 
@@ -258,7 +260,7 @@ inline bool InputDirectVal(direct_val<shortcut_t>* val, int flags, UIContext& ct
 inline bool InputDirectValContextMenu(direct_val<std::string>* val, UIContext& ctx)
 {
     bool changed = false;
-    ImGui::PushFont(ctx.pgbFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() ? ctx.pgbFont : ctx.pgFont);
     std::string id = "##" + std::to_string((uint64_t)val);
     if (ImGui::BeginCombo(id.c_str(), val->c_str(),
         IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
@@ -299,7 +301,8 @@ inline bool InputDirectValEnum(direct_val<T, true>* val, int fl, UIContext& ctx)
         else
             pre = 0;
     }
-    ImGui::PushFont((fl & InputDirectVal_Modified) ? ctx.pgbFont : ctx.pgFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() && (fl & InputDirectVal_Modified) ?
+        ctx.pgbFont : ctx.pgFont);
     if (ImGui::BeginCombo(id.c_str(), val->get_id().c_str() + pre,
         IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
     {
@@ -390,7 +393,8 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
         if (tip == "")
             tip = "None";
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(*val != defVal ? ctx.pgbFont : ctx.pgFont);
+        ImGui::PushFont(!ImRad::IsItemDisabled() && *val != defVal ?
+            ctx.pgbFont : ctx.pgFont);
         //float w = ImGui::GetContentRegionAvail().x;
         ImGui::Text("...");
         ImGui::PopFont();
@@ -432,7 +436,8 @@ inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
 
     if (!(flags & InputBindable_ShowVariables))
     {
-        ImGui::PushFont((flags & InputBindable_Modified) ? ctx.pgbFont : ctx.pgFont);
+        ImGui::PushFont(!ImRad::IsItemDisabled() && (flags & InputBindable_Modified) ?
+            ctx.pgbFont : ctx.pgFont);
         changed = ImGui::InputText(id.c_str(), val->access());
         ImGui::PopFont();
 
@@ -448,7 +453,8 @@ inline bool InputBindable(bindable<bool>* val, int flags, UIContext& ctx)
     }
     else
     {
-        ImGui::PushFont((flags & InputBindable_Modified) ? ctx.pgbFont : ctx.pgFont);
+        ImGui::PushFont(!ImRad::IsItemDisabled() && (flags & InputBindable_Modified) ?
+            ctx.pgbFont : ctx.pgFont);
         if (ImGui::BeginCombo(id.c_str(), val->c_str(),
                 IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
         {
@@ -522,7 +528,8 @@ inline bool InputBindable(bindable<font_name_t>* val, UIContext& ctx)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(
             val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text));
-        ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
+        ImGui::PushFont(!ImRad::IsItemDisabled() && !val->empty() ?
+            ctx.pgbFont : ctx.pgFont);
         ImGui::TextUnformatted(fn.c_str());
         ImGui::PopFont();
         ImGui::PopStyleColor();
@@ -564,7 +571,8 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
         val->c_str();
     clrName += id;
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(val->empty() ? ImGuiCol_TextDisabled : ImGuiCol_Text));
-    ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() && !val->empty() ?
+        ctx.pgbFont : ctx.pgFont);
     if (ImGui::Selectable(clrName.c_str(), false, 0, sz))
     {
         lastColor = val->c_str();
@@ -747,8 +755,10 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
 
 inline bool InputBindable(bindable<std::string>* val, UIContext& ctx)
 {
-    ImGui::PushFont((ImRad::IsItemDisabled() || !IsAscii(*val->access())) ?
-        ctx.defaultStyleFont : ctx.pgbFont
+    ImGui::PushFont(
+        !IsAscii(*val->access()) ? ctx.defaultStyleFont :
+        !ImRad::IsItemDisabled() ? ctx.pgbFont :
+        ctx.pgFont
     );
     std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter);
@@ -768,7 +778,8 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
         label = val->used_variables()[0];
     label += id;
 
-    ImGui::PushFont(val->empty() ? ctx.pgFont : ctx.pgbFont);
+    ImGui::PushFont(!ImRad::IsItemDisabled() && !val->empty() ?
+        ctx.pgbFont : ctx.pgFont);
     /*float w = ImGui::CalcItemWidth();
     ImGui::SetNextItemWidth(w - ImGui::GetFrameHeight());
 
@@ -854,7 +865,8 @@ inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
     int fl = ImGuiInputTextFlags_CallbackCharFilter;
     if (val->has_value())
         fl |= ImGuiInputTextFlags_AutoSelectAll;
-    std::string tmp = *val->access();
+    bool changed = ImGui::InputText(id.c_str(), val->access(), fl, DefaultCharFilter);
+    /*std::string tmp = *val->access();
     bool active = ImGui::GetFocusID() == ImGui::GetID(id.c_str()) ||
         ImGui::GetActiveID() == ImGui::GetID(id.c_str());
     if (!active)
@@ -865,7 +877,7 @@ inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
             val->set_from_arg(tmp);
         else
             *val->access() = tmp;
-    }
+    }*/
     ImGui::PopFont();
 
     //disallow empty state
@@ -915,7 +927,8 @@ inline bool InputBindable(bindable<T>* val, int flags, UIContext& ctx)
     int fl = ImGuiInputTextFlags_CallbackCharFilter;
     if (val->has_value())
         fl |= ImGuiInputTextFlags_AutoSelectAll;
-    ImGui::PushFont((flags & InputBindable_Modified) ? ctx.pgbFont : ctx.pgFont);
+    ImGui::PushFont((!ImRad::IsItemDisabled() && flags & InputBindable_Modified) ?
+        ctx.pgbFont : ctx.pgFont);
     bool changed = ImGui::InputText(id.c_str(), val->access(), fl, DefaultCharFilter);
     ImGui::PopFont();
 
