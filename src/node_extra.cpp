@@ -392,7 +392,7 @@ void DockNode::DoDrawTools(UIContext& ctx)
         {
             DockNode* last = children.size() ? dynamic_cast<DockNode*>(children.back().get()) : nullptr;
             auto chnode = std::make_unique<DockNode>(ctx);
-            chnode->splitDir = last ? last->splitDir : oppositeDir;
+            chnode->splitDir = last ? (ImGuiDir)last->splitDir : oppositeDir;
             chnode->splitRatio = DOCKSPACE_SPLIT_RATIO;
             children.push_back(std::move(chnode));
         }
