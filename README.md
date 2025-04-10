@@ -92,7 +92,7 @@ ImRAD runs on Windows, Linux and MacOS.
 
   * some features such as MainWindow or Image widget require GLFW dependency. Compile your code with `IMRAD_WITH_GLFW` to activate it
   * currently Image widget requires stb library as well. Compile your code with `IMRAD_WITH_STB` or supply your own `LoadTextureFromFile()`
-  * optional support for the popular `fmt` library can be activated by defining `IMRAD_WITH_FMT`. This will allow you to use formating flags throughout all string properties  
+  * in generated code `ImRad::Format` delegates to `std::format` by default but when requested popular `fmt` library can be used instead by defining `IMRAD_WITH_FMT`. If neither is available simple formatting routine which skips formatting flags will be used.  
 
 * ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
 
@@ -137,11 +137,13 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 
 # How to use generated code
 
-Add all generated code into your project. Generated code #includes `imrad.h` so you need to set an include directory and point it to the include folder in the ImRAD installation folder. Based on your setup set project-wide preprocessor defines `IMRAD_WITH_GLFW`/`IMRAD_WITH_STB`/`IMRAD_WITH_FMT`.
+Add all generated code into your project. Generated code #includes `imrad.h` so you need to set an include directory and point it to the include folder in the ImRAD installation folder. 
 
-Either let ImRad to generate it or write your own ImGui initialization code in main.cpp. Call `Draw()` methods of all generated UI classes from your UI loop.
+Based on your setup set project-wide preprocessor defines `IMRAD_WITH_GLFW`/`IMRAD_WITH_STB`/`STBI_WINDOWS_UTF8`. On MSVC you need to define `/Zc:__cplusplus` as well otherwise C++ version detection in imrad.h won't work.
 
-Add dependency to ImGui and GLFW (whether you build it as separate libraries or directly add to your project is up to you). Stb and fmt dependencies are optional.
+Add your `main.cpp` which you can also auto-generate from ImRad. Call `Draw()` methods of all generated UI classes from your UI loop.
+
+Finally add ImGui and GLFW dependencies (whether you build it as separate libraries or directly add to your project is up to you). Stb and fmt dependencies are optional.
 
 # Tutorials
 
