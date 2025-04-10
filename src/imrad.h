@@ -14,6 +14,8 @@
 
 #ifdef IMRAD_WITH_FMT
 #include <fmt/format.h>
+#elif __cplusplus >= 202002L && __has_include(<format>)
+#include <format>
 #endif
 
 #ifdef IMRAD_WITH_GLFW
@@ -740,17 +742,14 @@ inline void RenderFilledWindowCorners(ImDrawFlags fl)
     ImGui::PopClipRect();
 }
 
-inline std::string Format(std::string_view fmt)
+inline std::string FormatFallback(std::string_view fmt)
 {
     return std::string(fmt);
 }
 
 template <class A1, class... A>
-std::string Format(std::string_view fmt, A1&& arg, A&&... args)
+std::string FormatFallback(std::string_view fmt, A1&& arg, A&&... args)
 {
-#ifdef IMRAD_WITH_FMT
-    return fmt::format(fmt, std::forward<A1>(arg), std::forward<A>(args)...);
-#else
     //todo
     std::string s;
     for (size_t i = 0; i < fmt.size(); ++i)
@@ -775,15 +774,39 @@ std::string Format(std::string_view fmt, A1&& arg, A&&... args)
                     s += arg;
                 else
                     s += std::to_string(arg);
-                return s + Format(fmt.substr(j + 1), args...);
+                return s + FormatFallback(fmt.substr(j + 1), args...);
             }
         }
         else
             s += fmt[i];
     }
     return s;
-#endif
 }
+
+#ifdef IMRAD_WITH_FMT
+template <class... A>
+std::string Format(std::string_view fmt, A&&... args)
+{
+    return fmt::format(fmt, std::forward<A>(args)...);
+}
+
+#elif __cplusplus >= 202002L && __has_include(<format>)
+
+//only support format_string version for compile time checks
+template <class... A>
+std::string Format(std::format_string<A...> fmt, A&&... args)
+{
+    return std::format(fmt, std::forward<A>(args)...);
+}
+
+#else
+
+template <class... A>
+std::string Format(std::string_view fmt, A&&... args)
+{
+    return FormatFallback(fmt, std::forward<A>(args)...);
+}
+#endif
 
 #if (defined (IMRAD_WITH_GLFW) || defined(ANDROID)) && defined(IMRAD_WITH_STB)
 // Simple helper function to load an image into a OpenGL texture with common settings
