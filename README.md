@@ -17,7 +17,7 @@ ImRAD runs on Windows, Linux and MacOS.
 
 <hr>
 
-![screen1](https://github.com/user-attachments/assets/ae8b5e8c-6c84-4172-869d-2e51e7e86912)
+![screen1](https://github.com/user-attachments/assets/952b400d-ba55-4015-8e47-aa7438af8956)
 
 *Take a note of the Toolbar section:*
 * *Configurable window style which is stored in an INI file. It contains definitions of colors, style variables and fonts. The example uses stock "Dark" style*
@@ -137,13 +137,19 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 
 # How to use generated code
 
-Add all generated code into your project. Generated code #includes `imrad.h` so you need to set an include directory and point it to the include folder in the ImRAD installation folder. 
+* Create a new project (C++17 and up)
 
-Based on your setup set project-wide preprocessor defines `IMRAD_WITH_GLFW`/`IMRAD_WITH_STB`/`STBI_WINDOWS_UTF8`. On MSVC you need to define `/Zc:__cplusplus` as well otherwise C++ version detection in imrad.h won't work.
+* Based on your setup set project-wide preprocessor defines `IMRAD_WITH_GLFW`/`IMRAD_WITH_STB`/ (`STBI_WINDOWS_UTF8`). This activates additional functionality such as Main Window or Image widget.
 
-Add your `main.cpp` which you can also auto-generate from ImRad. Call `Draw()` methods of all generated UI classes from your UI loop.
+  * On MSVC you need to define `/Zc:__cplusplus` as well otherwise C++ version detection in imrad.h won't work.
 
-Finally add ImGui and GLFW dependencies (whether you build it as separate libraries or directly add to your project is up to you). Stb and fmt dependencies are optional.
+* Add all generated code. Generated code #includes `imrad.h` so you need to set an include directory and point it to the include folder in the ImRAD installation folder. 
+
+* Add your `main.cpp`. The easiest way is to auto-generate it from ImRAD (New File menu). Then call `Draw()` methods of all generated UI classes from your UI loop.
+
+  * If you supply your own `main.cpp` or the one downloadable from ImGui github repository make sure you define `ImRad::IOUserData` variable and pass it to `ImGui::GetIO().UserData`. This structure is to exchange various information such as current dpi scaling, active InputText IME type or reduced display size dimensions for android apps. 
+
+* Finally add ImGui and GLFW dependencies. Whether you build it as separate libraries or directly add to your project is up to you. Stb and fmt dependencies are optional.
 
 # Tutorials
 
