@@ -341,6 +341,11 @@ void NewTemplate(int type)
 
 bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
 {
+    File file;
+    file.fname = path;
+    if (u8string(u8path(file.fname).extension()).compare(0, 2, ".h")) {
+        file.fname = file.codeGen.AltFName(file.fname);
+    }
     if (!fs::is_regular_file(u8path(path))) {
         if (errs)
             *errs += "Can't read '" + path + "'\n";
@@ -353,10 +358,8 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         return false;
     }
 
-    File file;
-    file.fname = path;
-    file.time[0] = fs::last_write_time(u8path(file.fname));
     std::error_code err;
+    file.time[0] = fs::last_write_time(u8path(file.fname), err);
     file.time[1] = fs::last_write_time(u8path(file.codeGen.AltFName(file.fname)), err);
     std::map<std::string, std::string> params;
     std::string error;
@@ -1477,18 +1480,9 @@ void HierarchyUI()
 
 void ExplorerUI()
 {
-    ExplorerUI([](const std::string& fpath) {
-        std::string errors;
-        if (!DoOpenFile(fpath, &errors)) {
-            ShellExec(fpath);
-        }
-        else if (errors.size()) {
-            errorBox.title = "CodeGen";
-            errorBox.message = "Import finished with errors";
-            errorBox.error = errors;
-            errorBox.OpenPopup();
-        }
-        });
+    ExplorerUI(*ctx.codeGen, [](const std::string& fpath) {
+        DoOpenFile(fpath);
+    });
 }
 
 bool BeginPropGroup(const std::string& cat, bool& open)

@@ -16,7 +16,8 @@ public:
     CppGen();
     bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
     auto Import(const std::string& path, std::map<std::string, std::string>& params, std::string& err) -> std::unique_ptr<TopWindow>;
-    static auto AltFName(const std::string& path) -> std::string;
+    auto AltFName(const std::string& path) const -> std::string;
+    bool IsGenerated(const std::string& fname) const;
 
     const std::string& GetName() const { return m_name; }
     const std::string& GetVName() const { return m_vname; }

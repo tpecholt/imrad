@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "stx.h"
 #include "imrad.h"
+#include "cppgen.h"
 #include <sstream>
 #include <chrono>
 #include <IconsFontAwesome6.h>
@@ -11,6 +12,7 @@ struct ExplorerEntry
 {
     std::string path;
     bool folder;
+    bool generated;
     std::string fileName;
     std::time_t last_write_time;
     std::string modified;
@@ -22,19 +24,38 @@ ImGuiTableColumnSortSpecs explorerSorting;
 
 static int pathSel = -1;
 static std::vector<ExplorerEntry> data;
+static std::vector<std::string> suggestions;
+static int suggestionSel = -1;
+static std::string lastPath;
 static bool scrollBack = false;
+static bool showSuggestions = false;
+static bool autocompleted = false;
 enum MoveFocus { None, PathInput, FirstEntry };
 static MoveFocus moveFocus = None;
 
+bool IsHeaderFile(const fs::path& p)
+{
+    auto ext = u8string(p.extension());
+    return ext == ".h" || ext == ".hpp" || ext == ".hxx";
+}
 
-void ReloadExplorer()
+bool IsCppFile(const fs::path& p)
+{
+    auto ext = u8string(p.extension());
+    return ext == ".c" || ext == ".cpp" || ext == ".cxx";
+}
+
+void ReloadExplorer(const CppGen& codeGen)
 {
     data.clear();
     auto path = u8path(explorerPath);
     //+= '/' so it works with paths like "c:"
     if (!path.has_root_directory())
         path = u8path(explorerPath + (char)fs::path::preferred_separator);
-    if (!fs::is_directory(u8path(explorerPath))) {
+    path.make_preferred();
+    explorerPath = u8string(path);
+    
+    if (!fs::is_directory(path)) {
         messageBox.title = "Error";
         messageBox.message = "Can't open \"" + explorerPath + "\"";
         messageBox.buttons = ImRad::Ok;
@@ -53,11 +74,13 @@ void ReloadExplorer()
         if (u8string(it->path().stem())[0] == '.')
             continue;
         if (!it->is_directory() &&
-            (!explorerFilter && it->path().extension() != ".h" && it->path().extension() != ".hpp"))
+            (!explorerFilter && !IsHeaderFile(it->path())))
             continue;
         ExplorerEntry entry;
         entry.path = u8string(it->path());
         entry.folder = it->is_directory();
+        entry.generated = (IsHeaderFile(it->path()) || IsCppFile(it->path())) && 
+            codeGen.IsGenerated(entry.path);
         entry.fileName = u8string(it->path().filename());
         auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             it->last_write_time() - fsnow + snow);
@@ -86,25 +109,104 @@ void ReloadExplorer()
         });
     if (!u8path(explorerPath).relative_path().empty()) {
         std::string ppath = u8string(u8path(explorerPath).parent_path());
-        data.insert(data.begin(), { ppath, true, ".." });
+        ExplorerEntry e;
+        e.path = ppath;
+        e.folder = true;
+        e.fileName = "..";
+        data.insert(data.begin(), e);
     }
 }
 
-void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
+void GetSuggestions()
 {
+    suggestions.clear();
+    std::error_code ec;
+    auto path = u8path(explorerPath);
+    //+= '/' so it works with paths like "c:"
+    if (!path.has_root_directory())
+        path = u8path(explorerPath + (char)fs::path::preferred_separator);
+    std::string match = u8string(path.stem());
+    for (fs::directory_iterator it(path.parent_path(), ec); it != fs::directory_iterator(); ++it)
+    {
+        std::string stem = u8string(it->path().stem());
+        if (!it->is_directory() || stem[0] == '.')
+            continue;
+        if (stem.size() > match.size())
+            stem.resize(match.size());
+        if (path_cmp(stem, match) || path_cmp(match, stem))
+            continue;
+        std::string fileName = u8string(it->path().filename());
+        suggestions.push_back(std::move(fileName));
+    }
+    stx::sort(suggestions, [](const std::string& a, const std::string& b) {
+        return path_cmp(a, b);
+        });
+}
+
+int ExplorerPathCallback(ImGuiInputTextCallbackData* data)
+{
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+        return DefaultCharFilter(data);
+    }
+    else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory)
+    {
+        if (data->EventKey == ImGuiKey_UpArrow && suggestions.size()) {
+            if (suggestionSel < 0) {
+                suggestionSel = (int)suggestions.size() - 1;
+                lastPath = explorerPath;
+            }
+            else if (--suggestionSel < 0)
+                suggestionSel = -1;
+        }
+        else if (data->EventKey == ImGuiKey_DownArrow && suggestions.size()) {
+            if (suggestionSel < 0) {
+                suggestionSel = 0;
+                lastPath = explorerPath;
+            }
+            else if (++suggestionSel == suggestions.size())
+                suggestionSel = -1;
+        }
+
+        //commit suggestion
+        std::string str = lastPath;
+        if (suggestionSel >= 0) {
+            size_t i = explorerPath.find_last_of("/\\");
+            if (i == std::string::npos)
+                str = explorerPath + (char)fs::path::preferred_separator;
+            else
+                str = explorerPath.substr(0, i + 1);
+            str += suggestions[suggestionSel];
+        }
+        if (str.size() + 1 < data->BufSize) { //no reallocation occured
+            autocompleted = true;
+            data->BufDirty = true;
+            strcpy(data->Buf, str.c_str());
+            data->BufTextLen = (int)str.size();
+            data->SelectionStart = data->SelectionEnd = data->CursorPos = data->BufTextLen;
+        }
+    }
+    return 0;
+}
+
+void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpath)> openFileFunc)
+{
+    explorerPath.reserve(1024); //ImGuiInputText_HistoryCallback doesn't allow buffer reallocation??
     if (explorerPath == "")
         explorerPath = u8string(fs::current_path());
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 4, 4 });
     ImGui::Begin("Explorer");
     if (ImGui::IsWindowAppearing()) {
-        ReloadExplorer();
+        ReloadExplorer(codeGen);
+        showSuggestions = false;
+        autocompleted = false;
         moveFocus = FirstEntry;
     }
 
+    //clickable path box
     const int sp = 4;
     const std::string ELIDE_STR = "...";
-    std::string inputId = "##cwd";
+    std::string inputId = "##explorerCwd";
     if (ImGui::GetFocusID() != ImGui::GetID(inputId.c_str()))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGui::GetStyle().FramePadding);
@@ -136,7 +238,7 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
                 if (tmp.back() == separator)
                     tmp.pop_back();
                 if (elideStart + elideN + 1 == n ||
-                    ImGui::CalcTextSize(tmp.c_str()).x + 2*wpad.x < ImGui::GetWindowWidth())
+                    ImGui::CalcTextSize(tmp.c_str()).x + 2 * wpad.x < ImGui::GetWindowWidth())
                     break;
             }
             int i = 0;
@@ -175,7 +277,7 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
                     pathSel = i;
                 if (ImGui::IsItemClicked() && i + 1 != n) {
                     explorerPath = u8string(subpath);
-                    ReloadExplorer();
+                    ReloadExplorer(codeGen);
                     moveFocus = FirstEntry;
                 }
                 ++i;
@@ -200,25 +302,64 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
     //ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
     //ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
-    int fl = ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackCharFilter;
-    ImGui::InputText(inputId.c_str(), &explorerPath, fl, DefaultCharFilter);
+    int fl = ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackHistory | ImGuiInputTextFlags_CallbackCharFilter;
+    if (ImGui::InputText(inputId.c_str(), &explorerPath, fl, ExplorerPathCallback)) {
+        if (autocompleted)
+            autocompleted = false;
+        else {
+            GetSuggestions();
+            showSuggestions = true;
+            suggestionSel = -1;
+        }
+    }
     //ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
-    if (moveFocus == PathInput) {
+    if (moveFocus == PathInput) 
+    {
         ImGui::SetKeyboardFocusHere(-1);
+        auto* state = ImGui::GetInputTextState(ImGui::GetItemID());
+        if (state)
+            state->ClearSelection();
         if (ImGui::IsItemFocused())
             moveFocus = None;
     }
     if (ImGui::IsItemDeactivated()) { //AfterEdit())
-        ReloadExplorer();
+        ReloadExplorer(codeGen);
+        showSuggestions = false;
         moveFocus = FirstEntry;
+    }
+    if (showSuggestions)
+    {
+        ImGui::PushFont(ImRad::GetFontByName("imrad.explorer"));
+        ImGui::SetNextWindowPos({ ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y });
+        float h = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemInnerSpacing.y;
+        float pad = ImGui::GetStyle().WindowPadding.y;
+        const int N = 7;
+        ImGui::SetNextWindowSize({ ImGui::GetItemRectSize().x, std::min(N, (int)suggestions.size()) * h + 2 * pad });
+        float selY = std::max(suggestionSel, 0) * h + pad;
+        if (ImGui::BeginTooltip()) //Tooltip won't steal the focus as BeginPopup does
+        { 
+            if (selY + h > ImGui::GetScrollY() + ImGui::GetWindowSize().y)
+                ImGui::SetScrollY(selY - (N - 1) * h - pad);
+            if (selY < ImGui::GetScrollY())
+                ImGui::SetScrollY(selY - pad);
+            for (size_t i = 0; i < suggestions.size(); ++i) {
+                /*ImGui::PushStyleColor(ImGuiCol_Text, 0xff40b0b0);
+                ImGui::Selectable(ICON_FA_FOLDER, i == suggestionSel, ImGuiSelectableFlags_SpanAvailWidth);
+                ImGui::PopStyleColor();
+                ImGui::SameLine(0, 4);*/
+                ImGui::Selectable(suggestions[i].c_str(), i == suggestionSel, 0);
+            }
+            ImGui::EndTooltip();
+        }
+        ImGui::PopFont();
     }
 
     ImGui::SameLine(0, sp);
     ImGui::PushStyleColor(ImGuiCol_Text, 0xff404040);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##ego")) {
-        ReloadExplorer();
+        ReloadExplorer(codeGen);
         moveFocus = FirstEntry;
     }
     ImGui::PopItemFlag();
@@ -240,7 +381,7 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
         if (spec && spec->SpecsDirty) {
             spec->SpecsDirty = false;
             explorerSorting = *spec->Specs;
-            ReloadExplorer();
+            ReloadExplorer(codeGen);
         }
         ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
         ImGui::TableHeadersRow();
@@ -253,18 +394,13 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
         for (const auto& entry : data)
         {
             ImGui::PushID(n++);
-            bool isHeader = false;
-            if (!entry.folder) {
-                size_t i = entry.path.rfind('.');
-                std::string ext = i != std::string::npos ? entry.path.substr(i) : "";
-                isHeader = !entry.folder && (ext == ".h" || ext == ".hpp");
-            }
             ImGui::PushStyleColor(ImGuiCol_Text,
                 entry.folder ? 0xff40b0b0 :
-                isHeader ? 0xffd06060 :
-                0xff609060
+                entry.generated ? 0xffe0a060 :
+                IsHeaderFile(entry.path) || IsCppFile(entry.path) ? 0xff60a0d0 :
+                0xffa0a0a0
             );
-            ImGui::Selectable(entry.folder ? ICON_FA_FOLDER : isHeader ? ICON_FA_FILE_LINES : ICON_FA_FILE,
+            ImGui::Selectable(entry.folder ? ICON_FA_FOLDER : entry.generated ? ICON_FA_SHEET_PLASTIC : ICON_FA_FILE,
                 false, ImGuiSelectableFlags_SpanAllColumns);
             ImGui::PopStyleColor();
             if (n == 1 && moveFocus == FirstEntry) {
@@ -277,12 +413,16 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
             {
                 if (entry.folder) {
                     explorerPath = entry.path;
-                    ReloadExplorer();
+                    ReloadExplorer(codeGen);
                     ImGui::PopID();
                     break;
                 }
-                else
+                else if (!codeGen.IsGenerated(entry.path)) {
+                    ShellExec(entry.path);
+                }
+                else {
                     openFileFunc(entry.path);
+                }
             }
             ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
             ImGui::SameLine(0, 4);
@@ -301,8 +441,8 @@ void ExplorerUI(std::function<void(const std::string& fpath)> openFileFunc)
     ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
     ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::Combo("##filter", &explorerFilter, "H Files (*.h,*.hpp)\0All Files (*.*)\0"))
-        ReloadExplorer();
+    if (ImGui::Combo("##filter", &explorerFilter, "H Files (*.h,*.hpp,*.hxx)\0All Files (*.*)\0"))
+        ReloadExplorer(codeGen);
     ImGui::PopStyleColor(2);
 
     ImGui::End();

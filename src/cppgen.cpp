@@ -76,14 +76,32 @@ void CppGen::SetNamesFromId(const std::string& fname)
     m_vname = (char)std::tolower(name[0]) + name.substr(1);
 }
 
-std::string CppGen::AltFName(const std::string& path)
+std::string CppGen::AltFName(const std::string& path) const
 {
     fs::path p = u8path(path);
-    if (p.extension() == ".h")
+    if (!u8string(p.extension()).compare(0, 2, ".h"))
         return u8string(p.replace_extension("cpp"));
-    if (p.extension() == ".cpp")
+    else
         return u8string(p.replace_extension("h"));
     return "";
+}
+
+bool CppGen::IsGenerated(const std::string& fname) const
+{
+    std::ifstream fin(u8path(fname));
+    std::string line;
+    if (!fin || !std::getline(fin, line))
+        return false;
+    if (line.compare(0, 3, "// "))
+        return false;
+    if (line.compare(3, GENERATED_WITH.size(), GENERATED_WITH))
+        return false;
+    size_t n = VER_STR.find(' ');
+    if (n == std::string::npos)
+        n = VER_STR.size();
+    if (line.compare(3 + GENERATED_WITH.size(), n, VER_STR, 0, n))
+        return false;
+    return true;
 }
 
 bool CppGen::ExportUpdate(
