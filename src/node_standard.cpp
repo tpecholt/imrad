@@ -3222,8 +3222,9 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
 
     if (arrowDir != ImGuiDir_None)
     {
-        os << "ImGui::ArrowButton(\"##" << std::to_string((uint64_t)this)
+        os << "ImGui::ArrowButton(\"##button" << ctx.varCounter
             << "\", " << arrowDir.to_arg() << ")";
+        ++ctx.varCounter;
     }
     else if (small)
     {

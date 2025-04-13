@@ -37,6 +37,7 @@ TopWindow::TopWindow(UIContext& ctx)
     flags.add$(ImGuiWindowFlags_NoBackground);
     flags.add$(ImGuiWindowFlags_NoCollapse);
     flags.add$(ImGuiWindowFlags_NoDocking);
+    flags.add$(ImGuiWindowFlags_NoFocusOnAppearing);
     flags.add$(ImGuiWindowFlags_NoMove);
     flags.add$(ImGuiWindowFlags_NoNavInputs);
     flags.add$(ImGuiWindowFlags_NoNavFocus);

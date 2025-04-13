@@ -2393,7 +2393,7 @@ std::string GetRootPath()
 {
 #ifdef WIN32
     wchar_t tmp[1024];
-    int n = GetModuleFileNameW(NULL, tmp, std::size(tmp));
+    int n = GetModuleFileNameW(NULL, tmp, (int)std::size(tmp));
     return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
     //test utf8 path: return u8string(L"c:/work/dežo/latest");
 #elif __APPLE__

@@ -730,10 +730,13 @@ Child::Child(UIContext& ctx)
     flags.add$(ImGuiChildFlags_AutoResizeY);
     flags.add$(ImGuiChildFlags_FrameStyle);
     flags.add$(ImGuiChildFlags_NavFlattened);
+    flags.add$(ImGuiChildFlags_ResizeX);
+    flags.add$(ImGuiChildFlags_ResizeY);
 
     wflags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
     wflags.add$(ImGuiWindowFlags_AlwaysVerticalScrollbar);
     wflags.add$(ImGuiWindowFlags_NoBackground);
+    wflags.add$(ImGuiWindowFlags_NoNavFocus);
     wflags.add$(ImGuiWindowFlags_NoNavInputs);
     wflags.add$(ImGuiWindowFlags_NoSavedSettings);
     wflags.add$(ImGuiWindowFlags_NoScrollbar);
@@ -1079,7 +1082,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         break;
     case 8:
     {
-        int ch = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        int ch = InputDirectValFlags("childFlags", &flags, Defaults().flags, ctx);
         if (ch) {
             changed = true;
             //these flags are difficult to get right and there are asserts so fix it here
