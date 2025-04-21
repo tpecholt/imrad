@@ -814,7 +814,7 @@ struct bindable<std::string> : property_base
                     if (id == "")
                         break;
                     if (id == oldn)
-                        str.replace(id.data() - str.data(), id.size(), newn);
+                        str.replace(id.data() - s.data() + i, id.size(), newn);
                 }
             }
         }

@@ -582,10 +582,24 @@ bool SaveFileAs(int flags)
         return false;
     }
 
-    if (oldName == "")
+    if (oldName == "") {
         tab.codeGen.SetNamesFromId(u8string(newName.stem()));
-    tab.fname = u8string(newName.replace_extension(".h"));
-    DoSaveFile(flags);
+        tab.fname = u8string(newName.replace_extension(".h"));
+        DoSaveFile(flags);
+    }
+    else {
+        messageBox.title = "codegen";
+        messageBox.message = "Rename window class?";
+        messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
+        messageBox.OpenPopup([&tab,newName,flags](ImRad::ModalResult mr) mutable {
+            if (mr == ImRad::ModalResult::Cancel)
+                return;
+            if (mr == ImRad::ModalResult::Yes)
+                tab.codeGen.SetNamesFromId(u8string(newName.stem()));
+            tab.fname = u8string(newName.replace_extension(".h"));
+            DoSaveFile(flags);
+            });
+    }
     return true;
 }
 
@@ -1896,12 +1910,12 @@ RemoveSelected()
         {
             Widget* child = dynamic_cast<Widget*>(remove.back().get());
             Widget* next = dynamic_cast<Widget*>(parent->children[pi->second].get());
-            next->nextColumn += child->nextColumn;
-            if (!child->sameLine && next->sameLine) {
+            if (!child->sameLine && !next->nextColumn) {
                 next->sameLine = false;
                 next->spacing = child->spacing;
                 next->indent = child->indent;
             }
+            next->nextColumn += child->nextColumn;
         }
     }
     //move selection. Useful for things like menu items
@@ -1966,7 +1980,11 @@ void Work()
         else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
             ctx.snapParent)
         {
-            assert(activeButton != "");
+            if (activeButton == "") {
+                newNode = std::move(clipboard.back());
+                clipboard.pop_back();
+            }
+
             newNode->hasPos = true;
             ImVec2 pos = ImGui::GetMousePos() - ctx.snapParent->cached_pos; //win->InnerRect.Min;
             if (pos.x < ctx.snapParent->cached_size.x / 2)
@@ -1981,6 +1999,12 @@ void Work()
             ctx.selected = { newNode.get() };
             ctx.snapParent->children.push_back(std::move(newNode));
             ctx.mode = UIContext::NormalSelection;
+
+            if (activeButton == "") {
+                //push pasted widget copy to clipboard (vars may change)
+                auto clone = ctx.snapParent->children.back()->Clone(ctx);
+                clipboard.push_back(std::move(clone));
+            }
             activeButton = "";
             fileTabs[activeTab].modified = true;
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
@@ -1994,8 +2018,8 @@ void Work()
             activeButton = "";
         }
         else if (ctx.mode == UIContext::SnapInsert && //todo: SnapMove
-            ImGui::GetIO().KeyCtrl && activeButton != "" &&
-            (newNode->Behavior() & UINode::SnapSides))
+            ImGui::GetIO().KeyCtrl &&
+            (activeButton == "" || (newNode->Behavior() & UINode::SnapSides)))
         {
             ctx.mode = UIContext::PickPoint;
         }

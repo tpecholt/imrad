@@ -1092,7 +1092,10 @@ inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, 
     std::string type = typeid_name<FuncSig>();
     std::string id = "##" + std::to_string((uint64_t)val);
     std::string inputId = id + "Input";
-    float width = ImGui::CalcItemWidth() - ImGui::GetFrameHeight();
+    bool buttonVisible = !ImRad::IsItemDisabled() && (IsHighlighted(inputId) || IsHighlighted(id));
+    float width = ImGui::CalcItemWidth();
+    if (buttonVisible)
+        width -= ImGui::GetFrameHeight();
     float realWidth = ImGui::CalcItemSize({ width, 0 }, 0, 0).x;
     ImGui::SetNextItemWidth(width);
     ImGui::PushFont(!ImRad::IsItemDisabled() ? ctx.pgbFont : ctx.pgFont);
@@ -1111,8 +1114,7 @@ inline bool InputEvent(const std::string& name, event<FuncSig>* val, int flags, 
     }
 
     ImGui::SameLine(0, 0);
-    if (!ImRad::IsItemDisabled() &&
-        (IsHighlighted(inputId) || IsHighlighted(id)))
+    if (buttonVisible)
     {
         ImGui::SetNextWindowSizeConstraints({ realWidth + ImGui::GetFrameHeight(), 0 }, { FLT_MAX, FLT_MAX });
         if (ImGui::BeginCombo(id.c_str(), val->c_str(), ImGuiComboFlags_HeightLarge | ImGuiComboFlags_NoPreview))
