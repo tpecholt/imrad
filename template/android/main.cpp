@@ -52,9 +52,12 @@ void Draw()
     ImGui::SetNextWindowSize(g_IOUserData.WorkRect().GetSize());
     if (ImGui::Begin("TODO", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings))
     {
+        ImRad::ScrollWhenDragging(false);
         ImGui::TextWrapped("Welcome to android development with ImRAD!");
         ImGui::Spacing();
-        ImGui::TextWrapped("1. Load Suitable Fonts");
+        ImGui::TextWrapped("Your next steps:");
+        ImGui::Spacing();
+        ImGui::TextWrapped("1. Load suitable fonts");
         ImGui::Indent();
         ImGui::Bullet();
         ImGui::TextWrapped("Create assets directory and put Roboto and Material fonts there");
@@ -157,7 +160,7 @@ void android_main(struct android_app* app)
         struct android_poll_source* out_data;
 
         // Poll all events. If the app is not visible, this loop blocks until g_Initialized == true.
-        while (ALooper_pollAll(g_Initialized ? 0 : -1, nullptr, &out_events, (void**)&out_data) >= 0)
+        while (ALooper_pollOnce(g_Initialized ? 0 : -1, nullptr, &out_events, (void**)&out_data) >= 0)
         {
             // Process one event
             if (out_data != nullptr)
