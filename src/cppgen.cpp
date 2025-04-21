@@ -35,10 +35,10 @@ bool IsFunType(const std::string& type)
 
 std::string DefaultInitFor(const std::string& stype)
 {
-    /*if (!stype.compare(0, 5, "void("))
+    /*if (!valueType.compare(0, 5, "void("))
         return "";*/
-    if (stype.find('<') != std::string::npos) //vector etc
-        return "";
+    if (stype.size() && stype.back() == '*')
+        return "nullptr";
     if (stype == "int" || stype == "size_t" || stype == "double" || stype == "float")
         return "0";
     if (stype == "bool")
@@ -1347,6 +1347,18 @@ CppGen::GetVars(const std::string& scope)
     return vit->second;
 }
 
+bool CppGen::RenameStruct(const std::string& oldn, const std::string& newn)
+{
+    if (newn == "" || newn == oldn || m_fields.count(newn))
+        return false;
+    auto it = m_fields.find(oldn);
+    if (it == m_fields.end())
+        return false;
+    m_fields[newn] = std::move(it->second);
+    m_fields.erase(oldn);
+    return true;
+}
+
 std::vector<std::string> CppGen::GetStructTypes()
 {
     std::vector<std::string> names;
@@ -1484,11 +1496,12 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
                 std::string ninit = init.size() ? init : DefaultInitFor(stype); //initialize scalar variables
                 if (!CreateNamedVar(id, stype, ninit, fun ? Var::Impl : Var::Interface, scope))
                     return false;
-                if (!stype.compare(0, 12, "std::vector<")) {
-                    std::string etype = stype.substr(12, stype.size() - 12 - 1);
-                    if (etype != "" && etype[0] >= 'A' && etype[0] <= 'Z')
-                        m_fields[etype];
-                }
+                /* better not to impicitly define new struct
+                std::string elemType;
+                if (!cpp::is_std_container(valueType, elemType)) {
+                    if (elemType != "" && elemType[0] >= 'A' && elemType[0] <= 'Z')
+                        m_fields[elemType];
+                }*/
             }
             else {
                 if (!CreateNamedVar(id, "std::vector<" + stype + ">", init, Var::Interface, scope))
@@ -1506,50 +1519,42 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
 }
 
 //type=="" accepts all variables
+//type=="int" suggests container.size() as well
 //type=="[]" accepts all arrays
 //type==void() accepts all functions of this type
-//vector, array, span element types are matched recursively
 std::vector<std::pair<std::string, std::string>> //(name, type)
-CppGen::GetVarExprs(const std::string& type_, bool recurse)
+CppGen::GetVarExprs(const std::string& type_)
 {
     std::string type = DecorateType(type_);
     std::vector<std::pair<std::string, std::string>> ret;
     bool isFun = IsFunType(type);
-    std::string stype;
+    bool isPtr = cpp::is_ptr(type);
+    std::string valueType;
     for (const auto& f : m_fields[""])
     {
-        //events
-        if (IsFunType(f.type))
-        {
-            if (f.type == type)
-                ret.push_back({ f.name, f.type });
-        }
+        if (IsFunType(f.type) != isFun)
+            continue;
         //arrays
-        else if (cpp::is_std_container(f.type, stype))
+        if (cpp::is_std_container(f.type, valueType))
         {
-            if (isFun)
-                continue;
             if (type == "" || type == "[]" || type == f.type)
                 ret.push_back({ f.name, f.type });
             if (type == "" || type == "int")
                 ret.push_back({ f.name + ".size()", "int" }); //we use int indexes for simplicity
-            else if (recurse) {
-                if (type == "" || stype == type)
-                    ret.push_back({ f.name + "[]", stype });
-                /*todo: else if (!stype.compare(0, 10, "std::pair<"))
-                {
-                }*/
-                else
-                {
-                    auto scope = m_fields.find(stype);
-                    if (scope == m_fields.end())
-                        continue;
-                    for (const auto& ff : scope->second)
-                    {
-                        if (type == "" || ff.type == type)
-                            ret.push_back({ f.name + "[]." + ff.name, ff.type });
-                    }
-                }
+        }
+        //pointers
+        else if (cpp::is_ptr(f.type, valueType))
+        {
+            if (type == "" || type == f.type)
+                ret.push_back({ f.name, f.type });
+            if (!isPtr && (type == "" || type == valueType))
+                ret.push_back({ "*" + f.name, valueType });
+            if (cpp::is_std_container(valueType))
+            {
+                if (type == "[]")
+                    ret.push_back({ "*" + f.name, valueType });
+                if (type == "" || type == "int")
+                    ret.push_back({ f.name + "->size()", "int" });
             }
         }
         //scalars

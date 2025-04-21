@@ -34,7 +34,6 @@ void ClassWizard::Refresh()
         stype = stypes[stypeIdx];
     stypes = codeGen->GetStructTypes();
     stypes.insert(stypes.begin(), className);
-    stypes.push_back("New struct...");
     stypeIdx = stx::find(stypes, stype) - stypes.begin();
     if (stypeIdx == stypes.size())
         stypeIdx = 0;
@@ -96,54 +95,46 @@ void ClassWizard::Draw()
         ImGui::Text("Class Name");
         /// @end Text
 
-        /*/// @begin Text
-        ImGui::SameLine(0, 6 * ImGui::GetStyle().IndentSpacing);
-        ImGui::Text("Variable Name");
-        /// @end Text
-        */
-
         /// @begin ComboBox
         ImGui::SetNextItemWidth(200);
-        //ImGui::InputText("##className", &className, ImGuiInputTextFlags_None);
         if (ImGui::BeginCombo("##className", stypes[stypeIdx].c_str()))
         {
-            for (size_t i = 0; i + 1 < stypes.size(); ++i)
+            for (size_t i = 0; i < stypes.size(); ++i)
             {
                 if (ImGui::Selectable(stypes[i].c_str(), i == stypeIdx)) {
                     stypeIdx = i;
                     fields = codeGen->GetVars(stypeIdx ? stypes[stypeIdx] : "");
                 }
             }
-            if (ImGui::Selectable(stypes.back().c_str(), false)) { //New struct
-                newFieldPopup.codeGen = codeGen;
-                newFieldPopup.mode = NewFieldPopup::NewStruct;
-                newFieldPopup.OpenPopup([this] {
-                    *modified = true;
-                    Refresh();
-                    });
-            }
             ImGui::EndCombo();
         }
         /// @end ComboBox
 
-        /*/// @begin Input
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(200);
-        ImGui::BeginDisabled(stypeIdx != 0);
-        std::string dummy;
-        ImGui::InputText("##varName", stypeIdx ? &dummy : &varName, ImGuiInputTextFlags_CharsNoBlank);
-        ImGui::EndDisabled();
-        /// @end Input
-        */
         /// @begin Button
         ImGui::SameLine();
         if (ImGui::Button(" Rename "))
         {
             newFieldPopup.codeGen = codeGen;
-            newFieldPopup.mode = stypeIdx ? NewFieldPopup::RenameField : NewFieldPopup::RenameWindow;
+            newFieldPopup.mode = stypeIdx ? NewFieldPopup::RenameStruct : NewFieldPopup::RenameWindow;
             newFieldPopup.varOldName = stypes[stypeIdx];
             newFieldPopup.OpenPopup([this] {
                 *modified = true;
+                stypes[stypeIdx] = newFieldPopup.varName; //Refresh will keep the selection
+                Refresh();
+                });
+        }
+        /// @end Button
+
+        /// @being Button
+        ImGui::SameLine();
+        if (ImGui::Button(" + "))
+        {
+            newFieldPopup.codeGen = codeGen;
+            newFieldPopup.mode = NewFieldPopup::NewStruct;
+            newFieldPopup.OpenPopup([this] {
+                *modified = true;
+                stypes.push_back(newFieldPopup.varName);
+                stypeIdx = stypes.size() - 1; //Refresh will keep selection
                 Refresh();
                 });
         }

@@ -43,13 +43,14 @@ public:
     void RemovePrefixedVars(const std::string& prefix, const std::string& scope = "");
     bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
     const Var* GetVar(const std::string& name, const std::string& scope = "") const;
+    bool RenameStruct(const std::string& oldn, const std::string& newn);
     const std::vector<Var>& GetVars(const std::string& scope = "");
     std::vector<std::string> GetLayoutVars();
     std::vector<std::string> GetStructTypes();
     enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
     VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");
     bool CreateVarExpr(std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
-    auto GetVarExprs(const std::string& type, bool recurse = false) ->std::vector<std::pair<std::string, std::string>>;
+    auto GetVarExprs(const std::string& type) ->std::vector<std::pair<std::string, std::string>>;
 
 private:
     Var* FindVar(const std::string& name, const std::string& scope);

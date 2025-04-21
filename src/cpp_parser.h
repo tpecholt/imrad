@@ -554,6 +554,35 @@ namespace cpp
         return false;
     }
 
+    inline bool is_ptr(std::string_view s, std::string& type)
+    {
+        if (s.size() && s.back() == '*') {
+            type = s.substr(0, s.size() - 1);
+            return true;
+        }
+        static const std::string_view names[]{
+            "std::shared_ptr", "std::weak_ptr", "std::unique_ptr"
+        };
+        for (std::string_view name : names) {
+            size_t i = s.rfind('>');
+            if (s.size() > name.size() &&
+                !s.compare(0, name.size(), name) &&
+                s[name.size()] == '<' &&
+                i != std::string::npos)
+            {
+                type = s.substr(name.size() + 1, i - name.size() - 1);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    inline bool is_ptr(std::string_view s)
+    {
+        std::string tmp;
+        return is_ptr(s, tmp);
+    }
+
     inline bool is_std_container(std::string_view s)
     {
         std::string elemType;

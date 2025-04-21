@@ -575,7 +575,7 @@ bool DockNode::PropertyUI(int i, UIContext& ctx)
        ImGui::BeginDisabled(children.size());
        ImGui::Text("labels");
        ImGui::TableNextColumn();
-       ImGui::PushFont(ImRad::IsItemDisabled() && !labels.empty() ? ctx.pgbFont : ctx.pgFont);
+       ImGui::PushFont(!ImRad::IsItemDisabled() && !labels.empty() ? ctx.pgbFont : ctx.pgFont);
        size_t n = labels.empty() ? 0 : stx::count(*labels.access(), '\n') + 1;
        std::string label;
        if (!labels.empty())

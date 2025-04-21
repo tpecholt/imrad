@@ -18,7 +18,7 @@ public:
     std::string varInit; //auto filled
     std::string scope;
     CppGen* codeGen = nullptr;
-    enum mode_t { NewField, NewStruct, NewEvent, RenameField, RenameWindow };
+    enum mode_t { NewField, NewStruct, NewEvent, RenameField, RenameStruct, RenameWindow };
     mode_t mode = NewField;
 
 private:

@@ -180,7 +180,9 @@ void TableCols::Draw()
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImRad::Selectable(ImRad::Format("{}##error", error).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
+        ImGui::PopItemFlag();
         ImGui::PopStyleVar();
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
         ImGui::PopStyleColor();

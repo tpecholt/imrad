@@ -39,11 +39,13 @@ void NewFieldPopup::ClosePopup()
 
 void NewFieldPopup::Draw()
 {
-    std::string title = mode == NewField ? "New Field###NewFieldPopup" :
-        mode == NewStruct ? "New Struct###NewFieldPopup" :
-        mode == NewEvent ? "New Method###NewFieldPopup" :
-        mode == RenameField ? "Rename Field###NewFieldPopup" :
-        "Rename Window###NewFieldPopup";
+    std::string title = mode == NewField ? "New Field" :
+        mode == NewStruct ? "New Struct" :
+        mode == NewEvent ? "New Method" :
+        mode == RenameField ? "Rename Field" :
+        mode == RenameStruct ? "Rename Struct" :
+        "Rename Window";
+    title += "###NewFieldPopup";
 
     ID = ImGui::GetID("###NewFieldPopup");
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 12, 12 });
@@ -63,7 +65,7 @@ void NewFieldPopup::Draw()
 
         bool change = false;
 
-        if (mode == RenameField || mode == RenameWindow)
+        if (mode == RenameField || mode == RenameStruct || mode == RenameWindow)
         {
             ImGui::Text("Old name:");
             ImGui::BeginDisabled(true);
@@ -84,7 +86,7 @@ void NewFieldPopup::Draw()
         }
 
         ImGui::Spacing();
-        ImGui::Text(mode == RenameWindow ? "New name:" :
+        ImGui::Text(mode == RenameWindow || mode == RenameStruct ? "New name:" :
             mode == NewEvent ? "Method name:" :
             "Field name:");
         if (ImGui::IsWindowAppearing() && varType != "")
@@ -157,6 +159,12 @@ void NewFieldPopup::Draw()
                 ClosePopup();
                 callback();
             }
+            else if (mode == RenameStruct)
+            {
+                codeGen->RenameStruct(varOldName, varName);
+                ClosePopup();
+                callback();
+            }
             else if (mode == RenameWindow)
             {
                 codeGen->SetNamesFromId(varName);
@@ -186,6 +194,17 @@ void NewFieldPopup::CheckVarName()
     {
         if (!cpp::is_id(varName)) {
             hint = "expected simple id";
+            clr = IM_COL32(255, 0, 0, 255);
+        }
+    }
+    else if (mode == RenameStruct)
+    {
+        if (!cpp::is_id(varName)) {
+            hint = "expected simple id";
+            clr = IM_COL32(255, 0, 0, 255);
+        }
+        else if (varName != varOldName && stx::count(codeGen->GetStructTypes(), varName)) {
+            hint = "same field already exists";
             clr = IM_COL32(255, 0, 0, 255);
         }
     }
