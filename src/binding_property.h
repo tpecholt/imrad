@@ -160,8 +160,8 @@ struct direct_val<T, true> : property_base
         return *this;
     }
     auto find_id(int fl) const {
-        return stx::find_if(ids, [this](const auto& id) {
-            return id.first != "" && id.second == val;
+        return stx::find_if(ids, [this,fl](const auto& id) {
+            return id.first != "" && id.second == fl;
             });
     }
     const auto& get_ids() const { return ids; }
