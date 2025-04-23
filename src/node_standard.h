@@ -241,6 +241,7 @@ struct Selectable : Widget
     direct_val<ImRad::Alignment> vertAlignment = ImRad::AlignTop;
     direct_val<bool> alignToFrame = false;
     direct_val<bool> readOnly = false;
+    direct_val<ImRad::ModalResult> modalResult = ImRad::None;
     bindable<bool> selected = false;
     bindable<color_t> style_header;
     event<> onChange;

@@ -2827,6 +2827,16 @@ Selectable::Selectable(UIContext& ctx)
     flags.add$(ImGuiSelectableFlags_NoPadWithHalfSpacing);
     flags.add$(ImGuiSelectableFlags_SpanAllColumns);
 
+    modalResult.add(" ", ImRad::None);
+    modalResult.add$(ImRad::Ok);
+    modalResult.add$(ImRad::Cancel);
+    modalResult.add$(ImRad::Yes);
+    modalResult.add$(ImRad::No);
+    modalResult.add$(ImRad::Abort);
+    modalResult.add$(ImRad::Retry);
+    modalResult.add$(ImRad::Ignore);
+    modalResult.add$(ImRad::All);
+
     horizAlignment.add("AlignLeft", ImRad::AlignLeft);
     horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
     horizAlignment.add("AlignRight", ImRad::AlignRight);
@@ -2932,8 +2942,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
     if (alignToFrame)
         os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
+    bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
     os << ctx.ind;
-    if (!onChange.empty())
+    if (!onChange.empty() || closePopup)
         os << "if (";
 
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
@@ -2947,11 +2958,18 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
         << " })";
 
-    if (!onChange.empty()) {
-        os << ")\n";
+    if (!onChange.empty() || closePopup)
+    {
+        os << ")\n" << ctx.ind << "{\n";
         ctx.ind_up();
-        os << ctx.ind << onChange.to_arg() << "();\n";
+
+        if (!onChange.empty())
+            os << ctx.ind << onChange.to_arg() << "();\n";
+        if (closePopup)
+            os << ctx.ind << "ClosePopup(" << modalResult.to_arg() << ");\n";
+
         ctx.ind_down();
+        os << ctx.ind << "}\n";
     }
     else {
         os << ";\n";
@@ -2969,10 +2987,13 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
     if ((sit->kind == cpp::CallExpr && sit->callee == "ImRad::Selectable") ||
+        (sit->kind == cpp::IfCallBlock && sit->callee == "ImRad::Selectable") ||
         (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Selectable") || //compatibility
-        (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::Selectable") ||
+        (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::Selectable") || //compatibility
         (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::Selectable")) //compatibility
     {
+        ctx.importLevel = sit->level;
+
         if (sit->params.size() >= 1) {
             if (!label.set_from_arg(sit->params[0]))
                 PushError(ctx, "unable to parse label");
@@ -2996,6 +3017,15 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
+    }
+    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1)
+    {
+        if (sit->callee == "ClosePopup" && ctx.kind == TopWindow::ModalPopup) {
+            if (sit->params.size())
+                modalResult.set_from_arg(sit->params[0]);
+        }
+        else
+            onChange.set_from_arg(sit->callee);
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
     {
@@ -3043,6 +3073,7 @@ Selectable::Properties()
         { "behavior.flags##selectable", &flags },
         { "behavior.label", &label, true },
         { "behavior.readOnly", &readOnly },
+        { "behavior.modalResult##selectable", &modalResult },
         { "bindings.selected##selectable", &selected },
         });
     return props;
@@ -3118,6 +3149,15 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&readOnly, fl, ctx);
         break;
     case 9:
+        ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
+        ImGui::Text("modalResult");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = modalResult != Defaults().modalResult ? InputDirectVal_Modified : 0;
+        changed = InputDirectValEnum(&modalResult, fl, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 10:
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3127,7 +3167,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &selected, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 10, ctx);
+        return Widget::PropertyUI(i - 11, ctx);
     }
     return changed;
 }
