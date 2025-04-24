@@ -406,7 +406,7 @@ inline bool IsItemImeAction()
     return ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_AppForward);
 }
 
-inline bool IsItemDisabled()
+inline bool IsCurrentItemDisabled()
 {
     return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;
 }

@@ -1261,7 +1261,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text(kind == Activity ? "designSize" : "size");
         ImGui::TableNextColumn();
         fl = size_x != Defaults().size_x || size_y != Defaults().size_y;
-        ImGui::PushFont(!ImRad::IsItemDisabled() && fl ?
+        ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && fl ?
             ctx.pgbFont : ctx.pgFont);
         ImGui::TextUnformatted((size_x.to_arg("") + ", " + size_y.to_arg("")).c_str());
         ImGui::PopFont();
@@ -1294,7 +1294,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("minimumSize");
         ImGui::TableNextColumn();
         fl = minSize_x != Defaults().minSize_x || minSize_y != Defaults().minSize_y;
-        ImGui::PushFont(!ImRad::IsItemDisabled() && fl ?
+        ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && fl ?
             ctx.pgbFont : ctx.pgFont);
         ImGui::TextUnformatted((minSize_x.to_arg("") + ", " + minSize_y.to_arg("")).c_str());
         ImGui::PopFont();

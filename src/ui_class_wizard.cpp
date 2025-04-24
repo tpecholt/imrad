@@ -241,7 +241,7 @@ void ClassWizard::Draw()
         ImGui::Spacing();
         ImGui::BeginDisabled(selRow < 0 || selRow >= (int)fields.size());
         if (ImGui::Button("Rename Field...", { BWIDTH, 0 }) ||
-            (!ImRad::IsItemDisabled() && doRenameField))
+            (!ImRad::IsCurrentItemDisabled() && doRenameField))
         {
             newFieldPopup.codeGen = codeGen;
             newFieldPopup.mode = NewFieldPopup::RenameField;
