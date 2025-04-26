@@ -135,7 +135,8 @@ struct Widget : UINode
     direct_val<int> indent = 0;
     direct_val<int> spacing = 0;
     direct_val<bool> allowOverlap = false;
-    data_loop itemCount;
+    //not shown by default
+    data_loop itemCount; //not shown by default
     bindable<font_name_t> style_font;
     bindable<color_t> style_text;
     bindable<color_t> style_frameBg;
@@ -156,6 +157,7 @@ struct Widget : UINode
     event<> onItemContextMenuClicked;
     event<> onDragDropSource;
     event<> onDragDropTarget;
+
     std::string userCodeBefore, userCodeAfter;
 
     static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);

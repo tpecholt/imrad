@@ -53,6 +53,7 @@ struct UIContext
     UINode* hovered = nullptr;
     UINode* dragged = nullptr;
     ImVec2 lastSize;
+    int importVersion;
     int importLevel;
     std::string userCode;
     UINode* root = nullptr;

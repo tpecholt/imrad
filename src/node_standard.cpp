@@ -532,13 +532,14 @@ std::string UINode::GetTypeName()
     return name;
 }
 
-int GetTotalIndex(UINode* parent, UINode* child, int idx)
+int GetTotalIndex(UINode* parent, UINode* child)
 {
     std::string tname = child->GetTypeName();
+    int idx = 0;
     for (const auto& ch : parent->children) {
         if (ch.get() == child)
             return idx;
-        idx = GetTotalIndex(ch.get(), child, idx);
+        idx += GetTotalIndex(ch.get(), child);
         if (ch->GetTypeName() == tname)
             ++idx;
     }
@@ -549,8 +550,8 @@ void UINode::PushError(UIContext& ctx, const std::string& err)
 {
     std::string name = GetTypeName();
     if (this != ctx.root) {
-        int idx = GetTotalIndex(ctx.parents[0], this, 1);
-        name += " #" + std::to_string(idx);
+        int idx = GetTotalIndex(ctx.parents[0], this);
+        name += "[" + std::to_string(idx) + "]";
     }
     ctx.errors.push_back(name + ": " + err);
 }
@@ -1630,6 +1631,9 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         cpp::stmt_iterator ifBlockIt;
         cpp::stmt_iterator screenPosIt;
 
+        if (sit->level <= ctx.importLevel) {
+            ctx.importLevel = -1;
+        }
         if (ignoreLevel >= 0)
         {
             if (sit->level >= ignoreLevel) {
@@ -1797,6 +1801,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->params.size() >= 2) {
                 if (sit->params[0] == "ImGuiItemFlags_NoNav")
                     tabStop.set_from_arg(sit->params[0] != "false" ? "false" : "true");
+                else
+                    DoImport(sit, ctx);
             }
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushTabStop") //compatibility only
@@ -1898,6 +1904,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             else if (sit->kind == cpp::Comment && sit->line == "//forceFocus")
             {
                 forceFocus.set_from_arg(ifBlockIt->cond);
+                ignoreLevel = sit->level;
             }
             else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImGui::BeginDragDropSource")
             {
@@ -3018,14 +3025,15 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
     }
-    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1)
+    else if (sit->level == ctx.importLevel + 1)
     {
-        if (sit->callee == "ClosePopup" && ctx.kind == TopWindow::ModalPopup) {
+        if (sit->kind == cpp::CallExpr && sit->callee == "ClosePopup" && ctx.kind == TopWindow::ModalPopup) {
             if (sit->params.size())
                 modalResult.set_from_arg(sit->params[0]);
         }
-        else
+        else if (sit->kind == cpp::CallExpr) {
             onChange.set_from_arg(sit->callee);
+        }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
     {
@@ -4368,10 +4376,13 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             imeType = _imeClass | _imeAction;
         }
     }
-    else if (sit->kind == cpp::IfCallThenCall &&
-        sit->callee == "IsItemImeAction")
+    else if (sit->kind == cpp::IfCallThenCall && sit->callee == "IsItemImeAction")
     {
         onImeAction.set_from_arg(sit->callee);
+    }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetKeyboardFocusHere") //compatibility
+    {
+        PushError(ctx, "forceFocus uses different protocol in " + VER_STR + ". Please set it again");
     }
 }
 

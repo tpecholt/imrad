@@ -70,5 +70,6 @@ private:
     std::map<std::string, std::vector<Var>> m_fields;
     std::string m_name, m_vname, m_hname;
     std::string ctx_workingDir;
+    int ctx_importVersion;
     std::string m_error;
 };

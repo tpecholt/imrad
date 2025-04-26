@@ -46,6 +46,27 @@ std::string DefaultInitFor(const std::string& stype)
     return "";
 }
 
+//ImRad 0.9 -> 9000
+//ImRad 0.9.1 -> 9010
+int ParseVersion(const std::string& str)
+{
+    std::string s = str.substr(str.find_first_of("0123456789"));
+    stx::replace(s, '.', ' ');
+    std::istringstream is(s);
+    int num;
+    int ver = 0;
+    int parts = 0;
+    while (is >> num) {
+        if (num < 10)
+            num *= 10;
+        ver = ver * 100 + num;
+        ++parts;
+    }
+    for (; parts < 3; ++parts)
+        ver *= 100;
+    return ver;
+}
+
 //----------------------------------------------------------------
 
 CppGen::CppGen()
@@ -878,6 +899,7 @@ CppGen::Import(
     m_name = m_vname = "";
     m_error = "";
     ctx_workingDir = u8string(u8path(path).parent_path());
+    ctx_importVersion = 0;
     std::unique_ptr<TopWindow> node;
 
     auto fpath = u8path(path).replace_extension("h");
@@ -980,6 +1002,7 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
             size_t i;
             if (preamble && (i = tok.find(GENERATED_WITH)) != std::string::npos) {
                 std::string ver = tok.substr(i + GENERATED_WITH.size());
+                ctx_importVersion = ParseVersion(ver);
                 if (ver != VER_STR)
                     m_error += "\"" + fname + "\" was saved in different version ["
                         + ver + "]. Full compatibility is not guaranteed.\n";
@@ -1199,6 +1222,7 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
     UIContext ctx;
     ctx.codeGen = this;
     ctx.workingDir = ctx_workingDir;
+    ctx.importVersion = ctx_importVersion;
     auto node = std::make_unique<TopWindow>(ctx);
     node->Import(sit, ctx);
     iter = sit.base();

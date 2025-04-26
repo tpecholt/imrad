@@ -72,8 +72,8 @@ int TreeNode(const std::string& str, size_t& i, int level, bool skip)
         if (nlevel > level) {
             bool open = true;
             if (!skip) {
-                ImGui::PushStyleColor(ImGuiCol_Text, !level ? 0xff2040c0 : 0xff000000);
-                open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
+                ImGui::PushStyleColor(ImGuiCol_Text, !level ? 0xffa02020 : 0xff000000);
+                open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
                 ImGui::PopStyleColor();
             }
             nlevel = TreeNode(str, i, nlevel, skip || !open);
@@ -83,27 +83,26 @@ int TreeNode(const std::string& str, size_t& i, int level, bool skip)
                 return nlevel;
             }
         }
-        else if (nlevel < level) {
-            if (!skip)
-                ImGui::TreePop();
-            return nlevel;
-        }
-        else if (!skip) {
-            ImVec2 pad = ImGui::GetStyle().FramePadding;
-            if (!level) {
-                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                if (ImGui::TreeNodeEx("", 0))
+        else {
+            if (!skip) {
+                ImVec2 pad = ImGui::GetStyle().FramePadding;
+                if (!level) {
+                    ImGui::Bullet();
+                    ImGui::SameLine(0, pad.x * 3);
+                }
+                else {
+                    ImGui::Text(" ");
+                    ImGui::SameLine(0, pad.x * 3);
+                }
+                float w = ImGui::GetContentRegionAvail().x - pad.x;
+                label = WordWrap(label, w);
+                ImGui::Text("%s", label.c_str());
+            }
+            if (nlevel < level) {
+                if (!skip)
                     ImGui::TreePop();
-                ImGui::PopItemFlag();
-                ImGui::SameLine();
+                return nlevel;
             }
-            else {
-                ImGui::Text("-");
-                ImGui::SameLine(0, pad.x * 3);
-            }
-            float w = ImGui::GetContentRegionAvail().x - pad.x;
-            label = WordWrap(label, w);
-            ImGui::Text("%s", label.c_str());
         }
     }
     return 0;
@@ -241,5 +240,7 @@ void ErrorBox::ResetLayout()
 void ErrorBox::CustomWidget_Draw(const ImRad::CustomWidgetArgs& args)
 {
     size_t i = 0;
+    ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
     TreeNode(error, i, 0, false);
+    ImGui::PopItemFlag();
 }
