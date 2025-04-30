@@ -14,6 +14,7 @@ const std::string SPEC_FUN[] = {
 
 const std::string_view CppGen::INDENT = "    ";
 const std::string_view CppGen::FOR_VAR_NAME = "i";
+const std::string_view CppGen::CUR_ITEM_VAR_NAME = "_current";
 const std::string_view CppGen::HBOX_NAME = "hb";
 const std::string_view CppGen::VBOX_NAME = "vb";
 

@@ -10,6 +10,7 @@ class CppGen
 public:
     static const std::string_view INDENT;
     static const std::string_view FOR_VAR_NAME;
+    static const std::string_view CUR_ITEM_VAR_NAME;
     static const std::string_view HBOX_NAME;
     static const std::string_view VBOX_NAME;
 

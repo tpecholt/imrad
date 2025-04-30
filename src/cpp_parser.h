@@ -630,7 +630,7 @@ namespace cpp
         bool ignore_ids = false;
         for (token_iterator it(in); it != token_iterator(); ++it)
         {
-            if (is_id(*it) || *it == "::") {
+            if (is_id(*it) || *it == "::" || *it == CUR_ITEM_SYMBOL) {
                 if (ignore_ids)
                     ;
                 else if (id != "") //append

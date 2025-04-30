@@ -533,6 +533,16 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         os << "\n" << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
+        bool hasCurItem = stx::count(UsedFieldVars(), ctx.codeGen->CUR_ITEM_VAR_NAME);
+        if (hasCurItem)
+        {
+            std::string idx = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+            std::string container = itemCount.container_expr();
+            if (container == "")
+                PushError(ctx, "\"" + CUR_ITEM_SYMBOL + "\" syntax requires container name in the loop condition");
+            os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
+                << container << "[" << idx << "];\n";
+        }
         if (!rowFilter.empty())
         {
             os << ctx.ind << "if (!(" << rowFilter.to_arg() << "))\n";
@@ -886,6 +896,17 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     if (!itemCount.empty()) {
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
+
+        bool hasCurItem = stx::count(UsedFieldVars(), ctx.codeGen->CUR_ITEM_VAR_NAME);
+        if (hasCurItem)
+        {
+            std::string idx = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+            std::string container = itemCount.container_expr();
+            if (container == "")
+                PushError(ctx, "\"" + CUR_ITEM_SYMBOL + "\" syntax requires container name in the loop condition");
+            os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
+                << container << "[" << idx << "];\n";
+        }
     }
 
     os << ctx.ind << "/// @separator\n\n";
@@ -1858,6 +1879,17 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
+
+        bool hasCurItem = stx::count(UsedFieldVars(), ctx.codeGen->CUR_ITEM_VAR_NAME);
+        if (hasCurItem)
+        {
+            std::string idx = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+            std::string container = itemCount.container_expr();
+            if (container == "")
+                PushError(ctx, "\"" + CUR_ITEM_SYMBOL + "\" syntax requires container name in the loop condition");
+            os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
+                << container << "[" << idx << "];\n";
+        }
         //BeginTabBar does this
         //os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";
     }

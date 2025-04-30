@@ -1008,6 +1008,17 @@ struct data_loop : property_base
     std::string index_name_or(std::string_view s) const {
         return index.empty() ? std::string(s) : index.to_arg();
     }
+    std::string container_expr() {
+        auto vars = limit.used_variables();
+        if (vars.empty())
+            return "";
+        const std::string& var = vars[0];
+        const std::string& str = *limit.access();
+        size_t i = str.find(var);
+        if ((i && str[i - 1] == '*') || !str.compare(i + var.size(), 2, "->"))
+            return "(*" + var + ")";
+        return var;
+    }
 
     bool set_from_arg(std::string_view code) {
         if (code.compare(0, 4, "for("))

@@ -72,16 +72,15 @@ int TreeNode(const std::string& str, size_t& i, int level, bool skip)
         if (nlevel > level) {
             bool open = true;
             if (!skip) {
-                ImGui::PushStyleColor(ImGuiCol_Text, !level ? 0xffa02020 : 0xff000000);
+                //auto clr = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered));
+                ImGui::PushStyleColor(ImGuiCol_Text, !level ? 0xff600000 : 0xff000000);
                 open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
                 ImGui::PopStyleColor();
             }
             nlevel = TreeNode(str, i, nlevel, skip || !open);
-            if (nlevel < level) {
-                if (!skip && open)
-                    ImGui::TreePop();
-                return nlevel;
-            }
+            if (!skip && open)
+                ImGui::TreePop();
+            return nlevel;
         }
         else {
             if (!skip) {
@@ -96,13 +95,10 @@ int TreeNode(const std::string& str, size_t& i, int level, bool skip)
                 }
                 float w = ImGui::GetContentRegionAvail().x - pad.x;
                 label = WordWrap(label, w);
-                ImGui::Text("%s", label.c_str());
+                ImGui::Selectable(label.c_str(), false);
             }
-            if (nlevel < level) {
-                if (!skip)
-                    ImGui::TreePop();
+            if (nlevel < level)
                 return nlevel;
-            }
         }
     }
     return 0;

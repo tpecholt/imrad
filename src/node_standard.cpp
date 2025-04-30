@@ -551,9 +551,9 @@ void UINode::PushError(UIContext& ctx, const std::string& err)
     std::string name = GetTypeName();
     if (this != ctx.root) {
         int idx = GetTotalIndex(ctx.parents[0], this);
-        name += "[" + std::to_string(idx) + "]";
+        name = name + " #" + std::to_string(idx+1);
     }
-    ctx.errors.push_back(name + ": " + err);
+    ctx.errors.push_back(name + " : " + err);
 }
 
 std::string UINode::GetParentIndexes(UIContext& ctx)
@@ -576,6 +576,25 @@ void UINode::ResetLayout()
     vbox.clear();
     for (auto& ch : children)
         ch->ResetLayout();
+}
+
+std::vector<std::string> UINode::UsedFieldVars()
+{
+    std::vector<std::string> used;
+    auto props = Properties();
+    for (auto& p : props) {
+        if (!p.property)
+            continue;
+        auto us = p.property->used_variables();
+        used.insert(used.end(), us.begin(), us.end());
+    }
+    for (auto& child : children) {
+        auto us = child->UsedFieldVars();
+        used.insert(used.end(), us.begin(), us.end());
+    }
+    stx::sort(used);
+    used.erase(stx::unique(used), used.end());
+    return used;
 }
 
 void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)

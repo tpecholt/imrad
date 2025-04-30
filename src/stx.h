@@ -62,7 +62,7 @@ namespace stx {
     template <class C>
     decltype(auto) unique(C& c)
     {
-        return std::unique(std::begin(c), std::begin(c));
+        return std::unique(std::begin(c), std::end(c));
     }
 
     template <class C, class T>

@@ -9,7 +9,7 @@ namespace fs = std::filesystem;
 
 inline const std::string VER_STR = "ImRAD 0.9";
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
-
+inline const std::string CUR_ITEM_SYMBOL = "$";
 
 inline ImVec2 operator+ (const ImVec2& a, const ImVec2& b)
 {

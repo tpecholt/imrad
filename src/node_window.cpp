@@ -304,6 +304,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     ctx.codeGen->RemovePrefixedVars(std::string(ctx.codeGen->HBOX_NAME));
     ctx.codeGen->RemovePrefixedVars(std::string(ctx.codeGen->VBOX_NAME));
+    RenameFieldVars(CUR_ITEM_SYMBOL, std::string(ctx.codeGen->CUR_ITEM_VAR_NAME));
 
     //todo: put before ///@ params
     if (userCodeBefore != "")
@@ -758,6 +759,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     if (userCodeAfter != "")
         os << userCodeAfter << "\n";
+
+    RenameFieldVars(std::string(ctx.codeGen->CUR_ITEM_VAR_NAME), CUR_ITEM_SYMBOL);
 }
 
 void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
@@ -1047,6 +1050,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
     userCodeAfter = ctx.userCode;
     ctx.createVars = tmpCreateDeps;
+    RenameFieldVars(std::string(ctx.codeGen->CUR_ITEM_VAR_NAME), CUR_ITEM_SYMBOL);
 }
 
 void TopWindow::TreeUI(UIContext& ctx)
