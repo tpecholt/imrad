@@ -90,6 +90,8 @@ void TopWindow::Draw(UIContext& ctx)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
     if (style_spacing.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing.eval_px(ctx));
+    if (style_innerSpacing.has_value())
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, style_innerSpacing.eval_px(ctx));
     if (style_borderSize.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, style_borderSize.eval_px(ctx));
     if (style_rounding.has_value())
@@ -288,6 +290,8 @@ void TopWindow::Draw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (style_spacing.has_value())
         ImGui::PopStyleVar();
+    if (style_innerSpacing.has_value())
+        ImGui::PopStyleVar();
     if (style_padding.has_value())
         ImGui::PopStyleVar();
     if (style_font.has_value())
@@ -368,6 +372,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, "
             << style_spacing.to_arg(ctx.unit) << ");\n";
+    }
+    if (style_innerSpacing.has_value())
+    {
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, "
+            << style_innerSpacing.to_arg(ctx.unit) << ");\n";
     }
     if (style_rounding.has_value())
     {
@@ -746,6 +755,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
     if (style_spacing.has_value())
         os << ctx.ind << "ImGui::PopStyleVar();\n";
+    if (style_innerSpacing.has_value())
+        os << ctx.ind << "ImGui::PopStyleVar();\n";
     if (style_padding.has_value())
         os << ctx.ind << "ImGui::PopStyleVar();\n";
     if (!style_bg.empty())
@@ -868,6 +879,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 style_padding.set_from_arg(sit->params[1]);
             else if (sit->params[0] == "ImGuiStyleVar_ItemSpacing")
                 style_spacing.set_from_arg(sit->params[1]);
+            else if (sit->params[0] == "ImGuiStyleVar_ItemInnerSpacing")
+                style_innerSpacing.set_from_arg(sit->params[1]);
             else if (sit->params[0] == "ImGuiStyleVar_WindowRounding" || sit->params[0] == "ImGuiStyleVar_PopupRounding")
                 style_rounding.set_from_arg(sit->params[1]);
             else if (sit->params[0] == "ImGuiStyleVar_WindowBorderSize" || sit->params[0] == "ImGuiStyleVar_PopupBorderSize")
@@ -1102,6 +1115,7 @@ TopWindow::Properties()
         { "appearance.borderSize", &style_borderSize },
         { "appearance.scrollbarSize", &style_scrollbarSize },
         { "appearance.spacing", &style_spacing },
+        { "appearance.innerSpacing", &style_innerSpacing },
         { "appearance.font", &style_font },
         { "behavior.flags", nullptr },
         { "behavior.kind", nullptr },
@@ -1193,6 +1207,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         break;
     }
     case 8:
+    {
+        ImGui::Text("innerSpacing");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_innerSpacing, ctx);
+        break;
+    }
+    case 9:
         ImGui::Text("font");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1200,7 +1222,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_font, ctx);
         break;
-    case 9:
+    case 10:
     {
         ImGui::Text("kind");
         ImGui::TableNextColumn();
@@ -1209,7 +1231,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&kind, fl, ctx);
         break;
     }
-    case 10:
+    case 11:
     {
         bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
         bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
@@ -1225,7 +1247,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         }
         break;
     }
-    case 11:
+    case 12:
         ImGui::Text("title");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1233,7 +1255,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("title", &title, ctx);
         break;
-    case 12:
+    case 13:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
         ImGui::Text("closeOnEscape");
         ImGui::TableNextColumn();
@@ -1242,7 +1264,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&closeOnEscape, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 13:
+    case 14:
         ImGui::BeginDisabled(kind != Activity);
         ImGui::Text("initialActivity");
         ImGui::TableNextColumn();
@@ -1251,7 +1273,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&initialActivity, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 14:
+    case 15:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
         ImGui::Text("animate");
         ImGui::TableNextColumn();
@@ -1260,7 +1282,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&animate, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 15:
+    case 16:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text(kind == Activity ? "designSize" : "size");
         ImGui::TableNextColumn();
@@ -1271,7 +1293,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 16:
+    case 17:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1282,7 +1304,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 17:
+    case 18:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1293,7 +1315,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 18:
+    case 19:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("minimumSize");
         ImGui::TableNextColumn();
@@ -1304,7 +1326,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 19:
+    case 20:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1315,7 +1337,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_x", &minSize_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 20:
+    case 21:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1326,7 +1348,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_y", &minSize_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 21:
+    case 22:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");

@@ -16,6 +16,7 @@ struct TopWindow : UINode
     bindable<font_name_t> style_font;
     direct_val<pzdimension2_t> style_padding;
     direct_val<pzdimension2_t> style_spacing;
+    direct_val<pzdimension2_t> style_innerSpacing;
     direct_val<pzdimension_t> style_borderSize;
     direct_val<pzdimension_t> style_rounding;
     direct_val<pzdimension_t> style_scrollbarSize;

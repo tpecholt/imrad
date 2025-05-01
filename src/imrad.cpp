@@ -807,8 +807,8 @@ GetCtxColors(const std::string& styleName)
         IM_COL32(0, 255, 0, 255),
     };
     static const std::array<ImU32, UIContext::Color::COUNT> light {
-        IM_COL32(0, 64, 0, 128), //0xb0996633
-        IM_COL32(255, 0, 0, 255),
+        IM_COL32(0, 0, 255, 128),
+        IM_COL32(255, 96, 96, 255),
         IM_COL32(128, 128, 255, 255),
         IM_COL32(255, 0, 255, 255),
         IM_COL32(0, 128, 128, 255),
