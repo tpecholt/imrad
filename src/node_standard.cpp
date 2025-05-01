@@ -234,9 +234,6 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
     clr = (clr & 0x00ffffff) | 0xb0000000;
     float wrapPos = ImGui::GetCurrentWindow()->DC.TextWrapPos;
 
-    if (ps.error)
-        ImGui::GetWindowDrawList()->AddText(pos, clr, ps.label.c_str());
-
     if (wrapPos < 0 || size.x || size.y || offset.x || offset.y)
     {
         if (align.x || align.y) {
@@ -258,6 +255,9 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
             ImGui::GetWindowDrawList()->AddText(pos, clr, "}");
             i = arg.second - 1;
         }
+
+        if (ps.error)
+            ImGui::GetWindowDrawList()->AddText(pos, clr, ps.label.c_str());
     }
     else
     {
@@ -275,6 +275,9 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
             ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "}");
             text = text_end;
         }
+
+        if (ps.error)
+            ImGui::GetWindowDrawList()->AddText(pos, clr, ps.label.c_str());
     }
 }
 
@@ -2938,6 +2941,9 @@ void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Text::DoExport(std::ostream& os, UIContext& ctx)
 {
+    if (PrepareString(text.value()).error)
+        PushError(ctx, "text is formatted wrongly");
+
     if (alignToFrame)
         os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
@@ -3166,6 +3172,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind;
     if (!onChange.empty() || closePopup)
         os << "if (";
+
+    if (PrepareString(label.value()).error)
+        PushError(ctx, "label is formatted wrongly");
 
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
     if (selected.has_single_variable())
@@ -3802,6 +3811,9 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
     if (!onChange.empty())
         os << "if (";
 
+    if (PrepareString(label.value()).error)
+        PushError(ctx, "label is formatted wrongly");
+
     os << "ImGui::Checkbox("
         << label.to_arg() << ", "
         << "&" << fieldName.c_str()
@@ -3988,6 +4000,9 @@ void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind;
     if (!onChange.empty())
         os << "if (";
+
+    if (PrepareString(label.value()).error)
+        PushError(ctx, "label is formatted wrongly");
 
     os << "ImGui::RadioButton("
         << label.to_arg() << ", "

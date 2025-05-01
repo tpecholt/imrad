@@ -1674,6 +1674,9 @@ void TreeNode::DoExport(std::ostream& os, UIContext& ctx)
     if (!open.empty())
         os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ");\n";
 
+    if (PrepareString(label.value()).error)
+        PushError(ctx, "label is formatted wrongly");
+
     os << ctx.ind << "if (ImGui::TreeNodeEx(" << label.to_arg() << ", " << flags.to_arg() << "))\n";
     os << ctx.ind << "{\n";
 

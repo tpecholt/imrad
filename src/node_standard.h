@@ -14,6 +14,7 @@ struct PreparedString
     std::string label;
     ImVec2 pos;
     std::vector<std::pair<size_t, size_t>> fmtArgs;
+    bool error = false;
 };
 PreparedString PrepareString(std::string_view s);
 
