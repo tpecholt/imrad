@@ -1625,7 +1625,8 @@ ImDrawList* TreeNode::DoDraw(UIContext& ctx)
         ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
     }
     lastOpen = false;
-    if (ImGui::TreeNodeEx(DRAW_STR(label), flags))
+    auto ps = PrepareString(label.value());
+    if (ImGui::TreeNodeEx(ps.label.c_str(), flags))
     {
         lastOpen = true;
         for (const auto& child : children)
@@ -1633,6 +1634,11 @@ ImDrawList* TreeNode::DoDraw(UIContext& ctx)
 
         ImGui::TreePop();
     }
+    ImVec2 offset{
+        ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.x * 2,
+        flags & ImGuiTreeNodeFlags_FramePadding ? ImGui::GetStyle().FramePadding.y : 0
+    };
+    DrawTextArgs(ps, ctx, offset);
 
     return ImGui::GetWindowDrawList();
 }

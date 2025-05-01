@@ -9,10 +9,21 @@
 #include "IconsFontAwesome6.h"
 
 
-#define DRAW_STR(a) cpp::to_draw_str(a.value()).c_str()
+struct PreparedString
+{
+    std::string label;
+    ImVec2 pos;
+    std::vector<std::pair<size_t, size_t>> fmtArgs;
+};
+PreparedString PrepareString(std::string_view s);
+
+#define DRAW_STR(a) PrepareString(a.value()).label.c_str()
+
+void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset = { 0, 0 }, const ImVec2& size = { 0, 0 }, const ImVec2& align = { 0, 0 });
 
 void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std::function<void()> f);
 
+//----------------------------------------------------------
 
 struct Widget;
 

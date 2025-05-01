@@ -88,6 +88,196 @@ void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std:
     ImGui::PopStyleColor();
 }
 
+//1. limits length of lengthy {} expression (like in case it contains ?:)
+//2. formats {{, }} into {, }
+//3. errors out on incorrect format string
+PreparedString PrepareString(std::string_view s)
+{
+    const int n = 25;
+    PreparedString ps;
+    ps.error = false;
+    ps.pos = ImGui::GetCursorScreenPos();
+    ps.pos.y += ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset;
+    ps.label.reserve(s.size() + 10);
+    size_t argFrom = 0;
+    for (size_t i = 0; i < s.size(); ++i)
+    {
+        if (s[i] == '{') {
+            ps.label += "{";
+            if (i + 1 < s.size() && s[i + 1] == '{')
+                ++i;
+            else {
+                if (argFrom) {
+                    ps.error = true;
+                    break;
+                }
+                argFrom = i + 1;
+            }
+        }
+        else if (s[i] == '}') {
+            if (!argFrom) {
+                if (i + 1 == s.size() || s[i + 1] != '}') {
+                    ps.error = true;
+                    break;
+                }
+                ps.label += "}";
+                ++i;
+            }
+            else {
+                if (i == argFrom) {
+                    ps.error = true;
+                    break;
+                }
+                if (i - argFrom > n) {
+                    ps.label += s.substr(argFrom, n - 3);
+                    while (ps.label.back() < 0) //strip incomplete unicode char
+                        ps.label.pop_back();
+                    ps.label += "...}";
+                }
+                else {
+                    ps.label += s.substr(argFrom, i - argFrom);
+                    ps.label += "}";
+                }
+                ps.fmtArgs.push_back({ argFrom - 1, ps.label.size() });
+                argFrom = 0;
+            }
+        }
+        else if (!argFrom) {
+            ps.label += s[i];
+        }
+    }
+    if (argFrom)
+        ps.error = true;
+
+    if (ps.error) {
+        ps.label = "error";
+        ps.fmtArgs.clear();
+    }
+    return ps;
+}
+
+ImVec2 IncWrapText(const ImVec2& dpos, const char* s, const char* text_end, float wrap_width, float scale)
+{
+    ImFont* font = ImGui::GetFont();
+    const float line_height = font->FontSize * scale;
+    float line_width = dpos.x;
+    float text_height = dpos.y;
+    const char* word_wrap_eol = NULL;
+    const char* real_end = s + strlen(s);
+    while (s < text_end)
+    {
+        // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
+        if (!word_wrap_eol)
+        {
+            word_wrap_eol = font->CalcWordWrapPositionA(scale, s, real_end, wrap_width - line_width);
+        }
+
+        if (s >= word_wrap_eol)
+        {
+            text_height += line_height;
+            line_width = 0.0f;
+            word_wrap_eol = NULL;
+            //Wrapping skips upcoming blanks
+            while (s < text_end && ImCharIsBlankA(*s))
+                s++;
+            if (*s == '\n')
+                s++;
+            continue;
+        }
+
+        // Decode and advance source
+        const char* prev_s = s;
+        unsigned int c = (unsigned int)*s;
+        if (c < 0x80)
+            s += 1;
+        else
+            s += ImTextCharFromUtf8(&c, s, text_end);
+
+        if (c < 32)
+        {
+            if (c == '\n')
+            {
+                text_height += line_height;
+                line_width = 0.0f;
+                continue;
+            }
+            if (c == '\r')
+                continue;
+        }
+
+        const float char_width = scale * ((int)c < font->IndexAdvanceX.Size ? font->IndexAdvanceX.Data[c] : font->FallbackAdvanceX);
+        /*if (line_width + char_width >= max_width)
+        {
+        s = prev_s;
+        break;
+        }*/
+
+        line_width += char_width;
+    }
+
+    if (s == word_wrap_eol)
+    {
+        text_height += line_height;
+        line_width = 0.0f;
+    }
+
+    return { line_width, text_height };
+}
+
+void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset, const ImVec2& size, const ImVec2& align)
+{
+    if (ctx.beingResized)
+        return;
+
+    ImVec2 pos = ps.pos;
+    uint32_t clr = ctx.colors[UIContext::Color::Selected];
+    clr = (clr & 0x00ffffff) | 0xb0000000;
+    float wrapPos = ImGui::GetCurrentWindow()->DC.TextWrapPos;
+
+    if (ps.error)
+        ImGui::GetWindowDrawList()->AddText(pos, clr, ps.label.c_str());
+
+    if (wrapPos < 0 || size.x || size.y || offset.x || offset.y)
+    {
+        if (align.x || align.y) {
+            ImVec2 textSize = ImGui::CalcTextSize(ps.label.data(), ps.label.data() + ps.label.size());
+            ImVec2 sz = ImGui::CalcItemSize(size, textSize.x, textSize.y);
+            ImVec2 dp{ (sz.x - textSize.x) * align.x, (sz.y - textSize.y) * align.y };
+            pos += dp;
+        }
+
+        pos += offset;
+        size_t i = 0;
+        for (const auto& arg : ps.fmtArgs) {
+            pos.x += ImGui::CalcTextSize(ps.label.data() + i, ps.label.data() + arg.first).x;
+            ImGui::GetWindowDrawList()->AddText(pos, clr, "{");
+            //ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second);
+            //ImGui::GetWindowDrawList()->AddRectFilled(pos, pos + sz, 0x50808080);
+            ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second - 1);
+            pos.x += sz.x;
+            ImGui::GetWindowDrawList()->AddText(pos, clr, "}");
+            i = arg.second - 1;
+        }
+    }
+    else
+    {
+        float wrapWidth = ImGui::CalcWrapWidthForPos(ps.pos, wrapPos);
+        const char* text = ps.label.data();
+        ImVec2 dp{ 0, 0 };
+        for (const auto& arg : ps.fmtArgs)
+        {
+            const char* text_end = ps.label.data() + arg.first;
+            dp = IncWrapText(dp, text, text_end, wrapWidth, ctx.zoomFactor);
+            ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "{");
+            text = text_end;
+            text_end = ps.label.data() + arg.second - 1;
+            dp = IncWrapText(dp, text, text_end, wrapWidth, ctx.zoomFactor);
+            ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "}");
+            text = text_end;
+        }
+    }
+}
+
 //----------------------------------------------------
 
 UINode::child_iterator::iter::iter()
@@ -2375,7 +2565,7 @@ void Widget::TreeUI(UIContext& ctx)
     const auto props = Properties();
     for (const auto& p : props) {
         if (p.kbdInput && p.property->c_str()) {
-            label = cpp::to_draw_str(p.property->c_str());
+            label = PrepareString(p.property->c_str()).label;
             for (size_t i = 0; i < label.size(); ++i)
                 if (label[i] == '\n') {
                     label[i] = ' ';
@@ -2722,14 +2912,16 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
         //if (w < 0) w += ImGui::GetContentRegionAvail().x;
         //ImGui::PushTextWrapPos(x1 + w);
         ImGui::PushTextWrapPos(0);
-        ImGui::TextUnformatted(DRAW_STR(text));
+        auto ps = PrepareString(text.value());
+        ImGui::TextUnformatted(ps.label.c_str());
+        DrawTextArgs(ps, ctx);
         ImGui::PopTextWrapPos();
-        //ImGui::SameLine(x1 + w);
-        //ImGui::NewLine();
     }
     else
     {
-        ImGui::TextUnformatted(DRAW_STR(text));
+        auto ps = PrepareString(text.value());
+        ImGui::TextUnformatted(ps.label.c_str());
+        DrawTextArgs(ps, ctx);
     }
 
     return ImGui::GetWindowDrawList();
@@ -2905,8 +3097,10 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     ImVec2 size;
     size.x = size_x.eval_px(ImGuiAxis_X, ctx);
     size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
+    auto ps = PrepareString(label.value());
     bool sel = selected.eval(ctx);
-    ImRad::Selectable(DRAW_STR(label), sel, flags, size);
+    ImRad::Selectable(ps.label.c_str(), sel, flags, size);
+    DrawTextArgs(ps, ctx, { 0, 0 }, size, alignment);
 
     if (readOnly)
         ImGui::PopItemFlag();
@@ -3587,8 +3781,11 @@ ImDrawList* CheckBox::DoDraw(UIContext& ctx)
     if (!style_check.empty())
         ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
 
+    auto ps = PrepareString(label.value());
     bool val = fieldName.eval(ctx);
-    ImGui::Checkbox(DRAW_STR(label), &val);
+    ImGui::Checkbox(ps.label.c_str(), &val);
+    ImVec2 offset{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x, ImGui::GetStyle().FramePadding.y };
+    DrawTextArgs(ps, ctx, offset);
 
     if (!style_check.empty())
         ImGui::PopStyleColor();
@@ -3769,7 +3966,10 @@ ImDrawList* RadioButton::DoDraw(UIContext& ctx)
     if (!style_check.empty())
         ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
 
-    ImGui::RadioButton(DRAW_STR(label), valueID==0);
+    auto ps = PrepareString(label.value());
+    ImGui::RadioButton(ps.label.c_str(), valueID==0);
+    ImVec2 offset{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x, ImGui::GetStyle().FramePadding.y };
+    DrawTextArgs(ps, ctx, offset);
 
     if (!style_check.empty())
         ImGui::PopStyleColor();
