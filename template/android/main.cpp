@@ -23,6 +23,7 @@ static bool                 g_Initialized = false;
 static char                 g_LogTag[] = "ImGuiExample";
 static std::string          g_IniFilename = "";
 static int                  g_NavBarHeight = 0;
+static int                  g_StatusBarHeight = 0;
 static int                  g_KbdHeight = 0;
 static int                  g_RotAngle = 0;
 static ImRad::IOUserData    g_IOUserData;
@@ -34,6 +35,7 @@ static void Shutdown();
 static void FreeMem();
 static void MainLoopStep();
 static int ShowSoftKeyboardInput(int mode);
+static void PerformHapticFeedback(int kind);
 /*static*/ int GetAssetData(const char* filename, void** out_data);
 static void GetDisplayInfo();
 static void UpdateScreenRect();
@@ -346,6 +348,10 @@ void MainLoopStep()
         g_ImeType = newImeType;
         ShowSoftKeyboardInput(g_ImeType);
     }
+    if (g_IOUserData.longPressID) {
+        g_IOUserData.longPressID = 0;
+        PerformHapticFeedback(0);
+    }
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -429,6 +435,15 @@ static int ShowSoftKeyboardInput(int mode)
     return 0;
 }
 
+static void PerformHapticFeedback(int kind)
+{
+    JniBlock bl;
+    jmethodID method_id = bl->GetMethodID(bl.native_activity_clazz, "performHapticFeedback", "(I)V");
+    if (!method_id)
+        return;
+    bl->CallVoidMethod(g_App->activity->clazz, method_id, kind);
+}
+
 // Retrieve some display related information like DPI
 static void GetDisplayInfo()
 {
@@ -439,7 +454,8 @@ static void GetDisplayInfo()
         return;
 
     jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
-    g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
+    //g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
+    g_StatusBarHeight = 40 * dpi / 160.0;
     g_IOUserData.dpiScale = dpi / 140.0; //relative to laptop screen DPI;
     //round dpiScale otherwise when using box sizers floating point errors in imgui
     //accumulate and cause the window contentRegionRect to grow continuously
@@ -458,15 +474,15 @@ void UpdateScreenRect()
 {
     switch (g_RotAngle) {
         case 0:
-            g_IOUserData.displayOffsetMin = { 0, 0 };
+            g_IOUserData.displayOffsetMin = { 0, (float)g_StatusBarHeight };
             g_IOUserData.displayOffsetMax = { 0, (float)g_NavBarHeight + (float)g_KbdHeight };
             break;
         case 90:
-            g_IOUserData.displayOffsetMin = { 0, 0 };
+            g_IOUserData.displayOffsetMin = { 0, (float)g_StatusBarHeight };
             g_IOUserData.displayOffsetMax = { (float)g_NavBarHeight, (float)g_KbdHeight };
             break;
         case 270:
-            g_IOUserData.displayOffsetMin = { (float)g_NavBarHeight, 0 };
+            g_IOUserData.displayOffsetMin = { (float)g_NavBarHeight, (float)g_StatusBarHeight };
             g_IOUserData.displayOffsetMax = { 0, (float)g_KbdHeight };
             break;
     }

@@ -148,8 +148,9 @@ struct Widget : UINode
     direct_val<int> indent = 0;
     direct_val<int> spacing = 0;
     direct_val<bool> allowOverlap = false;
+
     //not shown by default
-    data_loop itemCount; //not shown by default
+    data_loop itemCount;
     bindable<font_name_t> style_font;
     bindable<color_t> style_text;
     bindable<color_t> style_frameBg;
@@ -160,6 +161,7 @@ struct Widget : UINode
     direct_val<pzdimension_t> style_frameRounding;
     direct_val<pzdimension2_t> style_framePadding;
     direct_val<pzdimension_t> style_frameBorderSize;
+
     event<> onItemClicked;
     event<> onItemDoubleClicked;
     event<> onItemHovered;
@@ -168,6 +170,7 @@ struct Widget : UINode
     event<> onItemDeactivated;
     event<> onItemDeactivatedAfterEdit;
     event<> onItemContextMenuClicked;
+    event<> onItemLongPressed; //not shown by default
     event<> onDragDropSource;
     event<> onDragDropTarget;
 

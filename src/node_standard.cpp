@@ -1748,6 +1748,17 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << onItemContextMenuClicked.c_str() << "();\n";
         ctx.ind_down();
     }
+    if (!onItemLongPressed.empty())
+    {
+        os << ctx.ind << "if (ImRad::IsItemLongPressed())\n";
+        os << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << onItemLongPressed.c_str() << "();\n";
+        os << ctx.ind << "ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] = false;\n";
+        os << ctx.ind << "ioUserData->longPressID = ImGui::GetItemID();\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+    }
     if (!onItemHovered.empty())
     {
         os << ctx.ind << "if (ImGui::IsItemHovered())\n";
@@ -2128,6 +2139,12 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             {
                 if (sit->kind == cpp::CallExpr)
                     onDragDropTarget.set_from_arg(sit->callee);
+                ignoreLevel = sit->level;
+            }
+            else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImRad::IsItemLongPressed")
+            {
+                if (sit->kind == cpp::CallExpr)
+                    onItemLongPressed.set_from_arg(sit->callee);
                 ignoreLevel = sit->level;
             }
             else
@@ -3408,6 +3425,7 @@ Selectable::Events()
     auto props = Widget::Events();
     props.insert(props.begin(), {
         { "selectable.change", &onChange },
+        { "selectable.longPress", &onItemLongPressed }
         });
     return props;
 }
@@ -3423,8 +3441,14 @@ bool Selectable::EventUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Change", &onChange, 0, ctx);
         break;
+    case 1:
+        ImGui::Text("LongPressed");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_LongPressed", &onItemLongPressed, 0, ctx);
+        break;
     default:
-        return Widget::EventUI(i - 1, ctx);
+        return Widget::EventUI(i - 2, ctx);
     }
     return changed;
 }

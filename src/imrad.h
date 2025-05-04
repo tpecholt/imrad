@@ -104,6 +104,7 @@ struct IOUserData
     std::string activeActivity;
     //from UI
     int imeType = ImeText;
+    ImGuiID longPressID = 0;
 
     ImRect WorkRect() const
     {
@@ -399,6 +400,17 @@ inline bool IsItemContextMenuClicked()
 {
     return ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) &&
         ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+}
+
+inline bool IsItemLongPressed(double dur = -1)
+{
+    if (dur < 0)
+        dur = 0.5f;
+    double time = ImGui::GetTime() - ImGui::GetIO().MouseClickedTime[ImGuiMouseButton_Left];
+    return ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+        //!ImGui::IsMouseDragging(ImGuiMouseButton_Left, g.IO.MouseDragThreshold * dpi) &&
+        ImGui::IsItemHovered() &&
+        time > dur;
 }
 
 inline bool IsItemImeAction()

@@ -212,4 +212,7 @@ implements TextWatcher, TextView.OnEditorActionListener
             }
         });
     }
+    public void performHapticFeedback(int kind) {
+        mView.performHapticFeedback(kind);
+    }
 }
