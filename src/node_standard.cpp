@@ -1813,25 +1813,15 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         ctx.ind_down();
         os << ctx.ind << "}\n";
-
-        //try to compensate row spacing with hidden leftmost widget
-        //in case next widget is hidden too spacing_x compensation may not be correct
-        /*auto* parent = ctx.parents.back();
-        size_t i = parent->FindChild(this)->second;
-        const auto* next = i + 1 < parent->children.size() ?
-            dynamic_cast<Widget*>(parent->children[i + 1].get()) : nullptr;
-        if ((Behavior() & SnapSides) && l.Leftmost &&
-            next && next->sameLine)
+        //always submit new line so that next widgets won't get placed to the previous line
+        if (!sameLine)
         {
-            os << ctx.ind << "else\n";
-            os << ctx.ind << "{\n";
+            os << ctx.ind << "else\n" << ctx.ind << "{\n";
             ctx.ind_up();
-            if (spacing - defSpacing)
-                os << ctx.ind << "ImRad::Spacing(" << (spacing - defSpacing) << ");\n";
-            os << ctx.ind << "ImGui::Dummy({ -" << next->spacing << " * ImGui::GetStyle().ItemSpacing.x, 0 });\n";
+            os << ctx.ind << "ImGui::ItemSize({ 0, 0 });\n";
             ctx.ind_down();
             os << ctx.ind << "}\n";
-        }*/
+        }
     }
 
     os << ctx.ind << "/// @end " << stype << "\n\n";
