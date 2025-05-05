@@ -2690,6 +2690,7 @@ void Widget::TreeUI(UIContext& ctx)
 
 Spacer::Spacer(UIContext& ctx)
 {
+    size_x = size_y = 20;
 }
 
 std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
@@ -2699,17 +2700,14 @@ std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
 
 ImDrawList* Spacer::DoDraw(UIContext& ctx)
 {
-    ImVec2 size { size_x.eval_px(ImGuiAxis_X, ctx),    size_y.eval_px(ImGuiAxis_Y, ctx) };
-    /*if (!size.x)
-        size.x = 20;
-    if (!size.y)
-        size.y = 20;*/
-    ImVec2 r = ImGui::CalcItemSize(size, 20, 20);
+    ImVec2 size { size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
+    ImRad::Dummy(size);
 
     if (!ctx.beingResized)
     {
+        ImVec2 p = ImGui::GetItemRectMin();
+        ImVec2 r = ImGui::GetItemRectSize();
         auto* dl = ImGui::GetWindowDrawList();
-        ImVec2 p = ImGui::GetCursorScreenPos();
         ImU32 clr = 0x007f7f7f; //reduces contrast
         clr |= int(0x5f * ImGui::GetStyle().Alpha) << 24;
         //dl->AddRect(p, p + size, clr);
@@ -2726,7 +2724,7 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
         dl->PrimRectUV({ p.x + r.x - th, p.y }, p + r, { 0, 0 }, yuv, clr);
         dl->PopTextureID();
     }
-    ImRad::Dummy(r);
+
     return ImGui::GetWindowDrawList();
 }
 
@@ -3451,11 +3449,16 @@ Button::Button(UIContext& ctx)
     modalResult.add$(ImRad::Ok);
     modalResult.add$(ImRad::Cancel);
     modalResult.add$(ImRad::Yes);
+    modalResult.add$(ImRad::YesToAll);
     modalResult.add$(ImRad::No);
+    modalResult.add$(ImRad::NoToAll);
+    modalResult.add$(ImRad::Apply);
+    modalResult.add$(ImRad::Discard);
+    modalResult.add$(ImRad::Help);
+    modalResult.add$(ImRad::Reset);
     modalResult.add$(ImRad::Abort);
     modalResult.add$(ImRad::Retry);
     modalResult.add$(ImRad::Ignore);
-    modalResult.add$(ImRad::All);
 
     arrowDir.add$(ImGuiDir_None);
     arrowDir.add$(ImGuiDir_Left);

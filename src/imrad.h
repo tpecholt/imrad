@@ -51,7 +51,13 @@ enum ModalResult {
     Abort = 0x10,
     Retry = 0x20,
     Ignore = 0x40,
-    All = 0x80,
+    All = 0x80, //deprecated
+    YesToAll = 0x80,
+    NoToAll = 0x100,
+    Apply = 0x200,
+    Discard = 0x400,
+    Help = 0x800,
+    Reset = 0x1000,
 };
 
 enum Alignment {
