@@ -1409,7 +1409,7 @@ void TabsUI()
     window_class.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_NoResize;
     ImGui::SetNextWindowClass(&window_class);
     ImGui::Begin("FileTabs", 0, window_flags);
-    if (ImGui::BeginTabBar(".Tabs", ImGuiTabBarFlags_NoTabListScrollingButtons))
+    if (ImGui::BeginTabBar(".Tabs", ImGuiTabBarFlags_NoTabListScrollingButtons | ImGuiTabBarFlags_Reorderable))
     {
         ImGui::PopStyleVar();
         int untitled = 0;

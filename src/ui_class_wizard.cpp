@@ -112,7 +112,7 @@ void ClassWizard::Draw()
 
         /// @begin Button
         ImGui::SameLine();
-        if (ImGui::Button(" Rename "))
+        if (ImGui::Button(" Rename... "))
         {
             newFieldPopup.codeGen = codeGen;
             newFieldPopup.mode = stypeIdx ? NewFieldPopup::RenameStruct : NewFieldPopup::RenameWindow;
@@ -127,7 +127,7 @@ void ClassWizard::Draw()
 
         /// @being Button
         ImGui::SameLine();
-        if (ImGui::Button(" + "))
+        if (ImGui::Button(" Add New... "))
         {
             newFieldPopup.codeGen = codeGen;
             newFieldPopup.mode = NewFieldPopup::NewStruct;

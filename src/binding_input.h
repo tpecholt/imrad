@@ -99,6 +99,8 @@ bool InputDirectVal(direct_val<T, false>* val, int fl, UIContext& ctx)
         ImGui::PushID(id.c_str());
         high |= IsHighlighted("+") || IsHighlighted("-");
         ImGui::PopID();
+        if (ImRad::IsCurrentItemDisabled())
+            high = false;
         changed = ImGui::InputInt(id.c_str(), val->access(), high ? 1 : 0);
     }
     else if constexpr (std::is_same_v<T, float>)
@@ -304,7 +306,7 @@ inline bool InputDirectValEnum(direct_val<T, true>* val, int fl, UIContext& ctx)
     ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && (fl & InputDirectVal_Modified) ?
         ctx.pgbFont : ctx.pgFont);
     if (ImGui::BeginCombo(id.c_str(), val->get_id().c_str() + pre,
-        IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
+        !ImRad::IsCurrentItemDisabled() && IsHighlighted(id) ? 0 : ImGuiComboFlags_NoArrowButton))
     {
         ImGui::PopFont();
         ImGui::PushFont(ImGui::GetFont());
