@@ -54,7 +54,7 @@ void ReloadExplorer(const CppGen& codeGen)
         path = u8path(explorerPath + (char)fs::path::preferred_separator);
     path.make_preferred();
     explorerPath = u8string(path);
-    
+
     if (!fs::is_directory(path)) {
         messageBox.title = "Error";
         messageBox.message = "Can't open \"" + explorerPath + "\"";
@@ -79,7 +79,7 @@ void ReloadExplorer(const CppGen& codeGen)
         ExplorerEntry entry;
         entry.path = u8string(it->path());
         entry.folder = it->is_directory();
-        entry.generated = (IsHeaderFile(it->path()) || IsCppFile(it->path())) && 
+        entry.generated = (IsHeaderFile(it->path()) || IsCppFile(it->path())) &&
             codeGen.IsGenerated(entry.path);
         entry.fileName = u8string(it->path().filename());
         auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
@@ -314,7 +314,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
     }
     //ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
-    if (moveFocus == PathInput) 
+    if (moveFocus == PathInput)
     {
         ImGui::SetKeyboardFocusHere(-1);
         auto* state = ImGui::GetInputTextState(ImGui::GetItemID());
@@ -338,7 +338,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
         ImGui::SetNextWindowSize({ ImGui::GetItemRectSize().x, std::min(N, (int)suggestions.size()) * h + 2 * pad });
         float selY = std::max(suggestionSel, 0) * h + pad;
         if (ImGui::BeginTooltip()) //Tooltip won't steal the focus as BeginPopup does
-        { 
+        {
             if (selY + h > ImGui::GetScrollY() + ImGui::GetWindowSize().y)
                 ImGui::SetScrollY(selY - (N - 1) * h - pad);
             if (selY < ImGui::GetScrollY())
@@ -394,13 +394,17 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
         for (const auto& entry : data)
         {
             ImGui::PushID(n++);
+            bool source = IsHeaderFile(entry.path) || IsCppFile(entry.path);
             ImGui::PushStyleColor(ImGuiCol_Text,
                 entry.folder ? 0xff40b0b0 :
                 entry.generated ? 0xffe0a060 :
-                IsHeaderFile(entry.path) || IsCppFile(entry.path) ? 0xff60a0d0 :
+                source ? 0xff60a0d0 :
                 0xffa0a0a0
             );
-            ImGui::Selectable(entry.folder ? ICON_FA_FOLDER : entry.generated ? ICON_FA_SHEET_PLASTIC : ICON_FA_FILE,
+            ImGui::Selectable(entry.folder ? ICON_FA_FOLDER :
+                entry.generated ? ICON_FA_DICE_D6 :
+                source ? ICON_FA_FILE_CODE :
+                ICON_FA_FILE,
                 false, ImGuiSelectableFlags_SpanAllColumns);
             ImGui::PopStyleColor();
             if (n == 1 && moveFocus == FirstEntry) {

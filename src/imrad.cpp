@@ -86,6 +86,7 @@ std::string styleName;
 bool reloadStyle = true;
 GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
+std::string lastPropName;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
 GLFWcursor* curCross = nullptr;
@@ -1499,10 +1500,10 @@ void ExplorerUI()
     });
 }
 
-bool BeginPropGroup(const std::string& cat, bool& open)
+bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
 {
     bool topLevel = cat.find('.') == std::string::npos;
-    bool forceSameRow = !topLevel; // cat == "layout.overlayPos" || cat == "layout.size"; //todo: !topLevel
+    forceSameRow = !topLevel;
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
@@ -1530,8 +1531,11 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     if (!topLevel)
         ImGui::Unindent();
     ImGui::SetNextItemAllowOverlap();
+    if (forceOpen)
+        ImGui::SetNextItemOpen(true);
     //see https://github.com/ocornut/imgui/issues/8551
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
+    bool open;
     if (!forceSameRow)
         open = ImGui::TreeNodeEx(str.c_str(), flags);
     else {
@@ -1545,7 +1549,7 @@ bool BeginPropGroup(const std::string& cat, bool& open)
     ImGui::PopStyleVar();
     if (!open && !forceSameRow)
         ImGui::TableNextColumn();
-    return forceSameRow;
+    return open;
 }
 
 void EndPropGroup(const std::string& cat, bool open)
@@ -1553,6 +1557,20 @@ void EndPropGroup(const std::string& cat, bool open)
     bool topLevel = cat.find('.') == std::string::npos;
     if (open)
         ImGui::TreePop();
+}
+
+std::vector<std::string_view> GetCat(std::string_view pname)
+{
+    std::vector<std::string_view> cat;
+    size_t i1 = 0;
+    while (1) {
+        size_t i2 = pname.find_first_of(".#", i1);
+        if (i2 == std::string::npos || pname[i2] == '#')
+            break;
+        cat.push_back(pname.substr(i1, i2 - i1));
+        i1 = i2 + 1;
+    }
+    return cat;
 }
 
 void PropertyRowsUI(bool pr)
@@ -1568,6 +1586,7 @@ void PropertyRowsUI(bool pr)
         ImGui::GetIO().AddInputCharacter(addInputCharacter);
         addInputCharacter = 0;
     }
+    //detect keypress when Input is inactive
     if (!ImGui::GetIO().WantTextInput &&
         !(ImGui::GetIO().KeyMods & ~ImGuiMod_Shift) &&
         !ImGui::GetTopMostPopupModal()) //TopMostAndVisible doesn't work with ClassWizard open??
@@ -1575,6 +1594,11 @@ void PropertyRowsUI(bool pr)
         for (int key = ImGuiKey_A; key <= ImGuiKey_Z; ++key)
             if (ImGui::IsKeyPressed((ImGuiKey)key)) {
                 keyPressed = key - ImGuiKey_A + (ImGui::GetIO().KeyShift ? 'A' : 'a');
+                break;
+            }
+        for (int key = ImGuiKey_Keypad0; key <= ImGuiKey_Keypad9; ++key)
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) {
+                keyPressed = key - ImGuiKey_Keypad0 + '0';
                 break;
             }
     }
@@ -1649,6 +1673,13 @@ void PropertyRowsUI(bool pr)
                 pnames = std::move(pres);
             }
         }
+        std::vector<std::string_view> forceCatOpen;
+        if (pr && keyPressed)
+        {
+            if (stx::count(pnames, lastPropName))
+                forceCatOpen = GetCat(lastPropName);
+        }
+
         ImGui::PushFont(ctx.pgFont);
         ImVec2 framePad = ImGui::GetStyle().FramePadding;
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
@@ -1660,64 +1691,57 @@ void PropertyRowsUI(bool pr)
         ImGui::PushID(ctx.selected[0]);
         //edit first widget
         auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
-        std::string_view pname;
         std::string pval;
-        std::vector<std::string_view> inCat;
+        std::vector<std::string_view> lastCat;
         std::vector<bool> catOpen;
         for (int i = 0; i < (int)props.size(); ++i)
         {
             const auto& prop = props[i];
             if (!stx::count(pnames, prop.name))
                 continue;
-            std::vector<std::string_view> cat;
-            size_t i1 = 0;
-            while (1) {
-                size_t i2 = prop.name.find_first_of(".#", i1);
-                if (i2 == std::string::npos || prop.name[i2] == '#')
-                    break;
-                cat.push_back(prop.name.substr(i1, i2 - i1));
-                i1 = i2 + 1;
-            }
+            std::vector<std::string_view> cat = GetCat(prop.name);
             bool forceSameRow = false;
-            if (cat != inCat)
+            if (cat != lastCat)
             {
-                while (inCat.size() &&
-                    (inCat.size() > cat.size() ||
-                        !std::equal(inCat.begin(), inCat.end(), cat.begin(), cat.begin() + inCat.size())))
+                while (lastCat.size() &&
+                    (lastCat.size() > cat.size() ||
+                        !std::equal(lastCat.begin(), lastCat.end(), cat.begin(), cat.begin() + lastCat.size())))
                 {
-                    EndPropGroup(stx::join(inCat, "."), catOpen.back());
-                    inCat.pop_back();
+                    EndPropGroup(stx::join(lastCat, "."), catOpen.back());
+                    lastCat.pop_back();
                     catOpen.pop_back();
                 }
-                while (inCat.size() < cat.size())
+                bool forceOpen = cat.size() <= forceCatOpen.size() &&
+                    std::equal(cat.begin(), cat.end(), forceCatOpen.begin(), forceCatOpen.begin() + cat.size());
+                while (lastCat.size() < cat.size())
                 {
-                    inCat.push_back(cat[inCat.size()]);
+                    lastCat.push_back(cat[lastCat.size()]);
                     bool open = false;
                     if (!stx::count(catOpen, false))
                     {
                         ImGui::PopID();
-                        forceSameRow = BeginPropGroup(stx::join(inCat, "."), open);
+                        open = BeginPropGroup(stx::join(lastCat, "."), forceOpen, forceSameRow);
                         ImGui::PushID(ctx.selected[0]);
                     }
                     catOpen.push_back(open);
                 }
             }
-            if (inCat.size() && stx::count(catOpen, false) && !forceSameRow)
+            if (lastCat.size() && stx::count(catOpen, false) && !forceSameRow)
                 continue;
+            if (keyPressed && props[i].name == lastPropName) {
+                addInputCharacter = keyPressed;
+                ImGui::SetKeyboardFocusHere();
+            }
             if (!forceSameRow) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::AlignTextToFramePadding();
             }
-            if (keyPressed && props[i].kbdInput) {
-                addInputCharacter = keyPressed;
-                ImGui::SetKeyboardFocusHere();
-            }
             bool change = pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
             if (change) {
                 fileTabs[activeTab].modified = true;
                 if (props[i].property) {
-                    pname = props[i].name;
+                    lastPropName = props[i].name; //todo: set lastPropName upon input focus as well
                     pval = props[i].property->to_arg();
                 }
             }
@@ -1727,10 +1751,10 @@ void PropertyRowsUI(bool pr)
                 ImGui::TableNextColumn();
             }
         }
-        while (inCat.size())
+        while (lastCat.size())
         {
-            EndPropGroup(stx::join(inCat, "."), catOpen.back());
-            inCat.pop_back();
+            EndPropGroup(stx::join(lastCat, "."), catOpen.back());
+            lastCat.pop_back();
             catOpen.pop_back();
         }
 
@@ -1757,7 +1781,7 @@ void PropertyRowsUI(bool pr)
             auto props = pr ? ctx.selected[i]->Properties() : ctx.selected[i]->Events();
             for (auto& p : props)
             {
-                if (p.name == pname) {
+                if (p.name == lastPropName) {
                     auto prop = const_cast<property_base*>(p.property);
                     prop->set_from_arg(pval);
                 }

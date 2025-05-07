@@ -2197,16 +2197,19 @@ Widget::Properties()
     }
     else
     {
+        //here we insert property with same ID as if both HasizeX|Y is set
+        //so multiselection edit works
+        //it will draw a category arrow but it's not that bad
         if (Behavior() & HasSizeX)
         {
             props.insert(props.end(),
-                { "layout.size_x", &size_x }
+                { "layout.size.size_x", &size_x }
             );
         }
         if (Behavior() & HasSizeY)
         {
             props.insert(props.end(),
-                { "layout.size_y", &size_y }
+                { "layout.size.size_y", &size_y }
             );
         }
     }
@@ -2739,9 +2742,13 @@ void Spacer::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     if (sit->kind == cpp::Kind::CallExpr && sit->callee == "ImRad::Dummy")
     {
         if (sit->params.size()) {
-            auto size = cpp::parse_fsize(sit->params[0]);
-            size_x = size.x;
-            size_y = size.y;
+            auto size = cpp::parse_size(sit->params[0]);
+            size_x.set_from_arg(size.first);
+            size_y.set_from_arg(size.second);
+            if (size_x.zero()) //compatibility
+                size_x = 20;
+            if (size_y.zero()) //compatibility
+                size_y = 20;
         }
     }
 }
@@ -3060,11 +3067,16 @@ Selectable::Selectable(UIContext& ctx)
     modalResult.add$(ImRad::Ok);
     modalResult.add$(ImRad::Cancel);
     modalResult.add$(ImRad::Yes);
+    modalResult.add$(ImRad::YesToAll);
     modalResult.add$(ImRad::No);
+    modalResult.add$(ImRad::NoToAll);
+    modalResult.add$(ImRad::Apply);
+    modalResult.add$(ImRad::Discard);
+    modalResult.add$(ImRad::Help);
+    modalResult.add$(ImRad::Reset);
     modalResult.add$(ImRad::Abort);
     modalResult.add$(ImRad::Retry);
     modalResult.add$(ImRad::Ignore);
-    modalResult.add$(ImRad::All);
 
     horizAlignment.add("AlignLeft", ImRad::AlignLeft);
     horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
