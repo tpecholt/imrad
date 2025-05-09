@@ -61,6 +61,7 @@ enum ModalResult {
 };
 
 enum Alignment {
+    AlignNone = 0x0,
     AlignLeft = 0x1,
     AlignRight = 0x2,
     AlignHCenter = 0x4,

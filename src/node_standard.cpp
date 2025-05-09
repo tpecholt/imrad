@@ -868,6 +868,16 @@ Widget::Create(const std::string& name, UIContext& ctx)
 
 Widget::Widget()
 {
+    hasPos.add("None", ImRad::AlignNone);
+    hasPos.add("TopLeft", ImRad::AlignLeft | ImRad::AlignTop);
+    hasPos.add("TopCenter", ImRad::AlignHCenter | ImRad::AlignTop);
+    hasPos.add("TopRight", ImRad::AlignRight | ImRad::AlignTop);
+    hasPos.add("LeftCenter", ImRad::AlignLeft | ImRad::AlignVCenter);
+    hasPos.add("RightCenter", ImRad::AlignRight | ImRad::AlignVCenter);
+    hasPos.add("BottomLeft", ImRad::AlignLeft | ImRad::AlignBottom);
+    hasPos.add("BottomCenter", ImRad::AlignHCenter | ImRad::AlignBottom);
+    hasPos.add("BottomRight", ImRad::AlignRight | ImRad::AlignBottom);
+
     cursor.add$(ImGuiMouseCursor_None);
     cursor.add$(ImGuiMouseCursor_Arrow);
     cursor.add$(ImGuiMouseCursor_TextInput);
@@ -976,10 +986,14 @@ void Widget::Draw(UIContext& ctx)
     {
         ImRect r = ImGui::GetCurrentWindow()->InnerRect;
         ImVec2 pos{ pos_x.eval_px(ctx), pos_y.eval_px(ctx) };
-        if (pos.x < 0)
+        if (hasPos & ImRad::AlignRight)
             pos.x += r.GetWidth();
-        if (pos.y < 0)
+        else if (hasPos & ImRad::AlignHCenter)
+            pos.x += 0.5f * r.GetWidth();
+        if (hasPos & ImRad::AlignBottom)
             pos.y += r.GetHeight();
+        else if (hasPos & ImRad::AlignVCenter)
+            pos.y += 0.5f * r.GetHeight();
         ImGui::SetCursorScreenPos(r.Min + pos);
     }
     else if (l.flags & (Layout::HLayout | Layout::VLayout))
@@ -1345,18 +1359,32 @@ void Widget::Draw(UIContext& ctx)
         }
     }
 
-    if (hasPos)
+    bool selected = stx::count(ctx.selected, this);
+    if (hasPos && !ctx.beingResized) //(selected || ctx.hovered == this))
     {
         ImU32 clr = ctx.colors[UIContext::Selected];
-        float d = 10;
-        if (pos_x >= 0 && pos_y >= 0)
+        ImVec2 szx{ cached_size.x, 0 };
+        ImVec2 szy{ 0, cached_size.y };
+        ImVec2 cx{ cached_size.x / 2, 0 };
+        ImVec2 cy{ 0, cached_size.x / 2 };
+        float d = 8.f + (selected ? 1 : 0);
+        float dd = 0.66f*d;
+        if (hasPos == (ImRad::AlignLeft | ImRad::AlignTop))
             drawList->AddTriangleFilled(cached_pos, cached_pos + ImVec2(d, 0), cached_pos + ImVec2(0, d), clr);
-        else if (pos_x < 0 && pos_y >= 0)
-            drawList->AddTriangleFilled(cached_pos + ImVec2(cached_size.x, 0), cached_pos + ImVec2(cached_size.x, d), cached_pos + ImVec2(cached_size.x - d, 0), clr);
-        else if (pos_x >= 0 && pos_y < 0)
-            drawList->AddTriangleFilled(cached_pos + ImVec2(d, cached_size.y), cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(0, cached_size.y - d), clr);
-        else if (pos_x < 0 && pos_y < 0)
-            drawList->AddTriangleFilled(cached_pos + cached_size, cached_pos + ImVec2(cached_size.x - d, cached_size.y), cached_pos + ImVec2(cached_size.x, cached_size.y - d), clr);
+        else if (hasPos == (ImRad::AlignHCenter | ImRad::AlignTop))
+            drawList->AddTriangleFilled(cached_pos + cx, cached_pos + cx + ImVec2(dd, d), cached_pos + cx + ImVec2(-dd, d), clr);
+        else if (hasPos == (ImRad::AlignRight | ImRad::AlignTop))
+            drawList->AddTriangleFilled(cached_pos + szx, cached_pos + szx + ImVec2(0, d), cached_pos + szx + ImVec2(-d, 0), clr);
+        else if (hasPos == (ImRad::AlignLeft | ImRad::AlignVCenter))
+            drawList->AddTriangleFilled(cached_pos + cy, cached_pos + cy + ImVec2(d, -dd), cached_pos + cy + ImVec2(d, dd), clr);
+        else if (hasPos == (ImRad::AlignRight | ImRad::AlignVCenter))
+            drawList->AddTriangleFilled(cached_pos + szx + cy, cached_pos + cy + szx + ImVec2(-d, -dd), cached_pos + cy + szx + ImVec2(-d, dd), clr);
+        else if (hasPos == (ImRad::AlignLeft | ImRad::AlignBottom))
+            drawList->AddTriangleFilled(cached_pos + szy + ImVec2(d, 0), cached_pos + szy, cached_pos + szy + ImVec2(0, -d), clr);
+        else if (hasPos == (ImRad::AlignHCenter | ImRad::AlignBottom))
+            drawList->AddTriangleFilled(cached_pos + cx + szy, cached_pos + cx + szy + ImVec2(-dd, -d), cached_pos + cx + szy + ImVec2(dd, -d), clr);
+        else if (hasPos == (ImRad::AlignRight | ImRad::AlignBottom))
+            drawList->AddTriangleFilled(cached_pos + cached_size, cached_pos + cached_size + ImVec2(-d, 0), cached_pos + cached_size + ImVec2(0, -d), clr);
     }
     /*if (ctx.mode == UIContext::ItemSizingX &&
         ctx.dragged == this)
@@ -1368,7 +1396,6 @@ void Widget::Draw(UIContext& ctx)
         dl->AddLine(ImVec2{ cached_pos.x + cached_size.x, ir.Min.y }, ImVec2{ cached_pos.x + cached_size.x, ir.Max.y }, clr);
         ImGui::PopClipRect();
     }*/
-    bool selected = stx::count(ctx.selected, this);
     if (selected
         /*ctx.mode >= UIContext::ItemSizingX && ctx.mode <= UIContext::ItemSizingXY &&
         ctx.dragged == this*/)
@@ -1515,19 +1542,26 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     if (hasPos)
     {
         os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
-        if (pos_x < 0)
-            os << "ImGui::GetCurrentWindow()->InnerRect.Max.x" << pos_x.to_arg(ctx.unit);
-        else
-            os << pos_x.to_arg(ctx.unit);
+        if (hasPos & ImRad::AlignRight)
+            os << "ImGui::GetCurrentWindow()->InnerRect.Max.x" << (pos_x > 0 ? "+" : "");
+        else if (hasPos & ImRad::AlignHCenter)
+            os << "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.x" << (pos_x > 0 ? "+" : "");
+        os << pos_x.to_arg(ctx.unit);
         os << ", ";
-        if (pos_y < 0)
-            os << "ImGui::GetCurrentWindow()->InnerRect.Max.y" << pos_y.to_arg(ctx.unit);
-        else
-            os << pos_y.to_arg(ctx.unit);
+        if (hasPos & ImRad::AlignBottom)
+            os << "ImGui::GetCurrentWindow()->InnerRect.Max.y" << (pos_y > 0 ? "+" : "");
+        else if (hasPos & ImRad::AlignVCenter)
+            os << "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.y" << (pos_y > 0 ? "+" : "");
+        os << pos_y.to_arg(ctx.unit);
         os << " }); //overlayPos\n";
     }
     else
     {
+        //currently SameLine/Spacing are inside visible block so they won't be
+        //trigerred when hidden. Absence of spacing may change layout but in case
+        //of sizers spacing is part of sizer calculation and must happen inside visible block
+        //so this goes there too.
+        //User can use spacers to force hidden spacing
         if (sameLine)
         {
             os << ctx.ind << "ImGui::SameLine(";
@@ -1814,7 +1848,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
         os << ctx.ind << "}\n";
         //always submit new line so that next widgets won't get placed to the previous line
-        if (!sameLine)
+        //spacing_y is currently not submitted when hidden see above
+        if (!hasPos && !nextColumn && !sameLine)
         {
             os << ctx.ind << "else\n" << ctx.ind << "{\n";
             ctx.ind_up();
@@ -2146,16 +2181,32 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             if (sit->kind == cpp::Comment && sit->line == "//overlayPos" && sit->params.size())
             {
-                hasPos = true;
-                auto size = cpp::parse_size(sit->params[0]);
-                if (!size.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x"))
-                    pos_x.set_from_arg(size.first.substr(42));
-                else
-                    pos_x.set_from_arg(size.first);
-                if (!size.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y"))
-                    pos_y.set_from_arg(size.second.substr(42));
-                else
-                    pos_y.set_from_arg(size.second);
+                hasPos = 0;
+                auto pos = cpp::parse_size(sit->params[0]);
+                if (!pos.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x")) {
+                    hasPos |= ImRad::AlignRight;
+                    pos_x.set_from_arg(pos.first.substr(42));
+                }
+                else if (!pos.first.compare(0, 47, "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.x")) {
+                    hasPos |= ImRad::AlignHCenter;
+                    pos_x.set_from_arg(pos.first.substr(47));
+                }
+                else {
+                    hasPos |= ImRad::AlignLeft;
+                    pos_x.set_from_arg(pos.first);
+                }
+                if (!pos.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y")) {
+                    hasPos |= ImRad::AlignBottom;
+                    pos_y.set_from_arg(pos.second.substr(42));
+                }
+                else if (!pos.second.compare(0, 47, "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.y")) {
+                    hasPos |= ImRad::AlignVCenter;
+                    pos_y.set_from_arg(pos.second.substr(47));
+                }
+                else {
+                    hasPos |= ImRad::AlignTop;
+                    pos_y.set_from_arg(pos.second);
+                }
             }
             else
             {
@@ -2361,9 +2412,15 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
             fl = hasPos != Defaults().hasPos ? InputDirectVal_Modified : 0;
-            changed = InputDirectVal(&hasPos, fl, ctx);
+            changed = InputDirectValEnum(&hasPos, fl, ctx);
             if (changed)
             {
+                //prevent widget going out of window
+                if ((hasPos & ImRad::AlignRight) && pos_x >= 0)
+                    pos_x = -20;
+                if ((hasPos & ImRad::AlignBottom) && pos_y >= 0)
+                    pos_y = -20;
+                //adjust parent index
                 bool moveChild = false;
                 auto pinfo = ctx.root->FindChild(this);
                 UINode* parent = pinfo->first;
@@ -2393,7 +2450,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
             ImGui::EndDisabled();
             return changed;
         case 1:
-            ImGui::BeginDisabled(!hasPos);
+            ImGui::BeginDisabled(!hasPos);// || (hasPos & ImRad::AlignHCenter));
             ImGui::Text("pos_x");
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2402,7 +2459,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
             ImGui::EndDisabled();
             return changed;
         case 2:
-            ImGui::BeginDisabled(!hasPos);
+            ImGui::BeginDisabled(!hasPos);// || (hasPos & ImRad::AlignVCenter));
             ImGui::Text("pos_y");
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());

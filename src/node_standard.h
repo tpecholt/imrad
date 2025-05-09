@@ -142,7 +142,7 @@ struct Widget : UINode
     direct_val<bool> tabStop = true;
     direct_val<bool> initialFocus = false;
     field_ref<bool> forceFocus;
-    direct_val<bool> hasPos = false;
+    direct_val<ImRad::Alignment> hasPos = ImRad::AlignNone;
     direct_val<dimension_t> pos_x = 0;
     direct_val<dimension_t> pos_y = 0;
     direct_val<int> indent = 0;
