@@ -252,6 +252,7 @@ void Init(struct android_app* app)
         ImGui_ImplOpenGL3_Init("#version 300 es");
 
         GetDisplayInfo();
+        io.MouseDragThreshold *= g_IOUserData.dpiScale;
         // Load ImRAD style including fonts:
         // ImRad::LoadStyle(fname, g_IOUserData.dpiScale);
         // Alternatively, setup Dear ImGui style

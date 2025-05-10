@@ -2880,7 +2880,7 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
     if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginPopup")
     {
-        PushError(ctx, "ContextMenu protocol changed. Please update \"MenuIt\" tag manually");
+        PushError(ctx, "ContextMenu protocol changed. Please replace top level \"@ MenuIt\" tags with \"@ ContextMenu\" tags manually");
     }
     else if ((sit->kind == cpp::CallExpr && sit->callee == "ImGui::MenuItem") ||
         (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::MenuItem"))

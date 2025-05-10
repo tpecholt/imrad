@@ -415,7 +415,7 @@ inline bool IsItemLongPressed(double dur = -1)
         dur = 0.5f;
     double time = ImGui::GetTime() - ImGui::GetIO().MouseClickedTime[ImGuiMouseButton_Left];
     return ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-        //!ImGui::IsMouseDragging(ImGuiMouseButton_Left, g.IO.MouseDragThreshold * dpi) &&
+        !ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
         ImGui::IsItemHovered() &&
         time > dur;
 }

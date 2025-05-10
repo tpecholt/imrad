@@ -1416,6 +1416,7 @@ void TabsUI()
         int untitled = 0;
         for (int i = 0; i < (int)fileTabs.size(); ++i)
         {
+            ImGui::PushID(i);
             const auto& tab = fileTabs[i];
             std::string fname = u8string(u8path(tab.fname).filename());
             if (fname == "")
@@ -1474,6 +1475,8 @@ void TabsUI()
                 ActivateTab(i);
                 ImGui::OpenPopup(popupId.c_str());
             }
+
+            ImGui::PopID();
         }
         ImGui::EndTabBar();
     }
@@ -1601,6 +1604,10 @@ void PropertyRowsUI(bool pr)
                 keyPressed = key - ImGuiKey_Keypad0 + '0';
                 break;
             }
+        if (ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract))
+            keyPressed = '-';
+        if (ImGui::IsKeyPressed(ImGuiKey_KeypadDecimal))
+            keyPressed = '.';
     }
 
     //header
@@ -1729,6 +1736,7 @@ void PropertyRowsUI(bool pr)
             if (lastCat.size() && stx::count(catOpen, false) && !forceSameRow)
                 continue;
             if (keyPressed && props[i].name == lastPropName) {
+                //todo: don't if property is disabled
                 addInputCharacter = keyPressed;
                 ImGui::SetKeyboardFocusHere();
             }

@@ -2450,7 +2450,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
             ImGui::EndDisabled();
             return changed;
         case 1:
-            ImGui::BeginDisabled(!hasPos);// || (hasPos & ImRad::AlignHCenter));
+            ImGui::BeginDisabled(!hasPos);
             ImGui::Text("pos_x");
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2459,7 +2459,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
             ImGui::EndDisabled();
             return changed;
         case 2:
-            ImGui::BeginDisabled(!hasPos);// || (hasPos & ImRad::AlignVCenter));
+            ImGui::BeginDisabled(!hasPos);
             ImGui::Text("pos_y");
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
