@@ -2761,6 +2761,11 @@ std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
 ImDrawList* Spacer::DoDraw(UIContext& ctx)
 {
     ImVec2 size { size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
+    if (!size.x) //compatibility
+        size.x = 20;
+    if (!size.y) //compatibility
+        size.y = 20;
+
     ImRad::Dummy(size);
 
     if (!ctx.beingResized)
@@ -2802,10 +2807,6 @@ void Spacer::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             auto size = cpp::parse_size(sit->params[0]);
             size_x.set_from_arg(size.first);
             size_y.set_from_arg(size.second);
-            if (size_x.zero()) //compatibility
-                size_x = 20;
-            if (size_y.zero()) //compatibility
-                size_y = 20;
         }
     }
 }
@@ -3197,6 +3198,8 @@ void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
     cached_pos = p1;
     cached_size = ImGui::GetItemRectSize();
 
+    /*
+    Not needed when we switched to ImRad::Selectable v0.9
     assert(ctx.parents.back() == this);
     const auto* parent = ctx.parents[ctx.parents.size() - 2];
     size_t idx = stx::find_if(parent->children, [this](const auto& ch) {
@@ -3213,6 +3216,7 @@ void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
         cached_size.x = ImGui::CalcTextSize(label.c_str(), nullptr, true).x;
         cached_size.x += ImGui::GetStyle().ItemSpacing.x;
     }
+    */
 
     if (!(flags & ImGuiSelectableFlags_NoPadWithHalfSpacing)) {
         //ItemRect has ItemSpacing padding by default. Adjust pos to make
@@ -3315,6 +3319,8 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 4) {
             auto sz = cpp::parse_size(sit->params[3]);
             size_x.set_from_arg(sz.first);
+            if (ctx.importVersion < 9000 && size_x.zero())
+                size_x = -1;
             size_y.set_from_arg(sz.second);
         }
 
@@ -3414,14 +3420,16 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font", &style_font, ctx);
         break;
     case 3:
+        ImGui::BeginDisabled(size_x.zero());
         ImGui::Text("horizAlignment");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = horizAlignment != Defaults().horizAlignment ? InputDirectVal_Modified : 0;
         changed = InputDirectValEnum(&horizAlignment, fl, ctx);
+        ImGui::EndDisabled();
         break;
     case 4:
-        ImGui::BeginDisabled(size_y.has_value() && !size_y.eval_px(ImGuiAxis_Y, ctx));
+        ImGui::BeginDisabled(size_y.zero());
         ImGui::Text("vertAlignment");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());

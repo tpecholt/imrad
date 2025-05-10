@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.8
+// Generated with ImRAD 0.9
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_settings_dlg.h"
@@ -46,6 +46,7 @@ void SettingsDlg::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 5 });
     ImGui::SetNextWindowSize({ 700, 520 }, ImGuiCond_FirstUseEver); //{ 700, 520 }
+    ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Settings###SettingsDlg", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
@@ -68,7 +69,7 @@ void SettingsDlg::Draw()
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0.5f });
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImRad::Selectable("Category", false, ImGuiSelectableFlags_DontClosePopups, { 140, 24 });
+        ImRad::Selectable("Category", false, ImGuiSelectableFlags_NoAutoClosePopups, { 140, 24 });
         ImGui::PopItemFlag();
         ImGui::PopStyleVar();
         vb1.AddSize(0, 24);
@@ -89,13 +90,14 @@ void SettingsDlg::Draw()
         if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 140, vb1.GetSize() }))
         {
             ImGui::TableSetupColumn("A", 0, 0);
+            ImGui::TableSetupScrollFreeze(0, 0);
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
 
             /// @begin Selectable
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0.5f });
-            ImRad::Selectable("\xee\x85\xa3  Environment", true, ImGuiSelectableFlags_DontClosePopups, { 0, 30 });
+            ImRad::Selectable("\xee\x85\xa3  Environment", true, ImGuiSelectableFlags_NoAutoClosePopups, { -1, 30 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -124,7 +126,7 @@ void SettingsDlg::Draw()
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Regular:", false, ImGuiSelectableFlags_DontClosePopups, { 60, 0 });
+            ImRad::Selectable("Regular:", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -161,7 +163,7 @@ void SettingsDlg::Draw()
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Regular:", false, ImGuiSelectableFlags_DontClosePopups, { 60, 0 });
+            ImRad::Selectable("Regular:", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -190,7 +192,7 @@ void SettingsDlg::Draw()
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Bold:", false, ImGuiSelectableFlags_DontClosePopups, { 60, 0 });
+            ImRad::Selectable("Bold:", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 

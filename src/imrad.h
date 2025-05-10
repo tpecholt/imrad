@@ -369,10 +369,16 @@ inline void Dummy(const ImVec2& size)
     return ImGui::Dummy(sz);
 }
 
+//ImGui::Selectable behaves differently in many ways. Here we
+// * use CalcItemSize to support negative dimensions
+// * change meaning of size.x=0 to label width. This fixes layout calculation in box sizer because
+// ImGui::Selectable always reports avail. User can still supply -1 to request avail width expansion
+// * size.y=0 doesn't cause avail width expansion in ImGui so changing size.x=0 fixes the inconsistency
 inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
 {
-    //ImGui Selectable doesn't support negative dimensions like other controls
     ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
+    if (!sz.x && !(flags & ImGuiSelectableFlags_SpanAllColumns))
+        sz.x = ImGui::CalcTextSize(label, nullptr, true).x;
     return ImGui::Selectable(label, selected, flags, sz);
 }
 

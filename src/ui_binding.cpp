@@ -35,6 +35,7 @@ void BindingDlg::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
     ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver); //{ 600, 480 }
+    ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Binding###BindingDlg", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
@@ -51,34 +52,43 @@ void BindingDlg::Draw()
         newFieldPopup.Draw();
 
         /// @begin Text
+        hb1.BeginLayout();
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff4d4dff);
         ImGui::TextUnformatted(ImRad::Format(" {}=", name).c_str());
+        hb1.AddSize(0, ImRad::HBox::ItemSize);
         ImGui::PopStyleColor();
         /// @end Text
 
-        /// @begin Selectable
+        /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::BeginDisabled(true);
-        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
-        ImRad::Selectable(ImRad::Format("{}", type).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
-        ImGui::PopStyleVar();
-        ImGui::EndDisabled();
-        /// @end Selectable
+        ImRad::Dummy({ hb1.GetSize(), 20 });
+        hb1.AddSize(1, ImRad::HBox::Stretch(1));
+        /// @end Spacer
+
+        /// @begin Text
+        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        ImGui::TextUnformatted(ImRad::Format("{}", type).c_str());
+        hb1.AddSize(1, ImRad::HBox::ItemSize);
+        ImGui::PopStyleColor();
+        /// @end Text
 
         /// @begin Input
         ImGui::PushFont(font);
-        if (ImGui::IsWindowAppearing())
-            ImGui::SetKeyboardFocusHere();
-        if (focusExpr)
-        {
-            focusExpr = false;
-            ImGui::SetKeyboardFocusHere();
-        }
         ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_CallbackCharFilter, IMRAD_INPUTTEXT_EVENT(BindingDlg, OnTextInputFilter));
         if (ImGui::IsItemActive())
             ioUserData->imeType = ImRad::ImeText;
         ImGui::PopFont();
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere(-1);
+        if (focusExpr)
+        {
+            //forceFocus
+            if (ImGui::IsItemFocused())
+                focusExpr = false;
+            ImGui::SetKeyboardFocusHere(-1);
+        }
         /// @end Input
 
         /// @begin Text
@@ -91,7 +101,7 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImRad::Dummy({ hb3.GetSize(), 0 });
+        ImRad::Dummy({ hb3.GetSize(), 20 });
         hb3.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
@@ -119,8 +129,10 @@ void BindingDlg::Draw()
 
                 /// @begin Selectable
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                if (ImRad::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                if (ImRad::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                {
                     OnVarClicked();
+                }
                 ImGui::PopStyleVar();
                 /// @end Selectable
 
@@ -128,7 +140,7 @@ void BindingDlg::Draw()
                 ImRad::TableNextColumn(1);
                 ImGui::BeginDisabled(true);
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                ImRad::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_DontClosePopups, { 0, 0 });
+                ImRad::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
                 ImGui::PopStyleVar();
                 ImGui::EndDisabled();
                 /// @end Selectable
@@ -153,7 +165,7 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImRad::Dummy({ hb5.GetSize(), 0 });
+        ImRad::Dummy({ hb5.GetSize(), 20 });
         hb5.AddSize(1, ImRad::HBox::Stretch(1));
         /// @end Spacer
 
@@ -235,6 +247,7 @@ void BindingDlg::Init()
 void BindingDlg::ResetLayout()
 {
     // ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 2;
+    hb1.Reset();
     hb3.Reset();
     hb5.Reset();
 }
