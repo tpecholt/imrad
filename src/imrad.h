@@ -447,6 +447,14 @@ inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
     ImGui::PopID();
 }
 
+inline ImRect GetParentInnerRect()
+{
+    ImRect r = ImGui::GetCurrentWindow()->InnerRect;
+    if (ImGui::GetCurrentTable())
+        r.ClipWith(ImGui::GetCurrentTable()->InnerRect);
+    return r;
+}
+
 inline void Spacing(int n)
 {
     /*while (n--)
@@ -483,6 +491,31 @@ inline void PushInvisibleScrollbar()
 inline void PopInvisibleScrollbar()
 {
     ImGui::PopStyleColor(2);
+}
+
+struct CursorData
+{
+    ImVec2 cursorPos;
+    ImVec2 cursorMaxPos;
+    ImVec2 idealMaxPos;
+};
+
+inline CursorData GetCursorData()
+{
+    CursorData data;
+    ImGuiWindow* wnd = ImGui::GetCurrentWindow();
+    data.cursorPos = wnd->DC.CursorPos; //affects column border height
+    data.cursorMaxPos = wnd->DC.CursorMaxPos; //affects scrollbars
+    data.idealMaxPos = wnd->DC.IdealMaxPos; //affects auto resize
+    return data;
+}
+
+inline void SetCursorData(const CursorData& data)
+{
+    ImGuiWindow* wnd = ImGui::GetCurrentWindow();
+    wnd->DC.CursorPos = data.cursorPos;
+    wnd->DC.CursorMaxPos = data.cursorMaxPos;
+    wnd->DC.IdealMaxPos = data.idealMaxPos;
 }
 
 struct IgnoreWindowPaddingData

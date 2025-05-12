@@ -98,6 +98,7 @@ struct UINode::child_iterator
         bool operator!= (const iter& it) const;
         children_type::value_type& operator* ();
         const children_type::value_type& operator* () const;
+        size_t index() const;
 
     private:
         bool end() const;

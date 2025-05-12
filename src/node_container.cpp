@@ -186,7 +186,9 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
         ImGui::TableSetColumnIndex(0);
 
         for (const auto& child : child_iterator(children, false))
+        {
             child->Draw(ctx);
+        }
 
         int n = itemCount.limit.value();
         for (int r = ImGui::TableGetRowIndex() + 1; r < header + n; ++r)
@@ -194,14 +196,15 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
 
         if (child_iterator(children, true))
         {
-            ImGuiWindow* win = ImGui::GetCurrentWindow();
-            win->SkipItems = false;
-            //auto mpos = win->DC.CursorMaxPos;
-            ImGui::PushClipRect(win->InnerRect.Min, win->InnerClipRect.Max, false);
+            //ImGui::GetCurrentWindow()->SkipItems = false;
+            auto cpos = ImRad::GetCursorData();
+            ImGui::PushClipRect(ImGui::GetCurrentTable()->InnerRect.Min, ImGui::GetCurrentTable()->InnerClipRect.Max, false);
             for (const auto& child : child_iterator(children, true))
+            {
                 child->Draw(ctx);
+            }
             ImGui::PopClipRect();
-            //win->DC.CursorMaxPos = mpos;
+            ImRad::SetCursorData(cpos);
         }
 
         ImGui::EndTable();
@@ -570,7 +573,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     for (auto& child : child_iterator(children, false))
         child->Export(os, ctx);
 
-    os << "\n" << ctx.ind << "/// @separator\n";
+    os << ctx.ind << "/// @separator\n";
 
     if (!onEndRow.empty() && !itemCount.empty())
         os << ctx.ind << onEndRow.to_arg() << "();\n";
@@ -585,8 +588,9 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     {
         //draw overlay children at the end so they are visible,
         //inside table's child because ItemOverlap works only between items in same window
-        os << ctx.ind << "ImGui::GetCurrentWindow()->SkipItems = false;\n";
-        os << ctx.ind << "ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false);\n";
+        //os << ctx.ind << "ImGui::GetCurrentWindow()->SkipItems = false;\n";
+        os << ctx.ind << "auto cpos" << ctx.varCounter << " = ImRad::GetCursorData();\n";
+        os << ctx.ind << "ImGui::PushClipRect(ImRad::GetParentInnerRect().Min, ImRad::GetParentInnerRect().Max, false);\n";
         os << ctx.ind << "/// @separator\n\n";
 
         for (auto& child : child_iterator(children, true))
@@ -594,6 +598,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
+        os << ctx.ind << "ImRad::SetCursorData(cpos" << ctx.varCounter << ");\n";
     }
 
     os << ctx.ind << "ImGui::EndTable();\n";
@@ -795,9 +800,9 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
     if (!sz.y && children.empty())
         sz.y = 30;
 
-    ImRad::IgnoreWindowPaddingData data;
+    ImRad::IgnoreWindowPaddingData paddingData;
     if (!style_outerPadding)
-        ImRad::PushIgnoreWindowPadding(&sz, &data);
+        ImRad::PushIgnoreWindowPadding(&sz, &paddingData);
 
     //after calling BeginChild, win->ContentSize and scrollbars are updated and drawn
     //only way how to disable scrollbars when using !style_outer_padding is to use
@@ -813,10 +818,19 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
     if (columnCount.has_value() && columnCount.value() >= 2)
         ImGui::Columns(columnCount.value(), "columns", columnBorder);
 
-    for (size_t i = 0; i < children.size(); ++i)
+    for (const auto& child : child_iterator(children, false))
     {
-        children[i]->Draw(ctx);
+        child->Draw(ctx);
     }
+
+    auto cpos = ImRad::GetCursorData();
+    ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false); //cancels column clip
+    for (const auto& child : child_iterator(children, true))
+    {
+        child->Draw(ctx);
+    }
+    ImGui::PopClipRect();
+    ImRad::SetCursorData(cpos);
 
     if (style_spacing.has_value())
         ImGui::PopStyleVar();
@@ -824,7 +838,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
     ImGui::EndChild();
 
     if (!style_outerPadding)
-        ImRad::PopIgnoreWindowPadding(data);
+        ImRad::PopIgnoreWindowPadding(paddingData);
 
     if (!style_bg.empty())
         ImGui::PopStyleColor();
@@ -878,7 +892,6 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
     os << ctx.ind << "{\n";
     ctx.ind_up();
-    ++ctx.varCounter;
 
     if (scrollWhenDragging)
         os << ctx.ind << "ImRad::ScrollWhenDragging(false);\n";
@@ -886,14 +899,16 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
 
     bool hasColumns = !columnCount.has_value() || columnCount.value() >= 2;
-    if (hasColumns) {
+    if (hasColumns)
+    {
         os << ctx.ind << "ImGui::Columns(" << columnCount.to_arg() << ", \"\", "
             << columnBorder.to_arg() << ");\n";
         //for (size_t i = 0; i < columnsWidths.size(); ++i)
             //os << ctx.ind << "ImGui::SetColumnWidth(" << i << ", " << columnsWidths[i].c_str() << ");\n";
     }
 
-    if (!itemCount.empty()) {
+    if (!itemCount.empty())
+    {
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
@@ -916,7 +931,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
     os << ctx.ind << "/// @separator\n";
 
-    if (!itemCount.empty()) {
+    if (!itemCount.empty())
+    {
         if (hasColumns)
             os << ctx.ind << "ImGui::NextColumn();\n";
         ctx.ind_down();
@@ -926,13 +942,18 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     if (style_spacing.has_value())
         os << ctx.ind << "ImGui::PopStyleVar();\n";
 
-    if (child_iterator(children, true)) {
-        os << ctx.ind << "/// @separator\n\n";
+    if (child_iterator(children, true))
+    {
+        os << ctx.ind << "auto cpos" << ctx.varCounter << " = ImRad::GetCursorData();\n";
+        os << ctx.ind << "ImGui::PushClipRect(ImRad::GetParentInnerRect().Min, ImRad::GetParentInnerRect().Max, false);\n";
+        os << ctx.ind << "/// @separator\n";
 
         for (auto& child : child_iterator(children, true))
             child->Export(os, ctx);
 
         os << ctx.ind << "/// @separator\n";
+        os << ctx.ind << "ImGui::PopClipRect();\n";
+        os << ctx.ind << "ImRad::SetCursorData(cpos" << ctx.varCounter << ");\n";
     }
 
     os << ctx.ind << "ImGui::EndChild();\n";
@@ -951,6 +972,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     if (!style_outerPadding)
         os << ctx.ind << "ImRad::PopIgnoreWindowPadding(" << datavar << ");\n";
 
+    ++ctx.varCounter;
 }
 
 void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)

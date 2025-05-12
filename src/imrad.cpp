@@ -2018,15 +2018,14 @@ void Work()
             }
 
             newNode->hasPos = 0;
-            ImVec2 pos = ImGui::GetMousePos() - ctx.snapParent->cached_pos; //todo: padding
+            ImVec2 pos = ImGui::GetMousePos() - ctx.snapParent->cached_pos;
             if (pos.x < ctx.snapParent->cached_size.x / 2) {
                 newNode->hasPos |= ImRad::AlignLeft;
                 newNode->pos_x = pos.x / ctx.zoomFactor;
             }
             else {
                 newNode->hasPos |= ImRad::AlignRight;
-                float szx = (newNode->Behavior() & UINode::HasSizeX) ? newNode->size_x.eval_px(ImGuiAxis_X, ctx) : 0;
-                newNode->pos_x = (pos.x - ctx.snapParent->cached_size.x) / ctx.zoomFactor - szx;
+                newNode->pos_x = (pos.x - ctx.snapParent->cached_size.x) / ctx.zoomFactor;
             }
             if (pos.y < ctx.snapParent->cached_size.y / 2) {
                 newNode->hasPos |= ImRad::AlignTop;
@@ -2034,8 +2033,7 @@ void Work()
             }
             else {
                 newNode->hasPos |= ImRad::AlignBottom;
-                float szy = (newNode->Behavior() & UINode::HasSizeY) ? newNode->size_y.eval_px(ImGuiAxis_Y, ctx) : 0;
-                newNode->pos_y = (pos.y - ctx.snapParent->cached_size.y) / ctx.zoomFactor - szy;
+                newNode->pos_y = (pos.y - ctx.snapParent->cached_size.y) / ctx.zoomFactor;
             }
             ctx.selected = { newNode.get() };
             ctx.snapParent->children.push_back(std::move(newNode));

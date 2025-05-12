@@ -80,7 +80,7 @@ void ReloadExplorer(const CppGen& codeGen)
         entry.path = u8string(it->path());
         entry.folder = it->is_directory();
         entry.generated = (IsHeaderFile(it->path()) || IsCppFile(it->path())) &&
-            codeGen.IsGenerated(entry.path);
+            codeGen.ReadGenVersion(entry.path);
         entry.fileName = u8string(it->path().filename());
         auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             it->last_write_time() - fsnow + snow);
@@ -421,7 +421,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
                     ImGui::PopID();
                     break;
                 }
-                else if (!codeGen.IsGenerated(entry.path)) {
+                else if (!codeGen.ReadGenVersion(entry.path)) {
                     ShellExec(entry.path);
                 }
                 else {

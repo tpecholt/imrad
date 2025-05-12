@@ -108,22 +108,22 @@ std::string CppGen::AltFName(const std::string& path) const
     return "";
 }
 
-bool CppGen::IsGenerated(const std::string& fname) const
+int CppGen::ReadGenVersion(const std::string& fname) const
 {
     std::ifstream fin(u8path(fname));
     std::string line;
     if (!fin || !std::getline(fin, line))
-        return false;
+        return 0;
     if (line.compare(0, 3, "// "))
-        return false;
+        return 0;
     if (line.compare(3, GENERATED_WITH.size(), GENERATED_WITH))
-        return false;
+        return 0;
     size_t n = VER_STR.find(' ');
     if (n == std::string::npos)
         n = VER_STR.size();
     if (line.compare(3 + GENERATED_WITH.size(), n, VER_STR, 0, n))
-        return false;
-    return true;
+        return 0;
+    return ParseVersion(line.substr(3 + GENERATED_WITH.size()));
 }
 
 bool CppGen::ExportUpdate(
