@@ -2458,15 +2458,21 @@ std::string GetRootPath()
     wchar_t tmp[1024];
     int n = GetModuleFileNameW(NULL, tmp, (int)std::size(tmp));
     return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
-    //test utf8 path: return u8string(L"c:/work/dežo/latest");
+    //test utf8 path: return u8string(L"c:/work/deï¿½o/latest");
 #elif __APPLE__
     char executablePath[PATH_MAX];
-    uint32_t len;
+    uint32_t len = PATH_MAX;
     if (_NSGetExecutablePath(executablePath, &len) != 0) {
-        IM_ASSERT_USER_ERROR(0, "Could not get root path!");
+        fprintf(stderr, "Error: _NSGetExecutablePath failed, fallback to current directory\n");
+        return u8string(fs::current_path());
     }
-    fs::path pexe = fs::canonical(u8path(executablePath));
-    return u8string(pexe.parent_path());
+    try {
+        fs::path pexe = fs::canonical(u8path(executablePath));
+        return u8string(pexe.parent_path());
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Error: fs::canonical failed: %s, fallback to current directory\n", e.what());
+        return u8string(fs::current_path());
+    }
 #else
     fs::path pexe = fs::canonical("/proc/self/exe");
     return u8string(pexe.parent_path());
