@@ -911,6 +911,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 {
     Layout l;
     l.colId = l.rowId = -1;
+    l.index = -1;
 
     if (hasPos || !(Behavior() & SnapSides))
     {
@@ -958,6 +959,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
             hlay = true;
 
         if (child.get() == this) {
+            l.index = &child - parent->children.data();
             l.colId = colId;
             l.rowId = rowId;
             l.flags |= (leftmost * Layout::Leftmost) | (topmost * Layout::Topmost);
@@ -1489,7 +1491,8 @@ void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 
 void Widget::Export(std::ostream& os, UIContext& ctx)
 {
-    Layout l = GetLayout(ctx.parents.back());
+    UINode* parent = ctx.parents.back();
+    Layout l = GetLayout(parent);
     ctx.stretchSize = { 0, 0 };
     ctx.stretchSizeExpr = { "", "" };
     const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
@@ -1504,7 +1507,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     //layout commands first even when !visible
     if (!hasPos && nextColumn)
     {
-        bool inTable = dynamic_cast<Table*>(ctx.parents.back());
+        bool inTable = dynamic_cast<Table*>(parent);
         if (inTable)
             os << ctx.ind << "ImRad::TableNextColumn(" << nextColumn.to_arg() << ");\n";
         else
@@ -1571,11 +1574,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     else
     {
-        //currently SameLine/Spacing are inside visible block so they won't be
-        //trigerred when hidden. Absence of spacing may change layout but in case
-        //of sizers spacing is part of sizer calculation and must happen inside visible block
-        //so this goes there too.
-        //User can use spacers to force hidden spacing
         if (sameLine)
         {
             os << ctx.ind << "ImGui::SameLine(";
@@ -1862,12 +1860,18 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
         os << ctx.ind << "}\n";
         //always submit new line so that next widgets won't get placed to the previous line
-        //spacing_y is currently not submitted when hidden see above
-        if (!hasPos && !nextColumn && !sameLine)
+        //for Leftmost ensure vb.AddSize so next widget don't update previous line
+        const Widget* next = l.index + 1 < parent->children.size() ? parent->children[l.index + 1].get() : nullptr;
+        if (!hasPos && (l.flags & Layout::Leftmost) &&
+            next && !next->hasPos && !next->nextColumn && next->sameLine)
         {
             os << ctx.ind << "else\n" << ctx.ind << "{\n";
             ctx.ind_up();
+            if (spacing - defSpacing)
+                os << ctx.ind << "ImRad::Spacing(" << (spacing - defSpacing) << ");\n";
             os << ctx.ind << "ImGui::ItemSize({ 0, 0 });\n";
+            if (l.flags & Layout::VLayout)
+                os << ctx.ind << vbName << ".AddSize(" << spacing << ", 0);\n";
             ctx.ind_down();
             os << ctx.ind << "}\n";
         }
@@ -3057,11 +3061,14 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
 
 void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
+    cached_pos = ImGui::GetItemRectMin();
+    cached_size = ImGui::GetItemRectSize();
+    /*
     cached_pos = p1;
     cached_size = ImGui::GetItemRectSize();
     ImGui::SameLine(0, 0);
     cached_size.x = ImGui::GetCursorScreenPos().x - p1.x;
-    ImGui::NewLine();
+    ImGui::NewLine();*/
 }
 
 void Text::DoExport(std::ostream& os, UIContext& ctx)
@@ -3250,38 +3257,9 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
 
 void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
-    cached_pos = p1;
+    //there is a combined effect of AlignTextToFramePadding, NoPadWithHalfSpacing etc.
+    cached_pos = ImGui::GetItemRectMin();
     cached_size = ImGui::GetItemRectSize();
-
-    /*
-    Not needed when we switched to ImRad::Selectable v0.9
-    assert(ctx.parents.back() == this);
-    const auto* parent = ctx.parents[ctx.parents.size() - 2];
-    size_t idx = stx::find_if(parent->children, [this](const auto& ch) {
-        return ch.get() == this;
-        }) - parent->children.begin();
-    bool explicitWidth = size_x.has_value() && !size_x.zero();
-    if (!(flags & ImGuiSelectableFlags_SpanAllColumns) &&
-        !explicitWidth &&
-        idx + 1 < parent->children.size() &&
-        parent->children[idx + 1]->sameLine)
-    {
-        //when size.x=0 ItemRect spans to the right edge even anoter widget
-        //is on the same line. Fix it here so next widget can be selected
-        cached_size.x = ImGui::CalcTextSize(label.c_str(), nullptr, true).x;
-        cached_size.x += ImGui::GetStyle().ItemSpacing.x;
-    }
-    */
-
-    if (!(flags & ImGuiSelectableFlags_NoPadWithHalfSpacing)) {
-        //ItemRect has ItemSpacing padding by default. Adjust pos to make
-        //the rectangle look centered
-        cached_pos.x -= ImGui::GetStyle().ItemSpacing.x / 2;
-        //cached_pos.y -= ImGui::GetStyle().ItemSpacing.y / 2;
-    }
-    else {
-        cached_pos.y += ImGui::GetStyle().ItemSpacing.y / 2;
-    }
 }
 
 void Selectable::DoExport(std::ostream& os, UIContext& ctx)

@@ -129,6 +129,7 @@ struct Widget : UINode
         int flags = 0;
         int colId = 0;
         int rowId = 0;
+        size_t index = 0;
     };
 
     direct_val<bool> sameLine = false;
