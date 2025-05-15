@@ -21,12 +21,14 @@ void NewFieldPopup::OpenPopup(std::function<void()> clb)
     if (mode != NewEvent)
         varName = "";
     varInit = "";
+    varPublic = mode == NewEvent ? false : true;
     if (mode == RenameField) {
         varName = varOldName;
         auto* var = codeGen->GetVar(varOldName);
         if (var) {
             varInit = var->init;
             varType = var->type;
+            varPublic = var->flags & CppGen::Var::Interface;
         }
     }
     CheckVarName();
@@ -52,9 +54,9 @@ void NewFieldPopup::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 10 });
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
-    ImGui::SetNextWindowSizeConstraints({ 400, 350 }, { FLT_MAX, FLT_MAX });
+    ImGui::SetNextWindowSizeConstraints({ 400, 100 }, { FLT_MAX, FLT_MAX });
     bool tmp = true;
-    if (ImGui::BeginPopupModal(title.c_str(), &tmp, 0))
+    if (ImGui::BeginPopupModal(title.c_str(), &tmp, ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (requestClose) {
             ImGui::CloseCurrentPopup();
@@ -67,41 +69,78 @@ void NewFieldPopup::Draw()
 
         if (mode == RenameField || mode == RenameStruct || mode == RenameWindow)
         {
-            ImGui::Text("Old name:");
+            ImGui::Text("Old name");
             ImGui::BeginDisabled(true);
             ImGui::SetNextItemWidth(-1);
             ImGui::InputText("##varOldName", &varOldName, ImGuiInputTextFlags_CharsNoBlank);
             ImGui::EndDisabled();
+            ImGui::Spacing();
         }
-        else
+
+        ImGui::Text(
+            mode == RenameWindow || mode == RenameStruct || mode == RenameField ? "New name" :
+            mode == NewEvent ? "Method name" :
+            mode == NewStruct ? "Struct name" :
+            "Field name"
+        );
+
+        ImGui::SameLine();
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.0f, 0 });
+        ImGui::Selectable((nameError + "##nameError").c_str(), false);
+        ImGui::PopStyleVar();
+        ImGui::PopItemFlag();
+        ImGui::PopStyleColor();
+
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere();
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::InputText("##varName", &varName, ImGuiInputTextFlags_CharsNoBlank))
+            change = true;
+
+        if (mode == NewField || mode == NewStruct || mode == NewEvent)
         {
-            ImGui::Text("Field type:");
+            ImGui::Text("Field type");
+
+            ImGui::SameLine();
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
+            ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.0f, 0 });
+            ImGui::Selectable((typeError + "##typeError").c_str(), false);
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor();
+            ImGui::PopItemFlag();
+
             ImGui::BeginDisabled(varTypeDisabled);
-            if (ImGui::IsWindowAppearing() && varType == "")
-                ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(-1);
             if (ImGui::InputText("##varType", &varType, ImGuiInputTextFlags_CharsNoBlank))
                 change = true;
             ImGui::EndDisabled();
         }
 
-        ImGui::Spacing();
-        ImGui::Text(mode == RenameWindow || mode == RenameStruct ? "New name:" :
-            mode == NewEvent ? "Method name:" :
-            "Field name:");
-        if (ImGui::IsWindowAppearing() && varType != "")
-            ImGui::SetKeyboardFocusHere();
-        ImGui::SetNextItemWidth(-1);
-        if (ImGui::InputText("##varName", &varName, ImGuiInputTextFlags_CharsNoBlank))
-            change = true;
+        if (mode == NewField || mode == RenameField)
+        {
+            ImGui::Spacing();
+            ImGui::Text("Initial value (optional)");
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::InputText("##init", &varInit, ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter))
+                change = true;
+        }
 
         if (mode == NewField || mode == RenameField)
         {
             ImGui::Spacing();
-            ImGui::Text("Initial value:");
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::InputText("##init", &varInit, ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter))
-                change = true;
+            ImGui::Text("Access");
+            if (ImGui::BeginChild("access", { -1, 0 }, ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY))
+            {
+                if (ImGui::RadioButton("Interface", varPublic))
+                    varPublic = true;
+                ImGui::SameLine(0, 3 * ImGui::GetStyle().ItemSpacing.x);
+                if (ImGui::RadioButton("Implementation", !varPublic))
+                    varPublic = false;
+                ImGui::EndChild();
+            }
         }
 
         if (change)
@@ -116,18 +155,15 @@ void NewFieldPopup::Draw()
             CheckVarName();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, clr);
-        ImGui::TextWrapped("%s", hint.c_str());
-        ImGui::PopStyleColor();
-
+        ImGui::Spacing();
         ImGui::Spacing();
 
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetContentRegionAvail().y - 30);
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 2 * 100));
-        ImGui::BeginDisabled(hint != "");
+        ImGui::BeginDisabled(nameError != "" || typeError != "");
         if (ImGui::Button("OK", { 100, 30 }))
         {
             CheckVarName();
+            int flags = varPublic ? CppGen::Var::Interface : CppGen::Var::Impl;
 
             if (mode == NewField || mode == NewStruct || mode == NewEvent)
             {
@@ -137,16 +173,16 @@ void NewFieldPopup::Draw()
                     messageBox.title = "New";
                     messageBox.message = "Create a new struct?";
                     messageBox.buttons = ImRad::Yes | ImRad::No;
-                    messageBox.OpenPopup([this, type](ImRad::ModalResult mr) {
+                    messageBox.OpenPopup([this, type, flags](ImRad::ModalResult mr) {
                         if (mr != ImRad::Yes)
                             return;
-                        codeGen->CreateVarExpr(varName, type, scope);
+                        codeGen->CreateVarExpr(varName, type, varInit, flags, scope);
                         ClosePopup();
                         callback();
                         });
                 }
                 else if (ret == CppGen::New) {
-                    codeGen->CreateVarExpr(varName, type, varInit, scope);
+                    codeGen->CreateVarExpr(varName, type, varInit, flags, scope);
                     ClosePopup();
                     callback();
                 }
@@ -154,7 +190,7 @@ void NewFieldPopup::Draw()
             else if (mode == RenameField)
             {
                 assert(varType != "");
-                codeGen->ChangeVar(varOldName, varType, varInit, scope);
+                codeGen->ChangeVar(varOldName, varType, varInit, flags, scope);
                 codeGen->RenameVar(varOldName, varName, scope);
                 ClosePopup();
                 callback();
@@ -189,73 +225,61 @@ void NewFieldPopup::Draw()
 
 void NewFieldPopup::CheckVarName()
 {
-    hint = "";
+    nameError = typeError = "";
     if (mode == RenameWindow)
     {
         if (!cpp::is_id(varName)) {
-            hint = "expected simple id";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "expected simple id";
         }
     }
     else if (mode == RenameStruct)
     {
         if (!cpp::is_id(varName)) {
-            hint = "expected simple id";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "expected simple id";
         }
         else if (varName != varOldName && stx::count(codeGen->GetStructTypes(), varName)) {
-            hint = "same field already exists";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "same field already exists";
         }
     }
     else if (mode == RenameField)
     {
         if (!cpp::is_id(varName)) {
-            hint = "expected simple id";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "expected simple id";
         }
         else if (varName != varOldName && codeGen->CheckVarExpr(varName, varType, scope) != CppGen::New) {
-            hint = "same field already exists";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "same field already exists";
         }
     }
     else if (mode == NewStruct || mode == NewEvent)
     {
         std::string type = mode == NewStruct ? "struct" : varType;
         if (!cpp::is_id(varName)) {
-            hint = "expected simple id";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "expected simple id";
         }
         else if (codeGen->CheckVarExpr(varName, type, scope) != CppGen::New) {
-            hint = "same field already exists";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "same field already exists";
         }
     }
     else if (mode == NewField)
     {
-        if (varTypeArray && !cpp::is_id(varName)) {
-            hint = "expected simple id";
-            clr = IM_COL32(255, 0, 0, 255);
-        }
-        else if (varType == "") {
-            hint = "syntax error";
-            clr = IM_COL32(255, 0, 0, 255);
-        }
-        else switch (codeGen->CheckVarExpr(varName, varType, scope))
+        switch (codeGen->CheckVarExpr(varName, varType, scope))
         {
         case CppGen::SyntaxError:
-            hint = "syntax error";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "expected simple id";
             break;
         case CppGen::ConflictError:
-            hint = "field of different type already exists";
-            clr = IM_COL32(255, 0, 0, 255);
+            nameError = "field of different type already exists";
             break;
         case CppGen::Existing:
-            hint = "same field already exists";
-            clr = IM_COL32(255, 128, 0, 255);
+            nameError = "same field already exists";
             break;
         default:
+            if (varTypeArray && !cpp::is_id(varName)) {
+                nameError = "expected simple id";
+            }
+            else if (varType == "") {
+                typeError = "invalid type";
+            }
             break;
         }
     }

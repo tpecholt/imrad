@@ -1130,9 +1130,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
             changed = true;
             //these flags are difficult to get right and there are asserts so fix it here
             if (ch == ImGuiChildFlags_AutoResizeX || ch == ImGuiChildFlags_AutoResizeY) {
-                if (flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY))
-                    flags |= ImGuiChildFlags_AlwaysAutoResize;
-                else
+                if (!(flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY)))
                     flags &= ~ImGuiChildFlags_AlwaysAutoResize;
             }
             if (ch == ImGuiChildFlags_AlwaysAutoResize) {
@@ -1140,13 +1138,11 @@ bool Child::PropertyUI(int i, UIContext& ctx)
                     if (!(flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY)))
                         flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY;
                 }
-                else
-                    flags &= ~(ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
             }
             //
-            if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeX))
+            if (flags & ImGuiChildFlags_AutoResizeX)
                 size_x = 0;
-            if ((flags & ImGuiChildFlags_AlwaysAutoResize) && (flags & ImGuiChildFlags_AutoResizeY))
+            if (flags & ImGuiChildFlags_AutoResizeY)
                 size_y = 0;
         }
         break;

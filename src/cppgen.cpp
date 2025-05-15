@@ -1335,13 +1335,15 @@ void CppGen::RemovePrefixedVars(const std::string& prefix, const std::string& sc
     });
 }
 
-bool CppGen::ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope)
+bool CppGen::ChangeVar(const std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope)
 {
     auto* var = FindVar(name, scope);
     if (!var)
         return false;
     var->type = DecorateType(type);
     var->init = init;
+    if (flags != -1)
+        var->flags = flags;
     return true;
 }
 
@@ -1456,7 +1458,7 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
 }
 
 //accepts name patterns recognized by CheckVarExpr
-bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const std::string& init, const std::string& scope1)
+bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const std::string& init, int flags, const std::string& scope1)
 {
     std::string type = DecorateType(type_);
     auto SingularUpperForm = [](const std::string& id) {
@@ -1519,7 +1521,7 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
             else if (!array) {
                 bool fun = IsFunType(stype);
                 std::string ninit = init.size() ? init : DefaultInitFor(stype); //initialize scalar variables
-                if (!CreateNamedVar(id, stype, ninit, fun ? Var::Impl : Var::Interface, scope))
+                if (!CreateNamedVar(id, stype, ninit, flags, scope))
                     return false;
                 /* better not to impicitly define new struct
                 std::string elemType;
@@ -1529,7 +1531,7 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
                 }*/
             }
             else {
-                if (!CreateNamedVar(id, "std::vector<" + stype + ">", init, Var::Interface, scope))
+                if (!CreateNamedVar(id, "std::vector<" + stype + ">", init, flags, scope))
                     return false;
                 if (!leaf)
                     m_fields[stype];

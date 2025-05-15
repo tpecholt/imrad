@@ -42,7 +42,7 @@ public:
     bool RenameVar(const std::string& oldn, const std::string& newn, const std::string& scope = "");
     bool RemoveVar(const std::string& name, const std::string& scope = "");
     void RemovePrefixedVars(const std::string& prefix, const std::string& scope = "");
-    bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
+    bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, int flags = -1, const std::string& scope = "");
     const Var* GetVar(const std::string& name, const std::string& scope = "") const;
     bool RenameStruct(const std::string& oldn, const std::string& newn);
     const std::vector<Var>& GetVars(const std::string& scope = "");
@@ -50,7 +50,7 @@ public:
     std::vector<std::string> GetStructTypes();
     enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
     VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");
-    bool CreateVarExpr(std::string& name, const std::string& type, const std::string& init, const std::string& scope = "");
+    bool CreateVarExpr(std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope = "");
     auto GetVarExprs(const std::string& type) ->std::vector<std::pair<std::string, std::string>>;
 
 private:

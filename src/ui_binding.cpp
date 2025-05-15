@@ -95,7 +95,7 @@ void BindingDlg::Draw()
         hb3.BeginLayout();
         ImRad::Spacing(1);
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Available fields:");
+        ImGui::TextUnformatted("Available fields");
         hb3.AddSize(0, ImRad::HBox::ItemSize);
         /// @end Text
 
@@ -144,7 +144,6 @@ void BindingDlg::Draw()
                 ImGui::PopStyleVar();
                 ImGui::EndDisabled();
                 /// @end Selectable
-
 
                 /// @separator
                 ImGui::PopID();

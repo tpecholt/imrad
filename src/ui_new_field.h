@@ -14,8 +14,9 @@ public:
 public:
     std::string varType;
     std::string varOldName;
-    std::string varName; //auto reset except for NewEvent
+    std::string varName; //auto cleared except for NewEvent
     std::string varInit; //auto filled
+    bool varPublic;
     std::string scope;
     CppGen* codeGen = nullptr;
     enum mode_t { NewField, NewStruct, NewEvent, RenameField, RenameStruct, RenameWindow };
@@ -30,7 +31,7 @@ private:
 
     bool varTypeDisabled = false;
     bool varTypeArray = false;
-    std::string hint;
+    std::string nameError, typeError;
     ImU32 clr;
 };
 
