@@ -23,6 +23,40 @@ namespace cpp
         return true;
     }
 
+    inline bool is_literal(std::string_view s)
+    {
+        if (s.empty())
+            return false;
+        if (s == "true" || s == "false" || s == "nullptr" ||
+            (s[0] == '\'' && s.back() == '\'') ||
+            (s[0] == '"' && s.back() == '"'))
+        {
+            return true;
+        }
+        double num;
+        std::istringstream is(std::string(s.data(), s.size()));
+        if (!(is >> num))
+        {
+            return false;
+        }
+        return is.eof() || is.tellg() == s.size();
+    }
+
+    inline bool is_cstr(std::string_view s)
+    {
+        return s.size() >= 2 && s[0] == '"' && s.back() == '"';
+    }
+
+    inline bool is_builtin(std::string_view s)
+    {
+        if (!s.compare(0, 6, "const "))
+            s.remove_prefix(6);
+        return s == "int" || s == "short" || s == "unsigned" || s == "long" ||
+            s == "unsigned int" || s == "unsigned short" || s == "unsigned long" ||
+            s == "long long" || s == "unsigned long long" || s == "char" ||
+            s == "unsigned char" || s == "char*" || s == "bool";
+    }
+
     struct token_iterator
     {
         token_iterator()
@@ -518,28 +552,17 @@ namespace cpp
         data_t data;
     };
 
-    inline bool is_cstr(std::string_view s)
-    {
-        return s.size() >= 2 && s[0] == '"' && s.back() == '"';
-    }
-
-    inline bool is_builtin(std::string_view s)
-    {
-        if (!s.compare(0, 6, "const "))
-            s.remove_prefix(6);
-        return s == "int" || s == "short" || s == "unsigned" || s == "long" ||
-            s == "unsigned int" || s == "unsigned short" || s == "unsigned long" ||
-            s == "long long" || s == "unsigned long long" || s == "char" ||
-            s == "unsigned char" || s == "char*" || s == "bool";
-    }
-
     inline bool is_std_container(std::string_view s, std::string& elemType)
     {
         static const std::string_view names[]{
             "std::vector", "std::array", "std::span",
         };
 
-        if (s == "" || s.back() != '>')
+        if (!s.compare(0, 6, "const "))
+            s.remove_prefix(6);
+        if (s.size() && s.back() == '&')
+            s.remove_suffix(1);
+        if (s.empty() || s.back() != '>')
             return false;
         for (std::string_view name : names)
         {
@@ -554,6 +577,43 @@ namespace cpp
         return false;
     }
 
+    inline bool is_std_pair(std::string_view s, std::string& firstType, std::string& secondType)
+    {
+        if (!s.compare(0, 6, "const "))
+            s.remove_prefix(6);
+        if (s.size() && s.back() == '&')
+            s.remove_suffix(1);
+        if (s.empty() || s.compare(0, 10, "std::pair<") || s.back() != '>')
+            return false;
+
+        s.remove_prefix(10);
+        s.remove_suffix(1);
+        std::istringstream is(std::string(s.data(), s.size()));
+        int level = 0;
+        size_t i = -1;
+        for (token_iterator it(is); it != token_iterator(); ++it)
+        {
+            if (*it == "<" || *it == "[" || *it == "(" || *it == "{")
+                ++level;
+            else if (*it == ">" || *it == "]" || *it == ")" || *it == "}")
+                --level;
+            else if (!level && *it == ",") {
+                i = (size_t)it.stream().tellg() - 1;
+            }
+        }
+        if (i >= s.size())
+            return false;
+        firstType = s.substr(0, i);
+        secondType = s.substr(i + 1);
+        return true;
+    }
+
+    inline bool is_std_container(std::string_view s)
+    {
+        std::string elemType;
+        return is_std_container(s, elemType);
+    }
+
     inline bool is_ptr(std::string_view s, std::string& type)
     {
         if (s.size() && s.back() == '*') {
@@ -563,6 +623,10 @@ namespace cpp
         static const std::string_view names[]{
             "std::shared_ptr", "std::weak_ptr", "std::unique_ptr"
         };
+        if (!s.compare(0, 6, "const "))
+            s.remove_prefix(6);
+        if (s.size() && s.back() == '&')
+            s.remove_suffix(1);
         for (std::string_view name : names) {
             size_t i = s.rfind('>');
             if (s.size() > name.size() &&
