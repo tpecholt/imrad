@@ -26,9 +26,6 @@ public:
     std::string type;
     CppGen * codeGen;
     ImFont * font = nullptr;
-    bool showAll;
-    std::vector<std::pair<std::string , std::string >> vars;
-    bool focusExpr = false;
     /// @end interface
 
 private:
@@ -39,6 +36,9 @@ private:
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
+    bool showAll;
+    std::vector<std::pair<std::string , std::string >> vars;
+    bool focusExpr = false;
     ImRad::HBox hb1;
     ImRad::HBox hb3;
     ImRad::HBox hb5;

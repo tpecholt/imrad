@@ -513,15 +513,7 @@ struct bindable : property_base
     }
     bool empty() const { return str.empty(); }
     bool has_value() const {
-        if (empty())
-            return false;
-        std::istringstream is(str);
-        T val;
-        if (!(is >> std::boolalpha >> val))
-            return false;
-        if (is.eof())
-            return true;
-        return is.tellg() == str.size();
+        return cpp::is_literal(str);
     }
     T value() const {
         if (!has_value())
@@ -630,13 +622,7 @@ struct bindable<dimension_t> : property_base
         return grow;
     }
     bool has_value() const {
-        if (empty())
-            return false;
-        std::istringstream is(str);
-        float val;
-        if (!(is >> val))
-            return false;
-        return is.eof() || is.tellg() == str.size();
+        return cpp::is_literal(str);
     }
     float value() const {
         if (!has_value())

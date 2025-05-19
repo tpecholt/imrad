@@ -1648,12 +1648,13 @@ void PropertyRowsUI(bool pr)
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
         ImGui::PushItemFlag(ImGuiItemFlags_NoNav, false); //Pop+Push doesn't work here
 
-        //find parent for widget::PropertyUI
+        //find parents for widget::PropertyUI and BindingButton
         if (ctx.selected.size() && ctx.root) {
-            ctx.parents.clear();
-            auto pinfo = ctx.root->FindChild(ctx.selected[0]);
-            if (pinfo) {
-                ctx.parents = { pinfo->first, ctx.selected[0] };
+            UINode* cur = ctx.selected[0];
+            ctx.parents = { cur };
+            while (auto pinfo = ctx.root->FindChild(cur)) {
+                cur = pinfo->first;
+                ctx.parents.insert(ctx.parents.begin(), cur);
             }
         }
         //determine common properties for a selection set

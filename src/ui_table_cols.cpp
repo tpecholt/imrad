@@ -94,8 +94,10 @@ void TableCols::Draw()
 
                     /// @begin Selectable
                     ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                    if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 }))
+                    if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                    {
                         Selectable_Change();
+                    }
                     ImGui::PopStyleVar();
                     /// @end Selectable
 
@@ -105,7 +107,6 @@ void TableCols::Draw()
                     ImGui::TextUnformatted(ImRad::Format("{}", columns[i].SizingPolicyString()).c_str());
                     ImGui::PopStyleColor();
                     /// @end Text
-
 
                     /// @separator
                     ImGui::PopID();
@@ -153,7 +154,7 @@ void TableCols::Draw()
         /// @begin Button
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(sel<=0);
-        if (ImGui::ArrowButton("##2166441554064", ImGuiDir_Up))
+        if (ImGui::ArrowButton("##button3", ImGuiDir_Up))
         {
             UpButton_Change();
         }
@@ -166,7 +167,7 @@ void TableCols::Draw()
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(sel+1==columns.size());
-        if (ImGui::ArrowButton("##2166605759360", ImGuiDir_Down))
+        if (ImGui::ArrowButton("##button4", ImGuiDir_Down))
         {
             DownButton_Change();
         }

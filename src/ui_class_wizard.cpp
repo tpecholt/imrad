@@ -103,7 +103,7 @@ void ClassWizard::Draw()
             {
                 if (ImGui::Selectable(stypes[i].c_str(), i == stypeIdx)) {
                     stypeIdx = i;
-                    fields = codeGen->GetVars(stypeIdx ? stypes[stypeIdx] : "");
+                    Refresh();
                 }
             }
             ImGui::EndCombo();
@@ -150,16 +150,17 @@ void ClassWizard::Draw()
         ImGui::SetColumnWidth(1, BWIDTH + ImGui::GetStyle().ItemSpacing.x);
 
         /// @begin Text
-        ImGui::Text("Fields:");
+        ImGui::Text("Fields");
         /// @end Text
 
         /// @begin Table
-        if (ImGui::BeginTable("table", 4, ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_SizingStretchProp /*| ImGuiTableFlags_RowBg*/, { 0, -1 }))
+        if (ImGui::BeginTable("table", 4, ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Resizable /*| ImGuiTableFlags_RowBg*/, { 0, -1 }))
         {
             ImGui::TableSetupColumn("Section", ImGuiTableColumnFlags_WidthFixed, 20);
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1);
             ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, 1);
             ImGui::TableSetupColumn("Init", ImGuiTableColumnFlags_WidthStretch, 1);
+            ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableHeadersRow();
 
             for (int i = 0; i < fields.size(); ++i)
@@ -185,7 +186,7 @@ void ClassWizard::Draw()
                 const char* tooltip =
                     (var.flags & CppGen::Var::Impl) ? "private" :
                     (var.flags & CppGen::Var::Interface) ? "public" :
-                    "uknown";
+                    "unknown";
                 /// @begin Selectable
                 if (ImGui::Selectable(icon, selRow == i, ImGuiSelectableFlags_SpanAllColumns))
                     selRow = i;
@@ -237,8 +238,7 @@ void ClassWizard::Draw()
         /// @end Button
 
         /// @begin Button
-        ImGui::Spacing();
-        ImGui::Spacing();
+        ImRad::Spacing(4);
         ImGui::BeginDisabled(selRow < 0 || selRow >= (int)fields.size());
         if (ImGui::Button("Rename Field...", { BWIDTH, 0 }) ||
             (!ImRad::IsCurrentItemDisabled() && doRenameField))
@@ -257,8 +257,7 @@ void ClassWizard::Draw()
         /// @end Button
 
         /// @begin Button
-        ImGui::Spacing();
-        ImGui::Spacing();
+        ImRad::Spacing(4);
         ImGui::BeginDisabled(selRow < 0 || selRow >= (int)fields.size());
         if (ImGui::Button("Remove Field", { BWIDTH, 0 }))
         {
@@ -287,8 +286,7 @@ void ClassWizard::Draw()
         /// @end Button
 
         /// @begin Button
-        ImGui::Spacing();
-        ImGui::Spacing();
+        ImRad::Spacing(2);
         ImGui::BeginDisabled(stypeIdx);
         if (ImGui::Button("Remove Unused", { BWIDTH, 0 }))
         {
@@ -308,13 +306,13 @@ void ClassWizard::Draw()
         /// @end Child
 
         /// @begin Dummy
-        ImGui::Spacing();
+        ImRad::Spacing(2);
         ImGui::Dummy({ ImGui::GetContentRegionAvail().x - 110, 0 });
         /// @end Dummy
 
         /// @begin Button
-        ImGui::SameLine();
-        if (ImGui::Button("OK", { 100, 35 }) || ImGui::Shortcut(ImGuiKey_Escape))
+        ImGui::SameLine(0, 0);
+        if (ImGui::Button("OK", { 110, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
         {
             ClosePopup();
         }

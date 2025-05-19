@@ -382,6 +382,15 @@ inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
     return ImGui::Selectable(label, selected, flags, sz);
 }
 
+inline bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags flags, const ImVec2& size)
+{
+    if (Selectable(label, *selected, flags, size)) {
+        *selected = !*selected;
+        return true;
+    }
+    return false;
+}
+
 inline bool Splitter(bool split_horiz, float thickness, float* position, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
 {
     using namespace ImGui;

@@ -882,6 +882,7 @@ Widget::Widget()
     hasPos.add("TopCenter", ImRad::AlignHCenter | ImRad::AlignTop);
     hasPos.add("TopRight", ImRad::AlignRight | ImRad::AlignTop);
     hasPos.add("LeftCenter", ImRad::AlignLeft | ImRad::AlignVCenter);
+    hasPos.add("Center", ImRad::AlignHCenter | ImRad::AlignVCenter);
     hasPos.add("RightCenter", ImRad::AlignRight | ImRad::AlignVCenter);
     hasPos.add("BottomLeft", ImRad::AlignLeft | ImRad::AlignBottom);
     hasPos.add("BottomCenter", ImRad::AlignHCenter | ImRad::AlignBottom);
@@ -997,15 +998,19 @@ void Widget::Draw(UIContext& ctx)
     {
         ImRect r = ImRad::GetParentInnerRect();
         ImVec2 pos{ pos_x.eval_px(ImGuiAxis_X, ctx), pos_y.eval_px(ImGuiAxis_Y, ctx) };
-        if (hasPos & ImRad::AlignRight)
-            pos.x += r.GetWidth();
+        if (hasPos & ImRad::AlignLeft)
+            pos.x += r.Min.x;
+        else if (hasPos & ImRad::AlignRight)
+            pos.x += r.Max.x;
         else if (hasPos & ImRad::AlignHCenter)
-            pos.x += 0.5f * r.GetWidth();
-        if (hasPos & ImRad::AlignBottom)
-            pos.y += r.GetHeight();
+            pos.x += r.GetCenter().x;
+        if (hasPos & ImRad::AlignTop)
+            pos.y += r.Min.y;
+        else if (hasPos & ImRad::AlignBottom)
+            pos.y += r.Max.y;
         else if (hasPos & ImRad::AlignVCenter)
-            pos.y += 0.5f * r.GetHeight();
-        ImGui::SetCursorScreenPos(r.Min + pos);
+            pos.y += r.GetCenter().y;
+        ImGui::SetCursorScreenPos(pos);
     }
     else if (l.flags & (Layout::HLayout | Layout::VLayout))
     {
@@ -1395,6 +1400,7 @@ void Widget::Draw(UIContext& ctx)
             drawList->AddTriangleFilled(cached_pos + cx + szy, cached_pos + cx + szy + ImVec2(-dd, -d), cached_pos + cx + szy + ImVec2(dd, -d), clr);
         else if (hasPos == (ImRad::AlignRight | ImRad::AlignBottom))
             drawList->AddTriangleFilled(cached_pos + cached_size, cached_pos + cached_size + ImVec2(-d, 0), cached_pos + cached_size + ImVec2(0, -d), clr);
+        //else if (hasPos == (ImRad::AlignHCenter | ImRad::AlignVCenter))
     }
     /*if (ctx.mode == UIContext::ItemSizingX &&
         ctx.dragged == this)

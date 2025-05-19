@@ -14,7 +14,7 @@ public:
     void Draw();
 
     std::vector<Table::ColumnData> columns;
-    UIContext * ctx;
+    UIContext* ctx;
     float sash = 180;
     std::string error;
     /// @end interface
