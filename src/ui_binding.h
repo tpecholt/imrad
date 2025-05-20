@@ -24,8 +24,10 @@ public:
     std::string name;
     std::string expr;
     std::string type;
-    CppGen * codeGen;
-    ImFont * font = nullptr;
+    CppGen* codeGen;
+    std::string curArray;
+    bool forceReference;
+    ImFont* font = nullptr;
     /// @end interface
 
 private:
@@ -33,11 +35,13 @@ private:
     void ResetLayout();
     void Init();
 
+    void OkButton_Change();
+
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
     bool showAll;
-    std::vector<std::pair<std::string , std::string >> vars;
+    std::vector<std::pair<std::string,std::string>> vars;
     bool focusExpr = false;
     ImRad::HBox hb1;
     ImRad::HBox hb3;

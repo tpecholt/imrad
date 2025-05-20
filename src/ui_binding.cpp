@@ -3,6 +3,7 @@
 
 #include "ui_binding.h"
 #include "ui_new_field.h"
+#include "ui_message_box.h"
 #include "utils.h"
 
 BindingDlg bindingDlg;
@@ -50,6 +51,7 @@ void BindingDlg::Draw()
         /// @separator
 
         newFieldPopup.Draw();
+        messageBox.Draw();
 
         /// @begin Text
         hb1.BeginLayout();
@@ -68,7 +70,7 @@ void BindingDlg::Draw()
         /// @begin Text
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::TextUnformatted(ImRad::Format("{}", type).c_str());
+        ImGui::TextUnformatted(ImRad::Format("{}", type + (forceReference ? " &" : "")).c_str());
         hb1.AddSize(1, ImRad::HBox::ItemSize);
         ImGui::PopStyleColor();
         /// @end Text
@@ -175,12 +177,15 @@ void BindingDlg::Draw()
             if (type == "std::vector<std::string>" &&
                 (expr.empty() || expr[0] != '{' || expr.find('{', 1) != std::string::npos || expr.back() != '}'))
                 exprValid = false;
+            if (forceReference && expr.empty())
+                exprValid = false;
+
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(!exprValid);
         if (ImGui::Button("OK", { 90, 30 }))
         {
-            ClosePopup(ImRad::Ok);
+            OkButton_Change();
         }
         hb5.AddSize(1, 90);
         ImGui::EndDisabled();
@@ -206,7 +211,7 @@ void BindingDlg::Draw()
 
 void BindingDlg::Refresh()
 {
-    vars = codeGen->GetVarExprs(showAll ? "" : type);
+    vars = codeGen->GetVarExprs(showAll ? "" : type, true, curArray);
 }
 
 void BindingDlg::OnNewField()
@@ -251,4 +256,14 @@ void BindingDlg::ResetLayout()
     hb5.Reset();
 }
 
-
+void BindingDlg::OkButton_Change()
+{
+    if (forceReference && !cpp::is_lvalue(expr)) {
+        messageBox.title = "Expression";
+        messageBox.message = "\"" + name + "\" field requires an l-value expression";
+        messageBox.buttons = ImRad::Ok;
+        messageBox.OpenPopup();
+        return;
+    }
+    ClosePopup(ImRad::Ok);
+}

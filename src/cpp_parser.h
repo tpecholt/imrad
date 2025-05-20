@@ -651,12 +651,12 @@ namespace cpp
     //i==sel -> false
     //arr[2+i].koko -> true
     //(arr[i]) -> false (special case)
-    inline bool is_reference(std::string_view s)
+    inline bool is_lvalue(std::string_view s)
     {
         std::istringstream is(std::string(s.data(), s.size()));
         int level = 0;
         token_iterator it(is);
-        if (it != token_iterator() && *it == "(")
+        if (it == token_iterator() || *it == "(")
             return false;
         for (; it != token_iterator(); ++it)
         {
@@ -671,9 +671,8 @@ namespace cpp
                 bool op = stx::count_if(*it, [](char c) {
                     return !std::isspace(c) && !std::isalnum(c) && c != '_';
                     });
-                if (*it == "::" || *it == ".")
-                    op = false;
-                if (*it == "*" || *it == "&" || *it == "->") //could be pointer expr
+                if (*it == "::" || *it == "." || *it == "->" || *it == "," ||
+                    *it == "*") //could be pointer dereference
                     op = false;
                 if (op)
                     return false;

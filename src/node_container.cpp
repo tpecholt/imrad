@@ -4,7 +4,7 @@
 #include "imrad.h"
 #include "cppgen.h"
 #include "binding_input.h"
-#include "binding_field.h"
+#include "binding_eval.h"
 #include "ui_table_cols.h"
 #include "ui_message_box.h"
 #include <algorithm>
@@ -2652,7 +2652,7 @@ MenuIt::MenuIt(UIContext& ctx)
 std::unique_ptr<Widget> MenuIt::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<MenuIt>(*this);
-    if (!checked.empty() && ctx.createVars) {
+    if (!checked.has_single_variable() && ctx.createVars) {
         sel->checked.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
     }
     sel->CloneChildrenFrom(*this, ctx);
@@ -2719,7 +2719,9 @@ ImDrawList* MenuIt::DoDraw(UIContext& ctx)
     else //menuItem
     {
         bool check = !checked.empty();
-        ImGui::MenuItem(DRAW_STR(label), shortcut.c_str(), check);
+        auto ps = PrepareString(label.value());
+        ImGui::MenuItem(ps.label.c_str(), shortcut.c_str(), check);
+        DrawTextArgs(ps, ctx);
     }
     ImGui::PopStyleVar();
     return ImGui::GetWindowDrawList();
@@ -2844,10 +2846,12 @@ void MenuIt::DoExport(std::ostream& os, UIContext& ctx)
 
         os << "ImGui::MenuItem(" << label.to_arg() << ", \""
             << shortcut.c_str() << "\", ";
-        if (checked.empty())
-            os << "false";
-        else
+        if (checked.is_reference())
             os << "&" << checked.to_arg();
+        else if (!checked.empty())
+            os << checked.to_arg();
+        else
+            os << "false";
         os << ")";
         //ImGui::Shortcut is exported in ExportShortcut pass
 
@@ -2907,8 +2911,10 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             label.set_from_arg(sit->params[0]);
         if (sit->params.size() >= 2 && cpp::is_cstr(sit->params[1]))
             *shortcut.access() = sit->params[1].substr(1, sit->params[1].size() - 2);
-        if (sit->params.size() >= 3 && !sit->params[2].compare(0, 1, "&"))
-            checked.set_from_arg(sit->params[2].substr(1));
+        if (sit->params.size() >= 3) {
+            bool amp = !sit->params[2].compare(0, 1, "&");
+            checked.set_from_arg(sit->params[2].substr(amp));
+        }
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -2985,7 +2991,10 @@ bool MenuIt::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("checked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&checked, true, ctx);
+        fl = checked != Defaults().checked ? InputBindable_Modified : 0;
+        changed = InputBindable(&checked, InputBindable_ShowVariables | InputBindable_ShowNone | fl, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("checked", &checked, ctx);
         ImGui::EndDisabled();
         break;
     default:

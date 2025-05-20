@@ -214,7 +214,7 @@ struct MenuIt : Widget
     direct_val<std::string> label = "Item";
     direct_val<shortcut_t> shortcut = "";
     direct_val<bool> separator = false;
-    field_ref<bool> checked;
+    bindable<bool> checked;
     event<> onChange;
 
     MenuIt(UIContext& ctx);

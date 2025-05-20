@@ -32,6 +32,11 @@ struct field_ref : property_base
     const std::string& value() const {
         return str;
     }
+    bool has_single_variable() const {
+        if (empty())
+            return false;
+        return cpp::is_id(str);
+    }
 
     T eval(const UIContext& ctx) const;
 
@@ -43,16 +48,18 @@ struct field_ref : property_base
         return str;
     }
     std::vector<std::string> used_variables() const {
-        if (empty())
+        size_t i = 0;
+        auto id = cpp::find_id(str, i);
+        if (id == "")
             return {};
-        auto i = str.find_first_of(".[");
-        return { str.substr(0, i) };
+        return { std::string(id.data(), id.size()) };
     };
     void rename_variable(const std::string& oldn, const std::string& newn)
     {
-        auto i = str.find_first_of(".[");
-        if (str.substr(0, i) == oldn)
-            str.replace(0, i, newn);
+        size_t i = 0;
+        auto id = cpp::find_id(str, i);
+        if (id == oldn)
+            str.replace(id.data() - str.data(), id.size(), newn);
     }
     const char* c_str() const { return str.c_str(); }
     std::string* access() { return &str; }
@@ -495,12 +502,13 @@ private:
 
 //value or binding expression
 //2*w
-template <class T>
+template <class T = void>
 struct bindable : property_base
 {
     bindable() {
     }
-    bindable(T val) {
+    template <class U = std::conditional_t<std::is_same_v<T, void>, std::nullptr_t, T>>
+    bindable(U val) {
         std::ostringstream os;
         os << std::boolalpha << val;
         str = os.str();
@@ -520,14 +528,23 @@ struct bindable : property_base
             return {};
         std::istringstream is(str);
         T val{};
-        is >> std::boolalpha >> val;
-        return val;
+        if (is >> std::boolalpha >> val)
+            return val;
+        if constexpr (std::is_convertible_v<bool, T>) {
+            if (str == "true")
+                return true;
+            if (str == "false")
+                return false;
+        }
+        return {};
     }
-    T eval(const UIContext& ctx) const {
-        return value();
-    }
+    T eval(const UIContext& ctx) const;
+
     bool has_single_variable() const {
         return cpp::is_id(str);
+    }
+    bool is_reference() const {
+        return cpp::is_lvalue(str);
     }
 
     bool set_from_arg(std::string_view s) {
@@ -746,7 +763,17 @@ struct bindable<std::string> : property_base
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {
-        return cpp::to_str_arg(str);
+        return cpp::to_str_arg(str); 
+        //todo: prefer single variable. Does it need to be c_str()??
+        // , has_single_variable());
+    }
+    bool has_single_variable() const {
+        if (empty() || str[0] != '{' || str.back() != '}')
+            return false;
+        auto vars = used_variables();
+        if (vars.size() != 1 || str.compare(1, str.size() - 2, vars[0]))
+            return false;
+        return true;
     }
     std::vector<std::string> used_variables() const {
         std::vector<std::string> vars;
@@ -994,11 +1021,14 @@ struct data_loop : property_base
     std::string index_name_or(std::string_view s) const {
         return index.empty() ? std::string(s) : index.to_arg();
     }
-    std::string container_expr() {
+    std::string container_var() const {
         auto vars = limit.used_variables();
-        if (vars.empty())
-            return "";
-        const std::string& var = vars[0];
+        if (vars.size())
+            return vars[0];
+        return "";
+    }
+    std::string container_expr() {
+        std::string var = container_var();
         const std::string& str = *limit.access();
         size_t i = str.find(var);
         if ((i && str[i - 1] == '*') || !str.compare(i + var.size(), 2, "->"))

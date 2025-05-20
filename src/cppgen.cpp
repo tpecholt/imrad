@@ -14,11 +14,11 @@ const std::string SPEC_FUN[] = {
 
 const std::string_view CppGen::INDENT = "    ";
 const std::string_view CppGen::FOR_VAR_NAME = "i";
-const std::string_view CppGen::CUR_ITEM_VAR_NAME = "_current";
+const std::string_view CppGen::CUR_ITEM_VAR_NAME = "_item";
 const std::string_view CppGen::HBOX_NAME = "hb";
 const std::string_view CppGen::VBOX_NAME = "vb";
 
-bool IsFunType(const std::string& type, std::string& ret, std::string& arg)
+bool IsFunType(std::string_view type, std::string& ret, std::string& arg)
 {
     size_t i = type.find('(');
     if (i == std::string::npos || type.back() != ')')
@@ -28,7 +28,7 @@ bool IsFunType(const std::string& type, std::string& ret, std::string& arg)
     return true;
 }
 
-bool IsFunType(const std::string& type)
+bool IsFunType(std::string_view type)
 {
     std::string ret, arg;
     return IsFunType(type, ret, arg);
@@ -1150,9 +1150,13 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
             name = line[name_idx];
             if (!beg)
             {
-                for (size_t i = 0; i < name_idx; ++i) {
-                    if (line[i] == "::" || line[i] == "<" || line[i] == ">") {
-                        if (type != "")
+                for (size_t i = 0; i < name_idx; ++i)
+                {
+                    bool op = !stx::count_if(line[i], [](char c) {
+                        return std::isalnum(c) || c == '_';
+                        });
+                    if (op) {
+                        if (type.size() && type.back() == ' ')
                             type.pop_back();
                         type += line[i];
                     }
@@ -1232,7 +1236,7 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
     return node;
 }
 
-std::string DecorateType(const std::string& type)
+std::string CppType(const std::string& type)
 {
     if (type == "int2")
         return "ImRad::Int2";
@@ -1277,7 +1281,7 @@ std::string CppGen::CreateVar(const std::string& type, const std::string& init, 
         }
     }
     std::string name = "value" + std::to_string(++max);
-    vit->second.push_back(Var(name, DecorateType(type), init, flags));
+    vit->second.push_back(Var(name, CppType(type), init, flags));
     return name;
 }
 
@@ -1290,7 +1294,7 @@ bool CppGen::CreateNamedVar(const std::string& name, const std::string& type, co
         return false;
     if (FindVar(name, scope))
         return false;
-    vit->second.push_back(Var(name, DecorateType(type), init, flags));
+    vit->second.push_back(Var(name, CppType(type), init, flags));
     return true;
 }
 
@@ -1340,7 +1344,7 @@ bool CppGen::ChangeVar(const std::string& name, const std::string& type, const s
     auto* var = FindVar(name, scope);
     if (!var)
         return false;
-    var->type = DecorateType(type);
+    var->type = CppType(type);
     var->init = init;
     if (flags != -1)
         var->flags = flags;
@@ -1402,7 +1406,7 @@ std::vector<std::string> CppGen::GetStructTypes()
 CppGen::VarExprResult
 CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const std::string& scope)
 {
-    std::string type = DecorateType(type_);
+    std::string type = CppType(type_);
     auto i = name.find('[');
     if (i != std::string::npos)
     {
@@ -1460,7 +1464,7 @@ CppGen::CheckVarExpr(const std::string& name, const std::string& type_, const st
 //accepts name patterns recognized by CheckVarExpr
 bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const std::string& init, int flags, const std::string& scope1)
 {
-    std::string type = DecorateType(type_);
+    std::string type = CppType(type_);
     auto SingularUpperForm = [](const std::string& id) {
         std::string sing;
         sing += std::toupper(id[0]);
@@ -1545,50 +1549,84 @@ bool CppGen::CreateVarExpr(std::string& name, const std::string& type_, const st
     return true;
 }
 
+std::vector<std::pair<std::string, std::string>>
+CppGen::MatchType(const std::string& name, std::string_view type, std::string_view match, bool reference, const std::string& curArray)
+{
+    std::vector<std::pair<std::string, std::string>> ret;
+    if (!type.compare(0, 6, "const ")) {
+        if (reference)
+            return ret;
+        type.remove_prefix(6);
+    }
+    if (type.size() && type.back() == '&')
+        type.remove_suffix(1);
+
+    if ((match == "" && !IsFunType(type)) || type == match)
+        ret.push_back({ name, std::string(type) });
+
+    std::string valueType, firstType, secondType;
+    if (cpp::is_ptr(type, valueType))
+    {
+        auto more = MatchType("*" + name, valueType, match, reference, curArray);
+        ret.insert(ret.end(), more.begin(), more.end());
+    }
+    else if (cpp::is_std_container(type, valueType))
+    {
+        if (match == "[]")
+            ret.push_back({ name, std::string(type) });
+        if (!reference && (match == "" || match == "int")) {
+            std::string pre = name[0]=='*' ? name.substr(1) + "->" : name + ".";
+            ret.push_back({ pre + "size()", "int" });
+        }
+        size_t i = name.find(curArray);
+        if (i != std::string::npos &&
+            i + curArray.size() == name.size() &&
+            std::count(name.begin(), name.begin() + i, '*') == i)
+        {
+            auto more = MatchType(CUR_ITEM_SYMBOL, valueType, match, reference, "");
+            ret.insert(ret.end(), more.begin(), more.end());
+        }
+    }
+    else if (cpp::is_std_pair(type, firstType, secondType))
+    {
+        std::string pre = name[0]=='*' ? name.substr(1) + "->" : name + ".";
+        auto more = MatchType(pre + "first", firstType, match, reference, "");
+        ret.insert(ret.end(), more.begin(), more.end());
+        more = MatchType(pre + "second", secondType, match, reference, "");
+        ret.insert(ret.end(), more.begin(), more.end());
+    }
+    else
+    {
+        auto it = m_fields.find(std::string(type));
+        if (it == m_fields.end())
+            return ret;
+        std::string pre = name[0]=='*' ? name.substr(1) + "->" : name + ".";
+        for (const auto& f : it->second)
+        {
+            auto more = MatchType(pre + f.name, f.type, match, reference, "");
+            ret.insert(ret.end(), more.begin(), more.end());
+        }
+    }
+
+    return ret;
+}
+
 //type=="" accepts all variables
 //type=="int" suggests container.size() as well
 //type=="[]" accepts all arrays
 //type==void() accepts all functions of this type
+//reference only accepts lvalues
+//curArray accepts its array elements as well
 std::vector<std::pair<std::string, std::string>> //(name, type)
-CppGen::GetVarExprs(const std::string& type_)
+CppGen::GetVarExprs(const std::string& type_, bool reference, const std::string& curArray)
 {
-    std::string type = DecorateType(type_);
+    assert(type_.find("const ") == std::string::npos && type_.find("&") == std::string::npos);
+    std::string type = CppType(type_);
     std::vector<std::pair<std::string, std::string>> ret;
-    bool isFun = IsFunType(type);
-    bool isPtr = cpp::is_ptr(type);
-    std::string valueType;
     for (const auto& f : m_fields[""])
     {
-        if (IsFunType(f.type) != isFun)
-            continue;
-        //arrays
-        if (cpp::is_std_container(f.type, valueType))
-        {
-            if (type == "" || type == "[]" || type == f.type)
-                ret.push_back({ f.name, f.type });
-            if (type == "" || type == "int")
-                ret.push_back({ f.name + ".size()", "int" }); //we use int indexes for simplicity
-        }
-        //pointers
-        else if (cpp::is_ptr(f.type, valueType))
-        {
-            if (type == "" || type == f.type)
-                ret.push_back({ f.name, f.type });
-            if (!isPtr && (type == "" || type == valueType))
-                ret.push_back({ "*" + f.name, valueType });
-            if (cpp::is_std_container(valueType))
-            {
-                if (type == "[]")
-                    ret.push_back({ "*" + f.name, valueType });
-                if (type == "" || type == "int")
-                    ret.push_back({ f.name + "->size()", "int" });
-            }
-        }
-        //scalars
-        else if (type == "" || f.type == type)
-        {
-            ret.push_back({ f.name, f.type });
-        }
+        auto match = MatchType(f.name, f.type, type, reference, curArray);
+        ret.insert(ret.end(), match.begin(), match.end());
     }
     stx::sort(ret);
     return ret;

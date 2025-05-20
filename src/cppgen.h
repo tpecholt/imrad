@@ -51,10 +51,11 @@ public:
     enum VarExprResult { SyntaxError, ConflictError, Existing, New, New_ImplicitStruct };
     VarExprResult CheckVarExpr(const std::string& name, const std::string& type, const std::string& scope = "");
     bool CreateVarExpr(std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope = "");
-    auto GetVarExprs(const std::string& type) ->std::vector<std::pair<std::string, std::string>>;
+    auto GetVarExprs(const std::string& type, bool reference, const std::string& curArray = "") ->std::vector<std::pair<std::string, std::string>>;
 
 private:
     Var* FindVar(const std::string& name, const std::string& scope);
+    auto MatchType(const std::string& name, std::string_view type, std::string_view match, bool reference, const std::string& curArray) -> std::vector<std::pair<std::string, std::string>>;
 
     void CreateH(std::ostream& out);
     void CreateCpp(std::ostream& out);

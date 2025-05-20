@@ -143,7 +143,7 @@ struct Widget : UINode
     direct_val<ImGuiMouseCursor_> cursor = ImGuiMouseCursor_Arrow;
     direct_val<bool> tabStop = true;
     direct_val<bool> initialFocus = false;
-    field_ref<bool> forceFocus;
+    bindable<bool> forceFocus;
     direct_val<ImRad::Alignment> hasPos = ImRad::AlignNone;
     bindable<dimension_t> pos_x = 0;
     bindable<dimension_t> pos_y = 0;
@@ -308,7 +308,7 @@ struct Button : Widget
 struct CheckBox : Widget
 {
     bindable<std::string> label = "label";
-    field_ref<bool> fieldName;
+    bindable<bool> checked;
     bindable<color_t> style_check;
     event<> onChange;
 
@@ -330,7 +330,7 @@ struct RadioButton : Widget
     bindable<std::string> label = "label";
     direct_val<int> valueID = 0;
     bindable<color_t> style_check;
-    field_ref<int> fieldName;
+    bindable<int> value;
     event<> onChange;
 
     RadioButton(UIContext& ctx);
@@ -348,7 +348,7 @@ struct RadioButton : Widget
 
 struct Input : Widget
 {
-    field_ref<> fieldName;
+    bindable<> value;
     direct_val<std::string> label = "";
     direct_val<int, true> type = 0;
     bindable<std::string> hint = "";
@@ -380,7 +380,7 @@ struct Input : Widget
 struct Combo : Widget
 {
     direct_val<std::string> label = "";
-    field_ref<std::string> fieldName;
+    bindable<> value; //don't use bindable<string> that would force format style edit
     bindable<std::vector<std::string>> items;
     direct_val<ImGuiComboFlags_> flags;
     event<> onChange;
@@ -403,7 +403,7 @@ struct Slider : Widget
 {
     direct_val<ImGuiSliderFlags_> flags;
     direct_val<std::string> label = "";
-    field_ref<> fieldName;
+    bindable<> value;
     direct_val<int, true> type = 0;
     direct_val<float> min = 0;
     direct_val<float> max = 1;
@@ -427,7 +427,7 @@ struct Slider : Widget
 struct ProgressBar : Widget
 {
     direct_val<bool> indicator = true;
-    field_ref<float> fieldName;
+    bindable<float> value;
     bindable<color_t> style_color;
 
     ProgressBar(UIContext& ctx);
@@ -444,7 +444,7 @@ struct ProgressBar : Widget
 
 struct ColorEdit : Widget
 {
-    field_ref<> fieldName;
+    bindable<> value;
     direct_val<std::string> label = "";
     direct_val<std::string> type = "color3";
     direct_val<ImGuiColorEditFlags_> flags;
@@ -467,7 +467,7 @@ struct ColorEdit : Widget
 struct Image : Widget
 {
     bindable<std::string> fileName = "";
-    field_ref<ImRad::Texture> fieldName;
+    bindable<ImRad::Texture> texture;
     enum StretchPolicy { None, Scale, FitIn, FitOut };
     direct_val<StretchPolicy> stretchPolicy = Scale;
 

@@ -4,7 +4,7 @@
 #include "stx.h"
 #include "cppgen.h"
 #include "binding_input.h"
-#include "binding_field.h"
+#include "binding_eval.h"
 #include "ui_message_box.h"
 #include "ui_combo_dlg.h"
 #include <misc/cpp/imgui_stdlib.h>
@@ -1767,7 +1767,17 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "//forceFocus\n";
         os << ctx.ind << "if (ImGui::IsItemFocused())\n";
         ctx.ind_up();
-        os << ctx.ind << forceFocus.to_arg() << " = false;\n";
+        os << ctx.ind;
+        if (forceFocus.is_reference()) {
+            os << forceFocus.to_arg() << " = false;\n";
+        }
+        else {
+            auto vars = forceFocus.used_variables();
+            if (vars.empty())
+                PushError(ctx, "can't parse variable in forceFocus binding expression");
+            else
+                os << vars[0] << " = {};\n";
+        }
         ctx.ind_down();
         os << ctx.ind << "ImGui::SetKeyboardFocusHere(-1);\n";
         ctx.ind_down();
@@ -2383,7 +2393,10 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("forceFocus");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&forceFocus, true, ctx);
+        fl = forceFocus != Defaults().forceFocus ? InputBindable_Modified : 0;
+        changed = InputBindable(&forceFocus, fl | InputBindable_ShowVariables | InputBindable_ShowNone, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("forceFocus", &forceFocus, ctx);
         break;
     case 4:
         ImGui::Text("initialFocus");
@@ -3215,9 +3228,9 @@ Selectable::Selectable(UIContext& ctx)
 std::unique_ptr<Widget> Selectable::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Selectable>(*this);
-    /*if (!selected.has_single_variable() && ctx.createVars) {
+    if (ctx.createVars && selected.has_single_variable()) {
         sel->selected.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
-    }*/
+    }
     return sel;
 }
 
@@ -3294,7 +3307,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         PushError(ctx, "label is formatted wrongly");
 
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
-    if (selected.has_single_variable())
+    if (selected.is_reference())
         os << "&" << selected.to_arg();
     else
         os << selected.to_arg();
@@ -3906,14 +3919,14 @@ bool Button::EventUI(int i, UIContext& ctx)
 CheckBox::CheckBox(UIContext& ctx)
 {
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+        checked.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> CheckBox::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<CheckBox>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
+    if (ctx.createVars && checked.has_single_variable()) {
+        sel->checked.set_from_arg(ctx.codeGen->CreateVar("bool", "false", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -3924,7 +3937,7 @@ ImDrawList* CheckBox::DoDraw(UIContext& ctx)
         ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
 
     auto ps = PrepareString(label.value());
-    bool val = fieldName.eval(ctx);
+    bool val = checked.eval(ctx);
     ImGui::Checkbox(ps.label.c_str(), &val);
     ImVec2 offset{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x, ImGui::GetStyle().FramePadding.y };
     DrawTextArgs(ps, ctx, offset);
@@ -3946,10 +3959,14 @@ void CheckBox::DoExport(std::ostream& os, UIContext& ctx)
 
     if (PrepareString(label.value()).error)
         PushError(ctx, "label is formatted wrongly");
+    if (checked.empty())
+        PushError(ctx, "checked is unassigned");
+    if (!checked.is_reference())
+        PushError(ctx, "checked only binds to l-values");
 
     os << "ImGui::Checkbox("
         << label.to_arg() << ", "
-        << "&" << fieldName.c_str()
+        << "&" << checked.to_arg()
         << ")";
 
     if (!onChange.empty()) {
@@ -3980,13 +3997,7 @@ void CheckBox::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             label.set_from_arg(sit->params[0]);
 
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
-        {
-            fieldName.set_from_arg(sit->params[1].substr(1));
-            std::string fn = fieldName.c_str();
-            const auto* var = ctx.codeGen->GetVar(fn);
-            if (!var)
-                PushError(ctx, "checked variable \"" + fn + "\" doesn't exist");
-        }
+            checked.set_from_arg(sit->params[1].substr(1));
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -4003,7 +4014,7 @@ CheckBox::Properties()
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.font", &style_font },
         { "behavior.label", &label, true },
-        { "bindings.checked##1", &fieldName },
+        { "bindings.checked##1", &checked },
         });
     return props;
 }
@@ -4011,6 +4022,7 @@ CheckBox::Properties()
 bool CheckBox::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -4052,13 +4064,14 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("label", &label, ctx);
         break;
     case 5:
-    {
         ImGui::Text("checked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, false, ctx);
+        fl = checked != Defaults().checked ? InputBindable_Modified : 0;
+        changed = InputBindable(&checked, fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("checked", &checked, BindingButton_ReferenceOnly, ctx);
         break;
-    }
     default:
         return Widget::PropertyUI(i - 6, ctx);
     }
@@ -4096,13 +4109,13 @@ bool CheckBox::EventUI(int i, UIContext& ctx)
 
 RadioButton::RadioButton(UIContext& ctx)
 {
-    //variable is shared among buttons so don't generate new here
+    value = "false";
 }
 
 std::unique_ptr<Widget> RadioButton::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<RadioButton>(*this);
-    //fieldName can be shared
+    //value can be shared
     return sel;
 }
 
@@ -4112,7 +4125,10 @@ ImDrawList* RadioButton::DoDraw(UIContext& ctx)
         ImGui::PushStyleColor(ImGuiCol_CheckMark, style_check.eval(ImGuiCol_CheckMark, ctx));
 
     auto ps = PrepareString(label.value());
-    ImGui::RadioButton(ps.label.c_str(), valueID==0);
+    bool checked = valueID == 0;
+    if (!value.is_reference())
+        checked = value.eval(ctx);
+    ImGui::RadioButton(ps.label.c_str(), checked);
     ImVec2 offset{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x, ImGui::GetStyle().FramePadding.y };
     DrawTextArgs(ps, ctx, offset);
 
@@ -4124,9 +4140,6 @@ ImDrawList* RadioButton::DoDraw(UIContext& ctx)
 
 void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 {
-    if (!ctx.codeGen->GetVar(fieldName.c_str()))
-        PushError(ctx, "value variable doesn't exist");
-
     if (!style_check.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_CheckMark, " << style_check.to_arg() << ");\n";
 
@@ -4136,11 +4149,16 @@ void RadioButton::DoExport(std::ostream& os, UIContext& ctx)
 
     if (PrepareString(label.value()).error)
         PushError(ctx, "label is formatted wrongly");
+    if (value.empty())
+        PushError(ctx, "value is unassigned");
 
     os << "ImGui::RadioButton("
-        << label.to_arg() << ", "
-        << "&" << fieldName.c_str() << ", "
-        << valueID << ")";
+        << label.to_arg() << ", ";
+    if (value.is_reference())
+        os << "&" << value.to_arg() << ", " << valueID;
+    else
+        os << value.to_arg();
+    os << ")";
 
     if (!onChange.empty()) {
         os << ")\n";
@@ -4169,10 +4187,13 @@ void RadioButton::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size())
             label.set_from_arg(sit->params[0]);
 
-        if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&"))
-        {
-            fieldName.set_from_arg(sit->params[1].substr(1));
+        if (sit->params.size() >= 2) {
+            bool amp = !sit->params[1].compare(0, 1, "&");
+            value.set_from_arg(sit->params[1].substr(amp));
         }
+
+        if (sit->params.size() >= 3)
+            valueID.set_from_arg(sit->params[2]);
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -4190,7 +4211,7 @@ RadioButton::Properties()
         { "appearance.font", &style_font },
         { "behavior.label", &label, true },
         { "behavior.valueID##1", &valueID },
-        { "bindings.value##radio", &fieldName },
+        { "bindings.value##radio", &value },
     });
     return props;
 }
@@ -4250,7 +4271,10 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, false, ctx);
+        fl = value != Defaults().value ? InputBindable_Modified : 0;
+        changed = InputBindable(&value, fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("value", &value, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 7, ctx);
@@ -4353,14 +4377,14 @@ Input::Input(UIContext& ctx)
     }
 
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
+        value.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> Input::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Input>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
+    if (ctx.createVars && value.has_single_variable()) {
+        sel->value.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -4383,7 +4407,7 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
 
     std::string id = label;
     if (id.empty())
-        id = "##" + fieldName.value();
+        id = "##" + *value.access();
     std::string tid = type.get_id();
 
     if (flags & ImGuiInputTextFlags_Multiline)
@@ -4433,6 +4457,9 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
 
 void Input::DoExport(std::ostream& os, UIContext& ctx)
 {
+    if (!value.is_reference())
+        PushError(ctx, "value only supports l-values");
+
     if (!(flags & ImGuiInputTextFlags_Multiline))
         os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
@@ -4445,44 +4472,44 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     std::string id = label.to_arg();
     std::string defIme = "ImRad::ImeText";
     if (label.empty())
-        id = "\"##" + fieldName.value() + "\"";
+        id = "\"##" + *value.access() + "\"";
 
     if (tid == "int")
     {
         defIme = "ImRad::ImeNumber";
         os << "ImGui::InputInt(" << id << ", &"
-            << fieldName.to_arg() << ", " << (int)step << ")";
+            << value.to_arg() << ", " << (int)step << ")";
     }
     else if (tid == "float")
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::InputFloat(" << id << ", &"
-            << fieldName.to_arg() << ", " << step.to_arg() << ", 0.f, "
+            << value.to_arg() << ", " << step.to_arg() << ", 0.f, "
             << format.to_arg() << ")";
     }
     else if (tid == "double")
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::InputDouble(" << id << ", &"
-            << fieldName.to_arg() << ", " << step.to_arg() << ", 0.0, "
+            << value.to_arg() << ", " << step.to_arg() << ", 0.0, "
             << format.to_arg() << ")";
     }
     else if (!tid.compare(0, 3, "int"))
     {
         defIme = "ImRad::ImeNumber";
         os << "ImGui::Input"<< cap << "(" << id << ", &"
-            << fieldName.to_arg() << ")";
+            << value.to_arg() << ")";
     }
     else if (!tid.compare(0, 5, "float"))
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::Input" << cap << "(" << id << ", &"
-            << fieldName.to_arg() << ", " << format.to_arg() << ")";
+            << value.to_arg() << ", " << format.to_arg() << ")";
     }
     else if (flags & ImGuiInputTextFlags_Multiline)
     {
         os << "ImGui::InputTextMultiline(" << id << ", &"
-            << fieldName.to_arg() << ", { "
+            << value.to_arg() << ", { "
             << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
             << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
             << flags.to_arg();
@@ -4496,7 +4523,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
         else
             os << "ImGui::InputText(" << id << ", ";
-        os << "&" << fieldName.to_arg() << ", " << flags.to_arg();
+        os << "&" << value.to_arg() << ", " << flags.to_arg();
         if (!onCallback.empty())
             os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
@@ -4508,8 +4535,8 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
             os << "ImGui::InputTextWithHint(" << id << ", " << hint.to_arg() << ", ";
         else
             os << "ImGui::InputText(" << id << ", ";
-        os << fieldName.to_arg() << ".InputBuf, "
-            << "IM_ARRAYSIZE(" << fieldName.to_arg() << ".InputBuf), "
+        os << value.to_arg() << ".InputBuf, "
+            << "IM_ARRAYSIZE(" << value.to_arg() << ".InputBuf), "
             << flags.to_arg();
         if (!onCallback.empty())
             os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
@@ -4519,7 +4546,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     if (tid == "ImGuiTextFilter") {
         os << ")\n" << ctx.ind << "{\n";
         ctx.ind_up();
-        os << ctx.ind << fieldName.to_arg() << ".Build();\n";
+        os << ctx.ind << value.to_arg() << ".Build();\n";
         if (!onChange.empty())
             os << ctx.ind << onChange.to_arg() << "();\n";
         ctx.ind_down();
@@ -4570,10 +4597,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
 
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
-            fieldName.set_from_arg(sit->params[1].substr(1));
-            std::string fn = fieldName.c_str();
-            if (!ctx.codeGen->GetVar(fn))
-                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
+            value.set_from_arg(sit->params[1].substr(1));
         }
 
         if (sit->params.size() >= 3) {
@@ -4619,15 +4643,13 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             std::string expr = sit->params[1 + i];
             if (!expr.compare(0, 1, "&")) {
                 type.set_id("std::string");
-                fieldName.set_from_arg(sit->params[1 + i].substr(1));
+                value.set_from_arg(sit->params[1 + i].substr(1));
             }
             else if (!expr.compare(expr.size() - 9, 9, ".InputBuf")) {
                 type.set_id("ImGuiTextFilter");
-                fieldName.set_from_arg(expr.substr(0, expr.size() - 9));
+                value.set_from_arg(expr.substr(0, expr.size() - 9));
                 ++i;
             }
-            if (!ctx.codeGen->GetVar(fieldName.value()))
-                PushError(ctx, "value variable \"" + fieldName.value() + "\" doesn't exist");
         }
 
         if (sit->params.size() > 2 + i)
@@ -4651,7 +4673,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     }
     else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1)
     {
-        if (sit->callee != fieldName.value() + ".Build") {
+        if (sit->callee != *value.access() + ".Build") {
             onChange.set_from_arg(sit->callee);
             ctx.importLevel = -1;
         }
@@ -4670,10 +4692,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
 
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
-            fieldName.set_from_arg(sit->params[1].substr(1));
-            std::string fn = fieldName.c_str();
-            if (!ctx.codeGen->GetVar(fn))
-                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
+            value.set_from_arg(sit->params[1].substr(1));
         }
 
         if (tid == "int")
@@ -4703,10 +4722,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         type.set_id("ImGuiTextFilter");
         size_t i = sit->callee.rfind('.');
-        fieldName.set_from_arg(sit->callee.substr(0, i));
-        std::string fn = fieldName.c_str();
-        if (!ctx.codeGen->GetVar(fn))
-            PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
+        value.set_from_arg(sit->callee.substr(0, i));
 
         if (sit->params.size()) {
             label.set_from_arg(sit->params[0]);
@@ -4770,7 +4786,7 @@ Input::Properties()
         { "behavior.imeType##input", &imeType },
         { "behavior.step##input", &step },
         { "behavior.format##input", &format },
-        { "bindings.value##1", &fieldName },
+        { "bindings.value##1", &value },
     });
     return props;
 }
@@ -4837,7 +4853,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&type, fl, ctx);
         if (changed)
         {
-            ctx.codeGen->ChangeVar(fieldName.c_str(), type.get_id(), "");
+            ctx.codeGen->ChangeVar(value.c_str(), type.get_id(), "");
         }
         break;
     case 8:
@@ -4909,7 +4925,10 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, tid, false, ctx);
+        fl = value != Defaults().value ? InputBindable_Modified : 0;
+        changed = InputBindable(&value, tid, fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("value", &value, tid, BindingButton_ReferenceOnly, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 13, ctx);
@@ -4965,7 +4984,7 @@ Combo::Combo(UIContext& ctx)
     size_x = 200;
 
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
+        value.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
 
     flags.add$(ImGuiComboFlags_HeightLarge);
     flags.add$(ImGuiComboFlags_HeightLargest);
@@ -4979,8 +4998,8 @@ Combo::Combo(UIContext& ctx)
 std::unique_ptr<Widget> Combo::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Combo>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
+    if (ctx.createVars && !value.has_single_variable()) {
+        sel->value.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -4992,7 +5011,7 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
         ImGui::SetNextItemWidth(w);
     std::string id = label;
     if (id.empty())
-        id = std::string("##") + fieldName.c_str();
+        id = std::string("##") + value.c_str();
 
     auto vars = items.used_variables();
     if (vars.empty())
@@ -5020,9 +5039,9 @@ void Combo::DoExport(std::ostream& os, UIContext& ctx)
 
     std::string id = label.to_arg();
     if (label.empty())
-        id = std::string("\"##") + fieldName.c_str() + "\"";
+        id = std::string("\"##") + value.c_str() + "\"";
 
-    os << "ImRad::Combo(" << id << ", &" << fieldName.to_arg()
+    os << "ImRad::Combo(" << id << ", &" << value.to_arg()
         << ", " << items.to_arg() << ", " << flags.to_arg() << ")";
 
     if (!onChange.empty()) {
@@ -5054,10 +5073,7 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
 
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 1, "&")) {
-            fieldName.set_from_arg(sit->params[1].substr(1));
-            std::string fn = fieldName.c_str();
-            if (!ctx.codeGen->GetVar(fn))
-                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
+            value.set_from_arg(sit->params[1].substr(1));
         }
 
         if (sit->params.size() >= 3) {
@@ -5088,7 +5104,7 @@ Combo::Properties()
         { "behavior.flags##combo", &flags },
         { "behavior.label", &label, true },
         { "behavior.items##1", &items },
-        { "bindings.value##1", &fieldName },
+        { "bindings.value##1", &value },
         });
     return props;
 }
@@ -5096,6 +5112,7 @@ Combo::Properties()
 bool Combo::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -5154,18 +5171,19 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
     case 8:
-    {
         ImGui::Text("items");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&items, ctx);
         break;
-    }
     case 9:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, false, ctx);
+        fl = value != Defaults().value ? InputBindable_Modified : 0;
+        changed = InputBindable(&value, "std::string", fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("value", &value, "std::string", BindingButton_ReferenceOnly, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 10, ctx);
@@ -5224,14 +5242,14 @@ Slider::Slider(UIContext& ctx)
     type.add("angle", 8);
 
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
+        value.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> Slider::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Slider>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
+    if (ctx.createVars && value.has_single_variable()) {
+        sel->value.set_from_arg(ctx.codeGen->CreateVar(type.get_id(), "", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -5250,7 +5268,7 @@ ImDrawList* Slider::DoDraw(UIContext& ctx)
         fmt = format.c_str();
     std::string id = label;
     if (label.empty())
-        id = "##" + fieldName.value();
+        id = "##" + *value.access();
     std::string tid = type.get_id();
     int fl = flags | ImGuiSliderFlags_NoInput;
 
@@ -5292,10 +5310,10 @@ void Slider::DoExport(std::ostream& os, UIContext& ctx)
     cap[0] = std::toupper(cap[0]);
     std::string id = label.to_arg();
     if (label.empty())
-        id = "\"##" + fieldName.value() + "\"";
+        id = "\"##" + *value.access() + "\"";
 
     os << "ImGui::Slider" << cap << "(" << id << ", &"
-        << fieldName.to_arg() << ", " << min.to_arg() << ", " << max.to_arg()
+        << value.to_arg() << ", " << min.to_arg() << ", " << max.to_arg()
         << ", " << fmt << ", " << flags.to_arg() << ")";
 
     if (!onChange.empty()) {
@@ -5325,7 +5343,7 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
 
         if (sit->params.size() > 1 && !sit->params[1].compare(0, 1, "&"))
-            fieldName.set_from_arg(sit->params[1].substr(1));
+            value.set_from_arg(sit->params[1].substr(1));
 
         if (sit->params.size() > 2)
             min.set_from_arg(sit->params[2]);
@@ -5368,7 +5386,7 @@ Slider::Properties()
         { "behavior.min##slider", &min },
         { "behavior.max##slider", &max },
         { "behavior.format##slider", &format },
-        { "bindings.value##1", &fieldName },
+        { "bindings.value##1", &value },
         });
     return props;
 }
@@ -5447,7 +5465,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         {
             changed = true;
             std::string tid = type.get_id();
-            ctx.codeGen->ChangeVar(fieldName.c_str(), tid == "angle" ? "float" : tid, "");
+            ctx.codeGen->ChangeVar(value.c_str(), tid == "angle" ? "float" : tid, "");
         }
         break;
     case 8:
@@ -5491,7 +5509,10 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, type.get_id(), false, ctx);
+        fl = value != Defaults().value ? InputBindable_Modified : 0;
+        changed = InputBindable(&value, type.get_id(), fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("value", &value, type.get_id(), BindingButton_ReferenceOnly, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 12, ctx);
@@ -5533,14 +5554,14 @@ ProgressBar::ProgressBar(UIContext& ctx)
     size_x = 200;
 
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
+        value.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> ProgressBar::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<ProgressBar>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
+    if (ctx.createVars && value.has_single_variable()) {
+        sel->value.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -5554,8 +5575,8 @@ ImDrawList* ProgressBar::DoDraw(UIContext& ctx)
     float h = size_y.eval_px(ImGuiAxis_Y, ctx);
 
     float pc = 0.5f;
-    if (!fieldName.empty())
-        pc = fieldName.eval(ctx);
+    if (!value.empty())
+        pc = value.eval(ctx);
     ImGui::ProgressBar(pc, { w, h }, indicator ? nullptr : "");
 
     if (!style_color.empty())
@@ -5573,7 +5594,7 @@ void ProgressBar::DoExport(std::ostream& os, UIContext& ctx)
     std::string fmt = indicator ? "nullptr" : "\"\"";
 
     os << ctx.ind << "ImGui::ProgressBar("
-        << fieldName.to_arg() << ", { "
+        << value.to_arg() << ", { "
         << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, "
         << fmt << ");\n";
@@ -5587,7 +5608,7 @@ void ProgressBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::ProgressBar")
     {
         if (sit->params.size() >= 1)
-            fieldName.set_from_arg(sit->params[0]);
+            value.set_from_arg(sit->params[0]);
 
         if (sit->params.size() >= 2) {
             auto siz = cpp::parse_size(sit->params[1]);
@@ -5617,7 +5638,7 @@ ProgressBar::Properties()
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.font", &style_font },
         { "appearance.indicator##progress", &indicator },
-        { "bindings.value##1", &fieldName },
+        { "bindings.value##1", &value },
         });
     return props;
 }
@@ -5681,7 +5702,9 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, false, ctx);
+        changed = InputBindable(&value, InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("value", &value, BindingButton_ReferenceOnly, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 8, ctx);
@@ -5707,14 +5730,14 @@ ColorEdit::ColorEdit(UIContext& ctx)
     flags.add$(ImGuiColorEditFlags_NoTooltip);
 
     if (ctx.createVars)
-        fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+        value.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
 }
 
 std::unique_ptr<Widget> ColorEdit::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<ColorEdit>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
+    if (ctx.createVars && value.has_single_variable()) {
+        sel->value.set_from_arg(ctx.codeGen->CreateVar(type, "", CppGen::Var::Interface));
     }
     return sel;
 }
@@ -5725,7 +5748,7 @@ ImDrawList* ColorEdit::DoDraw(UIContext& ctx)
 
     std::string id = label;
     if (id.empty())
-        id = "##" + fieldName.value();
+        id = "##" + *value.access();
     float w = size_x.eval_px(ImGuiAxis_X, ctx);
     if (w)
         ImGui::SetNextItemWidth(w);
@@ -5749,17 +5772,17 @@ void ColorEdit::DoExport(std::ostream& os, UIContext& ctx)
 
     std::string id = label.to_arg();
     if (label.empty())
-        id = "\"##" + fieldName.value() + "\"";
+        id = "\"##" + *value.access() + "\"";
 
     if (type == "color3")
     {
         os << "ImGui::ColorEdit3(" << id << ", (float*)&"
-            << fieldName.to_arg() << ", " << flags.to_arg() << ")";
+            << value.to_arg() << ", " << flags.to_arg() << ")";
     }
     else if (type == "color4")
     {
         os << "ImGui::ColorEdit4(" << id << ", (float*)&"
-            << fieldName.to_arg() << ", " << flags.to_arg() << ")";
+            << value.to_arg() << ", " << flags.to_arg() << ")";
     }
 
     if (!onChange.empty()) {
@@ -5787,10 +5810,7 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         }
 
         if (sit->params.size() >= 2 && !sit->params[1].compare(0, 9, "(float*)&")) {
-            fieldName.set_from_arg(sit->params[1].substr(9));
-            std::string fn = fieldName.c_str();
-            if (!ctx.codeGen->GetVar(fn))
-                PushError(ctx, "value variable \"" + fn + "\" doesn't exist");
+            value.set_from_arg(sit->params[1].substr(9));
         }
 
         if (sit->params.size() >= 3) {
@@ -5821,7 +5841,7 @@ ColorEdit::Properties()
         { "behavior.flags##color", &flags },
         { "behavior.label", &label, true },
         { "behavior.type##color", &type },
-        { "bindings.value##1", &fieldName },
+        { "bindings.value##1", &value },
         });
     return props;
 }
@@ -5834,6 +5854,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
     };
 
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
@@ -5897,7 +5918,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
                 if (ImGui::Selectable(tp, type == tp)) {
                     changed = true;
                     type = tp;
-                    ctx.codeGen->ChangeVar(fieldName.c_str(), type, "");
+                    ctx.codeGen->ChangeVar(value.c_str(), type, "");
                 }
             }
             ImGui::EndCombo();
@@ -5908,7 +5929,10 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, type, false, ctx);
+        fl = value != Defaults().value ? InputBindable_Modified : 0;
+        changed = InputBindable(&value, type, fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("value", &value, type, BindingButton_ReferenceOnly, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 9, ctx);
@@ -5953,14 +5977,14 @@ Image::Image(UIContext& ctx)
     stretchPolicy.add("FitOut", StretchPolicy::FitOut);
 
     if (ctx.createVars)
-        *fieldName.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
+        *texture.access() = ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl);
 }
 
 std::unique_ptr<Widget> Image::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Image>(*this);
-    if (!fieldName.empty() && ctx.createVars) {
-        sel->fieldName.set_from_arg(ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl));
+    if (ctx.createVars && texture.has_single_variable()) {
+        sel->texture.set_from_arg(ctx.codeGen->CreateVar("ImRad::Texture", "", CppGen::Var::Impl));
     }
     return sel;
 }
@@ -5999,27 +6023,27 @@ ImDrawList* Image::DoDraw(UIContext& ctx)
 
 void Image::DoExport(std::ostream& os, UIContext& ctx)
 {
-    if (fieldName.empty())
+    if (texture.empty())
         PushError(ctx, "texture field empty");
     if (fileName.empty())
         PushError(ctx, "fileName empty");
 
-    os << ctx.ind << "if (!" << fieldName.to_arg() << ")\n";
+    os << ctx.ind << "if (!" << texture.to_arg() << ")\n";
     ctx.ind_up();
-    os << ctx.ind << fieldName.to_arg() << " = ImRad::LoadTextureFromFile(" << fileName.to_arg() << ");\n";
+    os << ctx.ind << texture.to_arg() << " = ImRad::LoadTextureFromFile(" << fileName.to_arg() << ");\n";
     ctx.ind_down();
 
-    os << ctx.ind << "ImGui::Image(" << fieldName.to_arg() << ".id, { ";
+    os << ctx.ind << "ImGui::Image(" << texture.to_arg() << ".id, { ";
 
     if (size_x.zero())
-        os << "(float)" << fieldName.to_arg() << ".w";
+        os << "(float)" << texture.to_arg() << ".w";
     else
         os << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]);
 
     os << ", ";
 
     if (size_y.zero())
-        os << "(float)" << fieldName.to_arg() << ".h";
+        os << "(float)" << texture.to_arg() << ".h";
     else
         os << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]);
     os << " }, ";
@@ -6061,16 +6085,16 @@ void Image::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Image")
     {
         if (sit->params.size() >= 1 && !sit->params[0].compare(sit->params[0].size() - 3, 3, ".id"))
-            fieldName.set_from_arg(sit->params[0].substr(0, sit->params[0].size() - 3));
+            texture.set_from_arg(sit->params[0].substr(0, sit->params[0].size() - 3));
 
         if (sit->params.size() >= 2) {
             auto size = cpp::parse_size(sit->params[1]);
-            if (size.first == "(float)" + fieldName.value() + ".w")
+            if (size.first == "(float)" + *texture.access() + ".w")
                 size_x.set_from_arg("0");
             else
                 size_x.set_from_arg(size.first);
 
-            if (size.second == "(float)" + fieldName.value() + ".h")
+            if (size.second == "(float)" + *texture.access() + ".h")
                 size_y.set_from_arg("0");
             else
                 size_y.set_from_arg(size.second);
@@ -6103,7 +6127,7 @@ Image::Properties()
     props.insert(props.begin(), {
         { "behavior.file_name#1", &fileName, true },
         { "behavior.stretchPolicy", &stretchPolicy },
-        { "bindings.texture#1", &fieldName },
+        { "bindings.texture#1", &texture },
         });
     return props;
 }
@@ -6132,19 +6156,21 @@ bool Image::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("fileName", &fileName, ctx);
         break;
-    case 1: {
+    case 1:
         ImGui::Text("stretchPolicy");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = stretchPolicy != Defaults().stretchPolicy ? InputDirectVal_Modified : 0;
         changed = InputDirectValEnum(&stretchPolicy, fl, ctx);
         break;
-    }
     case 2:
         ImGui::Text("texture");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputFieldRef(&fieldName, false, ctx);
+        fl = texture != Defaults().texture ? InputBindable_Modified : 0;
+        changed = InputBindable(&texture, fl | InputBindable_ShowVariables, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("texture", &texture, BindingButton_ReferenceOnly, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 3, ctx);

@@ -1,5 +1,6 @@
 #include "node_extra.h"
 #include "binding_input.h"
+#include "binding_eval.h"
 #include "ui_combo_dlg.h"
 
 const float DOCKSPACE_SPLIT_RATIO = 0.3f;

@@ -78,6 +78,7 @@ struct UIContext
     //convenience
     void ind_up();
     void ind_down();
+    std::string GetCurrentArray();
 
     static UIContext& Defaults();
 };
