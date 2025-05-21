@@ -3068,6 +3068,12 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
         DrawTextArgs(ps, ctx);
         ImGui::PopTextWrapPos();
     }
+    else if (link)
+    {
+        auto ps = PrepareString(text.value());
+        ImGui::TextLink(ps.label.c_str());
+        DrawTextArgs(ps, ctx);
+    }
     else
     {
         auto ps = PrepareString(text.value());
@@ -3099,15 +3105,30 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
     if (wrap)
-    {
         os << ctx.ind << "ImGui::PushTextWrapPos(0);\n";
-        os << ctx.ind << "ImGui::TextUnformatted(" << text.to_arg() << ");\n";
-        os << ctx.ind << "ImGui::PopTextWrapPos();\n";
+
+    if (link) 
+    {
+        os << ctx.ind;
+        if (!onChange.empty())
+            os << "if (";
+        os << "ImGui::TextLink(" << text.to_arg() << ")";
+        if (!onChange.empty()) 
+        {
+            ctx.ind_up();
+            os << ")\n" << ctx.ind << onChange.to_arg() << "();\n";
+            ctx.ind_down();
+        }
+        else
+            os << ";\n";
     }
     else
     {
         os << ctx.ind << "ImGui::TextUnformatted(" << text.to_arg() << ");\n";
     }
+
+    if (wrap)
+        os << ctx.ind << "ImGui::PopTextWrapPos();\n";
 }
 
 void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3128,6 +3149,18 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 PushError(ctx, "unable to parse text");
         }
     }
+    else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) && 
+        sit->callee == "ImGui::TextLink")
+    {
+        link = true;
+        if (sit->params.size() >= 1) {
+            text.set_from_arg(sit->params[0]);
+            if (text.value() == cpp::INVALID_TEXT)
+                PushError(ctx, "unable to parse text");
+        }
+        if (sit->kind == cpp::IfCallThenCall)
+            onChange.set_from_arg(sit->callee2);
+    }
 }
 
 std::vector<UINode::Prop>
@@ -3140,6 +3173,7 @@ Text::Properties()
         { "appearance.alignToFramePadding", &alignToFrame },
         { "behavior.text", &text, true },
         { "behavior.wrap##text", &wrap },
+        { "behavior.link##text", &link }
     });
     return props;
 }
@@ -3187,8 +3221,44 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         fl = wrap != Defaults().wrap ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&wrap, fl, ctx);
         break;
+    case 5:
+        ImGui::Text("link");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = link != Defaults().link ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&link, fl, ctx);
+        break;
     default:
-        return Widget::PropertyUI(i - 5, ctx);
+        return Widget::PropertyUI(i - 6, ctx);
+    }
+    return changed;
+}
+
+std::vector<UINode::Prop>
+Text::Events()
+{
+    auto props = Widget::Events();
+    props.insert(props.begin(), {
+        { "text.change", &onChange },
+        });
+    return props;
+}
+
+bool Text::EventUI(int i, UIContext& ctx)
+{
+    bool changed = false;
+    switch (i)
+    {
+    case 0:
+        ImGui::BeginDisabled(!link);
+        ImGui::Text("Change");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_Change", &onChange, 0, ctx);
+        ImGui::EndDisabled();
+        break;
+    default:
+        return Widget::EventUI(i - 1, ctx);
     }
     return changed;
 }

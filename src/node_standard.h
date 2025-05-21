@@ -240,12 +240,16 @@ struct Text : Widget
     bindable<std::string> text = "text";
     direct_val<bool> alignToFrame = false;
     direct_val<bool> wrap = false;
+    direct_val<bool> link = false;
+    event<> onChange;
 
     Text(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
     ImDrawList* DoDraw(UIContext& ctx);
     auto Properties() ->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
+    auto Events()->std::vector<Prop>;
+    bool EventUI(int, UIContext& ctx);
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
