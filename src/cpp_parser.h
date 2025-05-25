@@ -570,7 +570,23 @@ namespace cpp
                 !s.compare(0, name.size(), name) &&
                 s[name.size()] == '<')
             {
-                elemType = s.substr(name.size() + 1, s.size() - name.size() - 2);
+                s.remove_prefix(name.size() + 1);
+                s.remove_suffix(1);
+                std::istringstream is(std::string(s.data(), s.size()));
+                int level = 0;
+                size_t i = s.size();
+                for (token_iterator it(is); it != token_iterator(); ++it)
+                {
+                    if (*it == "<" || *it == "[" || *it == "(" || *it == "{")
+                        ++level;
+                    else if (*it == ">" || *it == "]" || *it == ")" || *it == "}")
+                        --level;
+                    else if (!level && *it == ",") {
+                        i = (size_t)it.stream().tellg() - 1;
+                        break;
+                    }
+                }
+                elemType = s.substr(0, i);
                 return true;
             }
         }
@@ -599,6 +615,7 @@ namespace cpp
                 --level;
             else if (!level && *it == ",") {
                 i = (size_t)it.stream().tellg() - 1;
+                break;
             }
         }
         if (i >= s.size())

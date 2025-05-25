@@ -504,18 +504,24 @@ inline void PopInvisibleScrollbar()
 
 struct CursorData
 {
-    ImVec2 cursorPos;
-    ImVec2 cursorMaxPos;
-    ImVec2 idealMaxPos;
+    ImVec2 cursorPos; //affects column border height
+    ImVec2 cursorPosPrevLine; //used in SameLine
+    ImVec2 prevLineSize;
+    float prevLineTextBaseOffset;
+    ImVec2 cursorMaxPos; //affects scrollbars
+    ImVec2 idealMaxPos; //affects auto resize
 };
 
 inline CursorData GetCursorData()
 {
     CursorData data;
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
-    data.cursorPos = wnd->DC.CursorPos; //affects column border height
-    data.cursorMaxPos = wnd->DC.CursorMaxPos; //affects scrollbars
-    data.idealMaxPos = wnd->DC.IdealMaxPos; //affects auto resize
+    data.cursorPos = wnd->DC.CursorPos; 
+    data.cursorPosPrevLine = wnd->DC.CursorPosPrevLine;
+    data.prevLineSize = wnd->DC.PrevLineSize;
+    data.prevLineTextBaseOffset = wnd->DC.PrevLineTextBaseOffset;
+    data.cursorMaxPos = wnd->DC.CursorMaxPos; 
+    data.idealMaxPos = wnd->DC.IdealMaxPos; 
     return data;
 }
 
@@ -523,6 +529,9 @@ inline void SetCursorData(const CursorData& data)
 {
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
     wnd->DC.CursorPos = data.cursorPos;
+    wnd->DC.CursorPosPrevLine = data.cursorPosPrevLine;
+    wnd->DC.PrevLineSize = data.prevLineSize;
+    wnd->DC.PrevLineTextBaseOffset = data.prevLineTextBaseOffset;
     wnd->DC.CursorMaxPos = data.cursorMaxPos;
     wnd->DC.IdealMaxPos = data.idealMaxPos;
 }

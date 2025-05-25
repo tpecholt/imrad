@@ -1381,7 +1381,7 @@ void Widget::Draw(UIContext& ctx)
         ImVec2 szx{ cached_size.x, 0 };
         ImVec2 szy{ 0, cached_size.y };
         ImVec2 cx{ cached_size.x / 2, 0 };
-        ImVec2 cy{ 0, cached_size.x / 2 };
+        ImVec2 cy{ 0, cached_size.y / 2 };
         float d = 8.f + (selected ? 1 : 0);
         float dd = 0.66f*d;
         if (hasPos == (ImRad::AlignLeft | ImRad::AlignTop))
