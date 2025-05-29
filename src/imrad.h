@@ -536,6 +536,16 @@ inline void SetCursorData(const CursorData& data)
     wnd->DC.IdealMaxPos = data.idealMaxPos;
 }
 
+inline ImGuiLastItemData GetLastItemData()
+{
+    return ImGui::GetCurrentContext()->LastItemData;
+}
+
+inline void SetLastItemData(const ImGuiLastItemData& data)
+{
+    ImGui::GetCurrentContext()->LastItemData = data;
+}
+
 struct IgnoreWindowPaddingData
 {
     ImVec2 maxPos;

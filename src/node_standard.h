@@ -38,11 +38,12 @@ struct UINode
     enum SnapOptions {
         SnapSides = 0x1,
         SnapInterior = 0x2,
-        SnapGrandparentClip = 0x4,
-        NoContextMenu = 0x8,
-        NoOverlayPos = 0x10,
-        HasSizeX = 0x20,
-        HasSizeY = 0x40,
+        SnapItemInterior = 0x4,
+        SnapGrandparentClip = 0x8,
+        NoContextMenu = 0x100,
+        NoOverlayPos = 0x200,
+        HasSizeX = 0x400,
+        HasSizeY = 0x800,
     };
 
     UINode() {}
@@ -268,6 +269,7 @@ struct Selectable : Widget
     direct_val<ImRad::ModalResult> modalResult = ImRad::None;
     bindable<bool> selected = false;
     bindable<color_t> style_header;
+    direct_val<pzdimension2_t> style_padding;
     event<> onChange;
 
     Selectable(UIContext& ctx);
@@ -280,7 +282,7 @@ struct Selectable : Widget
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
-    int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
+    int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY | SnapItemInterior; }
     const char* GetIcon() const { return ICON_FA_AUDIO_DESCRIPTION; }
     const Selectable& Defaults() { static Selectable var(UIContext::Defaults()); return var; }
 };

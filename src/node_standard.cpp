@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <array>
 
+const std::string TMP_LAST_ITEM_VAR = "tmpLastItem";
+
 void toggle(std::vector<UINode*>& c, UINode* val)
 {
     auto it = stx::find(c, val);
@@ -416,7 +418,7 @@ void UINode::DrawSnap(UIContext& ctx)
     float mind = std::min({ d1.x, d1.y, d2.x, d2.y });
 
     //snap interior (first child)
-    if ((snapOp & SnapInterior) &&
+    if ((snapOp & (SnapInterior | SnapItemInterior)) &&
         mind >= 3 && //allow snapping sides with zero border
         !stx::count_if(children, [](const auto& ch) { return ch->Behavior() & SnapSides; }))
     {
@@ -996,7 +998,9 @@ void Widget::Draw(UIContext& ctx)
 
     if (hasPos)
     {
-        ImRect r = ImRad::GetParentInnerRect();
+        ImRect r = parent->Behavior() & SnapItemInterior ?
+            ImRect{ parent->cached_pos, parent->cached_pos + parent->cached_size } :
+            ImRad::GetParentInnerRect();
         ImVec2 pos{ pos_x.eval_px(ImGuiAxis_X, ctx), pos_y.eval_px(ImGuiAxis_Y, ctx) };
         if (hasPos & ImRad::AlignLeft)
             pos.x += r.Min.x;
@@ -1270,7 +1274,7 @@ void Widget::Draw(UIContext& ctx)
     }
     else if (ctx.mode == UIContext::PickPoint &&
         allowed && hovered &&
-        (Behavior() & SnapInterior))
+        (Behavior() & (SnapInterior | SnapItemInterior)))
     {
         if (ctx.hovered == lastHovered) //e.g. child widget was not selected
         {
@@ -1559,21 +1563,23 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     if (hasPos)
     {
         os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
+        std::string parentRect = parent->Behavior() & SnapItemInterior ?
+            ctx.parentVarName : "ImRad::GetParentInnerRect()";
         if (hasPos & ImRad::AlignLeft)
-            os << "ImRad::GetParentInnerRect().Min.x";
+            os << parentRect << ".Min.x";
         else if (hasPos & ImRad::AlignRight)
-            os << "ImRad::GetParentInnerRect().Max.x";
+            os << parentRect << ".Max.x";
         else if (hasPos & ImRad::AlignHCenter)
-            os << "ImRad::GetParentInnerRect().GetCenter().x";
+            os << parentRect << ".GetCenter().x";
         os << (!pos_x.has_value() || pos_x.value() >= 0 ? "+" : "")
             << pos_x.to_arg(ctx.unit);
         os << ", ";
         if (hasPos & ImRad::AlignTop)
-            os << "ImRad::GetParentInnerRect().Min.y";
+            os << parentRect << ".Min.y";
         else if (hasPos & ImRad::AlignBottom)
-            os << "ImRad::GetParentInnerRect().Max.y";
+            os << parentRect << ".Max.y";
         else if (hasPos & ImRad::AlignVCenter)
-            os << "ImRad::GetParentInnerRect().GetCenter().y";
+            os << parentRect << ".GetCenter().y";
         os << (!pos_y.has_value() || pos_y.value() >= 0 ? "+" : "")
             << pos_y.to_arg(ctx.unit);
         os << " }); //overlayPos\n";
@@ -2217,20 +2223,31 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             {
                 hasPos = 0;
                 auto pos = cpp::parse_size(sit->params[0]);
+                int tmp;
+                char buf[101];
                 if (!pos.first.compare(0, 33, "ImRad::GetParentInnerRect().Min.x")) {
                     hasPos |= ImRad::AlignLeft;
-                    bool skip = pos.first[33] == '+';
-                    pos_x.set_from_arg(pos.first.substr(33 + skip));
+                    pos_x.set_from_arg(pos.first.substr(33));
                 }
                 else if (!pos.first.compare(0, 33, "ImRad::GetParentInnerRect().Max.x")) {
                     hasPos |= ImRad::AlignRight;
-                    bool skip = pos.first[33] == '+';
-                    pos_x.set_from_arg(pos.first.substr(33 + skip));
+                    pos_x.set_from_arg(pos.first.substr(33));
                 }
                 else if (!pos.first.compare(0, 41, "ImRad::GetParentInnerRect().GetCenter().x")) {
                     hasPos |= ImRad::AlignHCenter;
-                    bool skip = pos.first[41] == '+';
-                    pos_x.set_from_arg(pos.first.substr(41 + skip));
+                    pos_x.set_from_arg(pos.first.substr(41));
+                }
+                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.x%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignLeft;
+                    pos_x.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.x%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignRight;
+                    pos_x.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().x%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignHCenter;
+                    pos_x.set_from_arg(buf);
                 }
                 else if (!pos.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x")) { //compatibility
                     hasPos |= ImRad::AlignRight;
@@ -2240,25 +2257,34 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     hasPos |= ImRad::AlignHCenter;
                     pos_x.set_from_arg(pos.first.substr(47));
                 }
-                else { //compatibility
+                else {
                     hasPos |= ImRad::AlignLeft;
                     pos_x.set_from_arg(pos.first);
                 }
 
                 if (!pos.second.compare(0, 33, "ImRad::GetParentInnerRect().Min.y")) {
                     hasPos |= ImRad::AlignTop;
-                    bool skip = pos.second[33] == '+';
-                    pos_y.set_from_arg(pos.second.substr(33 + skip));
+                    pos_y.set_from_arg(pos.second.substr(33));
                 }
                 else if (!pos.second.compare(0, 33, "ImRad::GetParentInnerRect().Max.y")) {
                     hasPos |= ImRad::AlignBottom;
-                    bool skip = pos.second[33] == '+';
-                    pos_y.set_from_arg(pos.second.substr(33 + skip));
+                    pos_y.set_from_arg(pos.second.substr(33));
                 }
                 else if (!pos.second.compare(0, 41, "ImRad::GetParentInnerRect().GetCenter().y")) {
                     hasPos |= ImRad::AlignVCenter;
-                    bool skip = pos.second[41] == '+';
-                    pos_y.set_from_arg(pos.second.substr(41 + skip));
+                    pos_y.set_from_arg(pos.second.substr(41));
+                }
+                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.y%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignTop;
+                    pos_y.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.y%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignBottom;
+                    pos_y.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().y%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignVCenter;
+                    pos_y.set_from_arg(buf);
                 }
                 else if (!pos.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y")) { //compatibility
                     hasPos |= ImRad::AlignBottom;
@@ -2268,7 +2294,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     hasPos |= ImRad::AlignVCenter;
                     pos_y.set_from_arg(pos.second.substr(47));
                 }
-                else { //compatibility
+                else {
                     hasPos |= ImRad::AlignTop;
                     pos_y.set_from_arg(pos.second);
                 }
@@ -2359,6 +2385,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
     bool sizeX = Behavior() & HasSizeX;
     bool sizeY = Behavior() & HasSizeY;
     bool overlayPos = !(Behavior() & NoOverlayPos);
+    bool parentItem = ctx.parents[ctx.parents.size() - 2]->Behavior() & SnapItemInterior;
     bool changed = false;
     int fl;
     switch (i)
@@ -2450,6 +2477,8 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = size_x != Defaults().size_x ? InputBindable_Modified : 0;
+        if (parentItem)
+            fl |= InputBindable_StretchButtonDisabled;
         changed = InputBindable(&size_x, fl | InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_x", &size_x, ctx);
@@ -2463,6 +2492,8 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = size_y != Defaults().size_y ? InputBindable_Modified : 0;
+        if (parentItem)
+            fl |= InputBindable_StretchButtonDisabled;
         changed = InputBindable(&size_y, fl | InputBindable_StretchButton, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("size_y", &size_y, ctx);
@@ -3341,6 +3372,28 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
         ImGui::PopStyleColor();
 
     ImGui::PopStyleVar();
+
+    ImVec2 padding = ImGui::GetStyle().FramePadding;
+    if (!style_padding.empty())
+        padding = style_padding.eval_px(ctx);
+    auto curData = ImRad::GetCursorData();
+    auto lastItem = ImRad::GetLastItemData();
+    ImGui::PushClipRect(lastItem.Rect.Min + padding, lastItem.Rect.Max - padding, true);
+    ImGui::SetCursorScreenPos(lastItem.Rect.Min + padding);
+
+    for (auto& child : child_iterator(children, false))
+    {
+        child->Draw(ctx);
+    }
+    for (auto& child : child_iterator(children, true))
+    {
+        child->Draw(ctx);
+    }
+    
+    ImGui::PopClipRect();
+    ImRad::SetLastItemData(lastItem);
+    ImRad::SetCursorData(curData);
+    
     return ImGui::GetWindowDrawList();
 }
 
@@ -3411,6 +3464,42 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleColor();\n";
 
     os << ctx.ind << "ImGui::PopStyleVar();\n";
+
+    if (children.size())
+    {
+        os << ctx.ind << "auto tmpCursor" << ctx.varCounter 
+            << " = ImRad::GetCursorData();\n";
+        os << ctx.ind << "auto " << TMP_LAST_ITEM_VAR << ctx.varCounter 
+            << " = ImRad::GetLastItemData();\n";
+        std::string tmp = ctx.parentVarName;
+        ctx.parentVarName = TMP_LAST_ITEM_VAR + std::to_string(ctx.varCounter) + ".Rect";
+        std::string padding = "ImGui::GetStyle().FramePadding";
+        if (!style_padding.empty())
+            padding = "ImVec2" + style_padding.to_arg(ctx.unit);
+        os << ctx.ind << "ImGui::SetCursorScreenPos(ImGui::GetItemRectMin() + " << padding 
+            << ");\n";
+        os << ctx.ind << "ImGui::PushClipRect(ImGui::GetItemRectMin() + " << padding 
+            << ", ImGui::GetItemRectMax() - " << padding << ", true);\n";
+        os << ctx.ind << "/// @separator\n\n";
+        
+        for (auto& child : child_iterator(children, false))
+        {
+            child->Export(os, ctx);
+        }
+        
+        for (auto& child : child_iterator(children, true))
+        {
+            child->Export(os, ctx);
+        }
+
+        ctx.parentVarName = tmp;
+        os << ctx.ind << "/// @separator\n";
+        os << ctx.ind << "ImGui::PopClipRect();\n";
+        os << ctx.ind << "ImRad::SetLastItemData(" << TMP_LAST_ITEM_VAR << ctx.varCounter << ");\n";
+        os << ctx.ind << "ImRad::SetCursorData(tmpCursor" << ctx.varCounter << ");\n";
+        
+        ++ctx.varCounter;
+    }
 }
 
 void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -3489,6 +3578,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         alignToFrame = true;
     }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetCursorScreenPos") //other than overlayPos
+    {
+        if (sit->params.size() && !sit->params[0].compare(0, 30, "ImGui::GetItemRectMin()+ImVec2"))
+            style_padding.set_from_arg(sit->params[0].substr(30));
+    }
 }
 
 std::vector<UINode::Prop>
@@ -3498,6 +3592,7 @@ Selectable::Properties()
     props.insert(props.begin(), {
         { "appearance.header", &style_header },
         { "appearance.color", &style_text },
+        { "appearance.padding", &style_padding },
         { "appearance.font", &style_font },
         { "appearance.horizAlignment", &horizAlignment },
         { "appearance.vertAlignment", &vertAlignment },
@@ -3534,6 +3629,12 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("color", &style_text, ctx);
         break;
     case 2:
+        ImGui::Text("padding");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_padding, ctx);
+        break;
+    case 3:
         ImGui::Text("font");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3541,7 +3642,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_font, ctx);
         break;
-    case 3:
+    case 4:
         ImGui::BeginDisabled(size_x.zero());
         ImGui::Text("horizAlignment");
         ImGui::TableNextColumn();
@@ -3550,7 +3651,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&horizAlignment, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 4:
+    case 5:
         ImGui::BeginDisabled(size_y.zero());
         ImGui::Text("vertAlignment");
         ImGui::TableNextColumn();
@@ -3559,16 +3660,16 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&vertAlignment, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 5:
+    case 6:
         ImGui::Text("alignToFramePadding");
         ImGui::TableNextColumn();
         fl = alignToFrame != Defaults().alignToFrame ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
-    case 6:
+    case 7:
         changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
-    case 7:
+    case 8:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3576,13 +3677,13 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
-    case 8:
+    case 9:
         ImGui::Text("readOnly");
         ImGui::TableNextColumn();
         fl = readOnly != Defaults().readOnly ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&readOnly, fl, ctx);
         break;
-    case 9:
+    case 10:
         ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
         ImGui::Text("modalResult");
         ImGui::TableNextColumn();
@@ -3591,7 +3692,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&modalResult, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 10:
+    case 11:
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3601,7 +3702,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &selected, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 11, ctx);
+        return Widget::PropertyUI(i - 12, ctx);
     }
     return changed;
 }
