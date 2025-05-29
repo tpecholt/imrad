@@ -1355,8 +1355,7 @@ void ToolbarUI()
     float defHeight = ImGui::GetFrameHeightWithSpacing();
     ImGui::Dummy(ImGui::CalcItemSize({ -defHeight, 1 }, 0, 0));
     ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_CIRCLE_INFO) ||
-        ImGui::Shortcut(ImGuiKey_F1, ImGuiInputFlags_RouteGlobal))
+    if (ImGui::Button(ICON_FA_CIRCLE_INFO))
     {
         aboutDlg.OpenPopup();
     }
@@ -2355,6 +2354,10 @@ void Work()
                 }
             }
         }
+    }
+    if (ImGui::Shortcut(ImGuiKey_F1, ImGuiInputFlags_RouteGlobal))
+    {
+        ShellExec(GITHUB_URL + "/wiki");
     }
 }
 

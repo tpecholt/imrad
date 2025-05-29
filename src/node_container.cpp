@@ -1195,14 +1195,14 @@ Splitter::Splitter(UIContext& ctx)
     size_x = size_y = -1;
 
     if (ctx.createVars)
-        position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
+        position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Impl));
 }
 
 std::unique_ptr<Widget> Splitter::Clone(UIContext& ctx)
 {
     auto sel = std::make_unique<Splitter>(*this);
     if (!position.empty() && ctx.createVars) {
-        sel->position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Interface));
+        sel->position.set_from_arg(ctx.codeGen->CreateVar("float", "100", CppGen::Var::Impl));
     }
     sel->CloneChildrenFrom(*this, ctx);
     return sel;
@@ -1338,7 +1338,7 @@ Splitter::Properties()
         { "appearance.active", &style_active },
         { "behavior.min1##splitter", &min_size1 },
         { "behavior.min2##splitter", &min_size2 },
-        { "bindings.sashPosition##1", &position },
+        { "bindings.sashPos##1", &position },
         });
     return props;
 }
@@ -1380,7 +1380,7 @@ bool Splitter::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&min_size2, fl, ctx);
         break;
     case 4:
-        ImGui::Text("sashPosition");
+        ImGui::Text("sashPos");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&position, false, ctx);
