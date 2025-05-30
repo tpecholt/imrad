@@ -2443,7 +2443,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("tooltip");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&tooltip, ctx);
+        changed = InputBindable(&tooltip, InputBindable_MultilineEdit, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("tooltip", &tooltip, ctx);
         return changed;
@@ -3061,7 +3061,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -3089,28 +3089,25 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
 
     if (wrap)
     {
-        //float x1 = ImGui::GetCursorPosX();
-        //float w = wrap_x.value();
-        //if (w < 0) w += ImGui::GetContentRegionAvail().x;
-        //ImGui::PushTextWrapPos(x1 + w);
-        ImGui::PushTextWrapPos(0);
-        auto ps = PrepareString(text.value());
-        ImGui::TextUnformatted(ps.label.c_str());
-        DrawTextArgs(ps, ctx);
-        ImGui::PopTextWrapPos();
+        float wrapWidth = 0; //let ImGui calculate it from window.WorkRect
+        auto* parent = dynamic_cast<Widget*>(ctx.parents[ctx.parents.size() - 2]);
+        if (parent->Behavior() & SnapItemInterior)
+            //wrapWidth = parent->cached_pos.x + parent->cached_size.x - pad - ImGui::GetWindowPos().x;
+            wrapWidth = ImGui::GetCurrentWindow()->ClipRect.Max.x - ImGui::GetWindowPos().x;
+        ImGui::PushTextWrapPos(wrapWidth);
     }
-    else if (link)
-    {
-        auto ps = PrepareString(text.value());
+
+    auto ps = PrepareString(text.value());
+    
+    if (link)
         ImGui::TextLink(ps.label.c_str());
-        DrawTextArgs(ps, ctx);
-    }
     else
-    {
-        auto ps = PrepareString(text.value());
         ImGui::TextUnformatted(ps.label.c_str());
-        DrawTextArgs(ps, ctx);
-    }
+        
+    DrawTextArgs(ps, ctx);
+
+    if (wrap)
+        ImGui::PopTextWrapPos();
 
     return ImGui::GetWindowDrawList();
 }
@@ -3136,7 +3133,19 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
     if (wrap)
-        os << ctx.ind << "ImGui::PushTextWrapPos(0);\n";
+    {
+        auto* parent = ctx.parents[ctx.parents.size() - 2];
+        if (parent->Behavior() & SnapItemInterior)
+        {
+            os << ctx.ind << "ImGui::PushTextWrapPos(";
+            os << "ImGui::GetCurrentWindow()->ClipRect.x - ImGui::GetWindowPos().x";
+            os << ");\n";
+        }
+        else
+        {
+            os << ctx.ind << "ImGui::PushTextWrapPos(0);\n";
+        }
+    }
 
     if (link) 
     {
@@ -3241,7 +3250,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("text");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&text, ctx);
+        changed = InputBindable(&text, InputBindable_MultilineEdit, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("text", &text, ctx);
         break;
@@ -3374,8 +3383,8 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     ImGui::PopStyleVar();
 
     ImVec2 padding = ImGui::GetStyle().FramePadding;
-    if (!style_padding.empty())
-        padding = style_padding.eval_px(ctx);
+    if (!style_interiorPadding.empty())
+        padding = style_interiorPadding.eval_px(ctx);
     auto curData = ImRad::GetCursorData();
     auto lastItem = ImRad::GetLastItemData();
     ImGui::PushClipRect(lastItem.Rect.Min + padding, lastItem.Rect.Max - padding, true);
@@ -3474,8 +3483,8 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         std::string tmp = ctx.parentVarName;
         ctx.parentVarName = TMP_LAST_ITEM_VAR + std::to_string(ctx.varCounter) + ".Rect";
         std::string padding = "ImGui::GetStyle().FramePadding";
-        if (!style_padding.empty())
-            padding = "ImVec2" + style_padding.to_arg(ctx.unit);
+        if (!style_interiorPadding.empty())
+            padding = "ImVec2" + style_interiorPadding.to_arg(ctx.unit);
         os << ctx.ind << "ImGui::SetCursorScreenPos(ImGui::GetItemRectMin() + " << padding 
             << ");\n";
         os << ctx.ind << "ImGui::PushClipRect(ImGui::GetItemRectMin() + " << padding 
@@ -3581,7 +3590,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetCursorScreenPos") //other than overlayPos
     {
         if (sit->params.size() && !sit->params[0].compare(0, 30, "ImGui::GetItemRectMin()+ImVec2"))
-            style_padding.set_from_arg(sit->params[0].substr(30));
+            style_interiorPadding.set_from_arg(sit->params[0].substr(30));
     }
 }
 
@@ -3592,7 +3601,7 @@ Selectable::Properties()
     props.insert(props.begin(), {
         { "appearance.header", &style_header },
         { "appearance.color", &style_text },
-        { "appearance.padding", &style_padding },
+        { "appearance.padding", &style_interiorPadding },
         { "appearance.font", &style_font },
         { "appearance.horizAlignment", &horizAlignment },
         { "appearance.vertAlignment", &vertAlignment },
@@ -3632,7 +3641,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("padding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputDirectVal(&style_padding, ctx);
+        changed = InputDirectVal(&style_interiorPadding, ctx);
         break;
     case 3:
         ImGui::Text("font");
@@ -3673,7 +3682,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, InputBindable_MultilineEdit, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -4024,7 +4033,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         ImGui::EndDisabled();
@@ -4230,7 +4239,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, InputBindable_MultilineEdit, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -4427,7 +4436,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, InputBindable_MultilineEdit, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -5035,7 +5044,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("hint");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&hint, ctx);
+        changed = InputBindable(&hint, InputBindable_MultilineEdit, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("hint", &hint, ctx);
         ImGui::EndDisabled();
@@ -6312,20 +6321,13 @@ bool Image::PropertyUI(int i, UIContext& ctx)
     case 0:
         ImGui::Text("fileName");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-2 * ImGui::GetFrameHeight());
-        changed = InputBindable(&fileName, ctx);
-        if (ImGui::IsItemDeactivatedAfterEdit() ||
-            (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&fileName, InputBindable_CustomButton, ctx, [this,&ctx] { 
+            if (PickFileName(ctx))
+                RefreshTexture(ctx);
+            });
+        if (changed)
             RefreshTexture(ctx);
-        ImGui::SameLine(0, 0);
-        if (ImGui::Button("...", { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }) &&
-            PickFileName(ctx))
-        {
-            changed = true;
-            RefreshTexture(ctx);
-        }
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("fileName", &fileName, ctx);
         break;
     case 1:
         ImGui::Text("stretchPolicy");
@@ -6353,7 +6355,7 @@ bool Image::PickFileName(UIContext& ctx)
 {
     if (ctx.workingDir.empty()) {
         messageBox.title = "Warning";
-        messageBox.message = "Please save the file first so that relative paths can work";
+        messageBox.message = "Please save the file first so relative paths can work";
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
         return false;
@@ -6383,7 +6385,7 @@ void Image::RefreshTexture(UIContext& ctx)
     {
         if (ctx.workingDir.empty() && !ctx.importState) {
             messageBox.title = "Warning";
-            messageBox.message = "Please save the file first so that relative paths can work";
+            messageBox.message = "Please save the file first so relative paths can work";
             messageBox.buttons = ImRad::Ok;
             messageBox.OpenPopup();
             return;
@@ -6392,17 +6394,8 @@ void Image::RefreshTexture(UIContext& ctx)
     }
 
     tex = ImRad::LoadTextureFromFile(fname);
-    if (!tex)
-    {
-        if (!ctx.importState) {
-            messageBox.title = "Error";
-            messageBox.message = "Can't read " + fname;
-            messageBox.buttons = ImRad::Ok;
-            messageBox.OpenPopup();
-        }
-        else
-            PushError(ctx, "can't read \"" + fname + "\"");
-    }
+    if (!tex && ctx.importState)
+        PushError(ctx, "can't read \"" + fname + "\"");
 }
 
 //----------------------------------------------------

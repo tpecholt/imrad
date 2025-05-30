@@ -28,7 +28,7 @@ void ComboDlg::Draw()
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
         ImGui::PushFont(font);
-        ImGui::InputTextMultiline("##value", &value, { -1, -40 }, ImGuiInputTextFlags_Multiline);
+        ImGui::InputTextMultiline("##value", &value, { -1, -44 }, ImGuiInputTextFlags_Multiline);
         ImGui::PopFont();
         /// @end Input
 
@@ -46,7 +46,7 @@ void ComboDlg::Draw()
 
             /// @begin Button
             ImGui::TableNextColumn();
-            if (ImGui::Button("OK", { 100, 0 }))
+            if (ImGui::Button("OK", { 100, 30 }))
             {
                 ClosePopup();
                 callback(ImRad::Ok);
@@ -55,7 +55,7 @@ void ComboDlg::Draw()
 
             /// @begin Button
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-            if (ImGui::Button("Cancel", { 100, 0 }) ||
+            if (ImGui::Button("Cancel", { 100, 30 }) ||
                 ImGui::IsKeyPressed(ImGuiKey_Escape))
             {
                 ClosePopup();

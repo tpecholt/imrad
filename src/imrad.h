@@ -536,7 +536,7 @@ inline void SetCursorData(const CursorData& data)
     wnd->DC.IdealMaxPos = data.idealMaxPos;
 }
 
-inline ImGuiLastItemData GetLastItemData()
+inline const ImGuiLastItemData& GetLastItemData()
 {
     return ImGui::GetCurrentContext()->LastItemData;
 }

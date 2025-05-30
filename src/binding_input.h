@@ -434,6 +434,8 @@ enum
 {
     InputBindable_StretchButton = 0x1,
     InputBindable_StretchButtonDisabled = InputBindable_StretchButton | 0x2,
+    InputBindable_MultilineEdit = 0x4,
+    InputBindable_CustomButton = 0x8,
     InputBindable_Modified = 0x10,
     InputBindable_ShowVariables = 0x20,
     InputBindable_ShowNone = 0x40,
@@ -807,16 +809,56 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
     return changed;
 }
 
-inline bool InputBindable(bindable<std::string>* val, UIContext& ctx)
+inline bool InputBindable(bindable<std::string>* val, int flags, UIContext& ctx, std::function<void()> fun = [] {})
 {
+    std::string id = "##" + std::to_string((uint64_t)val);
+    std::string butId = "..." + id;
+    bool high = IsHighlighted(id) || IsHighlighted(butId);
+    bool hasButton = flags & (InputBindable_MultilineEdit | InputBindable_CustomButton);
+    float w = ImGui::CalcItemWidth();
+    if (hasButton && high)
+        w -= ImGui::GetFrameHeight();
+
+    ImGui::SetNextItemWidth(w);
     ImGui::PushFont(
         !IsAscii(*val->access()) ? ctx.defaultStyleFont :
         !ImRad::IsCurrentItemDisabled() ? ctx.pgbFont :
         ctx.pgFont
     );
-    std::string id = "##" + std::to_string((uint64_t)val);
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter);
     ImGui::PopFont();
+    
+    if (hasButton && high)
+    {
+        ImGui::SameLine(0, 0);
+        ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
+        bool isDown = false;
+        if (flags & InputBindable_MultilineEdit)
+            isDown = val->access()->find('\n') != std::string::npos;
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(
+            isDown ? ImGuiCol_ButtonActive : ImGuiCol_Button
+            ));
+        if (ImGui::Button(butId.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+        {
+            if (flags & InputBindable_CustomButton)
+            {
+                fun();
+            }
+            else if (flags & InputBindable_MultilineEdit)
+            {
+                comboDlg.title = "Multiline text";
+                comboDlg.value = *val->access();
+                comboDlg.font = ctx.defaultStyleFont;
+                comboDlg.OpenPopup([&ctx, val](ImRad::ModalResult mr) {
+                    ctx.setProp = val;
+                    ctx.setPropValue = comboDlg.value;
+                    });
+            }
+        }
+        ImGui::PopStyleColor();
+        ImGui::PopItemFlag();
+    }
+
     return changed;
 }
 

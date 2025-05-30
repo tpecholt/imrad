@@ -164,6 +164,7 @@ struct Widget : UINode
     direct_val<pzdimension_t> style_frameRounding;
     direct_val<pzdimension2_t> style_framePadding;
     direct_val<pzdimension_t> style_frameBorderSize;
+    direct_val<pzdimension2_t> style_interiorPadding;
 
     event<> onItemClicked;
     event<> onItemDoubleClicked;
@@ -269,7 +270,6 @@ struct Selectable : Widget
     direct_val<ImRad::ModalResult> modalResult = ImRad::None;
     bindable<bool> selected = false;
     bindable<color_t> style_header;
-    direct_val<pzdimension2_t> style_padding;
     event<> onChange;
 
     Selectable(UIContext& ctx);

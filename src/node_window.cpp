@@ -1251,7 +1251,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("title");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&title, ctx);
+        changed = InputBindable(&title, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("title", &title, ctx);
         break;

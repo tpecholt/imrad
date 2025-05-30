@@ -1590,7 +1590,7 @@ bool CollapsingHeader::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -1774,7 +1774,7 @@ bool TreeNode::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
@@ -2321,7 +2321,7 @@ bool TabItem::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&label, ctx);
+        changed = InputBindable(&label, 0, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
