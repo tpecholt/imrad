@@ -3090,7 +3090,7 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
     if (wrap)
     {
         float wrapWidth = 0; //let ImGui calculate it from window.WorkRect
-        auto* parent = dynamic_cast<Widget*>(ctx.parents[ctx.parents.size() - 2]);
+        auto* parent = ctx.parents[ctx.parents.size() - 2];
         if (parent->Behavior() & SnapItemInterior)
             //wrapWidth = parent->cached_pos.x + parent->cached_size.x - pad - ImGui::GetWindowPos().x;
             wrapWidth = ImGui::GetCurrentWindow()->ClipRect.Max.x - ImGui::GetWindowPos().x;
@@ -3138,7 +3138,7 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         if (parent->Behavior() & SnapItemInterior)
         {
             os << ctx.ind << "ImGui::PushTextWrapPos(";
-            os << "ImGui::GetCurrentWindow()->ClipRect.x - ImGui::GetWindowPos().x";
+            os << "ImGui::GetCurrentWindow()->ClipRect.Max.x - ImGui::GetWindowPos().x";
             os << ");\n";
         }
         else
@@ -3389,6 +3389,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     auto lastItem = ImRad::GetLastItemData();
     ImGui::PushClipRect(lastItem.Rect.Min + padding, lastItem.Rect.Max - padding, true);
     ImGui::SetCursorScreenPos(lastItem.Rect.Min + padding);
+    ImGui::BeginGroup();
 
     for (auto& child : child_iterator(children, false))
     {
@@ -3398,7 +3399,8 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     {
         child->Draw(ctx);
     }
-    
+
+    ImGui::EndGroup();
     ImGui::PopClipRect();
     ImRad::SetLastItemData(lastItem);
     ImRad::SetCursorData(curData);
@@ -3476,6 +3478,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
     if (children.size())
     {
+        os << "\n";
         os << ctx.ind << "auto tmpCursor" << ctx.varCounter 
             << " = ImRad::GetCursorData();\n";
         os << ctx.ind << "auto " << TMP_LAST_ITEM_VAR << ctx.varCounter 
@@ -3487,6 +3490,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
             padding = "ImVec2" + style_interiorPadding.to_arg(ctx.unit);
         os << ctx.ind << "ImGui::SetCursorScreenPos(ImGui::GetItemRectMin() + " << padding 
             << ");\n";
+        os << ctx.ind << "ImGui::BeginGroup();\n";
         os << ctx.ind << "ImGui::PushClipRect(ImGui::GetItemRectMin() + " << padding 
             << ", ImGui::GetItemRectMax() - " << padding << ", true);\n";
         os << ctx.ind << "/// @separator\n\n";
@@ -3504,6 +3508,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         ctx.parentVarName = tmp;
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
+        os << ctx.ind << "ImGui::EndGroup();\n";
         os << ctx.ind << "ImRad::SetLastItemData(" << TMP_LAST_ITEM_VAR << ctx.varCounter << ");\n";
         os << ctx.ind << "ImRad::SetCursorData(tmpCursor" << ctx.varCounter << ");\n";
         

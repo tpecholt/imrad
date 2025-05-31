@@ -1304,6 +1304,12 @@ void ToolbarUI()
     bool showHelper = activeTab >= 0 &&
         ctx.selected.size() >= 1 &&
         (ctx.selected[0]->Behavior() & UINode::SnapSides);
+    if (showHelper)
+    {
+        auto pinfo = ctx.root->FindChild(ctx.selected[0]);
+        if (!pinfo || (pinfo->first->Behavior() & UINode::SnapItemInterior))
+            showHelper = false;
+    }
     ImGui::BeginDisabled(!showHelper);
     if (ImGui::Button(ICON_FA_BORDER_NONE))
     {
@@ -2120,7 +2126,11 @@ void Work()
                 newNodes[0]->sameLine = ctx.snapSameLine;
                 newNodes[0]->spacing = firstItem ? 0 : 1;
                 newNodes[0]->nextColumn = ctx.snapNextColumn;
-                //reset nextColumn
+                //reset hasPos, nextColumn
+                for (size_t i = 0; i < n; ++i)
+                {
+                    newNodes[i]->hasPos = ImRad::AlignNone;
+                }
                 if (ctx.snapParent->ColumnCount(ctx) <= 1)
                 {
                     for (size_t i = 1; i < n; ++i)
