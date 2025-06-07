@@ -66,9 +66,9 @@ void AboutDlg::Draw()
 
         /// @begin Text
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushFont(ImRad::GetFontByName("imrad.H1"));
+        ImGui::PushFontSize(ImGui::GetFontSize() * 1.5f);
         ImGui::TextUnformatted(ImRad::Format("{}", VER_STR).c_str());
-        ImGui::PopFont();
+        ImGui::PopFontSize();
         /// @end Text
 
         /// @begin Separator

@@ -94,10 +94,3 @@ ImU32 bindable<color_t>::eval(int defClr, const UIContext& ctx) const
 
     return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
 }
-
-std::string bindable<font_name_t>::eval(const UIContext&) const
-{
-    if (!has_value())
-        return "";
-    return str.substr(22, str.size() - 22 - 2);
-}

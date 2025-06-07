@@ -1103,7 +1103,7 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
             else if (cat == "fonts")
             {
                 std::string fname;
-                float size = 20;
+                float size = 0.f;
                 ImVec2 goffset;
                 bool hasRange = false;
                 static std::vector<std::unique_ptr<ImWchar[]>> rngs;
@@ -1170,7 +1170,7 @@ inline ImFont* GetFontByName(std::string_view name)
         return ImGui::GetDefaultFont();
 
     const auto& io = ImGui::GetIO();
-    for (const auto& cfg : io.Fonts->ConfigData) {
+    for (const auto& cfg : io.Fonts->Sources) {
         if (cfg.MergeMode)
             continue;
         if (name == cfg.Name)
