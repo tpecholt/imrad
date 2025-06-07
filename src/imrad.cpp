@@ -75,8 +75,10 @@ std::string initErrors, showError;
 std::string uiFontName = "Roboto-Regular.ttf";
 std::string pgFontName = "Roboto-Regular.ttf";
 std::string pgbFontName = "Roboto-Bold.ttf";
+std::string designFontName = "Roboto-Regular.ttf";
 float uiFontSize = 19;
 float pgFontSize = 20;
+float designFontSize = 19;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -846,6 +848,7 @@ void LoadStyle()
 
     //reload ImRAD UI first
     StyleColors();
+    ImGui::GetStyle().FontSizeBase = uiFontSize;
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
     static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
     ImFontConfig cfg;
@@ -855,11 +858,7 @@ void LoadStyle()
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
     cfg.MergeMode = false;
-    strcpy(cfg.Name, "imrad.H1");
-    io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.5f, &cfg);
-    strcpy(cfg.Name, "imrad.H3");
-    io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize * 1.1f, &cfg);
-
+    
     strcpy(cfg.Name, "imrad.pg");
     ctx.pgFont = io.Fonts->AddFontFromFileTTF((stylePath + pgFontName).c_str(), pgFontSize, &cfg);
     strcpy(cfg.Name, "imrad.pgb");
@@ -874,15 +873,16 @@ void LoadStyle()
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
     ctx.style = ImGuiStyle();
+    //ctx.style.FontSizeBase = designFontSize;
 
     if (activeTab >= 0)
     {
         std::string styleName = fileTabs[activeTab].styleName;
-        std::string defaultFont = stylePath + "Roboto-Regular.ttf";
+        //TODO: why AddFontFromFileTTF requires fontSize?
         if (styleName == "Classic")
         {
             ImGui::StyleColorsClassic(&ctx.style);
-            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(defaultFont.c_str(), uiFontSize);
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF((stylePath + designFontName).c_str(), designFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
@@ -890,7 +890,7 @@ void LoadStyle()
         else if (styleName == "Light")
         {
             ImGui::StyleColorsLight(&ctx.style);
-            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(defaultFont.c_str(), uiFontSize);
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF((stylePath + designFontName).c_str(), designFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
@@ -898,7 +898,7 @@ void LoadStyle()
         else if (styleName == "Dark")
         {
             ImGui::StyleColorsDark(&ctx.style);
-            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF(defaultFont.c_str(), uiFontSize);
+            ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF((stylePath + designFontName).c_str(), designFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
             ctx.colors = GetCtxColors(styleName);
@@ -942,8 +942,6 @@ void LoadStyle()
             }
         }
     }
-    ImGui_ImplOpenGL3_DestroyFontsTexture();
-    ImGui_ImplOpenGL3_CreateFontsTexture();
 }
 
 void DoCloneStyle(const std::string& name)
@@ -1338,12 +1336,19 @@ void ToolbarUI()
             if (entry.is_regular_file() && entry.path().extension() == ".ttf")
                 fontNames.push_back(u8string(entry.path().stem()));
         }
+        std::vector<std::string> fontSizes {
+            "12", "14", "16", "18", "19", "20", "21", "22", "24", "26", "28", "32", "36"
+        };
+        
         settingsDlg.fontNames = std::move(fontNames);
+        settingsDlg.fontSizes = std::move(fontSizes);
         settingsDlg.uiFontName = uiFontName.substr(0, uiFontName.size() - 4);
         settingsDlg.uiFontSize = std::to_string((int)uiFontSize);
         settingsDlg.pgFontName = pgFontName.substr(0, pgFontName.size() - 4);
         settingsDlg.pgbFontName = pgbFontName.substr(0, pgbFontName.size() - 4);
         settingsDlg.pgFontSize = std::to_string((int)pgFontSize);
+        settingsDlg.designFontName = designFontName.substr(0, designFontName.size() - 4);
+        settingsDlg.designFontSize = std::to_string((int)designFontSize);
         settingsDlg.OpenPopup([](ImRad::ModalResult)
         {
             uiFontName = settingsDlg.uiFontName + ".ttf";
@@ -1351,6 +1356,8 @@ void ToolbarUI()
             pgFontName = settingsDlg.pgFontName + ".ttf";
             pgbFontName = settingsDlg.pgbFontName + ".ttf";
             pgFontSize = std::stof(settingsDlg.pgFontSize);
+            designFontName = settingsDlg.designFontName + ".ttf";
+            designFontSize = std::stof(settingsDlg.designFontSize);
 
             ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
             reloadStyle = true;
@@ -1583,6 +1590,9 @@ std::vector<std::string_view> GetCat(std::string_view pname)
 
 void PropertyRowsUI(bool pr)
 {
+    if (ctx.selected.empty())
+        return;
+
     int keyPressed = 0;
     if (addInputCharacter)
     {
@@ -1645,6 +1655,7 @@ void PropertyRowsUI(bool pr)
         { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, ImGui::GetCurrentWindow()->InnerRect.Max.y },
         0xfffafafa
     );
+    ImGui::PushFont(ctx.pgFont, pgFontSize);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true); //ImGuiChildFlags_NavFlattened emulation
     ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
     if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
@@ -1693,7 +1704,6 @@ void PropertyRowsUI(bool pr)
                 forceCatOpen = GetCat(lastPropName);
         }
 
-        ImGui::PushFont(ctx.pgFont);
         ImVec2 framePad = ImGui::GetStyle().FramePadding;
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
         //when selecting other widget of same kind from Tree, value from previous widget
@@ -1776,10 +1786,9 @@ void PropertyRowsUI(bool pr)
 
         ImGui::PopItemFlag();
         ImGui::PopID();
-        ImGui::PopFont();
         ImGui::PopStyleVar();
         ImGui::EndTable();
-
+        
         if (pr)
             pgHeight = ImGui::GetItemRectSize().y;
         else
@@ -1806,6 +1815,7 @@ void PropertyRowsUI(bool pr)
         }
     }
     ImGui::PopItemFlag();
+    ImGui::PopFont();
 }
 
 void PropertyUI()
@@ -1817,15 +1827,13 @@ void PropertyUI()
     ImGui::PushStyleColor(ImGuiCol_Button, clr);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 
-    ImGui::Begin("Events");
-    if (!ctx.selected.empty())
+    if (ImGui::Begin("Events"))
     {
         PropertyRowsUI(0);
     }
     ImGui::End();
 
-    ImGui::Begin("Properties");
-    if (!ctx.selected.empty())
+    if (ImGui::Begin("Properties"))
     {
         PropertyRowsUI(1);
     }
@@ -1872,7 +1880,8 @@ void Draw()
     ImGui::GetStyle() = ctx.style;
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
     ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
-    ImGui::PushFont(ctx.defaultStyleFont);
+    //ImGui::GetStyle().FontSizeBase = 19;
+    ImGui::PushFont(ctx.defaultStyleFont, designFontSize);
 
     ctx.appStyle = &tmpStyle;
     ctx.workingDir = u8string(u8path(tab.fname).parent_path());
@@ -1888,7 +1897,7 @@ void Draw()
     }
 
     ImGui::PopFont();
-    ImGui::GetStyle() = tmpStyle;
+    ImGui::GetStyle() = std::move(tmpStyle);
 }
 
 std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
@@ -2430,6 +2439,10 @@ void AddINIHandler()
                     pgbFontName = line + 12;
                 else if (!strncmp(line, "PgFontSize=", 11))
                     pgFontSize = (float)std::atof(line + 11);
+                else if (!strncmp(line, "DesignFontName=", 15))
+                    designFontName = line + 15;
+                else if (!strncmp(line, "DesignFontSize=", 15))
+                    designFontSize = (float)std::atof(line + 15);
             }
         };
     ini_handler.ApplyAllFn = nullptr;
@@ -2464,6 +2477,8 @@ void AddINIHandler()
             buf->appendf("PgFontName=%s\n", pgFontName.c_str());
             buf->appendf("PgbFontName=%s\n", pgbFontName.c_str());
             buf->appendf("PgFontSize=%f\n", pgFontSize);
+            buf->appendf("DesignFontName=%s\n", designFontName.c_str());
+            buf->appendf("DesignFontSize=%f\n", designFontSize);
             buf->append("\n");
         };
     ImGui::GetCurrentContext()->SettingsHandlers.push_back(ini_handler);

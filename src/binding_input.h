@@ -439,6 +439,7 @@ enum
     InputBindable_Modified = 0x10,
     InputBindable_ShowVariables = 0x20,
     InputBindable_ShowNone = 0x40,
+    InputBindable_ParentStr = 0x80
 };
 
 template <class T,
@@ -562,7 +563,7 @@ template <class T,
 inline bool InputBindable(bindable<font_name_t>* val, UIContext& ctx)
 {
     std::string fn = val->empty() ? PARENT_STR :
-        val->has_value() ? val->eval(ctx) : val->c_str();
+        val->has_value() ? val->value() : val->c_str();
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
     if (ImGui::BeginCombo(id.c_str(), nullptr,
@@ -980,12 +981,18 @@ inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
         ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - ImGui::GetFrameHeight());
 
     bool stretch = val->stretched();
-    ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && (flags & InputBindable_Modified) ?
+    bool modified = flags & InputBindable_Modified;
+    if ((flags & InputBindable_ParentStr) && !val->empty())
+        modified = true;
+    ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && modified ?
         ctx.pgbFont : ctx.pgFont);
     int fl = ImGuiInputTextFlags_CallbackCharFilter;
     if (val->has_value())
         fl |= ImGuiInputTextFlags_AutoSelectAll;
-    bool changed = ImGui::InputText(id.c_str(), val->access(), fl, DefaultCharFilter);
+    std::string hint = "";
+    if (flags & InputBindable_ParentStr)
+        hint = ImGui::GetActiveID() == ImGui::GetCurrentWindow()->GetID(id.c_str()) ? "" : PARENT_STR;
+    bool changed = ImGui::InputTextWithHint(id.c_str(), hint.c_str(), val->access(), fl, DefaultCharFilter);
     /*std::string tmp = *val->access();
     bool active = ImGui::GetFocusID() == ImGui::GetID(id.c_str()) ||
         ImGui::GetActiveID() == ImGui::GetID(id.c_str());
@@ -1003,7 +1010,7 @@ inline bool InputBindable(bindable<dimension_t>* val, int flags, UIContext& ctx)
     //disallow empty state
     if (ImGui::IsItemDeactivatedAfterEdit())
     {
-        if (!stretch && val->empty())
+        if (!stretch && val->empty() && !(flags & InputBindable_ParentStr))
             *val = 0;
         else if (stretch && !val->has_value()) {
             *val = 1.0f;

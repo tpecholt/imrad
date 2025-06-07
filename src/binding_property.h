@@ -873,8 +873,12 @@ struct bindable<font_name_t> : property_base
     bool has_value() const {
         return !str.compare(0, 22, "ImRad::GetFontByName(\"");
     }
-    std::string eval(const UIContext& ctx) const;
-
+    std::string value() const {
+        if (!has_value())
+            return "";
+        return str.substr(22, str.size() - 22 - 2);
+    }
+    
     void set_font_name(std::string_view fn) {
         str = "ImRad::GetFontByName(\"" + std::string(fn) + "\")";
     }

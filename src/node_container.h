@@ -32,6 +32,8 @@ struct Table : Widget
     bindable<color_t> style_rowBg;
     bindable<color_t> style_rowBgAlt;
     bindable<color_t> style_childBg;
+    bindable<font_name_t> style_headerFontName;
+    bindable<dimension_t> style_headerFontSize;
     event<> onBeginRow;
     event<> onEndRow;
     event<> onSetup;

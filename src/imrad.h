@@ -1170,7 +1170,7 @@ inline ImFont* GetFontByName(std::string_view name)
         return ImGui::GetDefaultFont();
 
     const auto& io = ImGui::GetIO();
-    for (const auto& cfg : io.Fonts->ConfigData) {
+    for (const auto& cfg : io.Fonts->Sources) {
         if (cfg.MergeMode)
             continue;
         if (name == cfg.Name)
