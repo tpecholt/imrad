@@ -864,6 +864,13 @@ inline bool InputBindable(bindable<std::string>* val, int flags, UIContext& ctx,
 
 inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ctx)
 {
+    if (val == ctx.setProp) 
+    {
+        ctx.setProp = nullptr;
+        *val->access() = ctx.setPropValue;
+        return true;
+    }
+
     bool changed = false;
     std::string id = "##" + std::to_string((uint64_t)val);
     std::string label;
@@ -898,7 +905,6 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
         ImGui::PushStyleColor(ImGuiCol_Text, RENAME_COLOR);
         if (ImGui::Selectable("Edit Items..."))
         {
-            changed = true;
             std::string tmp = *val->access(); //preserve embeded nulls
             stx::replace(tmp, '\0', '\n');
             if (tmp.size() && tmp.back() == '\n')
@@ -906,7 +912,7 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
             comboDlg.title = "Items";
             comboDlg.value = tmp;
             comboDlg.font = ctx.defaultStyleFont;
-            comboDlg.OpenPopup([val](ImRad::ModalResult) {
+            comboDlg.OpenPopup([val, &ctx](ImRad::ModalResult) {
                 std::string tmp = comboDlg.value;
                 while (tmp.size() && tmp.back() == '\n')
                     tmp.pop_back();
@@ -917,6 +923,9 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
                     stx::replace(tmp, '\n', '\0');
                     *val->access() = tmp;
                 }
+                //force changed in next iteration
+                ctx.setProp = val;
+                ctx.setPropValue = tmp;
                 });
         }
         ImGui::PopStyleColor();
@@ -928,10 +937,9 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
             newFieldPopup.codeGen = ctx.codeGen;
             newFieldPopup.mode = NewFieldPopup::NewField;
             newFieldPopup.OpenPopup([val, &ctx] {
-                *val->access() = '{' + newFieldPopup.varName + '}';
-                //todo
-                //ctx.setProp = &items;
-                //ctx.setPropValue = '{' + newFieldPopup.varName + '}';
+                //force changed in next iteration
+                ctx.setProp = val;
+                ctx.setPropValue = '{' + newFieldPopup.varName + '}';
                 });
         }
         ImGui::PopStyleColor();

@@ -1525,7 +1525,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
             ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)));
         str = std::string(1, std::toupper(cat[0])) + cat.substr(1);
-        if (str != "Appearance" & str != "Common")
+        if (str != "Appearance" && str != "Common")
             flags |= ImGuiTreeNodeFlags_DefaultOpen;
     }
     else
@@ -1704,6 +1704,7 @@ void PropertyRowsUI(bool pr)
         ImGui::PushID(ctx.selected[0]);
         //edit first widget
         auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
+        bool copyChange = false;
         std::string pval;
         std::vector<std::string_view> lastCat;
         std::vector<bool> catOpen;
@@ -1755,6 +1756,7 @@ void PropertyRowsUI(bool pr)
             if (change) {
                 fileTabs[activeTab].modified = true;
                 if (props[i].property) {
+                    copyChange = true;
                     lastPropName = props[i].name; //todo: set lastPropName upon input focus as well
                     pval = props[i].property->to_arg();
                 }
@@ -1790,14 +1792,15 @@ void PropertyRowsUI(bool pr)
         }
 
         //copy changes to other widgets
-        for (size_t i = 1; i < ctx.selected.size(); ++i)
+        if (copyChange)
         {
-            auto props = pr ? ctx.selected[i]->Properties() : ctx.selected[i]->Events();
-            for (auto& p : props)
+            for (size_t i = 1; i < ctx.selected.size(); ++i)
             {
-                if (p.name == lastPropName) {
-                    auto prop = const_cast<property_base*>(p.property);
-                    prop->set_from_arg(pval);
+                auto props = pr ? ctx.selected[i]->Properties() : ctx.selected[i]->Events();
+                for (auto& p : props)
+                {
+                    if (p.name == lastPropName)
+                        p.property->set_from_arg(pval);
                 }
             }
         }
