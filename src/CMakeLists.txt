@@ -6,11 +6,6 @@ if (WIN32)
   set(SRC ${SRC} "app.rc")
 endif()
 
-if (MSVC)
-  string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus")
-  string(APPEND CMAKE_CXX_FLAGS " /utf-8")
-endif()
-
 add_executable(imrad WIN32
    ${SRC}
 )
