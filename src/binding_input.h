@@ -351,9 +351,8 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::Unindent();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    //ImGui::PushStyleColor(ImGuiCol_NavCursor, { 0, 0, 0, 0 });
     ImGui::SetNextItemAllowOverlap();
-    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns /*| ImGuiTreeNodeFlags_NoNavFocus*/)) {
+    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus)) {
         ImGui::PopStyleVar();
         ImGui::Indent();
         ImGui::TableNextColumn();
@@ -424,7 +423,6 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
         }
     }
     ImGui::Indent();
-    //ImGui::PopStyleColor();
     return changed;
 }
 

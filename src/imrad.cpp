@@ -1525,7 +1525,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont);
-    int flags = ImGuiTreeNodeFlags_SpanAllColumns /*| ImGuiTreeNodeFlags_NoNavFocus*/;
+    int flags = ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus;
     std::string str;
     if (topLevel)
     {
@@ -1549,7 +1549,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
     if (forceOpen)
         ImGui::SetNextItemOpen(true);
     //see https://github.com/ocornut/imgui/issues/8551
-    //ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
+    //ImGui::PushItemFlag(ImGuiButtonFlags_NoNavFocus, true);
     bool open;
     if (!forceSameRow)
         open = ImGui::TreeNodeEx(str.c_str(), flags);
