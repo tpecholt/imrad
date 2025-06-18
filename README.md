@@ -17,7 +17,8 @@ ImRAD runs on Windows, Linux and MacOS.
 
 <hr>
 
-![screen1](https://github.com/user-attachments/assets/952b400d-ba55-4015-8e47-aa7438af8956)
+![image](https://github.com/user-attachments/assets/e5896d57-0560-476b-a1cf-2d7b844c1b68)
+
 
 *Take a note of the Toolbar section:*
 * *Configurable window style which is stored in an INI file. It contains definitions of colors, style variables and fonts. The example uses stock "Dark" style*
