@@ -124,9 +124,9 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 
 3. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
 
-   ```./release-linux 0.8```
+   ```./release-linux 0.9```
 
-4. ImRAD will be installed into *./install/imrad-0.8*
+4. ImRAD will be installed into *./install/imrad-0.9*
 
 # How to debug
    
@@ -136,23 +136,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 2. Set imrad as startup project, set its working directory to the installed folder
 3. Debug & Run
 
-# How to use generated code
-
-* Create a new project (C++17 and up)
-
-* Based on your setup set project-wide preprocessor defines `IMRAD_WITH_GLFW`/`IMRAD_WITH_STB`/ (`STBI_WINDOWS_UTF8`). This activates additional functionality such as Main Window or Image widget.
-
-  * On MSVC you need to define `/Zc:__cplusplus` as well otherwise C++ version detection in imrad.h won't work.
-
-* Add all generated code. Generated code #includes `imrad.h` so you need to set an include directory and point it to the include folder in the ImRAD installation folder. 
-
-* Add your `main.cpp`. The easiest way is to auto-generate it from ImRAD (New File menu). Then call `Draw()` methods of all generated UI classes from your UI loop.
-
-  * If you supply your own `main.cpp` or the one downloadable from ImGui github repository make sure you define `ImRad::IOUserData` variable and pass it to `ImGui::GetIO().UserData`. This structure is to exchange various information such as current dpi scaling, active InputText IME type or reduced display size dimensions for android apps. 
-
-* Finally add ImGui and GLFW dependencies. Whether you build it as separate libraries or directly add to your project is up to you. Stb and fmt dependencies are optional.
-
-# Tutorials
+# Tutorials & How to
 
 Please check [wiki](https://github.com/tpecholt/imrad/wiki) for tutorials and more detailed content. There is a lot to discover!
 
