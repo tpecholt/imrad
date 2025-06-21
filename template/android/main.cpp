@@ -259,6 +259,7 @@ void Init(struct android_app* app)
         ImGui::StyleColorsDark();
         //ImGui::StyleColorsLight();
         ImGui::GetStyle().ScaleAllSizes(g_IOUserData.dpiScale);
+        ImGui::GetStyle().FontScaleDpi = g_IOUserData.dpiScale;
 
         // TODO: Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -269,7 +270,7 @@ void Init(struct android_app* app)
         // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them
 
         ImFontConfig cfg;
-        cfg.SizePixels = g_IOUserData.dpiScale * 18.0f;
+        cfg.SizePixels = 18.0f;
         io.Fonts->AddFontDefault(&cfg);
 
         /*void *roboto_data, *material_data;
@@ -279,13 +280,11 @@ void Init(struct android_app* app)
         material_size = GetAssetData(FONT_ICON_FILE_NAME_MD, &material_data);
         static ImWchar icons_ranges[] = {ICON_MIN_MD, ICON_MAX_16_MD, 0};
 
-        font = io.Fonts->AddFontFromMemoryTTF(roboto_data, roboto_size,
-                                              g_IOUserData.dpiScale * 20.0f);
+        font = io.Fonts->AddFontFromMemoryTTF(roboto_data, roboto_size, 20.0f);
         IM_ASSERT(font != nullptr);
         cfg.MergeMode = true;
-        cfg.GlyphOffset.y = 20.f * g_IOUserData.dpiScale / 5;
-        font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size,
-                                              g_IOUserData.dpiScale * 20.0f, &cfg, icons_ranges);
+        cfg.GlyphOffset.y = 20.f / 5;
+        font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size, 20.0f, &cfg, icons_ranges);
         IM_ASSERT(font != nullptr);*/
     }
 }

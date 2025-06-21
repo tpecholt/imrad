@@ -14,7 +14,7 @@ struct TopWindow : UINode
     bindable<dimension_t> minSize_x = 0;
     bindable<dimension_t> minSize_y = 0;
     bindable<font_name_t> style_fontName;
-    bindable<dimension_t> style_fontSize;
+    bindable<float> style_fontSize; //scaled by style.FontScaleDpi
     direct_val<pzdimension2_t> style_padding;
     direct_val<pzdimension2_t> style_spacing;
     direct_val<pzdimension2_t> style_innerSpacing;

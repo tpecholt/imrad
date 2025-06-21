@@ -184,7 +184,7 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
             if (style_headerFontName.has_value())
                 ImGui::PushFont(ImRad::GetFontByName(style_headerFontName.value()));
             if (!style_headerFontSize.empty())
-                ImGui::PushFontSize(style_headerFontSize.eval_px(ImGuiAxis_None, ctx));
+                ImGui::PushFontSize(style_headerFontSize.eval(ctx));
 
             ImGui::TableHeadersRow();
         

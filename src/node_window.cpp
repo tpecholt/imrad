@@ -88,7 +88,7 @@ void TopWindow::Draw(UIContext& ctx)
     if (style_fontName.has_value())
         ImGui::PushFont(ImRad::GetFontByName(style_fontName.value()));
     if (!style_fontSize.empty())
-        ImGui::PushFontSize(style_fontSize.eval_px(ImGuiAxis_None, ctx));
+        ImGui::PushFontSize(style_fontSize.eval(ctx));
     if (style_padding.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
     if (style_spacing.has_value())
@@ -140,8 +140,6 @@ void TopWindow::Draw(UIContext& ctx)
 
     if (style_titlePadding.has_value())
         ImGui::PopStyleVar();
-
-    ImGui::SetWindowFontScale(ctx.zoomFactor);
 
     ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
     assert(ctx.rootWin);

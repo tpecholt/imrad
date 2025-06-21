@@ -90,7 +90,7 @@ void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std:
     ImGui::PopStyleColor();
 }
 
-void TextFontInfo(const bindable<font_name_t>& fontName, const bindable<dimension_t>& fontSize, bool changed, UIContext& ctx)
+void TextFontInfo(const bindable<font_name_t>& fontName, const bindable<float>& fontSize, bool changed, UIContext& ctx)
 {
     ImGui::PushFont(changed ? ctx.pgbFont : ctx.pgFont);
     if (!changed)
@@ -1101,7 +1101,7 @@ void Widget::Draw(UIContext& ctx)
     if (style_fontName.has_value())
         ImGui::PushFont(ImRad::GetFontByName(style_fontName.value()));
     if (!style_fontSize.empty())
-        ImGui::PushFontSize(style_fontSize.eval_px(ImGuiAxis_None, ctx));
+        ImGui::PushFontSize(style_fontSize.eval(ctx));
     if (!style_text.empty())
         ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ImGuiCol_Text, ctx));
     if (!style_border.empty())

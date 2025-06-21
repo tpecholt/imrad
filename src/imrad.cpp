@@ -1880,7 +1880,7 @@ void Draw()
     ImGui::GetStyle() = ctx.style;
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
     ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
-    //ImGui::GetStyle().FontSizeBase = 19;
+    ImGui::GetStyle().FontScaleDpi *= ctx.zoomFactor;
     ImGui::PushFont(ctx.defaultStyleFont, designFontSize);
 
     ctx.appStyle = &tmpStyle;
@@ -2557,6 +2557,8 @@ int main(int argc, const char* argv[])
     NFD_Init();
 
     // Create window with graphics context
+    // TODO: dialogs are currently not dpi aware
+    //float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
     window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
     if (window == NULL)
         return 1;
