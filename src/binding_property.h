@@ -549,6 +549,8 @@ struct bindable : property_base
 
     bool set_from_arg(std::string_view s) {
         str = s;
+        if (cpp::is_null(str))
+            str = "";
         //try to remove trailing f
         if (std::is_same_v<T, float> && str.size() >= 3 && !str.compare(str.size() - 2, 2, ".f")) {
             str.resize(str.size() - 2);
@@ -563,6 +565,8 @@ struct bindable : property_base
         return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
+        if (empty())
+            return "nullptr";
         if (std::is_same_v<T, float> && has_value()) {
             std::string tmp = str;
             if (str.find('.') == std::string::npos)
@@ -878,15 +882,19 @@ struct bindable<font_name_t> : property_base
             return "";
         return str.substr(22, str.size() - 22 - 2);
     }
+
+    ImFont* eval(UIContext& ctx) const;
     
     void set_font_name(std::string_view fn) {
         str = "ImRad::GetFontByName(\"" + std::string(fn) + "\")";
     }
     bool set_from_arg(std::string_view s) {
-        str = s;
+        str = cpp::is_null(s) ? "" : s;
         return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
+        if (empty())
+            return "nullptr";
         return str;
     }
     std::vector<std::string> used_variables() const {

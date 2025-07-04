@@ -1098,10 +1098,8 @@ void Widget::Draw(UIContext& ctx)
     auto lastHovered = ctx.hovered;
     auto p1 = ImGui::GetCursorScreenPos();
 
-    if (style_fontName.has_value())
-        ImGui::PushFont(ImRad::GetFontByName(style_fontName.value()));
-    if (!style_fontSize.empty())
-        ImGui::PushFontSize(style_fontSize.eval(ctx));
+    if (!style_fontName.empty() || !style_fontSize.empty())
+        ImGui::PushFont(style_fontName.eval(ctx), style_fontSize.eval(ctx));
     if (!style_text.empty())
         ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ImGuiCol_Text, ctx));
     if (!style_border.empty())
@@ -1144,11 +1142,9 @@ void Widget::Draw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (!style_framePadding.empty())
         ImGui::PopStyleVar();
-    if (!style_fontSize.empty())
-        ImGui::PopFontSize();
-    if (style_fontName.has_value())
+    if (!style_fontName.empty() || !style_fontSize.empty())
         ImGui::PopFont();
-
+    
     if (!hasPos)
         HashCombineData(ctx.layoutHash, ImGui::GetItemID());
     if (l.flags & Layout::VLayout)
@@ -1642,13 +1638,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);\n";
     }
-    if (!style_fontName.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
     {
-        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ");\n";
-    }
-    if (!style_fontSize.empty())
-    {
-        os << ctx.ind << "ImGui::PushFontSize(" << style_fontSize.to_arg(ctx.unit) << ");\n";
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << 
+            ", " << style_fontSize.to_arg() << ");\n";
     }
     if (!style_text.empty())
     {
@@ -1756,11 +1749,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PopStyleColor();\n";
     }
-    if (!style_fontSize.empty())
-    {
-        os << ctx.ind << "ImGui::PopFontSize();\n";
-    }
-    if (!style_fontName.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
     {
         os << ctx.ind << "ImGui::PopFont();\n";
     }
@@ -2138,15 +2127,12 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             if (ctx.importLevel != -1)
                 DoImport(sit, ctx);
-            else if (sit->params.size())
-                style_fontName.set_from_arg(sit->params[0]);
-        }
-        else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFontSize")
-        {
-            if (ctx.importLevel != -1)
-                DoImport(sit, ctx);
-            else if (sit->params.size())
-                style_fontSize.set_from_arg(sit->params[0]);
+            else {
+                if (sit->params.size())
+                    style_fontName.set_from_arg(sit->params[0]);
+                if (sit->params.size() >= 2)
+                    style_fontSize.set_from_arg(sit->params[1]);
+            }
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
         {

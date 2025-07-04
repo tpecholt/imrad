@@ -78,10 +78,10 @@ void SettingsDlg::Draw()
 
         /// @begin Text
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushFontSize(ImGui::GetFontSize()*1.1f);
+        ImGui::PushFont(nullptr, ImGui::GetFontSize()*1.1f);
         ImGui::TextUnformatted("Environment Settings");
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
-        ImGui::PopFontSize();
+        ImGui::PopFont();
         /// @end Text
 
         // TODO: Add Draw calls of dependent popup windows here
@@ -115,10 +115,10 @@ void SettingsDlg::Draw()
             /// @separator
 
             /// @begin Text
-            ImGui::PushFontSize(ImGui::GetFontSize()*1.1f);
+            ImGui::PushFont(nullptr, ImGui::GetFontSize()*1.1f);
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted("UI font");
-            ImGui::PopFontSize();
+            ImGui::PopFont();
             /// @end Text
 
             /// @begin Selectable
@@ -154,10 +154,10 @@ void SettingsDlg::Draw()
 
             /// @begin Text
             ImRad::Spacing(5);
-            ImGui::PushFontSize(ImGui::GetFontSize()*1.1f);
+            ImGui::PushFont(nullptr, ImGui::GetFontSize()*1.1f);
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted("Property Grid Fonts");
-            ImGui::PopFontSize();
+            ImGui::PopFont();
             /// @end Text
 
             /// @begin Selectable
@@ -211,10 +211,10 @@ void SettingsDlg::Draw()
 
             /// @begin Text
             ImRad::Spacing(5);
-            ImGui::PushFontSize(ImGui::GetFontSize()*1.1f);
+            ImGui::PushFont(nullptr, ImGui::GetFontSize()*1.1f);
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted("Designer font");
-            ImGui::PopFontSize();
+            ImGui::PopFont();
             /// @end Text
 
             /// @begin Selectable

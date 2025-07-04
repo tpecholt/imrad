@@ -85,10 +85,8 @@ void TopWindow::Draw(UIContext& ctx)
         fl |= ImGuiWindowFlags_NoTitleBar /*| ImGuiWindowFlags_NoResize*/ | ImGuiWindowFlags_NoCollapse;
     fl |= flags;
 
-    if (style_fontName.has_value())
-        ImGui::PushFont(ImRad::GetFontByName(style_fontName.value()));
-    if (!style_fontSize.empty())
-        ImGui::PushFontSize(style_fontSize.eval(ctx));
+    if (!style_fontName.empty() || !style_fontSize.empty()) 
+        ImGui::PushFont(style_fontName.eval(ctx), style_fontSize.eval(ctx));
     if (style_padding.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
     if (style_spacing.has_value())
@@ -295,9 +293,7 @@ void TopWindow::Draw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (style_padding.has_value())
         ImGui::PopStyleVar();
-    if (!style_fontSize.empty())
-        ImGui::PopFontSize();
-    if (style_fontName.has_value())
+    if (style_fontName.has_value() || style_fontSize.has_value())
         ImGui::PopFont();
 }
 
@@ -352,13 +348,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
 
-    if (!style_fontName.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
     {
-        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ");\n";
-    }
-    if (!style_fontSize.empty())
-    {
-        os << ctx.ind << "ImGui::PushFontSize(" << style_fontSize.to_arg(ctx.unit) << ");\n";
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ", " 
+            << style_fontSize.to_arg() << ");\n";
     }
     if (!style_bg.empty())
     {
@@ -770,11 +763,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleColor();\n";
     if (!style_menuBg.empty())
         os << ctx.ind << "ImGui::PopStyleColor();\n";
-    if (!style_fontSize.empty())
-        os << ctx.ind << "ImGui::PopFontSize();\n";
-    if (!style_fontName.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
         os << ctx.ind << "ImGui::PopFont();\n";
-
+    
     os << ctx.ind << "/// @end TopWindow\n";
 
     if (userCodeAfter != "")
@@ -874,11 +865,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             if (sit->params.size())
                 style_fontName.set_from_arg(sit->params[0]);
-        }
-        else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFontSize")
-        {
-            if (sit->params.size())
-                style_fontSize.set_from_arg(sit->params[0]);
+            if (sit->params.size() >= 2)
+                style_fontSize.set_from_arg(sit->params[1]);
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
         {

@@ -464,7 +464,10 @@ inline bool InputBindable(bindable<T>* val, const std::string& type, int flags, 
         }
         ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && (flags & InputBindable_Modified) ?
             ctx.pgbFont : ctx.pgFont);
-        changed = ImGui::InputText(id.c_str(), val->access(), fl, DefaultCharFilter);
+        std::string hint;
+        if (flags & InputBindable_ParentStr)
+            hint = ImGui::GetActiveID() == ImGui::GetCurrentWindow()->GetID(id.c_str()) ? "" : PARENT_STR;
+        changed = ImGui::InputTextWithHint(id.c_str(), hint.c_str(), val->access(), fl, DefaultCharFilter);
         ImGui::PopFont();
 
         /*if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip) &&

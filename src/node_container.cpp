@@ -181,17 +181,13 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
         }
         if (header)
         {
-            if (style_headerFontName.has_value())
-                ImGui::PushFont(ImRad::GetFontByName(style_headerFontName.value()));
-            if (!style_headerFontSize.empty())
-                ImGui::PushFontSize(style_headerFontSize.eval(ctx));
-
+            if (!style_headerFontName.empty() || !style_headerFontSize.empty()) 
+                ImGui::PushFont(style_headerFontName.eval(ctx), style_headerFontSize.eval(ctx));
+            
             ImGui::TableHeadersRow();
         
-            if (style_headerFontName.has_value())
+            if (!style_headerFontName.empty() || !style_headerFontSize.empty())
                 ImGui::PopFont();
-            if (!style_headerFontSize.empty())
-                ImGui::PopFontSize();
         }
 
         ImGui::TableNextRow(0, rh);
@@ -585,16 +581,13 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
     if (header)
     {
-        if (!style_headerFontName.empty())
-            os << ctx.ind << "ImGui::PushFont(" << style_headerFontName.to_arg() << ");\n";
-        if (!style_headerFontSize.empty())
-            os << ctx.ind << "ImGui::PushFontSize(" << style_headerFontSize.to_arg(ctx.unit) << ");\n";
-
+        if (!style_headerFontName.empty() || !style_headerFontSize.empty())
+            os << ctx.ind << "ImGui::PushFont(" << style_headerFontName.to_arg() 
+            << ", " << style_headerFontSize.to_arg() << ");\n";
+        
         os << ctx.ind << "ImGui::TableHeadersRow();\n";
     
-        if (!style_headerFontSize.empty())
-            os << ctx.ind << "ImGui::PopFontSize();\n";
-        if (!style_headerFontName.empty())
+        if (!style_headerFontName.empty() || !style_headerFontSize.empty())
             os << ctx.ind << "ImGui::PopFont();\n";
     }
     if (!itemCount.empty())
@@ -762,11 +755,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size())
             style_headerFontName.set_from_arg(sit->params[0]);
-    }
-    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFontSize")
-    {
-        if (sit->params.size())
-            style_headerFontSize.set_from_arg(sit->params[0]);
+        if (sit->params.size() >= 2)
+            style_headerFontSize.set_from_arg(sit->params[1]);
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::TableHeadersRow")
     {
