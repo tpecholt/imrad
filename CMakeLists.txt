@@ -57,8 +57,6 @@ add_subdirectory(3rdparty/nativefiledialog)
 
 add_subdirectory(src)
 
-add_subdirectory(test1)
-
 file(COPY
         "${CMAKE_CURRENT_SOURCE_DIR}/template"
         DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/bin"
