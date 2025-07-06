@@ -28,7 +28,5 @@ target_link_libraries(imrad
 	${MISC_FRAMEWORKS}
 )
 
-add_dependencies(imrad nativefiledialog)
-
 install(FILES "imrad.h" DESTINATION "include/")
 install(TARGETS imrad DESTINATION ".")

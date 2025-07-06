@@ -53,20 +53,11 @@ include(cmake/fa.cmake)
 include(cmake/stb.cmake)
 include(cmake/freetype.cmake)
 
-include(ExternalProject)
-set(NFD_PREFIX 3rdparty/nativefiledialog)
-set(NFD_BUILD_TESTS OFF)
-ExternalProject_Add(nativefiledialog
-  PREFIX ${NFD_PREFIX}
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${NFD_PREFIX}
-  INSTALL_COMMAND ""
-  CMAKE_CACHE_ARGS
-  -DCMAKE_OSX_ARCHITECTURES:STRING=arm64
-)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/${NFD_PREFIX}/src/include)
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/${NFD_PREFIX}/src/nativefiledialog-build/src/)
+add_subdirectory(3rdparty/nativefiledialog)
 
 add_subdirectory(src)
+
+add_subdirectory(test1)
 
 file(COPY
         "${CMAKE_CURRENT_SOURCE_DIR}/template"
