@@ -176,73 +176,6 @@ PreparedString PrepareString(std::string_view s)
     return ps;
 }
 
-ImVec2 IncWrapText(const ImVec2& dpos, const char* s, const char* text_end, float wrap_width, float scale)
-{
-    ImFont* font = ImGui::GetFont();
-    ImFontBaked* baked = ImGui::GetFontBaked();
-    float fontSize = ImGui::GetFontSize();
-    const float line_height = fontSize * scale;
-    float line_width = dpos.x;
-    float text_height = dpos.y;
-    const char* word_wrap_eol = NULL;
-    const char* real_end = s + strlen(s);
-    while (s < text_end)
-    {
-        // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
-        if (!word_wrap_eol)
-        {
-            word_wrap_eol = font->CalcWordWrapPositionA(scale, s, real_end, wrap_width - line_width);
-        }
-
-        if (s >= word_wrap_eol)
-        {
-            text_height += line_height;
-            line_width = 0.0f;
-            word_wrap_eol = NULL;
-            //Wrapping skips upcoming blanks
-            while (s < text_end && ImCharIsBlankA(*s))
-                s++;
-            if (*s == '\n')
-                s++;
-            continue;
-        }
-
-        // Decode and advance source
-        const char* prev_s = s;
-        unsigned int c = (unsigned int)*s;
-        if (c < 0x80)
-            s += 1;
-        else
-            s += ImTextCharFromUtf8(&c, s, text_end);
-
-        if (c < 32)
-        {
-            if (c == '\n')
-            {
-                text_height += line_height;
-                line_width = 0.0f;
-                continue;
-            }
-            if (c == '\r')
-                continue;
-        }
-
-        const ImFontGlyph* glyph = baked->FindGlyph((ImWchar)c);
-        if (!glyph)
-            continue;
-        const float char_width = glyph->AdvanceX * scale;
-        line_width += char_width;
-    }
-
-    if (s == word_wrap_eol)
-    {
-        text_height += line_height;
-        line_width = 0.0f;
-    }
-
-    return { line_width, text_height };
-}
-
 void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset, const ImVec2& size, const ImVec2& align)
 {
     if (ctx.beingResized)
@@ -2828,8 +2761,13 @@ void Widget::TreeUI(UIContext& ctx)
         if (label != "") {
             ImGui::Text("\"");
             ImGui::SameLine(0, 0);
+            float avail = ImGui::GetContentRegionAvail().x -
+                ImGui::CalcTextSize(("\"" + suff).c_str()).x -
+                ImGui::GetStyle().ItemSpacing.x; //emulate WindowPadding which is set to 0
+            if (suff.size())
+                avail -= ImGui::GetStyle().ItemSpacing.x;
             ImGui::PushFont(!IsAscii(label) ? ctx.defaultStyleFont : ImGui::GetFont());
-            ImGui::Text("%s", label.c_str());
+            ImGui::TextAligned(0, avail, "%s", label.c_str());
             ImGui::PopFont();
             ImGui::SameLine(0, 0);
             ImGui::Text("\"");

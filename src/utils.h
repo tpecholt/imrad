@@ -94,6 +94,8 @@ bool ShellExec(const std::string& path);
 
 int DefaultCharFilter(ImGuiInputTextCallbackData* data);
 
+ImVec2 IncWrapText(const ImVec2& dpos, const char* s, const char* text_end, float wrap_width, float scale);
+
 std::string CodeShortcut(std::string_view sh);
 std::string ParseShortcut(std::string_view line);
 
