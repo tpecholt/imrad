@@ -24,6 +24,8 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
 
 void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std::function<void()> f);
 
+void TextFontInfo(const bindable<font_name_t>& fontName, const bindable<float>& fontSize, bool changed, UIContext& ctx);
+
 //----------------------------------------------------------
 
 struct Widget;
@@ -154,7 +156,8 @@ struct Widget : UINode
 
     //not shown by default
     data_loop itemCount;
-    bindable<font_name_t> style_font;
+    bindable<font_name_t> style_fontName;
+    bindable<float> style_fontSize; //scaled by style.FontScaleDpi
     bindable<color_t> style_text;
     bindable<color_t> style_frameBg;
     bindable<color_t> style_border;
@@ -196,6 +199,7 @@ struct Widget : UINode
     int ColumnCount(UIContext& ctx) { return 0; }
     const Widget& Defaults() = 0;
     Layout GetLayout(UINode* parent);
+    void TextFontInfo(UIContext& ctx);
     virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
     virtual ImDrawList* DoDraw(UIContext& ctx) = 0;
     virtual void DoDrawTools(UIContext& ctx) {}

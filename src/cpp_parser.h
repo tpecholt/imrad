@@ -42,6 +42,11 @@ namespace cpp
         return is.eof() || is.tellg() == s.size();
     }
 
+    inline bool is_null(std::string_view s)
+    {
+        return s == "nullptr" || s == "NULL";
+    }
+
     inline bool is_cstr(std::string_view s)
     {
         return s.size() >= 2 && s[0] == '"' && s.back() == '"';

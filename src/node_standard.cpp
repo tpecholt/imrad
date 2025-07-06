@@ -90,6 +90,24 @@ void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std:
     ImGui::PopStyleColor();
 }
 
+void TextFontInfo(const bindable<font_name_t>& fontName, const bindable<float>& fontSize, bool changed, UIContext& ctx)
+{
+    ImGui::PushFont(changed ? ctx.pgbFont : ctx.pgFont);
+    if (!changed)
+        ImGui::TextDisabled("%s", PARENT_STR);
+    else {
+        std::string fname =
+            fontName.empty() ? PARENT_STR :
+            fontName.has_value() ? fontName.value() :
+            fontName.to_arg("");
+        std::string fsize = fontSize.to_arg("");
+        if (fsize != "")
+            fname += ", " + fsize;
+        ImGui::TextUnformatted(fname.c_str());
+    }
+    ImGui::PopFont();
+}
+
 //1. limits length of lengthy {} expression (like in case it contains ?:)
 //2. formats {{, }} into {, }
 //3. errors out on incorrect format string
@@ -161,7 +179,9 @@ PreparedString PrepareString(std::string_view s)
 ImVec2 IncWrapText(const ImVec2& dpos, const char* s, const char* text_end, float wrap_width, float scale)
 {
     ImFont* font = ImGui::GetFont();
-    const float line_height = font->FontSize * scale;
+    ImFontBaked* baked = ImGui::GetFontBaked();
+    float fontSize = ImGui::GetFontSize();
+    const float line_height = fontSize * scale;
     float line_width = dpos.x;
     float text_height = dpos.y;
     const char* word_wrap_eol = NULL;
@@ -207,13 +227,10 @@ ImVec2 IncWrapText(const ImVec2& dpos, const char* s, const char* text_end, floa
                 continue;
         }
 
-        const float char_width = scale * ((int)c < font->IndexAdvanceX.Size ? font->IndexAdvanceX.Data[c] : font->FallbackAdvanceX);
-        /*if (line_width + char_width >= max_width)
-        {
-        s = prev_s;
-        break;
-        }*/
-
+        const ImFontGlyph* glyph = baked->FindGlyph((ImWchar)c);
+        if (!glyph)
+            continue;
+        const float char_width = glyph->AdvanceX * scale;
         line_width += char_width;
     }
 
@@ -981,6 +998,13 @@ Widget::Layout Widget::GetLayout(UINode* parent)
     return l;
 }
 
+void Widget::TextFontInfo(UIContext& ctx)
+{
+    bool changed = style_fontName != Defaults().style_fontName || 
+        style_fontSize != Defaults().style_fontSize;
+    ::TextFontInfo(style_fontName, style_fontSize, changed, ctx);
+}
+
 void Widget::Draw(UIContext& ctx)
 {
     UINode* parent = ctx.parents.back();
@@ -1074,8 +1098,8 @@ void Widget::Draw(UIContext& ctx)
     auto lastHovered = ctx.hovered;
     auto p1 = ImGui::GetCursorScreenPos();
 
-    if (style_font.has_value())
-        ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
+    if (!style_fontName.empty() || !style_fontSize.empty())
+        ImGui::PushFont(style_fontName.eval(ctx), style_fontSize.eval(ctx));
     if (!style_text.empty())
         ImGui::PushStyleColor(ImGuiCol_Text, style_text.eval(ImGuiCol_Text, ctx));
     if (!style_border.empty())
@@ -1118,9 +1142,9 @@ void Widget::Draw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (!style_framePadding.empty())
         ImGui::PopStyleVar();
-    if (style_font.has_value())
+    if (!style_fontName.empty() || !style_fontSize.empty())
         ImGui::PopFont();
-
+    
     if (!hasPos)
         HashCombineData(ctx.layoutHash, ImGui::GetItemID());
     if (l.flags & Layout::VLayout)
@@ -1614,9 +1638,10 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);\n";
     }
-    if (!style_font.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
     {
-        os << ctx.ind << "ImGui::PushFont(" << style_font.to_arg() << ");\n";
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << 
+            ", " << style_fontSize.to_arg() << ");\n";
     }
     if (!style_text.empty())
     {
@@ -1724,7 +1749,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PopStyleColor();\n";
     }
-    if (!style_font.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
     {
         os << ctx.ind << "ImGui::PopFont();\n";
     }
@@ -2100,8 +2125,14 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
         {
-            if (sit->params.size())
-                style_font.set_from_arg(sit->params[0]);
+            if (ctx.importLevel != -1)
+                DoImport(sit, ctx);
+            else {
+                if (sit->params.size())
+                    style_fontName.set_from_arg(sit->params[0]);
+                if (sit->params.size() >= 2)
+                    style_fontSize.set_from_arg(sit->params[1]);
+            }
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
         {
@@ -2332,7 +2363,7 @@ Widget::Properties()
     if ((Behavior() & (HasSizeX | HasSizeY)) == (HasSizeX | HasSizeY))
     {
         props.insert(props.end(), {
-            { "layout.size.size", nullptr },
+            { "layout.size.summary", nullptr },
             { "layout.size.size_x", &size_x },
             { "layout.size.size_y", &size_y }
         });
@@ -3209,7 +3240,9 @@ Text::Properties()
     auto props = Widget::Properties();
     props.insert(props.begin(), {
         { "appearance.color", &style_text },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "appearance.alignToFramePadding", &alignToFrame },
         { "behavior.text", &text, true },
         { "behavior.wrap##text", &wrap },
@@ -3235,18 +3268,31 @@ bool Text::PropertyUI(int i, UIContext& ctx)
     case 1:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 2:
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 3:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 4:
         ImGui::Text("alignToFramePadding");
         ImGui::TableNextColumn();
         fl = alignToFrame != Defaults().alignToFrame ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
-    case 3:
+    case 5:
         ImGui::Text("text");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3254,14 +3300,14 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("text", &text, ctx);
         break;
-    case 4:
+    case 6:
         ImGui::Text("wrapped");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = wrap != Defaults().wrap ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&wrap, fl, ctx);
         break;
-    case 5:
+    case 7:
         ImGui::Text("link");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3269,7 +3315,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&link, fl, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 6, ctx);
+        return Widget::PropertyUI(i - 8, ctx);
     }
     return changed;
 }
@@ -3607,7 +3653,9 @@ Selectable::Properties()
         { "appearance.header", &style_header },
         { "appearance.color", &style_text },
         { "appearance.padding", &style_interiorPadding },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "appearance.horizAlignment", &horizAlignment },
         { "appearance.vertAlignment", &vertAlignment },
         { "appearance.alignToFrame", &alignToFrame },
@@ -3651,12 +3699,25 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
     case 3:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 4:
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 5:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 6:
         ImGui::BeginDisabled(size_x.zero());
         ImGui::Text("horizAlignment");
         ImGui::TableNextColumn();
@@ -3665,7 +3726,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&horizAlignment, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 5:
+    case 7:
         ImGui::BeginDisabled(size_y.zero());
         ImGui::Text("vertAlignment");
         ImGui::TableNextColumn();
@@ -3674,16 +3735,16 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&vertAlignment, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 6:
+    case 8:
         ImGui::Text("alignToFramePadding");
         ImGui::TableNextColumn();
         fl = alignToFrame != Defaults().alignToFrame ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
-    case 7:
+    case 9:
         changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
-    case 8:
+    case 10:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3691,13 +3752,13 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
-    case 9:
+    case 11:
         ImGui::Text("readOnly");
         ImGui::TableNextColumn();
         fl = readOnly != Defaults().readOnly ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&readOnly, fl, ctx);
         break;
-    case 10:
+    case 12:
         ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
         ImGui::Text("modalResult");
         ImGui::TableNextColumn();
@@ -3706,7 +3767,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValEnum(&modalResult, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 11:
+    case 13:
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3716,7 +3777,7 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &selected, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 12, ctx);
+        return Widget::PropertyUI(i - 14, ctx);
     }
     return changed;
 }
@@ -3933,7 +3994,9 @@ Button::Properties()
         { "appearance.padding", &style_framePadding },
         { "appearance.rounding", &style_frameRounding },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "appearance.small", &small },
         { "behavior.arrowDir##button", &arrowDir },
         { "behavior.label", &label, true },
@@ -4011,12 +4074,25 @@ bool Button::PropertyUI(int i, UIContext& ctx)
     case 8:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 9:
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 10:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 11:
         ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
         ImGui::Text("small");
         ImGui::TableNextColumn();
@@ -4024,7 +4100,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&small, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 10:
+    case 12:
         ImGui::Text("arrowDir");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4033,7 +4109,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         if (changed && arrowDir != ImGuiDir_None)
             label = "";
         break;
-    case 11:
+    case 13:
         ImGui::BeginDisabled(arrowDir != ImGuiDir_None);
         ImGui::Text("label");
         ImGui::TableNextColumn();
@@ -4043,13 +4119,13 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("label", &label, ctx);
         ImGui::EndDisabled();
         break;
-    case 12:
+    case 14:
         ImGui::Text("shortcut");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&shortcut, InputDirectVal_ShortcutButton, ctx);
         break;
-    case 13:
+    case 15:
         ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
         ImGui::Text("modalResult");
         ImGui::TableNextColumn();
@@ -4060,14 +4136,14 @@ bool Button::PropertyUI(int i, UIContext& ctx)
             shortcut = "Escape";
         ImGui::EndDisabled();
         break;
-    case 14:
+    case 16:
         ImGui::Text("dropDownMenu");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectValContextMenu(&dropDownMenu, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 15, ctx);
+        return Widget::PropertyUI(i - 17, ctx);
     }
     return changed;
 }
@@ -4197,7 +4273,9 @@ CheckBox::Properties()
         { "appearance.text", &style_text },
         { "appearance.check", &style_check },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.label", &label, true },
         { "bindings.checked##1", &checked },
         });
@@ -4235,12 +4313,25 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
     case 3:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 4:
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 5:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 6:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4248,7 +4339,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
-    case 5:
+    case 7:
         ImGui::Text("checked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4258,7 +4349,7 @@ bool CheckBox::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("checked", &checked, BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 6, ctx);
+        return Widget::PropertyUI(i - 8, ctx);
     }
     return changed;
 }
@@ -4393,7 +4484,9 @@ RadioButton::Properties()
         { "appearance.text", &style_text },
         { "appearance.check", &style_check },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.label", &label, true },
         { "behavior.valueID##1", &valueID },
         { "bindings.value##radio", &value },
@@ -4432,12 +4525,25 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
     case 3:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 4:
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 5:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 6:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4445,14 +4551,14 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("label", &label, ctx);
         break;
-    case 5:
+    case 7:
         ImGui::Text("valueID");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = valueID != Defaults().valueID ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&valueID, fl, ctx);
         break;
-    case 6:
+    case 8:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4462,7 +4568,7 @@ bool RadioButton::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 7, ctx);
+        return Widget::PropertyUI(i - 9, ctx);
     }
     return changed;
 }
@@ -4963,7 +5069,9 @@ Input::Properties()
         { "appearance.frameBg", &style_frameBg },
         { "appearance.border", &style_border },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.flags##input", &flags },
         { "behavior.label", &label, true },
         { "behavior.type##input", &type },
@@ -5016,21 +5124,34 @@ bool Input::PropertyUI(int i, UIContext& ctx)
     case 4:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 5:
-        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
         break;
     case 6:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 7:
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        break;
+    case 8:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
-    case 7:
+    case 9:
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5041,7 +5162,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
             ctx.codeGen->ChangeVar(value.c_str(), type.get_id(), "");
         }
         break;
-    case 8:
+    case 10:
         ImGui::BeginDisabled(
             (tid != "std::string" && tid != "ImGuiTextFilter") ||
             (flags & ImGuiInputTextFlags_Multiline)
@@ -5054,7 +5175,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("hint", &hint, ctx);
         ImGui::EndDisabled();
         break;
-    case 9:
+    case 11:
     {
         int type = imeType & 0xff;
         int action = imeType & (~0xff);
@@ -5077,7 +5198,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
             });
         break;
     }
-    case 10:
+    case 12:
     {
         ImGui::BeginDisabled(tid != "int" && tid != "float");
         ImGui::Text("step");
@@ -5097,7 +5218,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     }
-    case 11:
+    case 13:
         ImGui::BeginDisabled(tid.compare(0, 5, "float"));
         ImGui::Text("format");
         ImGui::TableNextColumn();
@@ -5106,7 +5227,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&format, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 12:
+    case 14:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5116,7 +5237,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, tid, BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 13, ctx);
+        return Widget::PropertyUI(i - 15, ctx);
     }
     return changed;
 }
@@ -5285,7 +5406,9 @@ Combo::Properties()
         { "appearance.hovered", &style_buttonHovered },
         { "appearance.active", &style_buttonActive },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.flags##combo", &flags },
         { "behavior.label", &label, true },
         { "behavior.items##1", &items },
@@ -5341,27 +5464,40 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
     case 5:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 6:
-        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
         break;
     case 7:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 8:
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        break;
+    case 9:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
-    case 8:
+    case 10:
         ImGui::Text("items");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&items, ctx);
         break;
-    case 9:
+    case 11:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5371,7 +5507,7 @@ bool Combo::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, "std::string", BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 10, ctx);
+        return Widget::PropertyUI(i - 12, ctx);
     }
     return changed;
 }
@@ -5564,7 +5700,9 @@ Slider::Properties()
         { "appearance.frameBg", &style_frameBg },
         { "appearance.border", &style_border },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.flags##slider", &flags },
         { "behavior.label", &label, true },
         { "behavior.type##slider", &type },
@@ -5627,21 +5765,34 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
     case 4:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 5:
-        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
         break;
     case 6:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 7:
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        break;
+    case 8:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
-    case 7:
+    case 9:
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5653,7 +5804,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
             ctx.codeGen->ChangeVar(value.c_str(), tid == "angle" ? "float" : tid, "");
         }
         break;
-    case 8:
+    case 10:
         ImGui::Text("min");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5668,7 +5819,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::PopFont();
         break;
-    case 9:
+    case 11:
         ImGui::Text("max");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5683,14 +5834,14 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::PopFont();
         break;
-    case 10:
+    case 12:
         ImGui::Text("format");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = format != Defaults().format ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&format, fl, ctx);
         break;
-    case 11:
+    case 13:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5700,7 +5851,7 @@ bool Slider::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, type.get_id(), BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 12, ctx);
+        return Widget::PropertyUI(i - 14, ctx);
     }
     return changed;
 }
@@ -5821,7 +5972,9 @@ ProgressBar::Properties()
         { "appearance.color", &style_color },
         { "appearance.border", &style_border },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "appearance.indicator##progress", &indicator },
         { "bindings.value##1", &value },
         });
@@ -5872,18 +6025,31 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
     case 5:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 6:
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 7:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 8:
         ImGui::Text("indicator");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&indicator, 0, ctx);
         break;
-    case 7:
+    case 9:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5892,7 +6058,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 8, ctx);
+        return Widget::PropertyUI(i - 10, ctx);
     }
     return changed;
 }
@@ -6022,7 +6188,9 @@ ColorEdit::Properties()
         { "appearance.frameBg", &style_frameBg },
         { "appearance.border", &style_border },
         { "appearance.borderSize", &style_frameBorderSize },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.flags##color", &flags },
         { "behavior.label", &label, true },
         { "behavior.type##color", &type },
@@ -6075,21 +6243,34 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
     case 4:
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        TextFontInfo(ctx);
         break;
     case 5:
-        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
         break;
     case 6:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 7:
+        changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
+        break;
+    case 8:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
-    case 7:
+    case 9:
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6110,7 +6291,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::PopFont();
         break;
-    case 8:
+    case 10:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -6120,7 +6301,7 @@ bool ColorEdit::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, type, BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 9, ctx);
+        return Widget::PropertyUI(i - 11, ctx);
     }
     return changed;
 }

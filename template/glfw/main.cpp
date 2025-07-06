@@ -69,7 +69,8 @@ int main(int argc, const char* argv[])
 #endif
 
 	// Create window with graphics context
-	window = glfwCreateWindow(1280, 720, "Test", NULL, NULL);
+	float mainScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
+	window = glfwCreateWindow((int)(1280 * mainScale), (int)(720 * mainScale), "Test", NULL, NULL);
 	if (window == NULL)
 		return 1;
 	glfwMakeContextCurrent(window);
@@ -95,17 +96,19 @@ int main(int argc, const char* argv[])
 	// Alternatively set ImGui style and fonts manually
 	// Read 'docs/FONTS.md' for more instructions and details.
 	ImGui::StyleColorsDark();
-	ImGui::GetStyle().ScaleAllSizes(ioUserData.dpiScale);
+	ImGui::GetStyle().ScaleAllSizes(mainScale);
+	ImGui::GetStyle().FontScaleDpi = mainScale;
+	ioUserData.dpiScale = mainScale;
 	
 	/*
-	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f * ioUserData.dpiScale);
+	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f);
 	
 	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig icons_config;
 	icons_config.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f * ioUserData.dpiScale, &icons_config, icons_ranges);
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f * ioUserData.dpiScale, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f, &icons_config, icons_ranges);
 	*/
 	
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);

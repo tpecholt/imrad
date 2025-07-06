@@ -1,5 +1,6 @@
 #include "node_window.h"
 #include "node_container.h"
+#include "node_standard.h"
 #include "stx.h"
 #include "imrad.h"
 #include "cppgen.h"
@@ -84,8 +85,8 @@ void TopWindow::Draw(UIContext& ctx)
         fl |= ImGuiWindowFlags_NoTitleBar /*| ImGuiWindowFlags_NoResize*/ | ImGuiWindowFlags_NoCollapse;
     fl |= flags;
 
-    if (style_font.has_value())
-        ImGui::PushFont(ImRad::GetFontByName(style_font.eval(ctx)));
+    if (!style_fontName.empty() || !style_fontSize.empty()) 
+        ImGui::PushFont(style_fontName.eval(ctx), style_fontSize.eval(ctx));
     if (style_padding.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
     if (style_spacing.has_value())
@@ -137,8 +138,6 @@ void TopWindow::Draw(UIContext& ctx)
 
     if (style_titlePadding.has_value())
         ImGui::PopStyleVar();
-
-    ImGui::SetWindowFontScale(ctx.zoomFactor);
 
     ctx.rootWin = ImGui::FindWindowByName(cap.c_str());
     assert(ctx.rootWin);
@@ -294,7 +293,7 @@ void TopWindow::Draw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (style_padding.has_value())
         ImGui::PopStyleVar();
-    if (style_font.has_value())
+    if (style_fontName.has_value() || style_fontSize.has_value())
         ImGui::PopFont();
 }
 
@@ -349,9 +348,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
 
-    if (!style_font.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
     {
-        os << ctx.ind << "ImGui::PushFont(" << style_font.to_arg() << ");\n";
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ", " 
+            << style_fontSize.to_arg() << ");\n";
     }
     if (!style_bg.empty())
     {
@@ -763,9 +763,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleColor();\n";
     if (!style_menuBg.empty())
         os << ctx.ind << "ImGui::PopStyleColor();\n";
-    if (!style_font.empty())
+    if (!style_fontName.empty() || !style_fontSize.empty())
         os << ctx.ind << "ImGui::PopFont();\n";
-
+    
     os << ctx.ind << "/// @end TopWindow\n";
 
     if (userCodeAfter != "")
@@ -864,7 +864,9 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
         {
             if (sit->params.size())
-                style_font.set_from_arg(sit->params[0]);
+                style_fontName.set_from_arg(sit->params[0]);
+            if (sit->params.size() >= 2)
+                style_fontSize.set_from_arg(sit->params[1]);
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
         {
@@ -1116,17 +1118,19 @@ TopWindow::Properties()
         { "appearance.scrollbarSize", &style_scrollbarSize },
         { "appearance.spacing", &style_spacing },
         { "appearance.innerSpacing", &style_innerSpacing },
-        { "appearance.font", &style_font },
+        { "appearance.font.summary", nullptr },
+        { "appearance.font.name", &style_fontName },
+        { "appearance.font.size", &style_fontSize },
         { "behavior.flags", nullptr },
         { "behavior.kind", nullptr },
         { "behavior.title", &title, true },
         { "behavior.closeOnEscape", &closeOnEscape },
         { "behavior.initialActivity", &initialActivity },
         { "behavior.animate", &animate },
-        { "layout.size.size", nullptr },
+        { "layout.size.summary", nullptr },
         { "layout.size.size_x", &size_x },
         { "layout.size.size_y", &size_y },
-        { "layout.minSize.size", nullptr },
+        { "layout.minSize.summary", nullptr },
         { "layout.minSize.size_x", &minSize_x },
         { "layout.minSize.size_y", &minSize_y },
         { "layout.placement", &placement },
@@ -1215,23 +1219,37 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         break;
     }
     case 9:
+    {
         ImGui::Text("font");
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_font, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("font", &style_font, ctx);
+        fl = style_fontName != Defaults().style_fontName || style_fontSize != Defaults().style_fontSize;
+        TextFontInfo(style_fontName, style_fontSize, fl, ctx);
         break;
+    }
     case 10:
-    {
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontName, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font", &style_fontName, ctx);
+        break;
+    case 11:
+        ImGui::Text("size");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_fontSize, InputBindable_ParentStr, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("font_size", &style_fontSize, ctx);
+        break;
+    case 12:
         ImGui::Text("kind");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = kind != Defaults().kind ? InputDirectVal_Modified : 0;
         changed = InputDirectValEnum(&kind, fl, ctx);
         break;
-    }
-    case 11:
+    case 13:
     {
         bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
         bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
@@ -1243,11 +1261,10 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
                 children.insert(children.begin(), std::make_unique<MenuBar>(ctx));
             else if (!flagsMB && hasMB)
                 children.erase(children.begin());
-
         }
         break;
     }
-    case 12:
+    case 14:
         ImGui::Text("title");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1255,7 +1272,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("title", &title, ctx);
         break;
-    case 13:
+    case 15:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
         ImGui::Text("closeOnEscape");
         ImGui::TableNextColumn();
@@ -1264,7 +1281,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&closeOnEscape, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 14:
+    case 16:
         ImGui::BeginDisabled(kind != Activity);
         ImGui::Text("initialActivity");
         ImGui::TableNextColumn();
@@ -1273,7 +1290,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&initialActivity, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 15:
+    case 17:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
         ImGui::Text("animate");
         ImGui::TableNextColumn();
@@ -1282,7 +1299,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&animate, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 16:
+    case 18:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text(kind == Activity ? "designSize" : "size");
         ImGui::TableNextColumn();
@@ -1293,7 +1310,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 17:
+    case 19:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1304,7 +1321,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 18:
+    case 20:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1315,7 +1332,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 19:
+    case 21:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("minimumSize");
         ImGui::TableNextColumn();
@@ -1326,7 +1343,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 20:
+    case 22:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1337,7 +1354,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_x", &minSize_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 21:
+    case 23:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1348,7 +1365,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_y", &minSize_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 22:
+    case 24:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");

@@ -32,6 +32,8 @@ struct Table : Widget
     bindable<color_t> style_rowBg;
     bindable<color_t> style_rowBgAlt;
     bindable<color_t> style_childBg;
+    bindable<font_name_t> style_headerFontName;
+    bindable<float> style_headerFontSize; //scaled by style.FontScaleDpi
     event<> onBeginRow;
     event<> onEndRow;
     event<> onSetup;

@@ -1,5 +1,6 @@
 #include "binding_property.h"
 #include "cppgen.h"
+#include "imrad.h"
 #include <imgui.h>
 
 float direct_val<dimension_t>::eval_px(const UIContext& ctx) const
@@ -95,9 +96,9 @@ ImU32 bindable<color_t>::eval(int defClr, const UIContext& ctx) const
     return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
 }
 
-std::string bindable<font_name_t>::eval(const UIContext&) const
+ImFont* bindable<font_name_t>::eval(UIContext& ctx) const 
 {
     if (!has_value())
-        return "";
-    return str.substr(22, str.size() - 22 - 2);
+        return nullptr;
+    return ImRad::GetFontByName(value());
 }
