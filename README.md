@@ -1,6 +1,7 @@
 ![img](https://github.com/tpecholt/imrad/actions/workflows/windows.yml/badge.svg)
 ![img](https://github.com/tpecholt/imrad/actions/workflows/ubuntu.yml/badge.svg)
 ![img](https://github.com/tpecholt/imrad/actions/workflows/msys2.yml/badge.svg)
+![img](https://github.com/tpecholt/imrad/actions/workflows/macos.yml/badge.svg)
 
 # ImRAD
 <div align="center">
@@ -117,7 +118,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 3. Build the INSTALL project in Release mode. It may require running VS with admin rights
 4. If you didn't alter CMAKE_INSTALL_PREFIX variable ImRAD will be installed into *C:\Program Files\imrad\latest*
 
-## Linux, MacOS
+## Linux
 1. *Ubuntu*: Due to the GTK FileOpen dialog dependency you need to `apt install` these packages first (exact list depends on your OS):
    
    *pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev*
@@ -127,6 +128,10 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
    ```./release-linux 0.9```
 
 4. ImRAD will be installed into *./install/imrad-0.9*
+
+## MacOS
+
+1. Build using CMake. Please look at the macos action for an inspiration.
 
 # How to debug
    
