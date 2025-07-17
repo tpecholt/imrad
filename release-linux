@@ -1,16 +1,26 @@
 #!/bin/sh
+
+BUILD_DIR="${BUILD_DIR:-build}"
+INSTALL_DIR="${INSTALL_DIR:-install}"
+
+# Build
+rm -rf $BUILD_DIR
+cmake -B $BUILD_DIR -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
+cmake --build $BUILD_DIR
+
+# Install
+rm -rf $INSTALL_DIR
+cmake --install $BUILD_DIR
+
+# Get version
 if [ "$#" -ne 1 ]; then
-echo "please specify release version"
-exit 1
+	VER="$(awk -F= '$1~/CMAKE_PROJECT_VERSION:STATIC/{print$2}' $BUILD_DIR/CMakeCache.txt)"
+else
+	VER=$1
 fi
 
-rm -rf install
-rm -rf build
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install
-cmake --build build
-cmake --install build
-
-cd install
-mv latest imrad-$1
-zip -r imrad-$1-linux64.zip . 
+# Zip
+cd $INSTALL_DIR
+mv latest imrad-$VER
+zip -r imrad-$VER-linux64.zip . 
 
