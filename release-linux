@@ -6,15 +6,11 @@ fi
 
 rm -rf install
 rm -rf build
-mkdir install
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install ..
-make -j8 install
-if [ "$?" -ne 0 ]; then 
-exit 1
-fi
-cd ../install
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install
+cmake --build build
+cmake --install build
+
+cd install
 mv latest imrad-$1
 zip -r imrad-$1-linux64.zip . 
 
