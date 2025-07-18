@@ -7,7 +7,8 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-inline const std::string VER_STR = "ImRAD 0.9";
+#include <version.h>
+inline const std::string VER_STR = IMRAD_VERSION;
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 inline const std::string CUR_ITEM_SYMBOL = "$item";
 
