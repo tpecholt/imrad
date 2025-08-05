@@ -549,7 +549,7 @@ struct bindable : property_base
 
     bool set_from_arg(std::string_view s) {
         str = s;
-        if (cpp::is_null(str))
+        if (cpp::is_null(str) || str == "(0)")
             str = "";
         //try to remove trailing f
         if (std::is_same_v<T, float> && str.size() >= 3 && !str.compare(str.size() - 2, 2, ".f")) {
@@ -565,8 +565,12 @@ struct bindable : property_base
         return true;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const {
-        if (empty())
-            return "nullptr";
+        if (empty()) {
+            if (std::is_integral_v<T> || std::is_floating_point_v<T>)
+                return "(0)";
+            else
+                return "nullptr";
+        }
         if (std::is_same_v<T, float> && has_value()) {
             std::string tmp = str;
             if (str.find('.') == std::string::npos)

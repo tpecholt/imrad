@@ -100,9 +100,10 @@ void TextFontInfo(const bindable<font_name_t>& fontName, const bindable<float>& 
             fontName.empty() ? PARENT_STR :
             fontName.has_value() ? fontName.value() :
             fontName.to_arg("");
-        std::string fsize = fontSize.to_arg("");
-        if (fsize != "")
-            fname += ", " + fsize;
+        if (!fontSize.empty()) {
+            fname += ", ";
+            fname += fontSize.c_str();
+        }
         ImGui::TextUnformatted(fname.c_str());
     }
     ImGui::PopFont();
@@ -2954,7 +2955,7 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
         datavar = "_data" + std::to_string(ctx.varCounter);
         ++ctx.varCounter;
         os << ctx.ind << "ImRad::IgnoreWindowPaddingData " << datavar << ";\n";
-        os << ctx.ind << "ImRad::PushIgnoreWindowPadding(nullptr, &" << datavar << ")\n";
+        os << ctx.ind << "ImRad::PushIgnoreWindowPadding(nullptr, &" << datavar << ");\n";
     }
 
     if (label.empty())

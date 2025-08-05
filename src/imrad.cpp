@@ -1030,6 +1030,48 @@ void CloneStyle()
         });
 }
 
+void EditStyle()
+{
+    std::string path = rootPath + "/style/" + fileTabs[activeTab].styleName + ".ini";
+    ShellExec(path);
+}
+
+void OpenSettings()
+{
+    std::vector<std::string> fontNames;
+    for (const auto& entry : fs::directory_iterator(u8path(rootPath + "/style/")))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".ttf")
+            fontNames.push_back(u8string(entry.path().stem()));
+    }
+    std::vector<std::string> fontSizes{
+        "12", "14", "15", "16", "17", "18", "19", "20", "21", "22", "24", "26", "28", "32", "36"
+    };
+
+    settingsDlg.fontNames = std::move(fontNames);
+    settingsDlg.fontSizes = std::move(fontSizes);
+    settingsDlg.uiFontName = uiFontName.substr(0, uiFontName.size() - 4);
+    settingsDlg.uiFontSize = std::to_string((int)uiFontSize);
+    settingsDlg.pgFontName = pgFontName.substr(0, pgFontName.size() - 4);
+    settingsDlg.pgbFontName = pgbFontName.substr(0, pgbFontName.size() - 4);
+    settingsDlg.pgFontSize = std::to_string((int)pgFontSize);
+    settingsDlg.designFontName = designFontName.substr(0, designFontName.size() - 4);
+    settingsDlg.designFontSize = std::to_string((int)designFontSize);
+    settingsDlg.OpenPopup([](ImRad::ModalResult)
+        {
+            uiFontName = settingsDlg.uiFontName + ".ttf";
+            uiFontSize = std::stof(settingsDlg.uiFontSize);
+            pgFontName = settingsDlg.pgFontName + ".ttf";
+            pgbFontName = settingsDlg.pgbFontName + ".ttf";
+            pgFontSize = std::stof(settingsDlg.pgFontSize);
+            designFontName = settingsDlg.designFontName + ".ttf";
+            designFontSize = std::stof(settingsDlg.designFontSize);
+
+            ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+            reloadStyle = true;
+        });
+}
+
 void DockspaceUI()
 {
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
@@ -1260,10 +1302,17 @@ void ToolbarUI()
         ImGui::EndCombo();
     }
     ImGui::SameLine();
+    if (ImGui::Button(ICON_FA_PEN_TO_SQUARE))
+        EditStyle();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        ImGui::SetTooltip("Edit Style");
+    ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CLONE))
         CloneStyle();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Clone Style");
+    ImGui::SameLine();
+    ImGui::Spacing();
     ImGui::SameLine();
     ImGui::Text("Units");
     ImGui::SameLine();
@@ -1283,14 +1332,12 @@ void ToolbarUI()
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
     ImGui::SameLine();
-    ImGui::BeginDisabled(activeTab < 0);
     if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, ImGuiInputFlags_RouteGlobal))
         ShowCode();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Preview Code (Ctrl+P)");
-    ImGui::EndDisabled();
-
+    
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CUBES))
     {
@@ -1333,40 +1380,7 @@ void ToolbarUI()
 
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_GEAR))
-    {
-        std::vector<std::string> fontNames;
-        for (const auto& entry : fs::directory_iterator(u8path(rootPath + "/style/")))
-        {
-            if (entry.is_regular_file() && entry.path().extension() == ".ttf")
-                fontNames.push_back(u8string(entry.path().stem()));
-        }
-        std::vector<std::string> fontSizes {
-            "12", "14", "16", "18", "19", "20", "21", "22", "24", "26", "28", "32", "36"
-        };
-        
-        settingsDlg.fontNames = std::move(fontNames);
-        settingsDlg.fontSizes = std::move(fontSizes);
-        settingsDlg.uiFontName = uiFontName.substr(0, uiFontName.size() - 4);
-        settingsDlg.uiFontSize = std::to_string((int)uiFontSize);
-        settingsDlg.pgFontName = pgFontName.substr(0, pgFontName.size() - 4);
-        settingsDlg.pgbFontName = pgbFontName.substr(0, pgbFontName.size() - 4);
-        settingsDlg.pgFontSize = std::to_string((int)pgFontSize);
-        settingsDlg.designFontName = designFontName.substr(0, designFontName.size() - 4);
-        settingsDlg.designFontSize = std::to_string((int)designFontSize);
-        settingsDlg.OpenPopup([](ImRad::ModalResult)
-        {
-            uiFontName = settingsDlg.uiFontName + ".ttf";
-            uiFontSize = std::stof(settingsDlg.uiFontSize);
-            pgFontName = settingsDlg.pgFontName + ".ttf";
-            pgbFontName = settingsDlg.pgbFontName + ".ttf";
-            pgFontSize = std::stof(settingsDlg.pgFontSize);
-            designFontName = settingsDlg.designFontName + ".ttf";
-            designFontSize = std::stof(settingsDlg.designFontSize);
-
-            ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
-            reloadStyle = true;
-        });
-    }
+        OpenSettings();
 
     ImGui::SameLine();
     float defHeight = ImGui::GetFrameHeightWithSpacing();

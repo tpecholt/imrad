@@ -32,6 +32,10 @@
   
 * Error dialog shows loading/saving errors in a structured way
   
+* Added Edit style button in the toolbar
+
+* System monitor scaling is now used to scale fonts
+
 
 ### New Code features
 
@@ -55,7 +59,7 @@
   
 * New fields can set member visibility - interface / implementation
 
-* BREAKING: Support of ImGui dynamic fonts - font size is now specified separately. PushFont doesn't change the current font size. Zoom feature fixed.
+* BREAKING: Support of ImGui dynamic fonts - font size is now specified separately. PushFont doesn't change the current font size. Zoom feature fixed. Generated code requires ImGui 1.92 and up.
 
 * initialFocus / forceFocus moved into Common section so it's available to all widgets
   
