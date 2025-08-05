@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.1
+// Generated with ImRAD 0.9
 // github.com/xyz
 
 #pragma once
@@ -16,6 +16,7 @@ public:
     void Draw();
 
     void OpenURL();
+
     /// @end interface
 
 private:
@@ -23,6 +24,7 @@ private:
     void Init();
 
     void HoverURL();
+
     ImGuiID ID = 0;
     ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;

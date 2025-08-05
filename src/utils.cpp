@@ -9,6 +9,8 @@
 #undef min
 #undef max
 
+float uiFontSize = 15;
+
 bool ShellExec(const std::string& path)
 {
 #ifdef WIN32

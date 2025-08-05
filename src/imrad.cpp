@@ -76,9 +76,9 @@ std::string uiFontName = "Roboto-Regular.ttf";
 std::string pgFontName = "Roboto-Regular.ttf";
 std::string pgbFontName = "Roboto-Bold.ttf";
 std::string designFontName = "Roboto-Regular.ttf";
-float uiFontSize = 19;
-float pgFontSize = 20;
-float designFontSize = 19;
+//float uiFontSize = 15; moved to utils.h
+float pgFontSize = 16;
+float designFontSize = 15;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -842,12 +842,14 @@ void LoadStyle()
     reloadStyle = false;
     auto& io = ImGui::GetIO();
     std::string stylePath = rootPath + "/style/";
+    float mainScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
 
     glfwSetCursor(window, curWait);
     io.Fonts->Clear();
 
     //reload ImRAD UI first
     StyleColors();
+    ImGui::GetStyle().FontScaleMain = mainScale;
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
     static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
@@ -873,6 +875,7 @@ void LoadStyle()
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
     ctx.style = ImGuiStyle();
+    ctx.style.FontScaleMain = mainScale;
     //ctx.style.FontSizeBase = designFontSize;
 
     if (activeTab >= 0)
@@ -910,6 +913,7 @@ void LoadStyle()
             try {
                 auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
                 ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
+                ctx.style.FontScaleMain = mainScale;
 
                 ctx.defaultStyleFont = fontMap[""];
                 for (const auto& f : fontMap) {
@@ -2558,7 +2562,6 @@ int main(int argc, const char* argv[])
 
     // Create window with graphics context
     // TODO: dialogs are currently not dpi aware
-    //float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
     window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
     if (window == NULL)
         return 1;

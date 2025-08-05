@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.1
+// Generated with ImRAD 0.9
 // github.com/xyz
 
 #include "ui_about_dlg.h"
@@ -42,7 +42,7 @@ void AboutDlg::Draw()
     ImGui::SetNextWindowPos(ioUserData->WorkRect().GetCenter(), 0, { 0.5f, 0.5f }); //Center
     ImGui::SetNextWindowSize({ 0, 0 }); //{ 0, 0 }
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal("About###AboutDlg", &tmpOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("About###AboutDlg", &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
         if (ioUserData->activeActivity != "")
             ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
@@ -59,28 +59,24 @@ void AboutDlg::Draw()
         /// @begin Image
         if (!value1)
             value1 = ImRad::LoadTextureFromFile("style/icon-40.png");
-        ImGui::Image(value1.id, { (float)value1.w, (float)value1.h });
+        ImGui::Image(value1.id, { (float)value1.w, (float)value1.h }, { 0, 0 }, { 1, 1 }); //StretchPolicy::Scale
         /// @end Image
 
         // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Text
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.5f);
+        ImGui::PushFont(nullptr, uiFontSize*1.5f);
         ImGui::TextUnformatted(ImRad::Format("{}", VER_STR).c_str());
         ImGui::PopFont();
         /// @end Text
 
         /// @begin Separator
         ImRad::Spacing(1);
-        ImRect r1 = ImGui::GetCurrentWindow()->InnerRect;
-        ImGui::PushClipRect(r1.Min, r1.Max, false);
-        ImGui::SetCursorScreenPos({ r1.Min.x, ImGui::GetCursorScreenPos().y });
-        ImVec2 wr1 = ImGui::GetCurrentWindow()->WorkRect.Max;
-        ImGui::GetCurrentWindow()->WorkRect.Max.x = r1.Max.x;
+        ImRad::IgnoreWindowPaddingData _data1;
+        ImRad::PushIgnoreWindowPadding(nullptr, &_data1);
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
-        ImGui::PopClipRect();
-        ImGui::GetCurrentWindow()->WorkRect.Max = wr1;
+        ImRad::PopIgnoreWindowPadding(_data1);
         /// @end Separator
 
         /// @begin Text
@@ -100,10 +96,11 @@ void AboutDlg::Draw()
         /// @end Text
 
         /// @begin Table
-        if (ImGui::BeginTable("table2", 2, ImGuiTableFlags_None, { -1, 0 }))
+        if (ImGui::BeginTable("table2", 2, 0, { -1, 0 }))
         {
             ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthStretch, 0);
+            ImGui::TableSetupScrollFreeze(0, 0);
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
@@ -112,8 +109,6 @@ void AboutDlg::Draw()
             ImGui::PushStyleColor(ImGuiCol_Text, 0xff003398);
             ImGui::TextUnformatted("Project page");
             ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered())
-                ImGui::SetMouseCursor(7);
             if (ImGui::IsItemHovered())
                 HoverURL();
             if (ImGui::IsItemClicked())
@@ -127,8 +122,6 @@ void AboutDlg::Draw()
             ImGui::TextUnformatted("Tutorials & How To");
             ImGui::PopStyleColor();
             if (ImGui::IsItemHovered())
-                ImGui::SetMouseCursor(7);
-            if (ImGui::IsItemHovered())
                 HoverURL();
             if (ImGui::IsItemClicked())
                 OpenURL();
@@ -141,13 +134,10 @@ void AboutDlg::Draw()
             ImGui::TextUnformatted("Report a bug");
             ImGui::PopStyleColor();
             if (ImGui::IsItemHovered())
-                ImGui::SetMouseCursor(7);
-            if (ImGui::IsItemHovered())
                 HoverURL();
             if (ImGui::IsItemClicked())
                 OpenURL();
             /// @end Text
-
 
             /// @separator
             ImGui::EndTable();
@@ -160,18 +150,19 @@ void AboutDlg::Draw()
         {
             ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);
+            ImGui::TableSetupScrollFreeze(0, 0);
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
 
             /// @begin Button
             ImRad::TableNextColumn(1);
-            if (ImGui::Button("OK", { 100, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
+            if (ImGui::Button("OK", { 100, 30 }) ||
+                ImGui::Shortcut(ImGuiKey_Escape))
             {
                 ClosePopup(ImRad::Ok);
             }
             /// @end Button
-
 
             /// @separator
             ImGui::EndTable();

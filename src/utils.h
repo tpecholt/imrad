@@ -12,6 +12,8 @@ inline const std::string VER_STR = IMRAD_VERSION;
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 inline const std::string CUR_ITEM_SYMBOL = "$item";
 
+extern float uiFontSize;
+
 inline ImVec2 operator+ (const ImVec2& a, const ImVec2& b)
 {
     return ImVec2(a.x + b.x, a.y + b.y);
