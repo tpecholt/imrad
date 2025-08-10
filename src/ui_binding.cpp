@@ -13,8 +13,7 @@ void BindingDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 1.f;
+    ImRad::GetUserData().dimBgRatio = 1.f;
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -22,8 +21,7 @@ void BindingDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void BindingDlg::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 0.f;
+    ImRad::GetUserData().dimBgRatio = 0.f;
 }
 
 void BindingDlg::Draw()
@@ -31,7 +29,6 @@ void BindingDlg::Draw()
     /// @style Dark
     /// @unit px
     /// @begin TopWindow
-    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###BindingDlg");
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
@@ -40,8 +37,8 @@ void BindingDlg::Draw()
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Binding###BindingDlg", &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
-        if (ioUserData->activeActivity != "")
-            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (ImRad::GetUserData().activeActivity != "")
+            ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);
         if (modalResult != ImRad::None)
         {
             ImGui::CloseCurrentPopup();
@@ -70,17 +67,17 @@ void BindingDlg::Draw()
         /// @begin Text
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::TextUnformatted(ImRad::Format("{}", type + (forceReference ? " &" : "")).c_str());
+        ImGui::TextUnformatted(ImRad::Format("{}", type+(forceReference?" &":"")).c_str());
         hb1.AddSize(1, ImRad::HBox::ItemSize);
         ImGui::PopStyleColor();
         /// @end Text
 
         /// @begin Input
-        ImGui::PushFont(font);
+        ImGui::PushFont(font, (0));
         ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##expr", &expr, ImGuiInputTextFlags_CallbackCharFilter, IMRAD_INPUTTEXT_EVENT(BindingDlg, OnTextInputFilter));
         if (ImGui::IsItemActive())
-            ioUserData->imeType = ImRad::ImeText;
+            ImRad::GetUserData().imeType = ImRad::ImeText;
         ImGui::PopFont();
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere(-1);

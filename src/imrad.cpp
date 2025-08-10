@@ -94,7 +94,6 @@ std::vector<std::unique_ptr<Widget>> clipboard;
 GLFWcursor* curCross = nullptr;
 GLFWcursor* curWait = nullptr;
 float pgHeight = 0, pgeHeight = 0;
-ImRad::IOUserData ioUserData;
 
 struct TB_Button
 {
@@ -2601,7 +2600,6 @@ int main(int argc, const char* argv[])
     ImGui::GetIO().IniFilename = INI_FILE_NAME;
     AddINIHandler();
     ImGuiIO& io = ImGui::GetIO();
-    io.UserData = &ioUserData;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls

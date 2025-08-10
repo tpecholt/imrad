@@ -26,7 +26,6 @@ static int                  g_NavBarHeight = 0;
 static int                  g_StatusBarHeight = 0;
 static int                  g_KbdHeight = 0;
 static int                  g_RotAngle = 0;
-static ImRad::IOUserData    g_IOUserData;
 static int                  g_ImeType = 0;
 
 // Forward declarations of helper functions
@@ -50,8 +49,8 @@ void Draw()
     bool isOpen;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { ImGui::GetTextLineHeight()/2, ImGui::GetTextLineHeight()/2 });
-    ImGui::SetNextWindowPos(g_IOUserData.WorkRect().Min);
-    ImGui::SetNextWindowSize(g_IOUserData.WorkRect().GetSize());
+    ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);
+    ImGui::SetNextWindowSize(ImRad::GetUserData().WorkRect().GetSize());
     if (ImGui::Begin("TODO", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings))
     {
         ImRad::ScrollWhenDragging(false);
@@ -97,8 +96,8 @@ JNIEXPORT void JNICALL
 Java_${JNI_PACKAGE}_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jint height)
 {
     g_KbdHeight = height;
-    g_IOUserData.kbdShown = height / g_IOUserData.dpiScale > 100;
-    if (!g_IOUserData.kbdShown)
+    ImRad::GetUserData().kbdShown = height / ImRad::GetUserData().dpiScale > 100;
+    if (!ImRad::GetUserData().kbdShown)
         g_ImeType = 0;
     UpdateScreenRect();
 }
@@ -252,14 +251,14 @@ void Init(struct android_app* app)
         ImGui_ImplOpenGL3_Init("#version 300 es");
 
         GetDisplayInfo();
-        io.MouseDragThreshold *= g_IOUserData.dpiScale;
+        io.MouseDragThreshold *= ImRad::GetUserData().dpiScale;
         // Load ImRAD style including fonts:
-        // ImRad::LoadStyle(fname, g_IOUserData.dpiScale);
+        // ImRad::LoadStyle(fname, ImRad::GetUserData().dpiScale);
         // Alternatively, setup Dear ImGui style
         ImGui::StyleColorsDark();
         //ImGui::StyleColorsLight();
-        ImGui::GetStyle().ScaleAllSizes(g_IOUserData.dpiScale);
-        ImGui::GetStyle().FontScaleDpi = g_IOUserData.dpiScale;
+        ImGui::GetStyle().ScaleAllSizes(ImRad::GetUserData().dpiScale);
+        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale;
 
         // TODO: Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -343,13 +342,13 @@ void MainLoopStep()
     static ImVec4 clear_color = ImVec4(0.f, 0.f, 0.0f, 1.00f);
 
     // Open on-screen (soft) input if requested by Dear ImGui
-    int newImeType = io.WantTextInput ? g_IOUserData.imeType : 0;
+    int newImeType = io.WantTextInput ? ImRad::GetUserData().imeType : 0;
     if (newImeType != g_ImeType) {
         g_ImeType = newImeType;
         ShowSoftKeyboardInput(g_ImeType);
     }
-    if (g_IOUserData.longPressID) {
-        g_IOUserData.longPressID = 0;
+    if (ImRad::GetUserData().longPressID) {
+        ImRad::GetUserData().longPressID = 0;
         PerformHapticFeedback(0);
     }
 
@@ -456,11 +455,10 @@ static void GetDisplayInfo()
     jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
     //g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
     g_StatusBarHeight = 40 * dpi / 160.0;
-    g_IOUserData.dpiScale = dpi / 140.0; //relative to laptop screen DPI;
+    ImRad::GetUserData().dpiScale = dpi / 140.0; //relative to laptop screen DPI;
     //round dpiScale otherwise when using box sizers floating point errors in imgui
     //accumulate and cause the window contentRegionRect to grow continuously
-    g_IOUserData.dpiScale = std::round(1000 * g_IOUserData.dpiScale) / 1000.0;
-    ImGui::GetIO().UserData = &g_IOUserData;
+    ImRad::GetUserData().dpiScale = std::round(1000 * ImRad::GetUserData().dpiScale) / 1000.0;
 
     method_id = bl->GetMethodID(bl.native_activity_clazz, "getRotation", "()I");
     if (method_id == nullptr)
@@ -474,16 +472,16 @@ void UpdateScreenRect()
 {
     switch (g_RotAngle) {
         case 0:
-            g_IOUserData.displayOffsetMin = { 0, (float)g_StatusBarHeight };
-            g_IOUserData.displayOffsetMax = { 0, (float)g_NavBarHeight + (float)g_KbdHeight };
+            ImRad::GetUserData().displayOffsetMin = { 0, (float)g_StatusBarHeight };
+            ImRad::GetUserData().displayOffsetMax = { 0, (float)g_NavBarHeight + (float)g_KbdHeight };
             break;
         case 90:
-            g_IOUserData.displayOffsetMin = { 0, (float)g_StatusBarHeight };
-            g_IOUserData.displayOffsetMax = { (float)g_NavBarHeight, (float)g_KbdHeight };
+            ImRad::GetUserData().displayOffsetMin = { 0, (float)g_StatusBarHeight };
+            ImRad::GetUserData().displayOffsetMax = { (float)g_NavBarHeight, (float)g_KbdHeight };
             break;
         case 270:
-            g_IOUserData.displayOffsetMin = { (float)g_NavBarHeight, (float)g_StatusBarHeight };
-            g_IOUserData.displayOffsetMax = { 0, (float)g_KbdHeight };
+            ImRad::GetUserData().displayOffsetMin = { (float)g_NavBarHeight, (float)g_StatusBarHeight };
+            ImRad::GetUserData().displayOffsetMax = { 0, (float)g_KbdHeight };
             break;
     }
 }

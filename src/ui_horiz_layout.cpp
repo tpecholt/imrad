@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.8
+// Generated with ImRAD 0.9
 // visit github.com/tpecholt/imrad
 
 #include "ui_horiz_layout.h"
@@ -10,8 +10,7 @@ void HorizLayout::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 1.f;
+    ImRad::GetUserData().dimBgRatio = 1.f;
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -19,8 +18,7 @@ void HorizLayout::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void HorizLayout::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 0.f;
+    ImRad::GetUserData().dimBgRatio = 0.f;
 }
 
 void HorizLayout::Draw()
@@ -28,7 +26,6 @@ void HorizLayout::Draw()
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
-    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###HorizLayout");
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5, 10 });
@@ -36,8 +33,8 @@ void HorizLayout::Draw()
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Table Layout Helper###HorizLayout", &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
     {
-        if (ioUserData->activeActivity != "")
-            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (ImRad::GetUserData().activeActivity != "")
+            ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);
         if (modalResult != ImRad::None)
         {
             ImGui::CloseCurrentPopup();
@@ -61,7 +58,7 @@ void HorizLayout::Draw()
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Align left (removes table layout)");
         /// @end Button
 
@@ -73,7 +70,7 @@ void HorizLayout::Draw()
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Center");
         /// @end Button
 
@@ -85,7 +82,7 @@ void HorizLayout::Draw()
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Align right");
         /// @end Button
 
@@ -97,7 +94,7 @@ void HorizLayout::Draw()
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Align left and right");
         /// @end Button
 
@@ -109,7 +106,7 @@ void HorizLayout::Draw()
             OnAlignment();
         }
         ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Regular spacing");
         /// @end Button
 
@@ -124,26 +121,26 @@ void HorizLayout::Draw()
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::AlignTextToFramePadding();
-        ImRad::Selectable("spacing", false, ImGuiSelectableFlags_DontClosePopups, { 65, 0 });
+        ImRad::Selectable("spacing", false, ImGuiSelectableFlags_NoAutoClosePopups, { 65, 0 });
         ImGui::PopItemFlag();
         ImGui::PopStyleVar();
         /// @end Selectable
 
         /// @begin Input
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::IsWindowAppearing())
-            ImGui::SetKeyboardFocusHere();
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##spacing", &spacing, 1);
         if (ImGui::IsItemActive())
-            ioUserData->imeType = ImRad::ImeNumber;
+            ImRad::GetUserData().imeType = ImRad::ImeNumber;
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere(-1);
         /// @end Input
 
         /// @begin Selectable
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::AlignTextToFramePadding();
-        ImRad::Selectable("padding", false, ImGuiSelectableFlags_DontClosePopups, { 65, 0 });
+        ImRad::Selectable("padding", false, ImGuiSelectableFlags_NoAutoClosePopups, { 65, 0 });
         ImGui::PopItemFlag();
         ImGui::PopStyleVar();
         /// @end Selectable
@@ -153,9 +150,8 @@ void HorizLayout::Draw()
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##padding", &padding, 1);
         if (ImGui::IsItemActive())
-            ioUserData->imeType = ImRad::ImeNumber;
+            ImRad::GetUserData().imeType = ImRad::ImeNumber;
         /// @end Input
-
 
         /// @begin Text
         ImRad::Spacing(2);
@@ -165,7 +161,6 @@ void HorizLayout::Draw()
         ImGui::PopTextWrapPos();
         ImGui::PopStyleColor();
         /// @end Text
-
 
         /// @begin Button
         ImRad::Spacing(2);

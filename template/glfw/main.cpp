@@ -22,7 +22,6 @@
 #endif
 
 GLFWwindow* window;
-ImRad::IOUserData ioUserData;
 
 void Draw()
 {
@@ -81,7 +80,6 @@ int main(int argc, const char* argv[])
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
-	io.UserData = &ioUserData;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
@@ -98,7 +96,7 @@ int main(int argc, const char* argv[])
 	ImGui::StyleColorsDark();
 	ImGui::GetStyle().ScaleAllSizes(mainScale);
 	ImGui::GetStyle().FontScaleDpi = mainScale;
-	ioUserData.dpiScale = mainScale;
+	ImRad::GetUserData().dpiScale = mainScale;
 	
 	/*
 	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f);

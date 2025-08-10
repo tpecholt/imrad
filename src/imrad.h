@@ -324,6 +324,12 @@ using VBox = BoxLayout<false>;
 
 //------------------------------------------------------------------------
 
+inline IOUserData& GetUserData() 
+{
+    static IOUserData data;
+    return data;
+}
+
 #ifdef ANDROID
 extern int GetAssetData(const char* filename, void** outData);
 #endif

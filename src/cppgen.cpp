@@ -772,7 +772,6 @@ bool CppGen::WriteStub(
             fout << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
             fout << INDENT << "callback = clb;\n";
             fout << INDENT << "modalResult = ImRad::None;\n";
-            fout << INDENT << "auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;\n";
         }
         else {
             fout << "::OpenPopup()\n{\n";
@@ -786,11 +785,11 @@ bool CppGen::WriteStub(
             else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
                 fout << INDENT << "animator.StartAlways(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
             if (kind == TopWindow::ModalPopup)
-                fout << INDENT << "animator.StartAlways(&ioUserData->dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
+                fout << INDENT << "animator.StartAlways(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
         }
         else if (kind == TopWindow::ModalPopup)
         {
-            fout << INDENT << "ioUserData->dimBgRatio = 1.f;\n";
+            fout << INDENT << "ImRad::GetUserData().dimBgRatio = 1.f;\n";
         }
 
         fout << INDENT << "ImGui::OpenPopup(ID);\n";
@@ -804,7 +803,6 @@ bool CppGen::WriteStub(
         if (kind == TopWindow::ModalPopup) {
             fout << "::ClosePopup(ImRad::ModalResult mr)\n{\n";
             fout << INDENT << "modalResult = mr;\n";
-            fout << INDENT << "auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;\n";
         }
         else {
             fout << "::ClosePopup()\n{\n";
@@ -818,11 +816,11 @@ bool CppGen::WriteStub(
             else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
                 fout << INDENT << "animator.StartOnce(&animPos.y, animPos.x, -animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
             if (kind == TopWindow::ModalPopup)
-                fout << INDENT << "animator.StartOnce(&ioUserData->dimBgRatio, ioUserData->dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
+                fout << INDENT << "animator.StartOnce(&ImRad::GetUserData().dimBgRatio, ImRad::GetUserData().dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
         }
         else if (kind == TopWindow::ModalPopup)
         {
-            fout << INDENT << "ioUserData->dimBgRatio = 0.f;\n";
+            fout << INDENT << "ImRad::GetUserData().dimBgRatio = 0.f;\n";
         }
 
         fout << "}";
@@ -838,10 +836,9 @@ bool CppGen::WriteStub(
     else if (id == "Open" && kind == TopWindow::Activity)
     {
         fout << "::Open()\n{\n";
-        fout << INDENT << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
-        fout << INDENT << "if (ioUserData->activeActivity != \"" << m_name << "\")\n";
+        fout << INDENT << "if (ImRad::GetUserData().activeActivity != \"" << m_name << "\")\n";
         fout << INDENT << "{\n";
-        fout << INDENT << INDENT << "ioUserData->activeActivity = \"" << m_name << "\";\n";
+        fout << INDENT << INDENT << "ImRad::GetUserData().activeActivity = \"" << m_name << "\";\n";
         fout << INDENT << INDENT << "Init();\n";
         fout << INDENT << "}\n";
         fout << "}";

@@ -1782,7 +1782,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_up();
         os << ctx.ind << onItemLongPressed.c_str() << "();\n";
         os << ctx.ind << "ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] = false;\n";
-        os << ctx.ind << "ioUserData->longPressID = ImGui::GetItemID();\n";
+        os << ctx.ind << "ImRad::GetUserData().longPressID = ImGui::GetItemID();\n";
         ctx.ind_down();
         os << ctx.ind << "}\n";
     }
@@ -4797,7 +4797,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     ctx.ind_up();
     int cls = imeType & 0xff;
     int action = imeType & (~0xff);
-    os << ctx.ind << "ioUserData->imeType = "
+    os << ctx.ind << "ImRad::GetUserData().imeType = "
         << (cls ? _imeClass.find_id(cls)->first : defIme);
     if (action)
         os << " | " << _imeAction.find_id(action)->first;
@@ -4807,7 +4807,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     if (!onImeAction.empty()) {
         os << ctx.ind << "if (ImRad::IsItemImeAction())\n";
         ctx.ind_up();
-        //os << ctx.ind << "ioUserData->imeActionPressed = false;\n";
+        //os << ctx.ind << "ImRad::GetUserData().imeActionPressed = false;\n";
         os << ctx.ind << onImeAction.to_arg() << "();\n";
         ctx.ind_down();
     }

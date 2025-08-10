@@ -11,8 +11,7 @@ void TableCols::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 1.f;
+    ImRad::GetUserData().dimBgRatio = 1.f;
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -20,8 +19,7 @@ void TableCols::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void TableCols::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 0.f;
+    ImRad::GetUserData().dimBgRatio = 0.f;
 }
 
 void TableCols::Init()
@@ -35,7 +33,6 @@ void TableCols::Draw()
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
-    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###TableCols");
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8, 5 });
     ImGui::SetNextWindowSize({ 550, 480 }, ImGuiCond_FirstUseEver); //{ 550, 480 }
@@ -43,8 +40,8 @@ void TableCols::Draw()
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Table Columns###TableCols", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNavInputs))
     {
-        if (ioUserData->activeActivity != "")
-            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (ImRad::GetUserData().activeActivity != "")
+            ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);
         if (modalResult != ImRad::None)
         {
             ImGui::CloseCurrentPopup();

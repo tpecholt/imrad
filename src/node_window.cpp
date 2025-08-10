@@ -322,11 +322,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     bool autoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
 
     os << ctx.ind << "/// @begin TopWindow\n";
-    os << ctx.ind << "auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;\n";
-
+    
     if (ctx.unit == "dp")
     {
-        os << ctx.ind << "const float dp = ioUserData->dpiScale;\n";
+        os << ctx.ind << "const float dp = ImRad::GetUserData().dpiScale;\n";
     }
 
     if (kind == Popup || kind == ModalPopup)
@@ -337,12 +336,12 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     {
         if (initialActivity)
         {
-            os << ctx.ind << "if (ioUserData->activeActivity == \"\")\n";
+            os << ctx.ind << "if (ImRad::GetUserData().activeActivity == \"\")\n";
             ctx.ind_up();
             os << ctx.ind << "Open();\n";
             ctx.ind_down();
         }
-        os << ctx.ind << "if (ioUserData->activeActivity != \"" << ctx.codeGen->GetName() << "\")\n";
+        os << ctx.ind << "if (ImRad::GetUserData().activeActivity != \"" << ctx.codeGen->GetName() << "\")\n";
         ctx.ind_up();
         os << ctx.ind << "return;\n";
         ctx.ind_down();
@@ -461,8 +460,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     else if (kind == Activity)
     {
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
-        os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->WorkRect().Min);\n";
-        os << ctx.ind << "ImGui::SetNextWindowSize(ioUserData->WorkRect().GetSize());";
+        os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);\n";
+        os << ctx.ind << "ImGui::SetNextWindowSize(ImRad::GetUserData().WorkRect().GetSize());";
         //signal designed size
         os << " //{ " << size_x.to_arg(ctx.unit) << ", " << size_y.to_arg(ctx.unit) << " }\n";
         auto fl = flags;
@@ -484,12 +483,12 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         //pos
         if (placement == Left || placement == Top)
         {
-            os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->WorkRect().Min);";
+            os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);";
             os << (placement == Left ? " //Left\n" : " //Top\n");
         }
         else if (placement == Right || placement == Bottom)
         {
-            os << ctx.ind << "ImGui::SetNextWindowPos(ioUserData->WorkRect().Max, 0, { 1, 1 });";
+            os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Max, 0, { 1, 1 });";
             os << (placement == Right ? " //Right\n" : " //Bottom\n");
         }
 
@@ -497,7 +496,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
         if (placement == Top || placement == Bottom)
-            os << "ioUserData->WorkRect().GetWidth()";
+            os << "ImRad::GetUserData().WorkRect().GetWidth()";
         else if (autoSize)
             os << "0";
         else
@@ -506,7 +505,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ", ";
 
         if (placement == Left || placement == Right)
-            os << "ioUserData->WorkRect().GetHeight()";
+            os << "ImRad::GetUserData().WorkRect().GetHeight()";
         else if (autoSize)
             os << "0";
         else
@@ -546,27 +545,27 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos(";
             if (animate)
-                os << "{ ioUserData->WorkRect().Min.x + animPos.x, ioUserData->WorkRect().Min.y + animPos.y }";
+                os << "{ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y + animPos.y }";
             else
-                os << "ioUserData->WorkRect().Min";
+                os << "ImRad::GetUserData().WorkRect().Min";
             os << "); " << (placement == Left ? " //Left\n" : " //Top\n");
         }
         else if (placement == Right || placement == Bottom)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos(";
             if (animate)
-                os << "{ ioUserData->WorkRect().Max.x - animPos.x, ioUserData->WorkRect().Max.y - animPos.y }, 0, { 1, 1 }";
+                os << "{ ImRad::GetUserData().WorkRect().Max.x - animPos.x, ImRad::GetUserData().WorkRect().Max.y - animPos.y }, 0, { 1, 1 }";
             else
-                os << "ioUserData->WorkRect().Max, 0, { 1, 1 }";
+                os << "ImRad::GetUserData().WorkRect().Max, 0, { 1, 1 }";
             os << "); " << (placement == Right ? " //Right\n" : " //Bottom\n");
         }
         else if (placement == Center)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos(";
             if (animate)
-                os << "{ ioUserData->WorkRect().GetCenter().x, ioUserData->WorkRect().GetCenter().y + animPos.y }, 0, { 0.5f, 0.5f }";
+                os << "{ ImRad::GetUserData().WorkRect().GetCenter().x, ImRad::GetUserData().WorkRect().GetCenter().y + animPos.y }, 0, { 0.5f, 0.5f }";
             else
-                os << "ioUserData->WorkRect().GetCenter(), 0, { 0.5f, 0.5f }";
+                os << "ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }";
             os << "); //Center\n";
         }
 
@@ -574,7 +573,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
         if (placement == Top || placement == Bottom)
-            os << "ioUserData->WorkRect().GetWidth()";
+            os << "ImRad::GetUserData().WorkRect().GetWidth()";
         else if (autoSize)
             os << "0";
         else
@@ -583,7 +582,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ", ";
 
         if (placement == Left || placement == Right)
-            os << "ioUserData->WorkRect().GetHeight()";
+            os << "ImRad::GetUserData().WorkRect().GetHeight()";
         else if (autoSize)
             os << "0";
         else
@@ -643,7 +642,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
                     os << "ImGuiDir_Up";
                 else if (placement == Bottom)
                     os << "ImGuiDir_Down";
-                os << ", animPos, ioUserData->dimBgRatio))\n";
+                os << ", animPos, ImRad::GetUserData().dimBgRatio))\n";
                 ctx.ind_up();
                 os << ctx.ind << "ClosePopup();\n";
                 ctx.ind_down();
@@ -662,9 +661,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         //rendering
         if (kind == ModalPopup)
         {
-            os << ctx.ind << "if (ioUserData->activeActivity != \"\")\n";
+            os << ctx.ind << "if (ImRad::GetUserData().activeActivity != \"\")\n";
             ctx.ind_up();
-            os << ctx.ind << "ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);\n";
+            os << ctx.ind << "ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);\n";
             ctx.ind_down();
         }
         if (style_rounding &&
@@ -848,7 +847,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 ctx.userCode += "\n";
             ctx.userCode += sit->line;
         }
-        else if (sit->kind == cpp::IfStmt && sit->cond == "ioUserData->activeActivity==\"\"")
+        else if ((sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::GetUserData().activeActivity==\"\"") ||
+            (sit->kind == cpp::IfStmt && sit->cond == "ioUserData->activeActivity==\"\"")) //compatibility
         {
             initialActivity = true;
         }

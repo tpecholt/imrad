@@ -110,8 +110,7 @@ void ErrorBox::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 1.f;
+    ImRad::GetUserData().dimBgRatio = 1.f;
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -119,8 +118,7 @@ void ErrorBox::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void ErrorBox::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 0.f;
+    ImRad::GetUserData().dimBgRatio = 0.f;
 }
 
 void ErrorBox::Init()
@@ -133,7 +131,6 @@ void ErrorBox::Draw()
     /// @style Dark
     /// @unit px
     /// @begin TopWindow
-    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###ErrorBox");
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
     ImGui::SetNextWindowSize({ 640, 480 }, ImGuiCond_FirstUseEver); //{ 640, 480 }
@@ -141,8 +138,8 @@ void ErrorBox::Draw()
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal(ImRad::Format("{}###ErrorBox", title).c_str(), &tmpOpen, ImGuiWindowFlags_NoCollapse))
     {
-        if (ioUserData->activeActivity != "")
-            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (ImRad::GetUserData().activeActivity != "")
+            ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);
         if (modalResult != ImRad::None)
         {
             ImGui::CloseCurrentPopup();

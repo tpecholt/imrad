@@ -10,8 +10,7 @@ void AboutDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 1.f;
+    ImRad::GetUserData().dimBgRatio = 1.f;
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -19,8 +18,7 @@ void AboutDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void AboutDlg::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 0.f;
+    ImRad::GetUserData().dimBgRatio = 0.f;
 }
 
 
@@ -34,18 +32,17 @@ void AboutDlg::Draw()
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
-    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###AboutDlg");
     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 60, 15 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 7 });
-    ImGui::SetNextWindowPos(ioUserData->WorkRect().GetCenter(), 0, { 0.5f, 0.5f }); //Center
+    ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }); //Center
     ImGui::SetNextWindowSize({ 0, 0 }); //{ 0, 0 }
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("About###AboutDlg", &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
-        if (ioUserData->activeActivity != "")
-            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (ImRad::GetUserData().activeActivity != "")
+            ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);
         if (modalResult != ImRad::None)
         {
             ImGui::CloseCurrentPopup();

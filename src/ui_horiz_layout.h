@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.8
+// Generated with ImRAD 0.9
 // visit github.com/tpecholt/imrad
 
 #pragma once
@@ -16,9 +16,9 @@ public:
     int spacing = 1;
     int padding = 0;
     int alignment;
-    std::vector<UINode *> selected;
-    UINode * root;
-    UIContext * ctx;
+    std::vector<UINode*> selected;
+    UINode* root;
+    UIContext* ctx;
     /// @end interface
 
     static void ExpandSelection(std::vector<UINode*>& selected, UINode* root);
