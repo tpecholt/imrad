@@ -927,7 +927,7 @@ void LoadStyle()
                     auto clr = IM_COL32(r, g, b, a);
                     std::string key = ex.first.substr(13);
 
-    #define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
+#define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
                     SET_CLR(Selected);
                     SET_CLR(Hovered);
                     SET_CLR(Snap1);
@@ -935,7 +935,7 @@ void LoadStyle()
                     SET_CLR(Snap3);
                     SET_CLR(Snap4);
                     SET_CLR(Snap5);
-    #undef SET_CLR
+#undef SET_CLR
                 }
             }
             catch (std::exception& e)

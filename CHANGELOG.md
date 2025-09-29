@@ -62,7 +62,9 @@
 * BREAKING: Support of ImGui dynamic fonts - font size is now specified separately. PushFont doesn't change the current font size. Zoom feature fixed. Generated code requires ImGui 1.92 and up.
 
 * initialFocus / forceFocus moved into Common section so it's available to all widgets
-  
+
+* BREAKING: ImRad::IOUserData was moved inside ImRad::GetUserData() so it's not longer required for the user to instantiate it and pass it to ImGui::IO::UserData. Use ImRad::GetUserData directly.
+
 
 ### Improvements by Widget Type
 

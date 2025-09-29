@@ -1426,7 +1426,8 @@ void Widget::DrawTools(UIContext& ctx)
 
     if (ctx.selected.size() == 1 && ctx.selected[0] == this)
     {
-        ImGui::PushFont(nullptr);
+        ImGui::PushFont(ImGui::GetDefaultFont(), 0);
+        ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ctx.appStyle->WindowPadding);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ctx.appStyle->ItemSpacing);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
@@ -1441,6 +1442,7 @@ void Widget::DrawTools(UIContext& ctx)
 
         ImGui::PopStyleColor(6);
         ImGui::PopStyleVar(3);
+        ImGui::PopItemFlag();
         ImGui::PopFont();
     }
 

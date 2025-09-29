@@ -2248,11 +2248,11 @@ ImDrawList* TabItem::DoDraw(UIContext& ctx)
         tabw = (ImGui::GetContentRegionAvail().x - (tb->children.size() - 1) * ImGui::GetStyle().ItemInnerSpacing.x) / tb->children.size() - 1;
         ImGui::SetNextItemWidth(tabw);
     }
-    //float padx = ImGui::GetCurrentTabBar()->FramePadding.x;
+    /*float padx = ImGui::GetCurrentTabBar()->FramePadding.x;
     if (tabw) {
         float w = ImGui::CalcTextSize(DRAW_STR(label)).x;
         //hack: ImGui::GetCurrentTabBar()->FramePadding.x = std::max(0.f, (tabw - w) / 2);
-    }
+    }*/
 
     bool sel = ctx.selected.size() == 1 && FindChild(ctx.selected[0]);
     bool tmp = true;
@@ -2811,10 +2811,10 @@ ImDrawList* MenuIt::DoDraw(UIContext& ctx)
 
         if (!mbm)
         {
+            ImGui::PushFont(ImGui::GetDefaultFont(), 0);
             float w = ImGui::CalcTextSize(ICON_FA_ANGLE_RIGHT).x;
             ImGui::SameLine(0, 0);
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() - w);
-            ImGui::PushFont(nullptr);
             ImGui::Text(ICON_FA_ANGLE_RIGHT);
             ImGui::PopFont();
         }
@@ -2871,16 +2871,20 @@ void MenuIt::DoDrawTools(UIContext& ctx)
     bool vertical = !dynamic_cast<MenuBar*>(parent);
     size_t idx = stx::find_if(parent->children, [this](const auto& ch) { return ch.get() == this; })
         - parent->children.begin();
+    //currently we always sit it on top of the menu so that it doesn't overlap with topmenus/submenus
+    ImVec2 pos = ctx.rootWin->InnerRect.Min; //PopupMenu pos
+    ImVec2 mbmpos = cached_pos; //MenuBar item pos
+    for (int i = (int)ctx.parents.size() - 2; i >= 0; --i) {
+        if (dynamic_cast<MenuBar*>(ctx.parents[i])) {
+            pos = mbmpos;
+            break;
+        }
+        mbmpos = ctx.parents[i]->cached_pos;
+    }
 
     //draw toolbox
-    //currently we always sit it on top of the menu so that it doesn't overlap with submenus
     //no WindowFlags_StayOnTop
     const ImVec2 bsize{ 30, 0 };
-    ImVec2 pos = cached_pos;
-    if (vertical) {
-        pos = ImGui::GetWindowPos();
-        //pos.x -= ImGui::GetStyle().ItemSpacing.x;
-    }
     ImGui::SetNextWindowPos(pos, 0, vertical ? ImVec2{ 0, 1.f } : ImVec2{ 0, 1.f });
     ImGui::Begin("extra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoSavedSettings);
 
@@ -3049,6 +3053,8 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 3) {
             bool amp = !sit->params[2].compare(0, 1, "&");
             checked.set_from_arg(sit->params[2].substr(amp));
+            if (checked.has_value() && !checked.value())
+                checked.set_from_arg("");
         }
 
         if (sit->kind == cpp::IfCallThenCall)
