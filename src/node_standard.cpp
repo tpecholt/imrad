@@ -1531,7 +1531,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
             os << parentRect << ".Max.x";
         else if (hasPos & ImRad::AlignHCenter)
             os << parentRect << ".GetCenter().x";
-        os << (!pos_x.has_value() || pos_x.value() >= 0 ? "+" : "")
+        os << (!pos_x.has_value() || !pos_x.has_sign() ? "+" : "")
             << pos_x.to_arg(ctx.unit);
         os << ", ";
         if (hasPos & ImRad::AlignTop)
@@ -1540,7 +1540,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
             os << parentRect << ".Max.y";
         else if (hasPos & ImRad::AlignVCenter)
             os << parentRect << ".GetCenter().y";
-        os << (!pos_y.has_value() || pos_y.value() >= 0 ? "+" : "")
+        os << (!pos_y.has_value() || !pos_y.has_sign() ? "+" : "")
             << pos_y.to_arg(ctx.unit);
         os << " }); //overlayPos\n";
     }

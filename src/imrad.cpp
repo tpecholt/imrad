@@ -506,10 +506,21 @@ void CloseFile(int flags)
 
 void DoSaveFile(int flags)
 {
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    int width_mm, height_mm;
+    glfwGetMonitorPhysicalSize(monitor, &width_mm, &height_mm);
+    float xscale, yscale;
+    glfwGetMonitorContentScale(monitor, &xscale, &yscale);
+    float dpi = (float)mode->width / width_mm * 25.4f;
+    std::ostringstream os;
+    os << dpi << "," << xscale;
+
     auto& tab = fileTabs[activeTab];
     std::map<std::string, std::string> params{
         { "style", tab.styleName },
         { "unit", tab.unit },
+        { "dpi-info", os.str() }
     };
     std::string error;
     if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, error))
@@ -2528,6 +2539,11 @@ std::string GetRootPath()
 #endif
 }
 
+void GLFWContentScaleCallback(GLFWwindow*, float, float)
+{
+    reloadStyle = true;
+}
+
 #if (WIN32) && !(__MINGW32__)
 int WINAPI wWinMain(
     HINSTANCE   hInstance,
@@ -2578,6 +2594,7 @@ int main(int argc, const char* argv[])
     window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
     if (window == NULL)
         return 1;
+    glfwSetWindowContentScaleCallback(window, GLFWContentScaleCallback);
     GLFWimage icons[2];
     icons[0].pixels = stbi_load((rootPath + "/style/icon-40.png").c_str(), &icons[0].width, &icons[0].height, 0, 4);
     icons[1].pixels = stbi_load((rootPath + "/style/icon-100.png").c_str(), &icons[1].width, &icons[1].height, 0, 4);

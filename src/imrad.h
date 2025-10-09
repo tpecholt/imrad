@@ -751,9 +751,13 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 //original version doesn't respect ioUserData.displayMinMaxOffset
 inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
 {
-    ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0, 0, 0, 0); //disable ImGui dimming
-    //imgui dim default = 0.2f, 0.2f, 0.2f, 0.35f * alpha_mul
-    ImU32 color = ImGui::ColorConvertFloat4ToU32({ 0, 0, 0, 0.35f * alpha_mul });
+    static ImVec4 origDimColor = { 0, 0, 0, 0.5f };
+    ImVec4& styleDimColor = ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg];
+    if (ImGui::ColorConvertFloat4ToU32(styleDimColor)) {
+        origDimColor = styleDimColor;
+        styleDimColor = { 0, 0, 0, 0 }; //disable ImGui dimming
+    }
+    ImU32 color = ImGui::ColorConvertFloat4ToU32({ origDimColor.x, origDimColor.y, origDimColor.z, origDimColor.w * alpha_mul });
 
     // Draw list have been trimmed already, hence the explicit recreation of a draw command if missing.
     // FIXME: This is creating complication, might be simpler if we could inject a drawlist in drawdata at a given position and not attempt to manipulate ImDrawCmd order.

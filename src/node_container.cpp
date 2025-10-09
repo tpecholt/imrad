@@ -647,9 +647,10 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     {
         //draw overlay children at the end so they are visible,
         //inside table's child because ItemOverlap works only between items in same window
-        //os << ctx.ind << "ImGui::GetCurrentWindow()->SkipItems = false;\n";
         os << ctx.ind << "auto cpos" << ctx.varCounter << " = ImRad::GetCursorData();\n";
         os << ctx.ind << "ImGui::PushClipRect(ImRad::GetParentInnerRect().Min, ImRad::GetParentInnerRect().Max, false);\n";
+        //SkipItems is normally reset by TableSetColumnIndex but in case there are no rows...
+        os << ctx.ind << "ImGui::GetCurrentWindow()->SkipItems = false;\n";
         os << ctx.ind << "/// @separator\n\n";
 
         for (auto& child : child_iterator(children, true))
@@ -739,6 +740,17 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 size_t j = sit->params[1].find("? 0 :", i);
                 std::string expr = sit->params[1].substr(i + 1, j - i - 1);
                 cd.visible.set_from_arg(Trim(expr));
+            }
+        }
+
+        if (sit->params.size() >= 3) {
+            if (cd.sizingPolicy == ImGuiTableColumnFlags_WidthFixed) {
+                direct_val<dimension_t> dim = 0;
+                dim.set_from_arg(sit->params[2]);
+                cd.width = (float)dim;
+            }
+            else {
+                cd.width.set_from_arg(sit->params[2]);
             }
         }
 

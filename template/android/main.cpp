@@ -63,7 +63,7 @@ void Draw()
         ImGui::Bullet();
         ImGui::TextWrapped("Create assets directory and put Roboto and Material fonts there");
         ImGui::Bullet();
-        ImGui::TextWrapped("Uncomment code to load fonts");
+        ImGui::TextWrapped("Fill in TODO code to load fonts");
         ImGui::Unindent();
         ImGui::Spacing();
         ImGui::TextWrapped("2. Patch imgui_impl_android.cpp");
@@ -78,7 +78,7 @@ void Draw()
         ImGui::Bullet();
         ImGui::TextWrapped("Design activity in ImRAD");
         ImGui::Bullet();
-        ImGui::TextWrapped("Uncomment code to use it");
+        ImGui::TextWrapped("Uncomment TODO code to use it");
         ImGui::Unindent();
         ImGui::Spacing();
         ImGui::TextWrapped("Have fun!");
@@ -258,7 +258,7 @@ void Init(struct android_app* app)
         ImGui::StyleColorsDark();
         //ImGui::StyleColorsLight();
         ImGui::GetStyle().ScaleAllSizes(ImRad::GetUserData().dpiScale);
-        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale;
+        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale * 1.f; // TODO: use your font scaling factor
 
         // TODO: Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -453,11 +453,11 @@ static void GetDisplayInfo()
         return;
 
     jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
-    //g_NavBarHeight = 48 * dpi / 160.0; //android dp definition
-    g_StatusBarHeight = 40 * dpi / 160.0;
-    ImRad::GetUserData().dpiScale = dpi / 140.0; //relative to laptop screen DPI;
-    //round dpiScale otherwise when using box sizers floating point errors in imgui
-    //accumulate and cause the window contentRegionRect to grow continuously
+    //g_NavBarHeight = 48 * dpi / 160.0; // Uses android dp definition
+    g_StatusBarHeight = 40 * dpi / 160.0; // Uses android dp definition
+    ImRad::GetUserData().dpiScale = dpi / 140.0; // TODO: use your ImRAD monitor DPI
+    // Round dpiScale otherwise when using box sizers floating point errors in imgui
+    // accumulate and cause the window contentRegionRect to grow continuously
     ImRad::GetUserData().dpiScale = std::round(1000 * ImRad::GetUserData().dpiScale) / 1000.0;
 
     method_id = bl->GetMethodID(bl.native_activity_clazz, "getRotation", "()I");

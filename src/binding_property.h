@@ -538,6 +538,9 @@ struct bindable : property_base
         }
         return {};
     }
+    bool has_sign() const {
+        return !str.empty() && (str[0] == '+' || str[0] == '-');
+    }
     T eval(const UIContext& ctx) const;
 
     bool has_single_variable() const {
@@ -656,6 +659,9 @@ struct bindable<dimension_t> : property_base
         float val{};
         is >> val;
         return val;
+    }
+    bool has_sign() const {
+        return !str.empty() && (str[0] == '+' || str[0] == '-');
     }
     float eval_px(int axis, const UIContext& ctx) const;
 
