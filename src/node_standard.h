@@ -67,7 +67,7 @@ struct UINode
     void DrawInteriorRect(UIContext& ctx);
     void DrawSnap(UIContext& ctx);
     auto UsedFieldVars() -> std::vector<std::string>;
-    void RenameFieldVars(const std::string& oldn, const std::string& newn);
+    void RenameFieldVars(std::string_view oldn, std::string_view newn, const property_base* exclusion = {});
     auto FindChild(const UINode*) -> std::optional<std::pair<UINode*, int>>;
     auto FindInRect(const ImRect& r) -> std::vector<UINode*>;
     auto GetAllChildren() -> std::vector<UINode*>;

@@ -41,7 +41,7 @@ public:
     bool CreateNamedVar(const std::string& name, const std::string& type, const std::string& init, int flags, const std::string& scope = "");
     bool RenameVar(const std::string& oldn, const std::string& newn, const std::string& scope = "");
     bool RemoveVar(const std::string& name, const std::string& scope = "");
-    void RemovePrefixedVars(const std::string& prefix, const std::string& scope = "");
+    void RemovePrefixedVars(std::string_view prefix, std::string_view scope = "");
     bool ChangeVar(const std::string& name, const std::string& type, const std::string& init, int flags = -1, const std::string& scope = "");
     const Var* GetVar(const std::string& name, const std::string& scope = "") const;
     bool RenameStruct(const std::string& oldn, const std::string& newn);

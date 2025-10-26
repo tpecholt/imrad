@@ -1318,9 +1318,9 @@ bool CppGen::RemoveVar(const std::string& name, const std::string& scope)
     return true;
 }
 
-void CppGen::RemovePrefixedVars(const std::string& prefix, const std::string& scope)
+void CppGen::RemovePrefixedVars(std::string_view prefix, std::string_view scope)
 {
-    auto vit = m_fields.find(scope);
+    auto vit = m_fields.find(std::string(scope));
     if (vit == m_fields.end())
         return;
     stx::erase_if(vit->second, [&](const auto& var)

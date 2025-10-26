@@ -590,20 +590,19 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         if (!style_headerFontName.empty() || !style_headerFontSize.empty())
             os << ctx.ind << "ImGui::PopFont();\n";
     }
+
     if (!itemCount.empty())
     {
+        std::string contVar = itemCount.container_expr();
+        std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+
         os << "\n" << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
-        bool hasCurItem = stx::count(UsedFieldVars(), ctx.codeGen->CUR_ITEM_VAR_NAME);
-        if (hasCurItem)
+        if (contVar != "")
         {
-            std::string idx = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
-            std::string container = itemCount.container_expr();
-            if (container == "")
-                PushError(ctx, "\"" + CUR_ITEM_SYMBOL + "\" syntax requires container name in the loop condition");
             os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
-                << container << "[" << idx << "];\n";
+                << contVar << "[" << idxVar << "];\n";
         }
         if (!rowFilter.empty())
         {
@@ -613,7 +612,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             ctx.ind_down();
         }
 
-        os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME) << ");\n";
+        os << ctx.ind << "ImGui::PushID(" << idxVar << ");\n";
     }
 
     os << ctx.ind << "ImGui::TableNextRow(0, ";
@@ -990,16 +989,15 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
-        bool hasCurItem = stx::count(UsedFieldVars(), ctx.codeGen->CUR_ITEM_VAR_NAME);
-        if (hasCurItem)
+        std::string contVar = itemCount.container_expr();
+        std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+        if (contVar != "")
         {
-            std::string idx = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
-            std::string container = itemCount.container_expr();
-            if (container == "")
-                PushError(ctx, "\"" + CUR_ITEM_SYMBOL + "\" syntax requires container name in the loop condition");
             os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
-                << container << "[" << idx << "];\n";
+                << contVar << "[" << idxVar << "];\n";
         }
+
+        os << ctx.ind << "ImGui::PushID(" << idxVar << ");\n";
     }
 
     os << ctx.ind << "/// @separator\n\n";
@@ -1011,6 +1009,7 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
     if (!itemCount.empty())
     {
+        os << ctx.ind << "ImGui::PopID();\n";
         if (hasColumns)
             os << ctx.ind << "ImGui::NextColumn();\n";
         ctx.ind_down();
@@ -2035,19 +2034,17 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
 
     if (!itemCount.empty())
     {
+        std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+        std::string contVar = itemCount.container_expr();
+        
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
 
-        bool hasCurItem = stx::count(UsedFieldVars(), ctx.codeGen->CUR_ITEM_VAR_NAME);
-        if (hasCurItem)
+        if (contVar != "")
         {
-            std::string idx = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
-            std::string container = itemCount.container_expr();
-            if (container == "")
-                PushError(ctx, "\"" + CUR_ITEM_SYMBOL + "\" syntax requires container name in the loop condition");
             os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
-                << container << "[" << idx << "];\n";
+                << contVar << "[" << idxVar << "];\n";
         }
         //BeginTabBar does this
         //os << ctx.ind << "ImGui::PushID(" << itemCount.index_name_or(ctx.codeGen->DefaultForVarName()) << ");\n";

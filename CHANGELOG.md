@@ -30,6 +30,8 @@
   
 * Table Columns dialog reworked. Columns can now specify flags and visibility
   
+* Label-like properties allow multi-line edit through a dialog
+
 * Error dialog shows loading/saving errors in a structured way
   
 * Added Edit style button in the toolbar
@@ -49,7 +51,7 @@
   
 * Many two way binding properties now allow to bind into arrays (std::vector/array/span) and specify binding expression using the Binding dialog
   
-* Bindings into array elements can now use $item expression
+* Bindings into array elements can now use $item and $index expressions
   
 * Certain bindings now support both l-values and r-values and the appropriate code will be generated (such as for Selectables, RadioButtons which come in two overloads)
   

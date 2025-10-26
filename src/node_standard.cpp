@@ -752,15 +752,16 @@ std::vector<std::string> UINode::UsedFieldVars()
     return used;
 }
 
-void UINode::RenameFieldVars(const std::string& oldn, const std::string& newn)
+void UINode::RenameFieldVars(std::string_view oldn, std::string_view newn, const property_base* exclusion)
 {
+    std::string oldns(oldn), newns(newn);
     for (int i = 0; i < 2; ++i)
     {
         auto props = i ? Events() : Properties();
         for (auto& p : props) {
-            if (!p.property)
+            if (!p.property || p.property == exclusion)
                 continue;
-            p.property->rename_variable(oldn, newn);
+            p.property->rename_variable(oldns, newns);
         }
     }
     for (auto& child : children)
@@ -1616,9 +1617,23 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " << style_framePadding.to_arg(ctx.unit) << ");\n";
     }
 
+    std::string idxVar;
+    if (!itemCount.empty())
+    {
+        idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+        RenameFieldVars(CUR_ITEM_SYMBOL, ctx.codeGen->CUR_ITEM_VAR_NAME);
+        RenameFieldVars(CUR_INDEX_SYMBOL, idxVar);
+    }
+    
     ctx.parents.push_back(this);
     DoExport(os, ctx);
     ctx.parents.pop_back();
+
+    if (!itemCount.empty())
+    {
+        RenameFieldVars(ctx.codeGen->CUR_ITEM_VAR_NAME, CUR_ITEM_SYMBOL);
+        RenameFieldVars(idxVar, CUR_INDEX_SYMBOL, &itemCount);
+    }
 
     if (l.flags & Layout::VLayout)
     {
@@ -1915,6 +1930,12 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         }
         else if (sit->kind == cpp::Comment && !sit->line.compare(0, 9, "/// @end "))
         {
+            if (!itemCount.empty())
+            {
+                std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+                RenameFieldVars(ctx.codeGen->CUR_ITEM_VAR_NAME, CUR_ITEM_SYMBOL);
+                RenameFieldVars(idxVar, CUR_INDEX_SYMBOL, &itemCount);
+            }
             break; //go back to parent::Import @begin
         }
         else if (sit->kind == cpp::Comment && !sit->line.compare(0, 14, "/// @separator"))

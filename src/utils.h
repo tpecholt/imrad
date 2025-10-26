@@ -11,6 +11,7 @@ namespace fs = std::filesystem;
 inline const std::string VER_STR = IMRAD_VERSION;
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 inline const std::string CUR_ITEM_SYMBOL = "$item";
+inline const std::string CUR_INDEX_SYMBOL = "$index";
 
 extern float uiFontSize;
 
