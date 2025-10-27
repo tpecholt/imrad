@@ -34,6 +34,27 @@ static void glfw_error_callback(int error, const char* description)
 	std::cerr << "Glfw Error: " << description;
 }
 
+// During window resize the GLFW event loop stalls but this event handler gets called
+static void glfw_framebuffer_size_callback(GLFWwindow* window, int w, int h)
+{
+    // frame in progress already
+    if (ImGui::GetCurrentContext()->FrameCountEnded != ImGui::GetCurrentContext()->FrameCount)
+        return;
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    Draw();
+
+    // Rendering
+    ImGui::Render();
+    glViewport(0, 0, w, h);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    glfwSwapBuffers(window);
+}
+
 // On Windows if you want to avoid console window to be shown 
 // Use /SUBSYSTEM:WINDOWS and implement wWinMain instead
 // int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
@@ -75,6 +96,7 @@ int main(int argc, const char* argv[])
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 	//glfwMaximizeWindow(window);
+    glfwSetFramebufferSizeCallback(window, glfw_framebuffer_size_callback);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
