@@ -3368,7 +3368,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     if (!style_header.empty())
         ImGui::PushStyleColor(ImGuiCol_Header, style_header.eval(ImGuiCol_Header, ctx));
 
-    if (readOnly)
+    if (staticOnly)
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); //won't affect text color
 
     if (alignToFrame)
@@ -3382,7 +3382,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     ImRad::Selectable(ps.label.c_str(), sel, flags, size);
     DrawTextArgs(ps, ctx, { 0, 0 }, size, alignment);
 
-    if (readOnly)
+    if (staticOnly)
         ImGui::PopItemFlag();
 
     if (!style_header.empty())
@@ -3434,7 +3434,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
     if (!style_header.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Header, " << style_header.to_arg() << ");\n";
 
-    if (readOnly)
+    if (staticOnly)
         os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);\n";
 
     if (alignToFrame)
@@ -3476,7 +3476,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << ";\n";
     }
 
-    if (readOnly)
+    if (staticOnly)
         os << ctx.ind << "ImGui::PopItemFlag();\n";
 
     if (!style_header.empty())
@@ -3594,7 +3594,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushItemFlag")
     {
         if (sit->params.size() && sit->params[0] == "ImGuiItemFlags_Disabled")
-            readOnly = true;
+            staticOnly = true;
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::AlignTextToFramePadding")
     {
@@ -3623,7 +3623,7 @@ Selectable::Properties()
         { "appearance.alignToFrame", &alignToFrame },
         { "behavior.flags##selectable", &flags },
         { "behavior.label", &label, true },
-        { "behavior.readOnly", &readOnly },
+        { "behavior.staticOnly", &staticOnly },
         { "behavior.modalResult##selectable", &modalResult },
         { "bindings.selected##selectable", &selected },
         });
@@ -3715,10 +3715,10 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("label", &label, ctx);
         break;
     case 11:
-        ImGui::Text("readOnly");
+        ImGui::Text("staticOnly");
         ImGui::TableNextColumn();
-        fl = readOnly != Defaults().readOnly ? InputDirectVal_Modified : 0;
-        changed = InputDirectVal(&readOnly, fl, ctx);
+        fl = staticOnly != Defaults().staticOnly ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&staticOnly, fl, ctx);
         break;
     case 12:
         ImGui::BeginDisabled(ctx.kind != TopWindow::ModalPopup);
@@ -4592,6 +4592,7 @@ Input::Input(UIContext& ctx)
     flags.add$(ImGuiInputTextFlags_NoHorizontalScroll);
     flags.add$(ImGuiInputTextFlags_NoUndoRedo);
     flags.add$(ImGuiInputTextFlags_ElideLeft);
+    flags.add$(ImGuiInputTextFlags_WordWrap);
     flags.separator();
     flags.add$(ImGuiInputTextFlags_CallbackCompletion);
     flags.add$(ImGuiInputTextFlags_CallbackHistory);
