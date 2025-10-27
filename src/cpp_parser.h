@@ -345,13 +345,13 @@ namespace cpp
                 if (iter.get_line_mode()) {
                     tokens.push_back(*iter);
                     parse(false);
-                    break;
+                    return *this;
                 }
                 else if (*iter == ";" &&
                     (tokens.empty() || tokens[0] != "for" || !parenthesis)) {
                     if (!tokens.empty()) {
                         parse(false);
-                        break;
+                        return *this;
                     }
                     ++iter;
                 }
@@ -364,7 +364,7 @@ namespace cpp
                     }
                     else if (!tokens.empty()) {
                         parse(true);
-                        break;
+                        return *this;
                     }
                     else {
                         ++data.level;
@@ -378,15 +378,15 @@ namespace cpp
                         ++iter;
                         if (data.level < eat_level) {
                             parse(false);
-                            break;
+                            return *this;
                         }
                     }
                     else if (!tokens.empty()) {
                         parse(false);
-                        break;
+                        return *this;
                     }
                     if (--data.level < 0) //don't read past original block
-                        break;
+                        return *this;
                     ++iter;
                 }
                 else if (*iter == "(") {
@@ -402,13 +402,14 @@ namespace cpp
                 else if (iter->front() == '#' || !iter->compare(0, 2, "//")) {
                     tokens.push_back(*iter);
                     parse(false);
-                    break;
+                    return *this;
                 }
                 else {
                     tokens.push_back(*iter);
                     ++iter;
                 }
             }
+            parse(false);
             return *this;
         }
         void parse(bool block)

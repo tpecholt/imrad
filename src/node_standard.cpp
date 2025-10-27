@@ -852,6 +852,23 @@ Widget::Widget()
     cursor.add$(ImGuiMouseCursor_ResizeNWSE);
     cursor.add$(ImGuiMouseCursor_Hand);
     cursor.add$(ImGuiMouseCursor_NotAllowed);
+
+    msflags.add$(ImGuiMultiSelectFlags_SingleSelect);
+    msflags.add$(ImGuiMultiSelectFlags_NoSelectAll);
+    msflags.add$(ImGuiMultiSelectFlags_NoRangeSelect);
+    msflags.add$(ImGuiMultiSelectFlags_NoAutoSelect);
+    msflags.add$(ImGuiMultiSelectFlags_NoAutoClear);
+    msflags.add$(ImGuiMultiSelectFlags_NoAutoClearOnReselect);
+    msflags.add$(ImGuiMultiSelectFlags_BoxSelect1d);
+    msflags.add$(ImGuiMultiSelectFlags_BoxSelect2d);
+    msflags.add$(ImGuiMultiSelectFlags_BoxSelectNoScroll);
+    msflags.add$(ImGuiMultiSelectFlags_ClearOnEscape);
+    msflags.add$(ImGuiMultiSelectFlags_ScopeWindow);
+    msflags.add$(ImGuiMultiSelectFlags_ScopeRect);
+    msflags.add$(ImGuiMultiSelectFlags_SelectOnClick);
+    msflags.add$(ImGuiMultiSelectFlags_SelectOnClickRelease);
+    msflags.add$(ImGuiMultiSelectFlags_NavWrapX);
+    msflags.add("ImGuiMultiSelectFlags_NoSelectOnRightClick", 1 << 17);
 }
 
 int Widget::Behavior()
@@ -1617,12 +1634,11 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " << style_framePadding.to_arg(ctx.unit) << ");\n";
     }
 
-    std::string idxVar;
     if (!itemCount.empty())
     {
-        idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+        ctx.varItemIndex = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
         RenameFieldVars(CUR_ITEM_SYMBOL, ctx.codeGen->CUR_ITEM_VAR_NAME);
-        RenameFieldVars(CUR_INDEX_SYMBOL, idxVar);
+        RenameFieldVars(CUR_INDEX_SYMBOL, ctx.varItemIndex);
     }
     
     ctx.parents.push_back(this);
@@ -1632,7 +1648,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     if (!itemCount.empty())
     {
         RenameFieldVars(ctx.codeGen->CUR_ITEM_VAR_NAME, CUR_ITEM_SYMBOL);
-        RenameFieldVars(idxVar, CUR_INDEX_SYMBOL, &itemCount);
+        RenameFieldVars(ctx.varItemIndex, CUR_INDEX_SYMBOL, &itemCount);
     }
 
     if (l.flags & Layout::VLayout)
@@ -3440,6 +3456,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
     if (alignToFrame)
         os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
+    if (multiSelect)
+        os << ctx.ind << "ImGui::SetNextItemSelectionUserData(" << ctx.varItemIndex << ");\n";
+
     bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
     os << ctx.ind;
     if (!onChange.empty() || closePopup)
@@ -3449,7 +3468,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         PushError(ctx, "label is formatted wrongly");
 
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
-    if (selected.is_reference())
+    if (multiSelect)
+        os << ctx.varSelection << ".Contains(" << ctx.varItemIndex << ")";
+    else if (selected.is_reference())
         os << "&" << selected.to_arg();
     else
         os << selected.to_arg();
@@ -3605,6 +3626,10 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() && !sit->params[0].compare(0, 30, "ImGui::GetItemRectMin()+ImVec2"))
             style_interiorPadding.set_from_arg(sit->params[0].substr(30));
     }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemSelectionUserData")
+    {
+        multiSelect = true;
+    }
 }
 
 std::vector<UINode::Prop>
@@ -3625,6 +3650,7 @@ Selectable::Properties()
         { "behavior.label", &label, true },
         { "behavior.staticOnly", &staticOnly },
         { "behavior.modalResult##selectable", &modalResult },
+        { "bindings.multiSelect", &multiSelect },
         { "bindings.selected##selectable", &selected },
         });
     return props;
@@ -3730,6 +3756,13 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 13:
+        ImGui::Text("multiSelect");
+        ImGui::TableNextColumn();
+        fl = multiSelect != Defaults().multiSelect ? InputDirectVal_Modified : 0;
+        InputDirectVal(&multiSelect, fl, ctx);
+        break;
+    case 14:
+        ImGui::BeginDisabled(multiSelect);
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3737,9 +3770,10 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         changed = InputBindable(&selected, fl | InputBindable_ShowVariables, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("value", &selected, ctx);
+        ImGui::EndDisabled();
         break;
     default:
-        return Widget::PropertyUI(i - 14, ctx);
+        return Widget::PropertyUI(i - 15, ctx);
     }
     return changed;
 }

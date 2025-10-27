@@ -71,6 +71,8 @@ struct UIContext
     std::string ind;
     int varCounter;
     std::string parentVarName;
+    std::string varItemIndex;
+    std::string varSelection;
     std::vector<std::string> errors;
     ImVec2 stretchSize;
     std::array<std::string, 2> stretchSizeExpr;

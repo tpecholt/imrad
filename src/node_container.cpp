@@ -251,6 +251,7 @@ Table::Properties()
         { "appearance.hfont.size", &style_headerFontSize },
         { "appearance.header##table", &header },
         { "behavior.flags##table", &flags },
+        { "behavior.selectionFlags", &msflags },
         { "behavior.columns##table", nullptr },
         { "behavior.rowCount##table", &itemCount.limit },
         { "behavior.rowFilter##table", &rowFilter },
@@ -258,7 +259,8 @@ Table::Properties()
         { "behavior.scrollFreeze.x##table", &scrollFreeze_x },
         { "behavior.scrollFreeze.y##table", &scrollFreeze_y },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
-        { "bindings.rowIndex##1", &itemCount.index }
+        { "bindings.rowIndex##1", &itemCount.index },
+        { "bindings.selection##1", &mssel },
         });
     return props;
 }
@@ -364,6 +366,11 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
     case 14:
+        ImGui::BeginDisabled(mssel.empty());
+        changed = InputDirectValFlags("selectionFlags", &msflags, Defaults().msflags, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 15:
     {
         ImGui::Text("columns");
         ImGui::TableNextColumn();
@@ -386,7 +393,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         break;
     }
-    case 15:
+    case 16:
         ImGui::Text("rowCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -394,7 +401,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("rowCount", &itemCount.limit, ctx);
         break;
-    case 16:
+    case 17:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("rowFilter");
         ImGui::TableNextColumn();
@@ -405,7 +412,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("rowFilter", &rowFilter, ctx);
         ImGui::EndDisabled();
         break;
-    case 17:
+    case 18:
     {
         ImGui::Text("scrollFreeze");
         ImGui::TableNextColumn();
@@ -418,27 +425,27 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         break;
     }
-    case 18:
+    case 19:
         ImGui::Text("columns");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = scrollFreeze_x ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&scrollFreeze_x, fl, ctx);
         break;
-    case 19:
+    case 20:
         ImGui::Text("rows");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = scrollFreeze_y ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&scrollFreeze_y, fl, ctx);
         break;
-    case 20:
+    case 21:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&scrollWhenDragging, 0, ctx);
         break;
-    case 21:
+    case 22:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("rowIndex");
         ImGui::TableNextColumn();
@@ -446,9 +453,15 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         changed = InputFieldRef(&itemCount.index, true, ctx);
         ImGui::EndDisabled();
         break;
+    case 23:
+        ImGui::Text("selection");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&mssel, true, ctx);
+        break;
     default:
-        return Widget::PropertyUI(i - 22, ctx);
-    }
+        return Widget::PropertyUI(i - 24, ctx);
+    }   
     return changed;
 }
 
@@ -596,6 +609,14 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         std::string contVar = itemCount.container_expr();
         std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
 
+        if (!mssel.empty())
+        {
+            ctx.varSelection = mssel.to_arg();
+            os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::BeginMultiSelect(";
+            os << msflags.to_arg() << ", " << mssel.to_arg() << ".Size, " 
+                << "(int)" << itemCount.limit.to_arg() << "));\n";
+        }
+
         os << "\n" << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
@@ -636,10 +657,14 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     if (!onEndRow.empty() && !itemCount.empty())
         os << ctx.ind << onEndRow.to_arg() << "();\n";
 
-    if (!itemCount.empty()) {
+    if (!itemCount.empty()) 
+    {
         os << ctx.ind << "ImGui::PopID();\n";
         ctx.ind_down();
         os << ctx.ind << "}\n";
+    
+        if (!mssel.empty())
+            os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::EndMultiSelect());\n";
     }
 
     if (child_iterator(children, true))
@@ -761,6 +786,23 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             scrollFreeze_x.set_from_arg(sit->params[0]);
         if (sit->params.size() >= 2)
             scrollFreeze_y.set_from_arg(sit->params[1]);
+    }
+    else if (sit->kind == cpp::CallExpr && sit->callee.find(".ApplyRequests") != std::string::npos &&
+        sit->params.size() >= 1)
+    {
+        std::istringstream is(sit->params[0]);
+        cpp::token_iterator tok(is);
+        cpp::stmt_iterator cit(tok);
+        if (cit->kind == cpp::CallExpr && cit->callee == "ImGui::BeginMultiSelect")
+        {
+            if (cit->params.size() >= 1)
+                msflags.set_from_arg(cit->params[0]);
+            if (cit->params.size() >= 2) {
+                std::string sel = cit->params[1];
+                if (sel.size() > 5 && !sel.compare(sel.size() - 5, 5, ".Size"))
+                    mssel.set_from_arg(sel.substr(0, sel.size() - 5));
+            }
+        }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushFont")
     {
@@ -986,6 +1028,14 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
 
     if (!itemCount.empty())
     {
+        if (!mssel.empty())
+        {
+            ctx.varSelection = mssel.to_arg();
+            os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::BeginMultiSelect(";
+            os << msflags.to_arg() << ", " << mssel.to_arg() << ".Size, "
+                << "(int)" << itemCount.limit.to_arg() << "));\n";
+        }
+
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
@@ -1014,6 +1064,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::NextColumn();\n";
         ctx.ind_down();
         os << ctx.ind << "}\n";
+        if (!mssel.empty())
+            os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::EndMultiSelect());\n";
     }
 
     if (style_spacing.has_value())
@@ -1112,6 +1164,23 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         scrollWhenDragging = true;
     }
+    else if (sit->kind == cpp::CallExpr && sit->callee.find(".ApplyRequests") != std::string::npos &&
+        sit->params.size() >= 1)
+    {
+        std::istringstream is(sit->params[0]);
+        cpp::token_iterator tok(is);
+        cpp::stmt_iterator cit(tok);
+        if (cit->kind == cpp::CallExpr && cit->callee == "ImGui::BeginMultiSelect")
+        {
+            if (cit->params.size() >= 1)
+                msflags.set_from_arg(cit->params[0]);
+            if (cit->params.size() >= 2) {
+                std::string sel = cit->params[1];
+                if (sel.size() > 5 && !sel.compare(sel.size() - 5, 5, ".Size"))
+                    mssel.set_from_arg(sel.substr(0, sel.size() - 5));
+            }
+        }
+    }
     else if (sit->kind == cpp::ForBlock)
     {
         itemCount.set_from_arg(sit->line);
@@ -1135,12 +1204,14 @@ Child::Properties()
         { "appearance.font.size", &style_fontSize },
         { "appearance.outer_padding", &style_outerPadding },
         { "appearance.column_border##child", &columnBorder },
-        { "behavior.flags##child", &flags },
-        { "behavior.wflags##child", &wflags },
-        { "behavior.column_count##child", &columnCount },
-        { "behavior.item_count##child", &itemCount.limit },
+        { "behavior.childFlags", &flags },
+        { "behavior.windowFlags", &wflags },
+        { "behavior.selectionFlags", &msflags },
+        { "behavior.columnCount##child", &columnCount },
+        { "behavior.itemCount##child", &itemCount.limit },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
         { "bindings.itemIndex##1", &itemCount.index },
+        { "bindings.selection##1", &mssel },
         });
     return props;
 }
@@ -1252,6 +1323,11 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectValFlags("windowFlags", &wflags, Defaults().wflags, ctx);
         break;
     case 13:
+        ImGui::BeginDisabled(mssel.empty());
+        changed = InputDirectValFlags("selectionFlags", &msflags, Defaults().msflags, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 14:
         ImGui::Text("columnCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1260,7 +1336,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("columnCount", &columnCount, ctx);
         break;
-    case 14:
+    case 15:
         ImGui::Text("itemCount");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1268,14 +1344,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("itemCount", &itemCount.limit, ctx);
         break;
-    case 15:
+    case 16:
         ImGui::Text("scrollWhenDragging");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = scrollWhenDragging != Defaults().scrollWhenDragging ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&scrollWhenDragging, fl, ctx);
         break;
-    case 16:
+    case 17:
         ImGui::BeginDisabled(itemCount.empty());
         ImGui::Text("itemIndex");
         ImGui::TableNextColumn();
@@ -1283,8 +1359,14 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         changed = InputFieldRef(&itemCount.index, true, ctx);
         ImGui::EndDisabled();
         break;
+    case 18:
+        ImGui::Text("selection");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputFieldRef(&mssel, true, ctx);
+        break;
     default:
-        return Widget::PropertyUI(i - 17, ctx);
+        return Widget::PropertyUI(i - 19, ctx);
     }
     return changed;
 }

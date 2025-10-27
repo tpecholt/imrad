@@ -67,6 +67,8 @@
 
 * BREAKING: ImRad::IOUserData was moved inside ImRad::GetUserData() so it's not longer required for the user to instantiate it and pass it to ImGui::IO::UserData. Use ImRad::GetUserData directly.
 
+* Added multiSelection support for Table, Child, Selectable
+
 
 ### Improvements by Widget Type
 
@@ -82,7 +84,7 @@
   
   * allows to set member function callback like character filter, auto completion etc.
     
-  * new flags such as ElideLeft, DisplayEmptyRefVal, AllowTabInput added
+  * new flags such as ElideLeft, DisplayEmptyRefVal, AllowTabInput, WordWrap added
     
 * Text
   
@@ -96,12 +98,16 @@
     
   * BREAKING: by default ImRad::Selectable will only use as much space as needed for its label. This fixes issues when Selectables are placed inside box sizers. User can still request expansion by typying -1 directly
   
+  * multi-selection support added
+  
   * Selectable now behaves as a container so it's possible to insert additional child widgets which will be automatically clipped. Useful for implementing structured table items with row selection
     
 * Child
   
   * new flags like ResizeX, ResizeY, NoNavFocus
     
+  * multi-selection support added
+  
 * Table
   
   * ScrollFreeze property implemented
@@ -112,6 +118,8 @@
   
   * Separate headerFont added
     
+  * multi-selection support added
+  
 * TreeNode
   
   * new flags like DefaultOpen, NoTreePushOnOpen

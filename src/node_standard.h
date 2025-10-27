@@ -156,6 +156,8 @@ struct Widget : UINode
 
     //not shown by default
     data_loop itemCount;
+    field_ref<ImGuiSelectionBasicStorage> mssel;
+    direct_val<ImGuiMultiSelectFlags_> msflags;
     bindable<font_name_t> style_fontName;
     bindable<float> style_fontSize; //scaled by style.FontScaleDpi
     bindable<color_t> style_text;
@@ -272,6 +274,7 @@ struct Selectable : Widget
     direct_val<bool> alignToFrame = false;
     direct_val<bool> staticOnly = false;
     direct_val<ImRad::ModalResult> modalResult = ImRad::None;
+    direct_val<bool> multiSelect = false;
     bindable<bool> selected = false;
     bindable<color_t> style_header;
     event<> onChange;
