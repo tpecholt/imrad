@@ -30,6 +30,7 @@ target_link_libraries(imrad
 	imgui
 	nfd
 	stb
+	httplib
 	${OPENGL_LIBRARIES}
 	${CMAKE_DL_LIBS}
 	${MISC_FRAMEWORKS}

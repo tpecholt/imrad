@@ -29,12 +29,13 @@ void AboutDlg::Init()
 
 void AboutDlg::Draw()
 {
+    /// @dpi-info 141.767,1.75
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
     ID = ImGui::GetID("###AboutDlg");
     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 60, 15 });
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 60, 20 });
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 7 });
     ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }); //Center
     ImGui::SetNextWindowSize({ 0, 0 }); //{ 0, 0 }
@@ -107,6 +108,8 @@ void AboutDlg::Draw()
             ImGui::TextUnformatted("Project page");
             ImGui::PopStyleColor();
             if (ImGui::IsItemHovered())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            if (ImGui::IsItemHovered())
                 HoverURL();
             if (ImGui::IsItemClicked())
                 OpenURL();
@@ -119,6 +122,8 @@ void AboutDlg::Draw()
             ImGui::TextUnformatted("Tutorials & How To");
             ImGui::PopStyleColor();
             if (ImGui::IsItemHovered())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            if (ImGui::IsItemHovered())
                 HoverURL();
             if (ImGui::IsItemClicked())
                 OpenURL();
@@ -130,6 +135,22 @@ void AboutDlg::Draw()
             ImGui::PushStyleColor(ImGuiCol_Text, 0xff003398);
             ImGui::TextUnformatted("Report a bug");
             ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            if (ImGui::IsItemHovered())
+                HoverURL();
+            if (ImGui::IsItemClicked())
+                OpenURL();
+            /// @end Text
+
+            /// @begin Text
+            ImRad::TableNextColumn(2);
+            ImRad::Spacing(1);
+            ImGui::PushStyleColor(ImGuiCol_Text, 0xff003398);
+            ImGui::TextUnformatted("Releases");
+            ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
             if (ImGui::IsItemHovered())
                 HoverURL();
             if (ImGui::IsItemClicked())
@@ -188,6 +209,9 @@ void AboutDlg::OpenURL()
         break;
     case 2:
         ShellExec(GITHUB_URL + "/issues");
+        break;
+    case 3:
+        ShellExec(GITHUB_URL + "/releases");
         break;
     }
 }

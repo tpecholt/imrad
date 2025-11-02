@@ -46,6 +46,12 @@ install(
     DIRECTORY "style/" 
     DESTINATION "style"
 )
+if (WIN32)
+install(
+    DIRECTORY "win-x64/"
+    DESTINATION "."
+)
+endif()
 
 include(cmake/glfw.cmake)
 include(cmake/imgui.cmake)
@@ -53,7 +59,8 @@ include(cmake/fa.cmake)
 include(cmake/stb.cmake)
 include(cmake/freetype.cmake)
 
-add_subdirectory(3rdparty/nativefiledialog)
+add_subdirectory(3rdparty/nativefiledialog EXCLUDE_FROM_ALL)
+add_subdirectory(3rdparty/cpp-httplib EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)
 

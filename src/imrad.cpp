@@ -23,6 +23,7 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <nfd.h>
+#include <httplib.h>
 
 #include "glfw_cursor.h"
 #include "node_standard.h"
@@ -72,6 +73,7 @@ enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
 std::string rootPath;
 std::string initErrors, showError;
+std::string checkedRelease;
 std::string uiFontName = "Roboto-Regular.ttf";
 std::string pgFontName = "Roboto-Regular.ttf";
 std::string pgbFontName = "Roboto-Bold.ttf";
@@ -2015,6 +2017,49 @@ RemoveSelected()
     return remove;
 }
 
+void CheckVersion()
+{
+    httplib::Headers hs;
+    hs.insert({ "Accept", "application/vnd.github+json" });
+    hs.insert({ "X-GitHub-Api-Version", "2022-11-28" });
+    httplib::Client cli("https://api.github.com");
+    auto res = cli.Get("/repos/tpecholt/imrad/releases", hs);
+    if (res->status != httplib::StatusCode::OK_200)
+        return;
+    size_t i = res->body.find("\"name\":");
+    if (i == std::string::npos)
+        return;
+    i = res->body.find('"', i + 6);
+    if (i == std::string::npos)
+        return;
+    size_t j = res->body.find('"', i + 1);
+    if (j == std::string::npos)
+        return;
+    std::string lastRelease = res->body.substr(i + 1, j - i - 1);
+    i = lastRelease.find_first_of("0123456789");
+    if (i == std::string::npos)
+        return;
+    lastRelease.erase(0, i);
+    std::string currRelease = VER_STR;
+    i = currRelease.find_first_of("0123456789");
+    if (i == std::string::npos)
+        return;
+    currRelease.erase(0, i);
+
+    if (lastRelease != currRelease && lastRelease != checkedRelease)
+    {
+        checkedRelease = lastRelease;
+        messageBox.title = "New version";
+        //messageBox.icon = MessageBox::Info;
+        messageBox.message = "There is a new version " + lastRelease + " of ImRAD available. Visit the page?";
+        messageBox.buttons = ImRad::Yes | ImRad::No;
+        messageBox.OpenPopup([](ImRad::ModalResult mr) {
+            if (mr == ImRad::Yes)
+                ShellExec(GITHUB_URL + "/releases");
+            });
+    }
+}
+
 void Work()
 {
     if (ImGui::GetTopMostAndVisiblePopupModal())
@@ -2037,7 +2082,11 @@ void Work()
         showError = "";
     }
 
-    if (programState == Shutdown)
+    if (programState == Init)
+    {
+        CheckVersion();
+    }
+    else if (programState == Shutdown)
     {
         CloseFile();
     }
@@ -2457,6 +2506,8 @@ void AddINIHandler()
                     explorerSorting.SortDirection = (ImGuiSortDirection)tmp;
             }
             else if (!strcmp((const char*)entry, "UI")) {
+                if (!strncmp(line, "CheckedRelease=", 15))
+                    checkedRelease = line + 15;
                 if (!strncmp(line, "FontName=", 9))
                     uiFontName = line + 9;
                 else if (!strncmp(line, "FontSize=", 9))
@@ -2500,6 +2551,7 @@ void AddINIHandler()
             buf->append("\n");
 
             buf->append("[ImRAD][UI]\n");
+            buf->appendf("CheckedRelease=%s\n", checkedRelease.c_str());
             buf->appendf("FontName=%s\n", uiFontName.c_str());
             buf->appendf("FontSize=%f\n", uiFontSize);
             buf->appendf("PgFontName=%s\n", pgFontName.c_str());
