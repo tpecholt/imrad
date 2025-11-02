@@ -51,8 +51,6 @@ static void glfw_error_callback(int error, const char* description)
     std::cerr << "Glfw Error: " << description;
 }
 
-const float TB_SIZE = 40;
-const float TAB_SIZE = 25; //todo examine
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
 const std::string DEFAULT_UNIT = "px";
@@ -69,6 +67,8 @@ struct File
     std::string unit;
 };
 
+float tbSize = 40;
+float tabSize = 30;
 enum ProgramState { Run, Init, Shutdown };
 ProgramState programState;
 std::string rootPath;
@@ -868,7 +868,7 @@ void LoadStyle()
 
     //reload ImRAD UI first
     StyleColors();
-    ImGui::GetStyle().FontScaleMain = mainScale;
+    ImGui::GetStyle().FontScaleDpi = mainScale;
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
     static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
@@ -894,13 +894,12 @@ void LoadStyle()
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
     ctx.style = ImGuiStyle();
-    ctx.style.FontScaleMain = mainScale;
+    ctx.style.FontScaleDpi = mainScale;
     //ctx.style.FontSizeBase = designFontSize;
 
     if (activeTab >= 0)
     {
         std::string styleName = fileTabs[activeTab].styleName;
-        //TODO: why AddFontFromFileTTF requires fontSize?
         if (styleName == "Classic")
         {
             ImGui::StyleColorsClassic(&ctx.style);
@@ -932,7 +931,7 @@ void LoadStyle()
             try {
                 auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
                 ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
-                ctx.style.FontScaleMain = mainScale;
+                ctx.style.FontScaleDpi = mainScale;
 
                 ctx.defaultStyleFont = fontMap[""];
                 for (const auto& f : fontMap) {
@@ -1100,8 +1099,10 @@ void DockspaceUI()
     // because it would be confusing to have two docking targets within each others.
     ImGuiWindowFlags window_flags = /*ImGuiWindowFlags_MenuBar |*/ ImGuiWindowFlags_NoDocking;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, TB_SIZE + 0));
-    ImGui::SetNextWindowSize(viewport->Size - ImVec2(0, TB_SIZE + 0));
+    tbSize = ImGui::GetFontSize() + 2 * ImGui::GetStyle().FramePadding.y + 2 * ImGui::GetStyle().WindowPadding.y;
+    tabSize = ImGui::GetFontSize() + 2 * ImGui::GetStyle().FramePadding.y - 1;
+    ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, tbSize));
+    ImGui::SetNextWindowSize(viewport->Size - ImVec2(0, tbSize));
     ImGui::SetNextWindowViewport(viewport->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -1124,9 +1125,9 @@ void DockspaceUI()
         ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 350.f / viewport->Size.x, nullptr, &dockspace_id);
         ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 300.f / (viewport->Size.x - 350), nullptr, &dockspace_id);
         ImGuiID dock_id_right1, dock_id_right2;
-        ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 230.f / (viewport->Size.y - TB_SIZE), &dock_id_right1, &dock_id_right2);
-        float vh = viewport->Size.y - TB_SIZE;
-        ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, TAB_SIZE / vh, nullptr, &dockspace_id);
+        ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 230.f / (viewport->Size.y - tbSize), &dock_id_right1, &dock_id_right2);
+        float vh = viewport->Size.y - tbSize;
+        ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, tabSize / vh, nullptr, &dockspace_id);
 
         ImGui::DockBuilderDockWindow("FileTabs", dock_id_top);
         ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
@@ -1206,7 +1207,7 @@ void ToolbarUI()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + 0));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, TB_SIZE));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, tbSize));
     ImGui::SetNextWindowViewport(viewport->ID);
 
     ImGuiWindowFlags window_flags = 0
@@ -1222,7 +1223,6 @@ void ToolbarUI()
     ImGui::Begin("TOOLBAR", nullptr, window_flags);
     ImGui::PopStyleVar();
 
-    const float BTN_SIZE = 30;
     const auto& io = ImGui::GetIO();
     if (ImGui::Button(ICON_FA_FILE " " ICON_FA_CARET_DOWN) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, ImGuiInputFlags_RouteGlobal))
@@ -1415,6 +1415,7 @@ void ToolbarUI()
 
     ImGui::End();
 
+    const float BTN_SIZE = ImGui::GetFontSize() * 1.7f;
     float sp = ImGui::GetStyle().ItemSpacing.x;
     ImGui::SetNextWindowPos({ viewport->Size.x - 520, 100 }, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({ 140, 260 }, ImGuiCond_FirstUseEver);
@@ -1461,6 +1462,7 @@ void TabsUI()
     ImGuiWindowClass window_class;
     window_class.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_NoResize;
     ImGui::SetNextWindowClass(&window_class);
+    ImGui::SetNextWindowSize({ 0, tabSize });
     ImGui::Begin("FileTabs", 0, window_flags);
     if (ImGui::BeginTabBar(".Tabs", ImGuiTabBarFlags_NoTabListScrollingButtons | ImGuiTabBarFlags_Reorderable))
     {
@@ -1585,6 +1587,8 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
     }
     if (!topLevel)
         ImGui::Unindent();
+    //align category label with other child properties
+    ImGui::SetCursorPosX(ImGui::GetStyle().IndentSpacing + ImGui::GetStyle().CellPadding.x - ImGui::GetFontSize());
     ImGui::SetNextItemAllowOverlap();
     if (forceOpen)
         ImGui::SetNextItemOpen(true);
@@ -1666,23 +1670,27 @@ void PropertyRowsUI(bool pr)
     }
 
     //header
-    /*if (pr)
+    if (pr)
     {
         std::string header;
-        if (ctx.selected.size() == 1)
-            header = ctx.selected[0]->GetTypeName();
+        if (ctx.selected.size() == 1) {
+            header = "[" + ctx.selected[0]->GetTypeName() + "]";
+        }
         else
             header = std::to_string(ctx.selected.size()) + " selected";
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffeafafa); // ImGui::GetStyleColorVec4(ImGuiCol_TabUnfocusedActive)); // 0xffc0c0c0);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 4 });
+        ImGui::PushFont(ctx.pgbFont, pgFontSize);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)); // ImGui::GetStyleColorVec4(ImGuiCol_TabUnfocusedActive)); // 0xffc0c0c0);
+        //ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
         if (ImGui::BeginChild("##typeChld", { -1, 0 }, ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysUseWindowPadding, 0)) {
+            ImGui::Indent();
+            ImGui::SameLine(); ImGui::Spacing();
             ImGui::Text("%s", header.c_str());
             ImGui::EndChild();
         }
-        ImGui::PopStyleVar();
+        //ImGui::PopStyleVar();
         ImGui::PopStyleColor();
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
-    }*/
+        ImGui::PopFont();
+    }
     //clear bg
     ImVec2 pgMin = ImGui::GetCursorScreenPos();
     ImGui::GetWindowDrawList()->AddRectFilled(
@@ -2604,6 +2612,7 @@ std::string GetRootPath()
 
 void GLFWContentScaleCallback(GLFWwindow*, float, float)
 {
+    //programState = Init;
     reloadStyle = true;
 }
 

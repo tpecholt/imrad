@@ -2973,7 +2973,7 @@ ImDrawList* Separator::DoDraw(UIContext& ctx)
 void Separator::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
     const float sp = 3;
-    cached_pos = p1;
+    cached_pos = ImGui::GetItemRectMin(); // p1;
     cached_size = ImGui::GetItemRectSize();
     if (sameLine) {
         cached_pos.x -= sp;

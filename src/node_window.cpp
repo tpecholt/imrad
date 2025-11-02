@@ -6,7 +6,6 @@
 #include "cppgen.h"
 #include "binding_input.h"
 #include "binding_eval.h"
-#include "ui_message_box.h"
 #include <algorithm>
 #include <array>
 

@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.8
+// Generated with ImRAD 0.9
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_input_name.h"
@@ -11,8 +11,7 @@ void InputName::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
     modalResult = ImRad::None;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 1.f;
+    ImRad::GetUserData().dimBgRatio = 1.f;
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -20,8 +19,7 @@ void InputName::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 void InputName::ClosePopup(ImRad::ModalResult mr)
 {
     modalResult = mr;
-    auto *ioUserData = (ImRad::IOUserData *)ImGui::GetIO().UserData;
-    ioUserData->dimBgRatio = 0.f;
+    ImRad::GetUserData().dimBgRatio = 0.f;
 }
 
 void InputName::Init()
@@ -32,17 +30,17 @@ void InputName::Init()
 
 void InputName::Draw()
 {
+    /// @dpi-info 141.767,1.75
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
-    auto* ioUserData = (ImRad::IOUserData*)ImGui::GetIO().UserData;
     ID = ImGui::GetID("###InputName");
-    ImGui::SetNextWindowSize({ 250, 120 }, ImGuiCond_FirstUseEver); //{ 250, 120 }
+    ImGui::SetNextWindowSize({ 0, 0 }); //{ 250, 120 }
     bool tmpOpen = true;
-    if (ImGui::BeginPopupModal(ImRad::Format("{}###InputName", title).c_str(), &tmpOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal(ImRad::Format("{}###InputName", title).c_str(), &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
-        if (ioUserData->activeActivity != "")
-            ImRad::RenderDimmedBackground(ioUserData->WorkRect(), ioUserData->dimBgRatio);
+        if (ImRad::GetUserData().activeActivity != "")
+            ImRad::RenderDimmedBackground(ImRad::GetUserData().WorkRect(), ImRad::GetUserData().dimBgRatio);
         if (modalResult != ImRad::None)
         {
             ImGui::CloseCurrentPopup();
@@ -57,12 +55,12 @@ void InputName::Draw()
         messageBox.Draw();
 
         /// @begin Input
-        if (ImGui::IsWindowAppearing())
-            ImGui::SetKeyboardFocusHere();
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(300);
         ImGui::InputTextWithHint("##name", ImRad::Format("{}", hint).c_str(), &name, ImGuiInputTextFlags_CharsNoBlank);
         if (ImGui::IsItemActive())
-            ioUserData->imeType = ImRad::ImeText;
+            ImRad::GetUserData().imeType = ImRad::ImeText;
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere(-1);
         /// @end Input
 
         /// @begin Table
@@ -72,6 +70,7 @@ void InputName::Draw()
             ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);
             ImGui::TableSetupColumn("right-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
+            ImGui::TableSetupScrollFreeze(0, 0);
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
             /// @separator
@@ -85,7 +84,6 @@ void InputName::Draw()
             }
             ImGui::EndDisabled();
             /// @end Button
-
 
             /// @separator
             ImGui::EndTable();

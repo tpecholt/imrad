@@ -350,6 +350,8 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
     int changed = false;
     ImVec2 pad = ImGui::GetStyle().FramePadding;
     ImGui::Unindent();
+    //align flags label with other child properties
+    ImGui::SetCursorPosX(ImGui::GetStyle().IndentSpacing + ImGui::GetStyle().CellPadding.x - ImGui::GetFontSize());
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     ImGui::SetNextItemAllowOverlap();
     if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus)) {
@@ -392,7 +394,10 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
     {
         ImGui::PopStyleVar();
         ImGui::TableNextColumn();
-        std::string label, tip;
+        std::string label, tip, tmp;
+        float w = ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight();
+        ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && *val != defVal ?
+            ctx.pgbFont : ctx.pgFont);
         for (const auto& id : val->get_ids())
         {
             if (id.first != "" && (*val & id.second) == id.second)
@@ -403,19 +408,21 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
                     if (i != std::string::npos && i + 1 < id.first.size())
                         pre = i + 1;
                 }
-                tip += id.first.substr(pre) + "\n";
+                tmp = id.first.substr(pre);
+                if (label != "")
+                    label += ",";
+                label += tmp;
+                tip += tmp + "\n";
             }
         }
-        if (tip == "")
+        if (label == "") {
+            label = "None";
             tip = "None";
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && *val != defVal ?
-            ctx.pgbFont : ctx.pgFont);
-        //float w = ImGui::GetContentRegionAvail().x;
-        ImGui::Text("...");
+        }
+        //ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        ImGui::TextAligned(0, -ImGui::GetFrameHeight(), "%s", label.c_str());
         ImGui::PopFont();
-        if (//ImGui::GetItemRectSize().x > w &&
-            ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
             ImGui::SetTooltip("%s", tip.c_str());

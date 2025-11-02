@@ -26,6 +26,7 @@ void BindingDlg::ClosePopup(ImRad::ModalResult mr)
 
 void BindingDlg::Draw()
 {
+    /// @dpi-info 141.767,1.75
     /// @style Dark
     /// @unit px
     /// @begin TopWindow
@@ -121,6 +122,7 @@ void BindingDlg::Draw()
 
             for (int i = 0; i < vars.size(); ++i)
             {
+                auto& _item = vars[i];
                 ImGui::PushID(i);
                 ImGui::TableNextRow(0, 0);
                 ImGui::TableSetColumnIndex(0);
@@ -154,11 +156,11 @@ void BindingDlg::Draw()
         /// @begin Button
         hb5.BeginLayout();
         ImRad::Spacing(1);
-        if (ImGui::Button(" New Field... ", { 110, 30 }))
+        if (ImGui::Button(" New Field... ", { 0, 30 }))
         {
             OnNewField();
         }
-        hb5.AddSize(0, 110);
+        hb5.AddSize(0, ImRad::HBox::ItemSize);
         /// @end Button
 
         /// @begin Spacer
