@@ -23,6 +23,7 @@ find_package(OpenGL REQUIRED)
 add_definitions(-DIMRAD_WITH_GLFW)
 add_definitions(-DIMRAD_WITH_STB)
 add_definitions(-DSTBI_WINDOWS_UTF8)
+add_definitions(-DCPPHTTPLIB_OPENSSL_SUPPORT)
 
 target_link_libraries(imrad
 	fa
