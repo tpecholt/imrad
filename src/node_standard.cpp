@@ -6538,6 +6538,7 @@ bool Image::PickFileName(UIContext& ctx)
 {
     if (ctx.workingDir.empty()) {
         messageBox.title = "Warning";
+        messageBox.icon = MessageBox::Info;
         messageBox.message = "Please save the file first so relative paths can work";
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
@@ -6568,6 +6569,7 @@ void Image::RefreshTexture(UIContext& ctx)
     {
         if (ctx.workingDir.empty() && !ctx.importState) {
             messageBox.title = "Warning";
+            messageBox.icon = MessageBox::Info;
             messageBox.message = "Please save the file first so relative paths can work";
             messageBox.buttons = ImRad::Ok;
             messageBox.OpenPopup();

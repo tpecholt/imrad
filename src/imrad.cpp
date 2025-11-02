@@ -198,6 +198,7 @@ void ReloadFile()
     {
         std::string fn = u8string(u8path(tab.fname).filename());
         messageBox.title = "Reload";
+        messageBox.icon = MessageBox::Info;
         messageBox.message = "File content of '" + fn + "' has changed. Reload?";
         messageBox.buttons = ImRad::Yes | ImRad::No;
 
@@ -322,6 +323,7 @@ void DoNewTemplate(int type, const std::string& name)
     }
     catch (std::exception& e) {
         messageBox.title = "error";
+        messageBox.icon = MessageBox::Warning;
         messageBox.message = e.what();
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
@@ -355,6 +357,7 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
             *errs += "Can't read '" + path + "'\n";
         else {
             messageBox.title = "ImRAD";
+            messageBox.icon = MessageBox::Warning;
             messageBox.message = "Can't read '" + path + "'";
             messageBox.buttons = ImRad::Ok;
             messageBox.OpenPopup();
@@ -433,6 +436,7 @@ void OpenFile()
         ActivateTab(int(it - fileTabs.begin()));
         if (it->modified) {
             messageBox.title = "Open File";
+            messageBox.icon = MessageBox::Info;
             messageBox.message = "Reload and lose unsaved changes?";
             messageBox.buttons = ImRad::Yes | ImRad::No;
             messageBox.OpenPopup([=](ImRad::ModalResult mr) {
@@ -490,6 +494,7 @@ void CloseFile(int flags)
         std::string fname = u8string(u8path(fileTabs[activeTab].fname).filename());
         if (fname.empty())
             fname = UNTITLED;
+        messageBox.icon = MessageBox::Info;
         messageBox.message = "Save changes to " + fname + "?";
         messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
         messageBox.OpenPopup([=](ImRad::ModalResult mr) {
@@ -591,6 +596,7 @@ bool SaveFileAs(int flags)
     {
         DoCancelShutdown();
         messageBox.title = "error";
+        messageBox.icon = MessageBox::Warning;
         messageBox.message = e.what();
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
@@ -604,6 +610,7 @@ bool SaveFileAs(int flags)
     }
     else {
         messageBox.title = "codegen";
+        messageBox.icon = MessageBox::Info;
         messageBox.message = "Rename window class?";
         messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
         messageBox.OpenPopup([&tab,newName,flags](ImRad::ModalResult mr) mutable {
@@ -1008,6 +1015,7 @@ void DoCloneStyle(const std::string& name)
             styleNames.push_back({ name, path });
 
         messageBox.title = "Style saved";
+        messageBox.icon = MessageBox::Info;
         messageBox.message = "New style was saved as '" + path + "'";
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
@@ -1015,6 +1023,7 @@ void DoCloneStyle(const std::string& name)
     catch (std::exception& e)
     {
         messageBox.title = "error";
+        messageBox.icon = MessageBox::Warning;
         messageBox.message = e.what();
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();
@@ -1030,6 +1039,7 @@ void CloneStyle()
             std::string path = rootPath + "/style/" + inputName.name + ".ini";
             if (fs::exists(u8string(path))) {
                 messageBox.title = "Confirmation";
+                messageBox.icon = MessageBox::Info;
                 messageBox.message = "Overwrite existing style?";
                 messageBox.buttons = ImRad::Yes | ImRad::No;
                 messageBox.OpenPopup([=](ImRad::ModalResult mr) {
@@ -2076,6 +2086,7 @@ void Work()
     else if (showError != "")
     {
         messageBox.title = "Error";
+        messageBox.icon = MessageBox::Warning;
         messageBox.message = showError;
         messageBox.buttons = ImRad::Ok;
         messageBox.OpenPopup();

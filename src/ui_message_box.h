@@ -13,6 +13,8 @@ public:
 public:
     std::string title = "title";
     std::string message;
+    enum Icon { None, Info, Warning, Error };
+    Icon icon;
     int buttons = ImRad::Ok;
 
 private:

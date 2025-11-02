@@ -265,6 +265,7 @@ void ClassWizard::Draw()
             if (!stypeIdx && stx::count(used, name))
             {
                 messageBox.title = "Remove variable";
+                messageBox.icon = MessageBox::Info;
                 messageBox.message = "Remove used variable '" + name + "' ?";
                 messageBox.buttons = ImRad::Yes | ImRad::No;
                 messageBox.OpenPopup([this,name](ImRad::ModalResult mr) {

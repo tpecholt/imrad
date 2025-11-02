@@ -32,11 +32,13 @@
   
 * Label-like properties allow multi-line edit through a dialog
 
-* Error dialog shows loading/saving errors in a structured way
+* Error dialog shows loading/saving errors in a structured way. Message Boxes now come with an icon.
   
 * Added Edit style button in the toolbar
 
-* System monitor scaling is now used to scale fonts
+* System monitor scaling is now used to scale fonts automatically
+
+* Added version check (requires openssl on ubuntu)
 
 
 ### New Code features
@@ -45,27 +47,27 @@
   
 * DragSource/Target events added
   
-* ImRad::Format delegates to std::format when available (requires extra switch on msvc)
+* ImRad::Format delegates to std::format when available (requires /Zc:__cplusplus on msvc)
   
 * Widget shortcuts now support RouteGlobal, Repeat flags
   
 * Many two way binding properties now allow to bind into arrays (std::vector/array/span) and specify binding expression using the Binding dialog
   
-* Bindings into array elements can now use $item and $index expressions
+* Bindings into array elements can now use $item and $index expressions so the array and index variable names don't need to be used directly
   
 * Certain bindings now support both l-values and r-values and the appropriate code will be generated (such as for Selectables, RadioButtons which come in two overloads)
   
 * Android template implements haptic feedback for long press events
   
-* overlayPos mode is now explicit and allows anchoring to horizontal/vertical center
+* overlayPos mode is now explicit and adds anchoring to horizontal/vertical center
   
 * New fields can set member visibility - interface / implementation
 
-* BREAKING: Support of ImGui dynamic fonts - font size is now specified separately. PushFont doesn't change the current font size. Zoom feature fixed. Generated code requires ImGui 1.92 and up.
+* BREAKING: Support of ImGui dynamic fonts - font size is now specified separately. Zoom feature fixed. Generated code requires ImGui 1.92 and up.
 
 * initialFocus / forceFocus moved into Common section so it's available to all widgets
 
-* BREAKING: ImRad::IOUserData was moved inside ImRad::GetUserData() so it's not longer required for the user to instantiate it and pass it to ImGui::IO::UserData. Use ImRad::GetUserData directly.
+* BREAKING: ImRad::IOUserData was moved inside ImRad::GetUserData() so it's not longer required to instantiate it and pass it to ImGui::IO::UserData. Use ImRad::GetUserData() directly.
 
 * Added multiSelection support for Table, Child, Selectable
 
