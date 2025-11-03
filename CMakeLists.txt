@@ -58,9 +58,9 @@ include(cmake/imgui.cmake)
 include(cmake/fa.cmake)
 include(cmake/stb.cmake)
 include(cmake/freetype.cmake)
+include(cmake/cpp-httplib.cmake)
 
 add_subdirectory(3rdparty/nativefiledialog EXCLUDE_FROM_ALL)
-add_subdirectory(3rdparty/cpp-httplib EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)
 
