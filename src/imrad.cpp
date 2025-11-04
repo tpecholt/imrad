@@ -2037,28 +2037,36 @@ RemoveSelected()
 
 void CheckVersion()
 {
-    httplib::Headers hs;
-    hs.insert({ "Accept", "application/vnd.github+json" });
-    hs.insert({ "X-GitHub-Api-Version", "2022-11-28" });
-    httplib::Client cli("https://api.github.com");
-    auto res = cli.Get("/repos/tpecholt/imrad/releases", hs);
-    if (res->status != httplib::StatusCode::OK_200)
+    std::string lastRelease, currRelease;
+    try {
+        httplib::Headers hs;
+        hs.insert({ "Accept", "application/vnd.github+json" });
+        hs.insert({ "X-GitHub-Api-Version", "2022-11-28" });
+        httplib::Client cli("https://api.github.com");
+        auto res = cli.Get("/repos/tpecholt/imrad/releases", hs);
+        if (res->status != httplib::StatusCode::OK_200)
+            return;
+        size_t i = res->body.find("\"name\":");
+        if (i == std::string::npos)
+            return;
+        i = res->body.find('"', i + 6);
+        if (i == std::string::npos)
+            return;
+        size_t j = res->body.find('"', i + 1);
+        if (j == std::string::npos)
+            return;
+        lastRelease = res->body.substr(i + 1, j - i - 1);
+    }
+    catch (std::exception&) {
+        //OpenSSL likely not installed
         return;
-    size_t i = res->body.find("\"name\":");
-    if (i == std::string::npos)
-        return;
-    i = res->body.find('"', i + 6);
-    if (i == std::string::npos)
-        return;
-    size_t j = res->body.find('"', i + 1);
-    if (j == std::string::npos)
-        return;
-    std::string lastRelease = res->body.substr(i + 1, j - i - 1);
-    i = lastRelease.find_first_of("0123456789");
+    }
+
+    size_t i = lastRelease.find_first_of("0123456789");
     if (i == std::string::npos)
         return;
     lastRelease.erase(0, i);
-    std::string currRelease = VER_STR;
+    currRelease = VER_STR;
     i = currRelease.find_first_of("0123456789");
     if (i == std::string::npos)
         return;

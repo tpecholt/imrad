@@ -59,8 +59,7 @@ include(cmake/fa.cmake)
 include(cmake/stb.cmake)
 include(cmake/freetype.cmake)
 include(cmake/cpp-httplib.cmake)
-
-add_subdirectory(3rdparty/nativefiledialog EXCLUDE_FROM_ALL)
+include(cmake/nfd.cmake)
 
 add_subdirectory(src)
 
