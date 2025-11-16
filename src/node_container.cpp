@@ -280,24 +280,32 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&style_headerBg, ImGuiCol_TableHeaderBg, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("headerBg", &style_headerBg, ctx);
         break;
     case 1:
         ImGui::Text("rowBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&style_rowBg, ImGuiCol_TableRowBg, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("rowBg", &style_rowBg, ctx);
         break;
     case 2:
         ImGui::Text("rowBgAlt");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&style_rowBgAlt, ImGuiCol_TableRowBgAlt, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("rowBgAlt", &style_rowBgAlt, ctx);
         break;
     case 3:
         ImGui::Text("childBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&style_childBg, ImGuiCol_ChildBg, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("childBg", &style_childBg, ctx);
         break;
     case 4:
         ImGui::Text("cellPadding");

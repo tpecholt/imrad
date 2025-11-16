@@ -19,7 +19,7 @@ struct Table : Widget
         std::string SizingPolicyString();
     };
 
-    direct_val<ImGuiTableFlags_> flags = ImGuiTableFlags_Borders;
+    direct_val<ImGuiTableFlags_> flags = ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY; //without ScrollY some properties like ChildBg stop working
     std::vector<ColumnData> columnData;
     direct_val<bool> header = true;
     bindable<bool> rowFilter;
