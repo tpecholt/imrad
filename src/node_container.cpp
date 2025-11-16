@@ -164,6 +164,10 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
 
     int n = std::max(1, (int)columnData.size());
     ImVec2 size{ size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
+    if (!size.x)
+        size.x = 30;
+    if (!size.y)
+        size.y = 30;
     float rh = rowHeight.eval_px(ImGuiAxis_Y, ctx);
     int fl = flags;
     if (stx::count(ctx.selected, this)) //force columns at design time
@@ -824,15 +828,15 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         itemCount.set_from_arg(sit->line);
     }
-    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 &&
-        columnData.size() &&
+    else if (sit->kind == cpp::CallExpr && 
+        ctx.importLevel >= 0 && sit->level == ctx.importLevel + 1 &&
         sit->callee.compare(0, 7, "ImGui::") &&
         sit->callee.compare(0, 7, "ImRad::"))
     {
         onSetup.set_from_arg(sit->callee);
     }
-    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 2 &&
-        //columnData.size() &&
+    else if (sit->kind == cpp::CallExpr && 
+        ctx.importLevel >= 0 && sit->level == ctx.importLevel + 2 &&
         sit->callee.compare(0, 7, "ImGui::") &&
         sit->callee.compare(0, 7, "ImRad::"))
     {
@@ -841,8 +845,8 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         else
             onBeginRow.set_from_arg(sit->callee);
     }
-    else if (sit->kind == cpp::IfStmt && sit->level == ctx.importLevel + 2 &&
-        //columnData.size() &&
+    else if (sit->kind == cpp::IfStmt && 
+        ctx.importLevel >= 0 && sit->level == ctx.importLevel + 2 &&
         !sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
     {
         rowFilter.set_from_arg(sit->cond.substr(2, sit->cond.size() - 3));

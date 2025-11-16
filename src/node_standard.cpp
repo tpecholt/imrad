@@ -1254,6 +1254,7 @@ void Widget::Draw(UIContext& ctx)
     {
         if (ctx.hovered == lastHovered) //e.g. child widget was not selected
         {
+            ctx.hovered = this;
             ctx.snapParent = this;
             ctx.snapIndex = children.size();
         }
@@ -1656,7 +1657,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         std::string sizeY = "ImRad::VBox::ItemSize";
         if (Behavior() & HasSizeY) {
             std::ostringstream os;
-            os << size_y.value();
+            os.precision(1);
+            os << std::fixed << size_y.value() << "f";
             sizeY = size_y.stretched() ? "ImRad::VBox::Stretch(" + os.str() + ")" :
                 size_y.zero() ? "ImRad::VBox::ItemSize" :
                 size_y.to_arg(ctx.unit);
@@ -1671,7 +1673,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         std::string sizeX = "ImRad::HBox::ItemSize";
         if (Behavior() & HasSizeX) {
             std::ostringstream os;
-            os << size_x.value();
+            os.precision(1);
+            os << std::fixed << size_x.value() << "f";
             sizeX = size_x.stretched() ? "ImRad::HBox::Stretch(" + os.str() + ")" :
                 size_x.zero() ? "ImRad::HBox::ItemSize" :
                 size_x.to_arg(ctx.unit);
@@ -2835,8 +2838,6 @@ void Widget::TreeUI(UIContext& ctx)
             ImGui::SetNextItemOpen(true);
             if (ImGui::TreeNodeEx(icon.c_str(), flags))
             {
-                ImGui::PopStyleColor();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[selected ? ImGuiCol_ButtonHovered : ImGuiCol_TextDisabled]);
                 ImGui::SameLine();
                 ImGui::Text("%s", label.c_str());
                 ImGui::PopStyleColor();
@@ -3507,21 +3508,29 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
     if (children.size())
     {
+        std::string tmp = ctx.parentVarName;
+        ctx.parentVarName = TMP_LAST_ITEM_VAR + std::to_string(ctx.varCounter) + ".Rect";
+        std::string varPad = "tmpPadding" + std::to_string(ctx.varCounter);
+        
         os << "\n";
         os << ctx.ind << "auto tmpCursor" << ctx.varCounter 
             << " = ImRad::GetCursorData();\n";
         os << ctx.ind << "auto " << TMP_LAST_ITEM_VAR << ctx.varCounter 
             << " = ImRad::GetLastItemData();\n";
-        std::string tmp = ctx.parentVarName;
-        ctx.parentVarName = TMP_LAST_ITEM_VAR + std::to_string(ctx.varCounter) + ".Rect";
-        std::string padding = "ImGui::GetStyle().FramePadding";
+        os << ctx.ind << "ImVec2 " << varPad;
         if (!style_interiorPadding.empty())
-            padding = "ImVec2" + style_interiorPadding.to_arg(ctx.unit);
-        os << ctx.ind << "ImGui::SetCursorScreenPos(ImGui::GetItemRectMin() + " << padding 
-            << ");\n";
+            os << style_interiorPadding.to_arg(ctx.unit);
+        else
+            os << " = ImGui::GetStyle().FramePadding";
+        os << ";\n";
+
+        os << ctx.ind << "ImGui::SetCursorScreenPos({ ImGui::GetItemRectMin().x + "
+            << varPad << ".x, ImGui::GetItemRectMin().y + " << varPad << ".y });\n";
         os << ctx.ind << "ImGui::BeginGroup();\n";
-        os << ctx.ind << "ImGui::PushClipRect(ImGui::GetItemRectMin() + " << padding 
-            << ", ImGui::GetItemRectMax() - " << padding << ", true);\n";
+        os << ctx.ind << "ImGui::PushClipRect({ ImGui::GetItemRectMin().x + " 
+            << varPad << ".x, ImGui::GetItemRectMin().y + " << varPad << ".y }, "
+            << "{ ImGui::GetItemRectMax().x - " << varPad << ".x, "
+            << "ImGui::GetItemRectMax().y - " << varPad << ".y }, true);\n";
         os << ctx.ind << "/// @separator\n\n";
         
         for (auto& child : child_iterator(children, false))

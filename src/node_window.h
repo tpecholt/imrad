@@ -6,7 +6,7 @@ struct TopWindow : UINode
     enum Kind { MainWindow, Window, Popup, ModalPopup, Activity };
     enum Placement { None, Left, Right, Top, Bottom, Center, Maximize };
 
-    direct_val<ImGuiWindowFlags_> flags = ImGuiWindowFlags_NoCollapse;
+    direct_val<ImGuiWindowFlags_> flags = 0;
     direct_val<Kind> kind = Window;
     bindable<std::string> title = "title";
     bindable<dimension_t> size_x = 640.f;

@@ -32,6 +32,8 @@ private:
     ImRad::ModalResult modalResult;
     std::function<void(ImRad::ModalResult)> callback;
     ImRad::VBox vb1;
+    ImRad::HBox hb1;
+    ImRad::HBox hb2;
     ImRad::HBox hb3;
     /// @end impl
 };

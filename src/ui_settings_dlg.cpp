@@ -26,6 +26,8 @@ void SettingsDlg::ResetLayout()
 {
     // ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems = 2;
     vb1.Reset();
+    hb1.Reset();
+    hb2.Reset();
     hb3.Reset();
 }
 
@@ -36,6 +38,7 @@ void SettingsDlg::Init()
 
 void SettingsDlg::Draw()
 {
+    /// @dpi-info 141.767,1.25
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
@@ -63,28 +66,33 @@ void SettingsDlg::Draw()
 
         /// @begin Selectable
         vb1.BeginLayout();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        hb1.BeginLayout();
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0.5f });
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImRad::Selectable("Category", false, ImGuiSelectableFlags_NoAutoClosePopups, { 140, 24 });
+        ImRad::Selectable("Category", false, ImGuiSelectableFlags_NoAutoClosePopups, { hb1.GetSize(), 0 });
         ImGui::PopItemFlag();
         ImGui::PopStyleVar();
-        vb1.AddSize(0, 24);
-        ImGui::PopStyleColor();
+        vb1.AddSize(0, ImRad::VBox::ItemSize);
+        hb1.AddSize(0, ImRad::HBox::Stretch(0.3f));
         /// @end Selectable
 
-        /// @begin Text
+        /// @begin Selectable
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::PushFont(nullptr, ::uiFontSize*1.1f);
-        ImGui::TextUnformatted("Environment Settings");
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImRad::Selectable("Environment Settings", false, ImGuiSelectableFlags_NoAutoClosePopups, { hb1.GetSize(), 0 });
+        ImGui::PopItemFlag();
+        ImGui::PopStyleVar();
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
-        ImGui::PopFont();
-        /// @end Text
+        hb1.AddSize(1, ImRad::HBox::Stretch(1.0f));
+        /// @end Selectable
 
         // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Table
-        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { 140, vb1.GetSize() }))
+        hb2.BeginLayout();
+        ImRad::Spacing(1);
+        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV, { hb2.GetSize(), vb1.GetSize() }))
         {
             ImGui::TableSetupColumn("A", 0, 0);
             ImGui::TableSetupScrollFreeze(0, 0);
@@ -101,13 +109,14 @@ void SettingsDlg::Draw()
             /// @separator
             ImGui::EndTable();
         }
-        vb1.AddSize(1, ImRad::VBox::Stretch(1));
+        vb1.AddSize(2, ImRad::VBox::Stretch(1.0f));
+        hb2.AddSize(0, ImRad::HBox::Stretch(0.3f));
         /// @end Table
 
         /// @begin Child
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffd0d0d0);
-        ImGui::BeginChild("child2", { -1, vb1.GetSize() }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
+        ImGui::BeginChild("child2", { hb2.GetSize(), vb1.GetSize() }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
         {
             /// @separator
 
@@ -249,7 +258,8 @@ void SettingsDlg::Draw()
             ImGui::EndChild();
         }
         ImGui::PopStyleColor();
-        vb1.UpdateSize(0, ImRad::VBox::Stretch(1));
+        vb1.UpdateSize(0, ImRad::VBox::Stretch(1.0f));
+        hb2.AddSize(1, ImRad::HBox::Stretch(1.0f));
         /// @end Child
 
         /// @begin Spacer
@@ -257,7 +267,7 @@ void SettingsDlg::Draw()
         ImRad::Spacing(1);
         ImRad::Dummy({ hb3.GetSize(), 0 });
         vb1.AddSize(2, ImRad::VBox::ItemSize);
-        hb3.AddSize(0, ImRad::HBox::Stretch(1));
+        hb3.AddSize(0, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Button

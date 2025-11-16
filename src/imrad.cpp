@@ -1149,17 +1149,17 @@ void DockspaceUI()
             { "Open File", "Ctrl+O" }
         };
         float lh = 2 * ImGui::GetTextLineHeight();
+        float w1 = 1.2f * ImGui::CalcTextSize(help[0].first.c_str()).x;
         for (size_t i = 0; i < std::size(help); ++i)
         {
-            ImVec2 size = ImGui::CalcTextSize((help[i].first + help[i].second).c_str());
             ImGui::SetCursorScreenPos({
-                viewport->WorkSize.x / 2.5f,
+                0.4f * viewport->WorkSize.x,
                 (viewport->WorkSize.y - (std::size(help) - 1) * lh) / 2 + i * lh
                 });
             ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             clr.w = 0.75f;
             ImGui::PushStyleColor(ImGuiCol_Text, clr);
-            ImGui::Selectable(help[i].first.c_str(), false, 0, { 150, 0 });
+            ImGui::Selectable(help[i].first.c_str(), false, 0, { w1, 0 });
             ImGui::PopStyleColor();
             clr.w = 1.f;
             ImGui::PushStyleColor(ImGuiCol_Text, clr);

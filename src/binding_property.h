@@ -666,25 +666,38 @@ struct bindable<dimension_t> : property_base
     float eval_px(int axis, const UIContext& ctx) const;
 
     bool set_from_arg(std::string_view s) {
-        str = s;
-        stretch(false);
+        bool stretchMark = false;
         //strip unit calculation
+        std::string tmp(s);
         std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
         if (factor == "*fs" || factor == "*dp")
         {
-            std::istringstream is(std::string(s.substr(0, s.size() - 3)));
-            float val;
-            if ((is >> val) && is.eof())
-                str = s.substr(0, s.size() - 3);
+            tmp.resize(tmp.size() - factor.size());
         }
-        else if (s.size() && s.back() == 'x')
+        //strip stretch mark (UI only)
+        if (tmp.size() && tmp.back() == 'x')
         {
-            std::istringstream is(std::string(s.substr(0, s.size() - 1)));
-            float val;
-            if ((is >> val) && is.eof())
-                str.pop_back();
-            stretch(true);
+            tmp.pop_back();
+            stretchMark = true;
         }
+        //strip float suffix
+        if (tmp.size() && (tmp.back() == 'f' || tmp.back() == 'F'))
+        {
+            tmp.pop_back();
+        }
+        //parse rest
+        float val;
+        std::istringstream is(tmp);
+        if ((is >> val) && is.eof())
+        {
+            str = tmp;
+        }
+        else
+        {
+            str = s;
+            stretchMark = false;
+        }
+        stretch(stretchMark);
         return true;
     }
     std::string to_arg(std::string_view unit, std::string_view stretchCode = "") const {
@@ -692,7 +705,7 @@ struct bindable<dimension_t> : property_base
         {
             if (stretchCode != "")
                 return std::string(stretchCode);
-            return str + "x";
+            return str + "x"; //for UI only
         }
         if (unit != "" && has_value() &&
             str != "0" && str != "-1") //don't suffix special values
