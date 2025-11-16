@@ -41,6 +41,7 @@
 #include "ui_input_name.h"
 #include "ui_settings_dlg.h"
 #include "ui_explorer.h"
+#include "ui_new_file_dlg.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -236,7 +237,7 @@ void ActivateTab(int i)
         reloadStyle = true;
 }
 
-void NewFile(TopWindow::Kind k)
+void DoNewFile(TopWindow::Kind k)
 {
     ctx.kind = k;
     auto top = std::make_unique<TopWindow>(ctx);
@@ -343,6 +344,18 @@ void NewTemplate(int type)
     }
     else
         DoNewTemplate(type, "");
+}
+
+void NewFile()
+{
+    newFileDlg.OpenPopup([](ImRad::ModalResult mr) {
+        if (newFileDlg.category == NewFileDlg::ProjectTemplate)
+            NewTemplate(newFileDlg.itemId);
+        else if (newFileDlg.category == NewFileDlg::FileTemplate)
+            DoNewFile((TopWindow::Kind)newFileDlg.itemId);
+        else if (newFileDlg.category == NewFileDlg::GithubTemplate)
+            ShellExec(newFileDlg.itemUrl);
+        });
 }
 
 bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
@@ -1224,40 +1237,14 @@ void ToolbarUI()
     ImGui::PopStyleVar();
 
     const auto& io = ImGui::GetIO();
-    if (ImGui::Button(ICON_FA_FILE " " ICON_FA_CARET_DOWN) ||
+    if (ImGui::Button(" " ICON_FA_FILE " ") ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, ImGuiInputFlags_RouteGlobal))
-        ImGui::OpenPopup("NewMenu");
+    {
+        NewFile();
+    }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("New File (Ctrl+N)");
-    ImGui::SetNextWindowPos(ImGui::GetCursorPos());
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 10 });
-    if (ImGui::BeginPopup("NewMenu"))
-    {
-        if (ImGui::MenuItem(ICON_FA_TV " Main Window", "\tGLFW"))
-            NewFile(TopWindow::MainWindow);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip("ImGui window integrated into OS window (GLFW)");
-        if (ImGui::MenuItem(ICON_FA_WINDOW_MAXIMIZE "  Window", ""))
-            NewFile(TopWindow::Window);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip("Floating ImGui window");
-        if (ImGui::MenuItem(ICON_FA_CLONE "  Popup", ""))
-            NewFile(TopWindow::Popup);
-        if (ImGui::MenuItem(ICON_FA_WINDOW_RESTORE "  Modal Popup", ""))
-            NewFile(TopWindow::ModalPopup);
-        if (ImGui::MenuItem(ICON_FA_MOBILE_SCREEN "  Activity", "\tAndroid"))
-            NewFile(TopWindow::Activity);
-
-        ImGui::Separator();
-        if (ImGui::MenuItem(ICON_FA_FILE_PEN "  main.cpp", "\tGLFW"))
-            NewTemplate(0);
-        if (ImGui::MenuItem(ICON_FA_FILE_PEN "  main+java+manifest", "\tAndroid"))
-            NewTemplate(1);
-
-        ImGui::EndPopup();
-    }
-    ImGui::PopStyleVar();
-
+    
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, ImGuiInputFlags_RouteGlobal))
@@ -1914,6 +1901,8 @@ void PopupUI()
     horizLayout.Draw();
 
     inputName.Draw();
+
+    newFileDlg.Draw();
 }
 
 void Draw()
