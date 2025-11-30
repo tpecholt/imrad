@@ -1,8 +1,6 @@
 #pragma once
+#include "imrad.h"
 #include "cppgen.h"
-#include <imgui.h>
-#include <string>
-#include <functional>
 
 class NewFieldPopup
 {

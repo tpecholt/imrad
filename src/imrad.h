@@ -483,7 +483,7 @@ inline void Spacing(int n)
 
 inline bool TableNextColumn(int n)
 {
-    bool b;
+    bool b = true;
     while (n--)
         b = ImGui::TableNextColumn();
     return b;

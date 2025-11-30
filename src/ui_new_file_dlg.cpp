@@ -255,10 +255,10 @@ void NewFileDlg::Category_Change()
     {
         items = {
             { ICON_FA_TV "  Main Window", "GLFW", "ImGui window integrated into OS window", TopWindow::MainWindow },
-            { ICON_FA_WINDOW_MAXIMIZE "  Window", "", "General ImGui window", TopWindow::Window },
-            { ICON_FA_CLONE "  Popup", "", "Popup window without a titlebar", TopWindow::Popup },
-            { ICON_FA_WINDOW_RESTORE "  ModalPopup", "", "Modal popup window", TopWindow::ModalPopup },
-            { ICON_FA_MOBILE_SCREEN "  Activity", "Android", "Fullscreen window where only one is active at a time", TopWindow::Activity }
+            { ICON_FA_WINDOW_MAXIMIZE "  Window", "-", "General ImGui window", TopWindow::Window },
+            { ICON_FA_CLONE "  Popup", "-", "Popup window without a titlebar", TopWindow::Popup },
+            { ICON_FA_WINDOW_RESTORE "  ModalPopup", "-", "Modal popup window", TopWindow::ModalPopup },
+            { ICON_FA_MOBILE_SCREEN "  Activity", "Android", "Maximized, title-less window where only one is active at a time", TopWindow::Activity }
         };
     }
     else if (category == 2)

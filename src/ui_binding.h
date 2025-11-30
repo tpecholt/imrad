@@ -2,9 +2,6 @@
 // github.com/xyz
 
 #pragma once
-#include <string>
-#include <functional>
-#include <imgui.h>
 #include "imrad.h"
 #include "cppgen.h"
 

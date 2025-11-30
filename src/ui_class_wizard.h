@@ -3,9 +3,7 @@
 // Generated with imgui-designer 0.1
 // github.com/xyz
 
-#include <string>
-#include <functional>
-#include <imgui.h>
+#include "imrad.h"
 #include "cppgen.h"
 
 class ClassWizard

@@ -30,7 +30,7 @@ void InputName::Init()
 
 void InputName::Draw()
 {
-    /// @dpi-info 141.767,1.75
+    /// @dpi-info 141.357,1.25
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
@@ -65,7 +65,7 @@ void InputName::Draw()
 
         /// @begin Table
         ImRad::Spacing(3);
-        if (ImGui::BeginTable("table1", 3, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { 0, 0 }))
+        if (ImGui::BeginTable("table1", 3, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { -1, 0 }))
         {
             ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);

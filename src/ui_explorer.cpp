@@ -213,7 +213,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, ImGui::GetStyle().FrameRounding);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffd0d0d0);
         ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
-        if (ImGui::BeginChild("cwdChild", { -ImGui::GetFrameHeight() - sp, ImGui::GetFrameHeight() }, ImGuiChildFlags_Borders, ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoScrollbar))
+        if (ImGui::BeginChild("cwdChild", { -ImGui::GetFrameHeight() - sp, ImGui::GetFrameHeight() }, ImGuiChildFlags_Borders | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoScrollbar))
         {
             fs::path path = u8path(explorerPath);
             char separator = (char)fs::path::preferred_separator;

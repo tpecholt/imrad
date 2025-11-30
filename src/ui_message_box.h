@@ -1,7 +1,4 @@
 #pragma once
-#include <imgui.h>
-#include <string>
-#include <functional>
 #include "imrad.h"
 
 class MessageBox

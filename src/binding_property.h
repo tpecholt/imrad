@@ -459,8 +459,8 @@ private:
 template <>
 struct direct_val<shortcut_t> : property_base
 {
-    direct_val(const std::string& v) : sh(v) {}
-    direct_val(const char* v) : sh(v) {}
+    direct_val(const std::string& v) : sh(v), flags_() {}
+    direct_val(const char* v) : sh(v), flags_() {}
 
     int flags() const { return flags_; }
     void set_flags(int f) { flags_ = f; }

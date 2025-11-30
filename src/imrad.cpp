@@ -1311,10 +1311,13 @@ void ToolbarUI()
         ImGui::EndCombo();
     }
     ImGui::SameLine();
+    auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == styleName; });
+    ImGui::BeginDisabled(stit == styleNames.end() || stit->second.empty());
     if (ImGui::Button(ICON_FA_PEN_TO_SQUARE))
         EditStyle();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Edit Style");
+    ImGui::EndDisabled();
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CLONE))
         CloneStyle();
