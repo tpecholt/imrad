@@ -60,6 +60,7 @@ include(cmake/stb.cmake)
 include(cmake/freetype.cmake)
 include(cmake/cpp-httplib.cmake)
 include(cmake/nfd.cmake)
+include(cmake/zlib.cmake)
 
 add_subdirectory(src)
 

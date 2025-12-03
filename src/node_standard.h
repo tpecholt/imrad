@@ -483,7 +483,7 @@ struct Image : Widget
     bindable<ImRad::Texture> texture;
     enum StretchPolicy { None, Scale, FitIn, FitOut };
     direct_val<StretchPolicy> stretchPolicy = Scale;
-
+    std::string absoluteFileName;
     ImRad::Texture tex;
 
     Image(UIContext& ctx);
@@ -498,6 +498,7 @@ struct Image : Widget
     int Behavior() { return Widget::Behavior() | HasSizeX | HasSizeY; }
     const char* GetIcon() const { return ICON_FA_IMAGE; }
     const Image& Defaults() { static Image var(UIContext::Defaults()); return var; }
+    std::string FindPath(const std::string& url, UIContext& ctx, std::string* rname = nullptr);
 };
 
 struct CustomWidget : Widget

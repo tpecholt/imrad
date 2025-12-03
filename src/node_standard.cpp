@@ -7,6 +7,8 @@
 #include "binding_eval.h"
 #include "ui_message_box.h"
 #include "ui_combo_dlg.h"
+#include "ui_input_name.h"
+#include "ui_select_resource.h"
 #include <misc/cpp/imgui_stdlib.h>
 #include <nfd.h>
 #include <algorithm>
@@ -952,7 +954,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
 
 void Widget::TextFontInfo(UIContext& ctx)
 {
-    bool changed = style_fontName != Defaults().style_fontName || 
+    bool changed = style_fontName != Defaults().style_fontName ||
         style_fontSize != Defaults().style_fontSize;
     ::TextFontInfo(style_fontName, style_fontSize, changed, ctx);
 }
@@ -1096,7 +1098,7 @@ void Widget::Draw(UIContext& ctx)
         ImGui::PopStyleVar();
     if (!style_fontName.empty() || !style_fontSize.empty())
         ImGui::PopFont();
-    
+
     if (!hasPos)
         HashCombineData(ctx.layoutHash, ImGui::GetItemID());
     if (l.flags & Layout::VLayout)
@@ -1595,7 +1597,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     if (!style_fontName.empty() || !style_fontSize.empty())
     {
-        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << 
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() <<
             ", " << style_fontSize.to_arg() << ");\n";
     }
     if (!style_text.empty())
@@ -1641,7 +1643,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         RenameFieldVars(CUR_ITEM_SYMBOL, ctx.codeGen->CUR_ITEM_VAR_NAME);
         RenameFieldVars(CUR_INDEX_SYMBOL, ctx.varItemIndex);
     }
-    
+
     ctx.parents.push_back(this);
     DoExport(os, ctx);
     ctx.parents.pop_back();
@@ -3108,12 +3110,12 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
     }
 
     auto ps = PrepareString(text.value());
-    
+
     if (link)
         ImGui::TextLink(ps.label.c_str());
     else
         ImGui::TextUnformatted(ps.label.c_str());
-        
+
     DrawTextArgs(ps, ctx);
 
     if (wrap)
@@ -3157,13 +3159,13 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         }
     }
 
-    if (link) 
+    if (link)
     {
         os << ctx.ind;
         if (!onChange.empty())
             os << "if (";
         os << "ImGui::TextLink(" << text.to_arg() << ")";
-        if (!onChange.empty()) 
+        if (!onChange.empty())
         {
             ctx.ind_up();
             os << ")\n" << ctx.ind << onChange.to_arg() << "();\n";
@@ -3199,7 +3201,7 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 PushError(ctx, "unable to parse text");
         }
     }
-    else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) && 
+    else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) &&
         sit->callee == "ImGui::TextLink")
     {
         link = true;
@@ -3429,7 +3431,7 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     ImGui::PopClipRect();
     ImRad::SetLastItemData(lastItem);
     ImRad::SetCursorData(curData);
-    
+
     return ImGui::GetWindowDrawList();
 }
 
@@ -3511,11 +3513,11 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         std::string tmp = ctx.parentVarName;
         ctx.parentVarName = TMP_LAST_ITEM_VAR + std::to_string(ctx.varCounter) + ".Rect";
         std::string varPad = "tmpPadding" + std::to_string(ctx.varCounter);
-        
+
         os << "\n";
-        os << ctx.ind << "auto tmpCursor" << ctx.varCounter 
+        os << ctx.ind << "auto tmpCursor" << ctx.varCounter
             << " = ImRad::GetCursorData();\n";
-        os << ctx.ind << "auto " << TMP_LAST_ITEM_VAR << ctx.varCounter 
+        os << ctx.ind << "auto " << TMP_LAST_ITEM_VAR << ctx.varCounter
             << " = ImRad::GetLastItemData();\n";
         os << ctx.ind << "ImVec2 " << varPad;
         if (!style_interiorPadding.empty())
@@ -3527,17 +3529,17 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::SetCursorScreenPos({ ImGui::GetItemRectMin().x + "
             << varPad << ".x, ImGui::GetItemRectMin().y + " << varPad << ".y });\n";
         os << ctx.ind << "ImGui::BeginGroup();\n";
-        os << ctx.ind << "ImGui::PushClipRect({ ImGui::GetItemRectMin().x + " 
+        os << ctx.ind << "ImGui::PushClipRect({ ImGui::GetItemRectMin().x + "
             << varPad << ".x, ImGui::GetItemRectMin().y + " << varPad << ".y }, "
             << "{ ImGui::GetItemRectMax().x - " << varPad << ".x, "
             << "ImGui::GetItemRectMax().y - " << varPad << ".y }, true);\n";
         os << ctx.ind << "/// @separator\n\n";
-        
+
         for (auto& child : child_iterator(children, false))
         {
             child->Export(os, ctx);
         }
-        
+
         for (auto& child : child_iterator(children, true))
         {
             child->Export(os, ctx);
@@ -3549,7 +3551,7 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::EndGroup();\n";
         os << ctx.ind << "ImRad::SetLastItemData(" << TMP_LAST_ITEM_VAR << ctx.varCounter << ");\n";
         os << ctx.ind << "ImRad::SetCursorData(tmpCursor" << ctx.varCounter << ");\n";
-        
+
         ++ctx.varCounter;
     }
 }
@@ -6497,7 +6499,7 @@ Image::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "behavior.file_name#1", &fileName, true },
+        { "behavior.fileName#1", &fileName, true },
         { "behavior.stretchPolicy", &stretchPolicy },
         { "bindings.texture#1", &texture },
         });
@@ -6514,10 +6516,18 @@ bool Image::PropertyUI(int i, UIContext& ctx)
         ImGui::Text("fileName");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&fileName, InputBindable_CustomButton, ctx, [this,&ctx] { 
+        changed = InputBindable(&fileName, InputBindable_CustomButton, ctx, [this,&ctx] {
             if (PickFileName(ctx))
                 RefreshTexture(ctx);
             });
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
+            if (absoluteFileName.size())
+                ImGui::SetTooltip("Located in \"%s\"", absoluteFileName.c_str());
+            else
+                ImGui::SetTooltip("Can't find \"%s\"", fileName.value().c_str());
+            ImGui::PopStyleVar();
+        }
         if (changed)
             RefreshTexture(ctx);
         break;
@@ -6543,6 +6553,37 @@ bool Image::PropertyUI(int i, UIContext& ctx)
     return changed;
 }
 
+std::string Image::FindPath(const std::string& url, UIContext& ctx, std::string* rname)
+{
+    std::string fname = url;
+    if (!fname.compare(0, 4, "zip:")) {
+        size_t i = fname.find(".");
+        if (i == std::string::npos)
+            return "";
+        i = fname.find("/", i + 1);
+        if (i == std::string::npos)
+            return "";
+        if (rname)
+            *rname = fname.substr(i + 1);
+        fname = fname.substr(4, i - 4);
+    }
+    if (u8path(fname).is_relative())
+    {
+        //resolve absolute path
+        fs::path cwd = u8path(ctx.workingDir);
+        while (cwd.has_relative_path()) { // =has any path component
+            fs::path p = cwd / u8path(fname);
+            std::error_code ec;
+            if (fs::is_regular_file(p, ec))
+                return u8string(p);
+
+            cwd = cwd.parent_path();
+        }
+        return "";
+    }
+    return fname;
+}
+
 bool Image::PickFileName(UIContext& ctx)
 {
     if (ctx.workingDir.empty()) {
@@ -6555,41 +6596,82 @@ bool Image::PickFileName(UIContext& ctx)
     }
 
     nfdchar_t *outPath = NULL;
-    nfdfilteritem_t filterItem[1] = { { "All Images", "bmp,gif,jpg,jpeg,png,tga" } };
-    nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, nullptr);
+    nfdfilteritem_t filterItem[2] = {
+        { "All Images (*.bmp; *.gif; *.jpg; *.png; *.tga)", "bmp,gif,jpg,jpeg,png,tga" },
+        { "Resource Files (*.res; *.zip)", "res,zip" },
+    };
+    nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, std::size(filterItem), nullptr);
     if (result != NFD_OKAY)
         return false;
 
-    fileName = generic_u8string(fs::relative(u8path(outPath), u8path(ctx.workingDir)));
+    auto outp = u8path(outPath);
     NFD_FreePath(outPath);
-    return true;
+    outp = fs::relative(outp, u8path(ctx.workingDir));
+    fs::path rpath = outp.relative_path(); //without C:/
+    outp.clear();
+    auto p = rpath.begin();
+    for (; p != rpath.end(); ++p) //skip initial .. bcoz parent is resolved automatically
+        if (*p != "..")
+            break;
+    for (; p != rpath.end(); ++p)
+        outp /= *p;
+
+    if (outp.extension() == ".zip" || outp.extension() == ".res")
+    {
+        selectResource.zipFile = FindPath(u8string(outp), ctx);
+        selectResource.OpenPopup([=](ImRad::ModalResult mr) mutable {
+            outp = "zip:" + u8string(outp / selectResource.selectedName);
+            fileName = generic_u8string(outp);
+            RefreshTexture(ctx);
+            });
+        return false;
+        /*
+        inputName.title = "Resource file Asset";
+        inputName.hint = "Enter an image name";
+        inputName.OpenPopup([=](ImRad::ModalResult mr) mutable {
+            outp = "zip:" + u8string(outp / inputName.name);
+            fileName = generic_u8string(outp);
+            RefreshTexture(ctx);
+            });
+        return false;*/
+    }
+    else
+    {
+        fileName = generic_u8string(outp);
+        return true;
+    }
 }
 
 void Image::RefreshTexture(UIContext& ctx)
 {
     tex.id = 0;
+    absoluteFileName = "";
 
     if (fileName.empty() ||
         !fileName.used_variables().empty())
         return;
 
-    std::string fname = fileName.value();
-    if (u8path(fname).is_relative())
+    std::string rname;
+    std::string fname = FindPath(fileName.value(), ctx, &rname);
+
+    if (fname.empty() && ctx.workingDir.empty() && !ctx.importState)
     {
-        if (ctx.workingDir.empty() && !ctx.importState) {
-            messageBox.title = "Warning";
-            messageBox.icon = MessageBox::Info;
-            messageBox.message = "Please save the file first so relative paths can work";
-            messageBox.buttons = ImRad::Ok;
-            messageBox.OpenPopup();
-            return;
-        }
-        fname = u8string(u8path(ctx.workingDir) / u8path(fileName.value()));
+        messageBox.title = "Warning";
+        messageBox.icon = MessageBox::Info;
+        messageBox.message = "Please save the file first so relative paths can work";
+        messageBox.buttons = ImRad::Ok;
+        messageBox.OpenPopup();
+        return;
     }
 
-    tex = ImRad::LoadTextureFromFile(fname);
+    if (rname != "")
+        absoluteFileName = "zip:" + fname + "/" + rname;
+    else
+        absoluteFileName = fname;
+
+    tex = ImRad::LoadTextureFromFile(absoluteFileName);
     if (!tex && ctx.importState)
-        PushError(ctx, "can't read \"" + fname + "\"");
+        PushError(ctx, "can't locate \"" + fileName.value() + "\"");
 }
 
 //----------------------------------------------------
@@ -6614,7 +6696,7 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
         size.y = 20;
 
     std::string id = std::to_string((uintptr_t)this);
-    ImGui::BeginChild(id.c_str(), size, ImGuiChildFlags_Border);
+    ImGui::BeginChild(id.c_str(), size, ImGuiChildFlags_Borders);
     ImGui::EndChild();
 
     ImDrawList* dl = ImGui::GetWindowDrawList();

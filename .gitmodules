@@ -20,3 +20,13 @@
 [submodule "3rdparty/cpp-httplib"]
 	path = 3rdparty/cpp-httplib
 	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "3rdparty/minizip-ng"]
+	path = 3rdparty/minizip-ng
+	url = https://github.com/zlib-ng/minizip-ng.git
+[submodule "3rdparty/libzip"]
+	path = 3rdparty/libzip
+	url = https://github.com/nih-at/libzip.git
+[submodule "3rdparty/zlib"]
+	path = 3rdparty/zlib
+	url = git@github.com:madler/zlib.git
+	branch = master

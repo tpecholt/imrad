@@ -42,6 +42,7 @@
 #include "ui_settings_dlg.h"
 #include "ui_explorer.h"
 #include "ui_new_file_dlg.h"
+#include "ui_select_resource.h"
 
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
@@ -892,7 +893,7 @@ void LoadStyle()
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
     cfg.MergeMode = false;
-    
+
     strcpy(cfg.Name, "imrad.pg");
     ctx.pgFont = io.Fonts->AddFontFromFileTTF((stylePath + pgFontName).c_str(), pgFontSize, &cfg);
     strcpy(cfg.Name, "imrad.pgb");
@@ -1244,7 +1245,7 @@ void ToolbarUI()
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("New File (Ctrl+N)");
-    
+
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, ImGuiInputFlags_RouteGlobal))
@@ -1349,7 +1350,7 @@ void ToolbarUI()
         ShowCode();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
         ImGui::SetTooltip("Preview Code (Ctrl+P)");
-    
+
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CUBES))
     {
@@ -1826,7 +1827,7 @@ void PropertyRowsUI(bool pr)
         ImGui::PopID();
         ImGui::PopStyleVar();
         ImGui::EndTable();
-        
+
         if (pr)
             pgHeight = ImGui::GetItemRectSize().y;
         else
@@ -1906,6 +1907,8 @@ void PopupUI()
     inputName.Draw();
 
     newFileDlg.Draw();
+
+    selectResource.Draw();
 }
 
 void Draw()

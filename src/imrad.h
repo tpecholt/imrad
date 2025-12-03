@@ -23,9 +23,14 @@
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
 #endif
+#endif
+
 #ifdef IMRAD_WITH_STB
 #include <stb_image.h> //for LoadTextureFromFile
 #endif
+
+#ifdef IMRAD_WITH_MINIZIP
+#include <unzip.h>
 #endif
 
 #define IMRAD_INPUTTEXT_EVENT(clazz, member) \
@@ -324,7 +329,7 @@ using VBox = BoxLayout<false>;
 
 //------------------------------------------------------------------------
 
-inline IOUserData& GetUserData() 
+inline IOUserData& GetUserData()
 {
     static IOUserData data;
     return data;
@@ -522,12 +527,12 @@ inline CursorData GetCursorData()
 {
     CursorData data;
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
-    data.cursorPos = wnd->DC.CursorPos; 
+    data.cursorPos = wnd->DC.CursorPos;
     data.cursorPosPrevLine = wnd->DC.CursorPosPrevLine;
     data.prevLineSize = wnd->DC.PrevLineSize;
     data.prevLineTextBaseOffset = wnd->DC.PrevLineTextBaseOffset;
-    data.cursorMaxPos = wnd->DC.CursorMaxPos; 
-    data.idealMaxPos = wnd->DC.IdealMaxPos; 
+    data.cursorMaxPos = wnd->DC.CursorMaxPos;
+    data.idealMaxPos = wnd->DC.IdealMaxPos;
     return data;
 }
 
@@ -904,7 +909,73 @@ std::string Format(std::string_view fmt, A&&... args)
 }
 #endif
 
+#ifdef IMRAD_WITH_MINIZIP
+inline std::vector<uint8_t> UnzipAssetData(std::string_view url)
+{
+    std::vector<uint8_t> buffer;
+
+    //decompose resource url
+    if (url.compare(0, 4, "zip:"))
+        return buffer;
+    size_t i = url.find('.');
+    if (i == std::string::npos)
+        return buffer;
+    i = url.find('/', i + 1);
+    if (i == std::string::npos)
+        return buffer;
+    std::string rname(url.begin() + i + 1, url.end());
+    std::string fname(url.begin() + 4, url.begin() + i);
+
+    unzFile zipfh = unzOpen(fname.c_str());
+    if (!zipfh)
+        return buffer;
+
+    unz_global_info global_info;
+    if (unzGetGlobalInfo(zipfh, &global_info) != UNZ_OK)
+    {
+        unzClose(zipfh);
+        return buffer;
+    }
+
+    for (size_t i = 0; i < global_info.number_entry; ++i)
+    {
+        unz_file_info file_info;
+        char filename[256];
+        if (unzGetCurrentFileInfo(zipfh, &file_info, filename, 256, NULL, 0, NULL, 0) != UNZ_OK) {
+            unzGoToNextFile(zipfh);
+            continue;
+        }
+        if (filename != rname) {
+            unzGoToNextFile(zipfh);
+            continue;
+        }
+        if (unzOpenCurrentFile(zipfh) != UNZ_OK) {
+            break;
+        }
+        buffer.resize(file_info.uncompressed_size);
+        for (size_t pos = 0; pos < buffer.size(); )
+        {
+            int nbytes = unzReadCurrentFile(zipfh, buffer.data() + pos, 8192);
+            if (nbytes < 0)
+            {
+                buffer.clear();
+                unzCloseCurrentFile(zipfh);
+                break;
+            }
+            pos += nbytes;
+        }
+
+        unzCloseCurrentFile(zipfh);
+        break;
+    }
+
+    unzClose(zipfh);
+    return buffer;
+}
+#endif
+
 #if (defined (IMRAD_WITH_GLFW) || defined(ANDROID)) && defined(IMRAD_WITH_STB)
+
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
 inline Texture LoadTextureFromFile(
@@ -919,11 +990,21 @@ inline Texture LoadTextureFromFile(
     unsigned char* image_data = nullptr;
 #ifdef ANDROID
     unsigned char* buffer;
-    int len = GetAssetData(filename.c_str(), &buffer);
+    int len = GetAssetData(std::string(filename.begin(), filename.end()), &buffer);
     image_data = stbi_load_from_memory(buffer, len, &tex.w, &tex.h, NULL, 4);
 #else
-    std::string tmp(filename);
-    image_data = stbi_load(tmp.c_str(), &tex.w, &tex.h, NULL, 4);
+#ifdef IMRAD_WITH_MINIZIP
+    if (!filename.compare(0, 4, "zip:"))
+    {
+        auto buffer = UnzipAssetData(filename);
+        image_data = stbi_load_from_memory(buffer.data(), (int)buffer.size(), &tex.w, &tex.h, NULL, 4);
+    }
+    else
+#endif
+    {
+        std::string tmp(filename);
+        image_data = stbi_load(tmp.c_str(), &tex.w, &tex.h, NULL, 4);
+    }
 #endif
     if (image_data == NULL)
         return {};

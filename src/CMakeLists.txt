@@ -20,17 +20,16 @@ target_include_directories(imrad PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 
-add_definitions(-DIMRAD_WITH_GLFW)
-add_definitions(-DIMRAD_WITH_STB)
-add_definitions(-DSTBI_WINDOWS_UTF8)
+target_compile_definitions(imrad PUBLIC IMRAD_WITH_GLFW IMRAD_WITH_STB IMRAD_WITH_MINIZIP STBI_WINDOWS_UTF8)
 
 target_link_libraries(imrad
 	fa
 	glfw
+	httplib
 	imgui
+	minizip
 	nfd
 	stb
-	httplib
 	${OPENGL_LIBRARIES}
 	${CMAKE_DL_LIBS}
 	${MISC_FRAMEWORKS}

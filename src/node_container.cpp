@@ -185,11 +185,11 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
         }
         if (header)
         {
-            if (!style_headerFontName.empty() || !style_headerFontSize.empty()) 
+            if (!style_headerFontName.empty() || !style_headerFontSize.empty())
                 ImGui::PushFont(style_headerFontName.eval(ctx), style_headerFontSize.eval(ctx));
-            
+
             ImGui::TableHeadersRow();
-        
+
             if (!style_headerFontName.empty() || !style_headerFontSize.empty())
                 ImGui::PopFont();
         }
@@ -473,7 +473,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         break;
     default:
         return Widget::PropertyUI(i - 24, ctx);
-    }   
+    }
     return changed;
 }
 
@@ -607,11 +607,11 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     if (header)
     {
         if (!style_headerFontName.empty() || !style_headerFontSize.empty())
-            os << ctx.ind << "ImGui::PushFont(" << style_headerFontName.to_arg() 
+            os << ctx.ind << "ImGui::PushFont(" << style_headerFontName.to_arg()
             << ", " << style_headerFontSize.to_arg() << ");\n";
-        
+
         os << ctx.ind << "ImGui::TableHeadersRow();\n";
-    
+
         if (!style_headerFontName.empty() || !style_headerFontSize.empty())
             os << ctx.ind << "ImGui::PopFont();\n";
     }
@@ -625,7 +625,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         {
             ctx.varSelection = mssel.to_arg();
             os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::BeginMultiSelect(";
-            os << msflags.to_arg() << ", " << mssel.to_arg() << ".Size, " 
+            os << msflags.to_arg() << ", " << mssel.to_arg() << ".Size, "
                 << "(int)" << itemCount.limit.to_arg() << "));\n";
         }
 
@@ -669,12 +669,12 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
     if (!onEndRow.empty() && !itemCount.empty())
         os << ctx.ind << onEndRow.to_arg() << "();\n";
 
-    if (!itemCount.empty()) 
+    if (!itemCount.empty())
     {
         os << ctx.ind << "ImGui::PopID();\n";
         ctx.ind_down();
         os << ctx.ind << "}\n";
-    
+
         if (!mssel.empty())
             os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::EndMultiSelect());\n";
     }
@@ -836,14 +836,14 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         itemCount.set_from_arg(sit->line);
     }
-    else if (sit->kind == cpp::CallExpr && 
+    else if (sit->kind == cpp::CallExpr &&
         ctx.importLevel >= 0 && sit->level == ctx.importLevel + 1 &&
         sit->callee.compare(0, 7, "ImGui::") &&
         sit->callee.compare(0, 7, "ImRad::"))
     {
         onSetup.set_from_arg(sit->callee);
     }
-    else if (sit->kind == cpp::CallExpr && 
+    else if (sit->kind == cpp::CallExpr &&
         ctx.importLevel >= 0 && sit->level == ctx.importLevel + 2 &&
         sit->callee.compare(0, 7, "ImGui::") &&
         sit->callee.compare(0, 7, "ImRad::"))
@@ -853,7 +853,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         else
             onBeginRow.set_from_arg(sit->callee);
     }
-    else if (sit->kind == cpp::IfStmt && 
+    else if (sit->kind == cpp::IfStmt &&
         ctx.importLevel >= 0 && sit->level == ctx.importLevel + 2 &&
         !sit->cond.compare(0, 2, "!(") && sit->cond.back() == ')')
     {
@@ -2130,7 +2130,7 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
     {
         std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
         std::string contVar = itemCount.container_expr();
-        
+
         os << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
