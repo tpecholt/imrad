@@ -182,10 +182,10 @@ std::string Trim(std::string_view str)
 {
     size_t i1, i2;
     for (i1 = 0; i1 < str.size(); ++i1)
-        if (str[i1] >= 128 || !std::isspace(str[i1]))
+        if (str[i1] < 0 || !std::isspace(str[i1]))
             break;
     for (i2 = str.size() - 1; i2 < str.size(); --i2)
-        if (str[i2] >= 128 || !std::isspace(str[i2]))
+        if (str[i2] < 0 || !std::isspace(str[i2]))
             break;
     return std::string(str.substr(i1, i2 - i1 + 1));
 }

@@ -212,7 +212,7 @@ struct direct_val<T, true> : property_base
             //assert(id != ids.end());
             if (s == "0" ||
                 (!s.compare(0, 5, "ImGui") && !s.compare(s.size() - 5, 5, "_None")))
-                val;
+                ;
             else if (id != ids.end())
                 val |= id->second;
             else
