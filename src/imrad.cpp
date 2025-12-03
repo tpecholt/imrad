@@ -2521,9 +2521,9 @@ void AddINIHandler()
                 if (!strncmp(line, "Path=", 5))
                     explorerPath = line + 5;
                 else if (sscanf(line, "Filter=%d", &explorerFilter) == 1)
-                    line;
+                    ;
                 else if (sscanf(line, "SortColumn=%hd", &explorerSorting.ColumnIndex) == 1)
-                    line;
+                    ;
                 else if (sscanf(line, "SortDir=%d", &tmp) == 1)
                     explorerSorting.SortDirection = (ImGuiSortDirection)tmp;
             }
