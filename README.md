@@ -1,6 +1,5 @@
 ![img](https://github.com/tpecholt/imrad/actions/workflows/windows.yml/badge.svg)
 ![img](https://github.com/tpecholt/imrad/actions/workflows/ubuntu.yml/badge.svg)
-![img](https://github.com/tpecholt/imrad/actions/workflows/msys2.yml/badge.svg)
 ![img](https://github.com/tpecholt/imrad/actions/workflows/macos.yml/badge.svg)
 
 # ImRAD
@@ -121,7 +120,7 @@ Somewhat older version can be downloaded from [Releases](https://github.com/tpec
 ## Linux
 1. *Ubuntu*: Due to the GTK FileOpen dialog dependency you need to `apt install` these packages first (exact list depends on your OS):
    
-   *pkg-config gtk-3-dev libsystemd-dev libwebp-dev libzstd-dev libssl-dev*
+   *pkg-config libgtk-3-dev libsystemd-dev libwebp-dev libzstd-dev libssl-dev*
 
 3. Run the provided installation script (script parameter is the ImRAD version you want to name the folder) 
 
