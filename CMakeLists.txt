@@ -39,11 +39,11 @@ endif()
 
 # before includes
 install(
-    DIRECTORY "template/" 
+    DIRECTORY "template/"
     DESTINATION "template"
 )
 install(
-    DIRECTORY "style/" 
+    DIRECTORY "style/"
     DESTINATION "style"
 )
 if (WIN32)
@@ -73,3 +73,15 @@ file(COPY
         DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/bin"
 )
 
+#set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+#set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_GENERATOR "ZIP")
+# override ugly names for zip and top level folder
+if (WIN32)
+    set(CPACK_ARCHIVE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}-win64")
+else ()
+    set(CPACK_ARCHIVE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}-linux64")
+endif ()
+set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}")
+
+include(CPack)
