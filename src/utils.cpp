@@ -10,6 +10,8 @@
 #undef max
 
 float uiFontSize = 15;
+GLFWwindow* glfwWindow = nullptr;
+
 
 bool ShellExec(const std::string& path)
 {

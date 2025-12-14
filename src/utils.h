@@ -13,7 +13,11 @@ inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 inline const std::string CUR_ITEM_SYMBOL = "$item";
 inline const std::string CUR_INDEX_SYMBOL = "$index";
 
+struct GLFWwindow;
 extern float uiFontSize;
+extern GLFWwindow* glfwWindow;
+
+//-----------------------------------------------------------------------
 
 inline ImVec2 operator+ (const ImVec2& a, const ImVec2& b)
 {

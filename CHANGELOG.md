@@ -40,6 +40,8 @@
 
 * Added version check (requires openssl on ubuntu)
 
+* Add New File dialog
+
 
 ### New Code features
 
@@ -74,7 +76,7 @@
 
 ### Improvements by Widget Type
 
-*  Window
+* Window
   
   * minimumSize added
   
@@ -103,6 +105,10 @@
   * multi-selection support added
   
   * Selectable now behaves as a container so it's possible to insert additional child widgets which will be automatically clipped. Useful for implementing structured table items with row selection
+
+* Image
+  
+  * Allows to specify image resource inside a zip file 
     
 * Child
   

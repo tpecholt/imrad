@@ -25,7 +25,7 @@
 #include <nfd.h>
 #include <httplib.h>
 
-#include "glfw_cursor.h"
+#include "cursor.h"
 #include "node_standard.h"
 #include "cppgen.h"
 #include "utils.h"
@@ -90,13 +90,10 @@ int activeTab = -1;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 std::string styleName;
 bool reloadStyle = true;
-GLFWwindow* window = nullptr;
 int addInputCharacter = 0;
 std::string lastPropName;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
-GLFWcursor* curCross = nullptr;
-GLFWcursor* curWait = nullptr;
 float pgHeight = 0, pgeHeight = 0;
 
 struct TB_Button
@@ -141,7 +138,7 @@ void DoCancelShutdown()
     if (programState != Shutdown)
         return;
 
-    glfwSetWindowShouldClose(window, false);
+    glfwSetWindowShouldClose(glfwWindow, false);
     programState = Run;
     ImGui::GetIO().IniFilename = INI_FILE_NAME;
 }
@@ -625,7 +622,7 @@ bool SaveFileAs(int flags)
     else {
         messageBox.title = "codegen";
         messageBox.icon = MessageBox::Info;
-        messageBox.message = "Rename window class?";
+        messageBox.message = "Rename Window class?";
         messageBox.buttons = ImRad::Yes | ImRad::No | ImRad::Cancel;
         messageBox.OpenPopup([&tab,newName,flags](ImRad::ModalResult mr) mutable {
             if (mr == ImRad::ModalResult::Cancel)
@@ -877,7 +874,7 @@ void LoadStyle()
     std::string stylePath = rootPath + "/style/";
     float mainScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
 
-    glfwSetCursor(window, curWait);
+    SetWaitCursor();
     io.Fonts->Clear();
 
     //reload ImRAD UI first
@@ -973,7 +970,7 @@ void LoadStyle()
             }
             catch (std::exception& e)
             {
-                //can't OpenPopup here, there is no window parent
+                //can't OpenPopup here, there is no glfwWindow parent
                 showError = e.what();
             }
         }
@@ -2116,7 +2113,8 @@ void Work()
     if (ctx.mode == UIContext::PickPoint)
     {
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-        glfwSetCursor(window, curCross);
+        SetCrossCursor();
+
         if (ImGui::IsKeyPressed(ImGuiKey_Escape))
         {
             ctx.mode = UIContext::NormalSelection;
@@ -2633,7 +2631,7 @@ int main(int argc, const char* argv[])
 #endif
     rootPath = GetRootPath();
 
-    // Setup window
+    // Setup glfwWindow
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -2664,25 +2662,22 @@ int main(int argc, const char* argv[])
     // Initialize the native file dialog
     NFD_Init();
 
-    // Create window with graphics context
+    // Create glfwWindow with graphics context
     // TODO: dialogs are currently not dpi aware
-    window = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
-    if (window == NULL)
+    glfwWindow = glfwCreateWindow(1280, 720, VER_STR.c_str(), NULL, NULL);
+    if (glfwWindow == NULL)
         return 1;
-    glfwSetWindowContentScaleCallback(window, GLFWContentScaleCallback);
+    glfwSetWindowContentScaleCallback(glfwWindow, GLFWContentScaleCallback);
     GLFWimage icons[2];
     icons[0].pixels = stbi_load((rootPath + "/style/icon-40.png").c_str(), &icons[0].width, &icons[0].height, 0, 4);
     icons[1].pixels = stbi_load((rootPath + "/style/icon-100.png").c_str(), &icons[1].width, &icons[1].height, 0, 4);
     if (icons[0].pixels && icons[1].pixels)
-        glfwSetWindowIcon(window, 2, icons);
+        glfwSetWindowIcon(glfwWindow, 2, icons);
     stbi_image_free(icons[0].pixels);
     stbi_image_free(icons[1].pixels);
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(glfwWindow);
     glfwSwapInterval(1); // Enable vsync
-    glfwMaximizeWindow(window);
-    curCross = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-    //curWait = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-    curWait = glfwCreateCursor(CUSTOM_BUSY_CURSOR);
+    glfwMaximizeWindow(glfwWindow);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -2697,7 +2692,7 @@ int main(int argc, const char* argv[])
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     ctx.dashTexId = ImRad::LoadTextureFromFile(
@@ -2721,11 +2716,11 @@ int main(int argc, const char* argv[])
             if (fileTabs.empty()) //Work() will close the tabs
                 break;
         }
-        else if (programState == Run && glfwWindowShouldClose(window))
+        else if (programState == Run && glfwWindowShouldClose(glfwWindow))
         {
             if (ImGui::GetTopMostAndVisiblePopupModal())
             {
-                glfwSetWindowShouldClose(window, false);
+                glfwSetWindowShouldClose(glfwWindow, false);
             }
             else
             {
@@ -2752,7 +2747,7 @@ int main(int argc, const char* argv[])
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        bool visible = glfwGetWindowAttrib(window, GLFW_FOCUSED);
+        bool visible = glfwGetWindowAttrib(glfwWindow, GLFW_FOCUSED);
         if (visible && !lastVisible)
             ReloadFile();
         lastVisible = visible;
@@ -2772,12 +2767,12 @@ int main(int argc, const char* argv[])
         // Rendering
         ImGui::Render();
         int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glfwGetFramebufferSize(glfwWindow, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(glfwWindow);
     }
 
     // Cleanup
@@ -2787,9 +2782,7 @@ int main(int argc, const char* argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glfwDestroyCursor(curCross);
-    glfwDestroyCursor(curWait);
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(glfwWindow);
     glfwTerminate();
 
     return 0;

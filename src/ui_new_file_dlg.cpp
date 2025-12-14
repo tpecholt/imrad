@@ -4,6 +4,7 @@
 #include "ui_new_file_dlg.h"
 #include "IconsFontAwesome6.h"
 #include "node_window.h"
+#include "cursor.h"
 #include <httplib.h>
 
 NewFileDlg newFileDlg;
@@ -35,7 +36,7 @@ void NewFileDlg::Init()
 
 void NewFileDlg::Draw()
 {
-    /// @dpi-info 141.767,1.25
+    /// @dpi-info 141.357,1.25
     /// @style imrad
     /// @unit dp
     /// @begin TopWindow
@@ -64,9 +65,10 @@ void NewFileDlg::Draw()
         /// @begin Text
         vb1.BeginLayout();
         hb1.BeginLayout();
-        ImGui::PushFont(nullptr, 20.f);
+        ImRad::Spacing(1);
+        ImGui::PushFont(nullptr, uiFontSize*1.4f);
         ImGui::TextUnformatted("New File");
-        vb1.AddSize(0, ImRad::VBox::ItemSize);
+        vb1.AddSize(1, ImRad::VBox::ItemSize);
         hb1.AddSize(0, ImRad::HBox::ItemSize);
         ImGui::PopFont();
         /// @end Text
@@ -81,7 +83,7 @@ void NewFileDlg::Draw()
         /// @begin Selectable
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
-        ImGui::PushFont(nullptr, 20.f);
+        ImGui::PushFont(nullptr, uiFontSize*1.4f);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
         if (ImRad::Selectable(" \xef\x80\x8d", false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 }))
         {
@@ -169,7 +171,7 @@ void NewFileDlg::Draw()
                 /// @begin Selectable
                 ImGui::BeginDisabled(_item.id<0);
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                if (ImRad::Selectable("", false, ImGuiSelectableFlags_NoAutoClosePopups, { -1, 50*dp }))
+                if (ImRad::Selectable("", false, ImGuiSelectableFlags_NoAutoClosePopups, { -1, 57*dp }))
                 {
                     Item_Change();
                     ClosePopup(ImRad::Ok);
@@ -192,7 +194,7 @@ void NewFileDlg::Draw()
                 /// @end Text
 
                 /// @begin Text
-                ImGui::SetCursorScreenPos({ tmpLastItem2.Rect.Min.x+7*dp, tmpLastItem2.Rect.Min.y+30*dp }); //overlayPos
+                ImGui::SetCursorScreenPos({ tmpLastItem2.Rect.Min.x+7*dp, tmpLastItem2.Rect.Min.y+32*dp }); //overlayPos
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(category==GithubTemplate?ImGuiCol_TextDisabled:ImGuiCol_Text));
                 ImGui::TextUnformatted(ImRad::Format("{}", _item.description).c_str());
                 ImGui::PopStyleColor();
@@ -200,9 +202,11 @@ void NewFileDlg::Draw()
 
                 /// @begin Text
                 ImGui::SetCursorScreenPos({ tmpLastItem2.Rect.Min.x+7*dp, tmpLastItem2.Rect.Min.y+7*dp }); //overlayPos
+                ImGui::PushFont(nullptr, ::uiFontSize*1.1f);
                 ImGui::PushStyleColor(ImGuiCol_Text, 0xff000080);
                 ImGui::TextUnformatted(ImRad::Format("{}", _item.label).c_str());
                 ImGui::PopStyleColor();
+                ImGui::PopFont();
                 /// @end Text
 
                 /// @separator
@@ -243,7 +247,7 @@ void NewFileDlg::Category_Change()
 {
     if (ImGui::GetCurrentTable())
         category = (Category)ImGui::TableGetRowIndex();
-    
+
     if (!category)
     {
         items = {
@@ -255,14 +259,15 @@ void NewFileDlg::Category_Change()
     {
         items = {
             { ICON_FA_TV "  Main Window", "GLFW", "ImGui window integrated into OS window", TopWindow::MainWindow },
-            { ICON_FA_WINDOW_MAXIMIZE "  Window", "-", "General ImGui window", TopWindow::Window },
-            { ICON_FA_CLONE "  Popup", "-", "Popup window without a titlebar", TopWindow::Popup },
-            { ICON_FA_WINDOW_RESTORE "  ModalPopup", "-", "Modal popup window", TopWindow::ModalPopup },
+            { ICON_FA_WINDOW_MAXIMIZE "  Window", "(All)", "General ImGui window", TopWindow::Window },
+            { ICON_FA_CLONE "  Popup", "(All)", "Popup window without a titlebar", TopWindow::Popup },
+            { ICON_FA_WINDOW_RESTORE "  ModalPopup", "(All)", "Modal popup window", TopWindow::ModalPopup },
             { ICON_FA_MOBILE_SCREEN "  Activity", "Android", "Maximized, title-less window where only one is active at a time", TopWindow::Activity }
         };
     }
     else if (category == 2)
     {
+        SetWaitCursor();
         items.clear();
         try {
             httplib::Headers hs;
@@ -290,7 +295,7 @@ void NewFileDlg::Category_Change()
                 }
                 if (level != 2)
                     continue;
-                
+
                 if (*tok == "\"name\"") {
                     if (*++tok != ":")
                         continue;
@@ -324,7 +329,7 @@ void NewFileDlg::Category_Change()
     }
     else
     {
-        items = { 
+        items = {
             { "Not found", "", "", -1 }
         };
     }
