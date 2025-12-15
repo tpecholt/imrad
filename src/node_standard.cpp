@@ -1,4 +1,4 @@
-#include "node_standard.h"
+﻿#include "node_standard.h"
 #include "node_container.h"
 #include "node_extra.h"
 #include "stx.h"
@@ -1651,7 +1651,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     if (!itemCount.empty())
     {
         RenameFieldVars(ctx.codeGen->CUR_ITEM_VAR_NAME, CUR_ITEM_SYMBOL);
-        RenameFieldVars(ctx.varItemIndex, CUR_INDEX_SYMBOL, &itemCount);
+        RenameFieldVars(ctx.varItemIndex, CUR_INDEX_SYMBOL, &itemCount.index);
     }
 
     if (l.flags & Layout::VLayout)
@@ -1955,7 +1955,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             {
                 std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
                 RenameFieldVars(ctx.codeGen->CUR_ITEM_VAR_NAME, CUR_ITEM_SYMBOL);
-                RenameFieldVars(idxVar, CUR_INDEX_SYMBOL, &itemCount);
+                RenameFieldVars(idxVar, CUR_INDEX_SYMBOL, &itemCount.index);
             }
             break; //go back to parent::Import @begin
         }
@@ -2828,11 +2828,9 @@ void Widget::TreeUI(UIContext& ctx)
         {
             std::string icon = ICON_FA_RETWEET; // SHARE_NODES;
             icon += "##IC" + std::to_string((unsigned long long)this);
-            std::string label = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
-            label += " = 0.." + itemCount.limit.to_arg();
-            float sp = ImGui::GetFontSize() * 1.4f - ImGui::CalcTextSize(icon.c_str(), 0, true).x;
-            ImGui::Dummy({ sp, 0 });
-            ImGui::SameLine(0, 0);
+            //encourage to use $index, $item not the actual var name
+            std::string label;// = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
+            label += "$index=0.." + itemCount.limit.to_arg() + "";
             bool selected = ctx.mode == UIContext::SnapInsert && ctx.snapParent == this;
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             //we keep all items open, OpenOnDoubleClick is to block flickering
