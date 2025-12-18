@@ -865,6 +865,7 @@ Widget::Widget()
     msflags.add$(ImGuiMultiSelectFlags_BoxSelect2d);
     msflags.add$(ImGuiMultiSelectFlags_BoxSelectNoScroll);
     msflags.add$(ImGuiMultiSelectFlags_ClearOnEscape);
+    msflags.add$(ImGuiMultiSelectFlags_ClearOnClickVoid);
     msflags.add$(ImGuiMultiSelectFlags_ScopeWindow);
     msflags.add$(ImGuiMultiSelectFlags_ScopeRect);
     msflags.add$(ImGuiMultiSelectFlags_SelectOnClick);
@@ -1796,6 +1797,26 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
         os << ctx.ind << "}\n";
     }
+    if (!onDragDropSourceLongPressed.empty())
+    {
+        os << ctx.ind << "if (ImRad::IsItemLongPressed() && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))\n";
+        os << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << onDragDropSourceLongPressed.c_str() << "();\n";
+        os << ctx.ind << "ImGui::EndDragDropSource();\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+        // need to set longPressID regardless of mouse dragging
+        if (onItemLongPressed.empty())
+        {
+            os << ctx.ind << "if (ImRad::IsItemLongPressed())\n";
+            os << ctx.ind << "{\n";
+            ctx.ind_up();
+            os << ctx.ind << "ImRad::GetUserData().longPressID = ImGui::GetItemID();\n";
+            ctx.ind_down();
+            os << ctx.ind << "}\n";
+        }
+    }
     if (!onDragDropTarget.empty())
     {
         os << ctx.ind << "if (ImGui::BeginDragDropTarget())\n";
@@ -1819,7 +1840,6 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "{\n";
         ctx.ind_up();
         os << ctx.ind << onItemLongPressed.c_str() << "();\n";
-        os << ctx.ind << "ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] = false;\n";
         os << ctx.ind << "ImRad::GetUserData().longPressID = ImGui::GetItemID();\n";
         ctx.ind_down();
         os << ctx.ind << "}\n";
@@ -2209,6 +2229,12 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     onDragDropSource.set_from_arg(sit->callee);
                 ignoreLevel = sit->level;
             }
+            else if (ifBlockIt->kind == cpp::IfCallBlock && !ifBlockIt->cond.compare(0, 55, "ImRad::IsItemLongPressed()&&ImGui::BeginDragDropSource("))
+            {
+                if (sit->kind == cpp::CallExpr)
+                    onDragDropSourceLongPressed.set_from_arg(sit->callee);
+                ignoreLevel = sit->level;
+            }
             else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImGui::BeginDragDropTarget")
             {
                 if (sit->kind == cpp::CallExpr)
@@ -2217,7 +2243,8 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             }
             else if (ifBlockIt->kind == cpp::IfCallBlock && ifBlockIt->callee == "ImRad::IsItemLongPressed")
             {
-                if (sit->kind == cpp::CallExpr)
+                //ignore longPressID assignment
+                if (sit->kind == cpp::CallExpr && sit->callee != "ImRad::GetUserData")
                     onItemLongPressed.set_from_arg(sit->callee);
                 ignoreLevel = sit->level;
             }
@@ -2670,6 +2697,7 @@ Widget::Events()
         { "item.focused", &onItemFocused },
         { "item.hovered", &onItemHovered },
         { "dragDrop.source", &onDragDropSource },
+        { "dragDrop.sourceLongPressed", &onDragDropSourceLongPressed },
         { "dragDrop.target", &onDragDropTarget },
     };
 }
@@ -2736,6 +2764,12 @@ bool Widget::EventUI(int i, UIContext& ctx)
         changed = InputEvent(GetTypeName() + "_DragDropSource", &onDragDropSource, 0, ctx);
         break;
     case 9:
+        ImGui::Text("SourceLongPressed");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_DragDropSourceLongPressed", &onDragDropSourceLongPressed, 0, ctx);
+        break;
+    case 10:
         ImGui::Text("Target");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);

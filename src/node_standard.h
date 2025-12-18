@@ -181,6 +181,7 @@ struct Widget : UINode
     event<> onItemContextMenuClicked;
     event<> onItemLongPressed; //not shown by default
     event<> onDragDropSource;
+    event<> onDragDropSourceLongPressed;
     event<> onDragDropTarget;
 
     std::string userCodeBefore, userCodeAfter;

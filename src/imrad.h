@@ -76,6 +76,7 @@ enum Alignment {
 };
 
 enum ImeType {
+    ImeNone = 0,
     ImeText = 1,
     ImeNumber = 2,
     ImeDecimal = 3,
@@ -118,6 +119,13 @@ struct IOUserData
     int imeType = ImeText;
     ImGuiID longPressID = 0;
 
+    void NewFrame()
+    {
+        if (!ImGui::GetIO().WantTextInput)
+            imeType = ImeNone;
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            longPressID = 0;
+    }
     ImRect WorkRect() const
     {
         return {
@@ -440,8 +448,8 @@ inline bool IsItemLongPressed(double dur = -1)
     if (dur < 0)
         dur = 0.5f;
     double time = ImGui::GetTime() - ImGui::GetIO().MouseClickedTime[ImGuiMouseButton_Left];
-    return ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-        !ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&
+    return
+        ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
         ImGui::IsItemHovered() &&
         time > dur;
 }
@@ -1090,11 +1098,30 @@ inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, c
     WRITE_VEC(ItemSpacing);
     WRITE_VEC(ItemInnerSpacing);
     WRITE_VEC(CellPadding);
+    WRITE_VEC(TouchExtraPadding);
     WRITE_FLT(IndentSpacing);
+    WRITE_FLT(ColumnsMinSpacing);
     WRITE_FLT(ScrollbarSize);
     WRITE_FLT(ScrollbarRounding);
+    WRITE_FLT(ScrollbarPadding);
+    WRITE_FLT(GrabMinSize);
+    WRITE_FLT(GrabRounding);
+    WRITE_FLT(ImageBorderSize);
     WRITE_FLT(TabRounding);
     WRITE_FLT(TabBorderSize);
+    WRITE_FLT(TabMinWidthBase);
+    WRITE_FLT(TabMinWidthShrink);
+    WRITE_FLT(TabCloseButtonMinWidthSelected);
+    WRITE_FLT(TabCloseButtonMinWidthUnselected);
+    WRITE_FLT(TabBarBorderSize);
+    WRITE_FLT(TabBarOverlineSize);
+    WRITE_FLT(TreeLinesSize);
+    WRITE_FLT(TreeLinesRounding);
+    WRITE_VEC(ButtonTextAlign);
+    WRITE_VEC(SelectableTextAlign);
+    WRITE_FLT(SeparatorTextBorderSize);
+    WRITE_VEC(SeparatorTextAlign);
+    WRITE_VEC(SeparatorTextPadding);
 #undef WRITE_FLT
 #undef WRITE_VEC
 
@@ -1183,11 +1210,30 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
                 READ_VEC(ItemSpacing);
                 READ_VEC(ItemInnerSpacing);
                 READ_VEC(CellPadding);
+                READ_VEC(TouchExtraPadding);
                 READ_FLT(IndentSpacing);
+                READ_FLT(ColumnsMinSpacing);
                 READ_FLT(ScrollbarSize);
                 READ_FLT(ScrollbarRounding);
+                READ_FLT(ScrollbarPadding);
+                READ_FLT(GrabMinSize);
+                READ_FLT(GrabRounding);
+                READ_FLT(ImageBorderSize);
                 READ_FLT(TabRounding);
                 READ_FLT(TabBorderSize);
+                READ_FLT(TabMinWidthBase);
+                READ_FLT(TabMinWidthShrink);
+                READ_FLT(TabCloseButtonMinWidthSelected);
+                READ_FLT(TabCloseButtonMinWidthUnselected);
+                READ_FLT(TabBarBorderSize);
+                READ_FLT(TabBarOverlineSize);
+                READ_FLT(TreeLinesSize);
+                READ_FLT(TreeLinesRounding);
+                READ_VEC(ButtonTextAlign);
+                READ_VEC(SelectableTextAlign);
+                READ_FLT(SeparatorTextBorderSize);
+                READ_VEC(SeparatorTextAlign);
+                READ_VEC(SeparatorTextPadding);
 #undef READ_FLT
 #undef READ_VEC
             }

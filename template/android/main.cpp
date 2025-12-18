@@ -21,12 +21,13 @@ static EGLConfig            g_EglConfig;
 static struct android_app*  g_App = nullptr;
 static bool                 g_Initialized = false;
 static char                 g_LogTag[] = "ImGuiExample";
-static std::string          g_IniFilename = "";
+static std::string          g_IniFilename;
 static int                  g_NavBarHeight = 0;
 static int                  g_StatusBarHeight = 0;
 static int                  g_KbdHeight = 0;
 static int                  g_RotAngle = 0;
 static int                  g_ImeType = 0;
+static ImGuiID              g_longPressID = 0;
 
 // Forward declarations of helper functions
 static void Init(struct android_app* app);
@@ -334,22 +335,20 @@ void Shutdown()
 
 void MainLoopStep()
 {
-    ImGuiIO& io = ImGui::GetIO();
     if (g_EglDisplay == EGL_NO_DISPLAY || g_EglSurface == EGL_NO_SURFACE)
         return;
 
-    // Our state
-    static ImVec4 clear_color = ImVec4(0.f, 0.f, 0.0f, 1.00f);
-
+    ImRad::GetUserData().NewFrame();
     // Open on-screen (soft) input if requested by Dear ImGui
-    int newImeType = io.WantTextInput ? ImRad::GetUserData().imeType : 0;
-    if (newImeType != g_ImeType) {
-        g_ImeType = newImeType;
+    if (ImRad::GetUserData().imeType != g_ImeType) {
+        g_ImeType = ImRad::GetUserData().imeType;
         ShowSoftKeyboardInput(g_ImeType);
     }
-    if (ImRad::GetUserData().longPressID) {
-        ImRad::GetUserData().longPressID = 0;
-        PerformHapticFeedback(0);
+    // Perform haptic feedback on long press
+    if (ImRad::GetUserData().longPressID != g_longPressID) {
+        g_longPressID = ImRad::GetUserData().longPressID;
+        if (g_longPressID)
+            PerformHapticFeedback(0);
     }
 
     // Start the Dear ImGui frame
@@ -360,8 +359,9 @@ void MainLoopStep()
     Draw();
 
     // Rendering
+    const ImVec4 clear_color(0.f, 0.f, 0.0f, 1.00f);
     ImGui::Render();
-    glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+    glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
     glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
