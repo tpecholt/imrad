@@ -2,6 +2,7 @@
 // github.com/tpecholt/imrad
 
 #include "ui_combo_dlg.h"
+#include <cstdint>
 
 ComboDlg comboDlg;
 

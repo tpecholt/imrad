@@ -382,6 +382,26 @@ void RenderFilledWindowCorners(ImDrawFlags fl);
 
 //-------------------------------------------------------------------------
 
+#ifdef IMRAD_WITH_FMT
+
+//only support format_string version for compile time checks
+template <class... A>
+std::string Format(fmt::format_string<A...> fmt, A&&... args)
+{
+    return fmt::format(fmt, std::forward<A>(args)...);
+}
+
+#elif CPLUSPLUS >= 202002L && __has_include(<format>)
+
+//only support format_string version for compile time checks
+template <class... A>
+std::string Format(std::format_string<A...> fmt, A&&... args)
+{
+    return std::format(fmt, std::forward<A>(args)...);
+}
+
+#else
+
 inline std::string FormatFallback(const char* fmt, const char* fmte)
 {
     return std::string(fmt, fmte);
@@ -407,7 +427,7 @@ std::string FormatFallback(const char* fmt, const char* fmte, A1&& arg, A&&... a
                 if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
                     s += arg;
                 else if constexpr (std::is_same_v<std::decay_t<A1>, const char*> ||
-                                    std::is_same_v<std::decay_t<A1>, char*>)
+                    std::is_same_v<std::decay_t<A1>, char*>)
                     s += arg;
                 else if constexpr (std::is_same_v<std::decay_t<A1>, char>)
                     s += arg;
@@ -422,31 +442,12 @@ std::string FormatFallback(const char* fmt, const char* fmte, A1&& arg, A&&... a
     return s;
 }
 
-#ifdef IMRAD_WITH_FMT
-
-//only support format_string version for compile time checks
-template <class... A>
-std::string Format(fmt::format_string<A...> fmt, A&&... args)
-{
-    return fmt::format(fmt, std::forward<A>(args)...);
-}
-
-#elif CPLUSPLUS >= 202002L && __has_include(<format>)
-
-//only support format_string version for compile time checks
-template <class... A>
-std::string Format(std::format_string<A...> fmt, A&&... args)
-{
-    return std::format(fmt, std::forward<A>(args)...);
-}
-
-#else
-
 template <class... A>
 std::string Format(const char* fmt, A&&... args)
 {
     return FormatFallback(fmt, fmt + strlen(fmt), std::forward<A>(args)...);
 }
+
 #endif
 
 } // namespace

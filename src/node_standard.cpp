@@ -6796,7 +6796,7 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
         ImVec2 realSize = ImGui::CalcItemSize(size, size.x, size.y);
         ImVec2 pos{ 0.5f * (realSize.x - sz.x), 0.5f * (realSize.y - sz.y) };
         ImGui::SetCursorScreenPos(cached_pos + pos);
-        ImGui::Text(ps.label.c_str());
+        ImGui::TextUnformatted(ps.label.c_str());
         DrawTextArgs(ps, ctx, pos);
 
         ImGui::EndChild();
