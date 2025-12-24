@@ -69,7 +69,7 @@ struct UINode
     auto UsedFieldVars() -> std::vector<std::string>;
     void RenameFieldVars(std::string_view oldn, std::string_view newn, const property_base* exclusion = {});
     auto FindChild(const UINode*) -> std::optional<std::pair<UINode*, int>>;
-    auto FindInRect(const ImRect& r) -> std::vector<UINode*>;
+    auto FindInRect(const ImRad::Rect& r) -> std::vector<UINode*>;
     auto GetAllChildren() -> std::vector<UINode*>;
     void CloneChildrenFrom(const UINode& node, UIContext& ctx);
     void ResetLayout();
@@ -275,7 +275,7 @@ struct Selectable : Widget
     direct_val<bool> alignToFrame = false;
     direct_val<bool> staticOnly = false;
     direct_val<ImRad::ModalResult> modalResult = ImRad::None;
-    direct_val<bool> multiSelect = false;
+    direct_val<bool> multiSelected = false;
     bindable<bool> selected = false;
     bindable<color_t> style_header;
     event<> onChange;
@@ -504,6 +504,7 @@ struct Image : Widget
 
 struct CustomWidget : Widget
 {
+    bindable<std::string> label;
     event<void(const ImRad::CustomWidgetArgs&)> onDraw;
 
     CustomWidget(UIContext& ctx);

@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "stx.h"
 #include <IconsFontAwesome6.h>
+#include <unzip.h>
 
 SelectResource selectResource;
 
@@ -64,7 +65,7 @@ void SelectResource::Draw()
             /// @separator
 
             /// @begin CustomWidget
-            CustomWidget_Draw({ -1, -1 });
+            CustomWidget_Draw(ImRad::CustomWidgetArgs("", { -1, -1 }));
             /// @end CustomWidget
 
             /// @separator
@@ -73,7 +74,7 @@ void SelectResource::Draw()
         vb1.AddSize(0, ImRad::VBox::Stretch(-1.0f));
         /// @end Child
 
-        
+
         /// @separator
         ImGui::EndPopup();
     }
@@ -120,16 +121,16 @@ void SelectResource::CustomWidget_Draw(const ImRad::CustomWidgetArgs& args)
             }
         }
         //push folders
-        if (pre.size() > prefix.size()) 
+        if (pre.size() > prefix.size())
         {
             i = prefix.size() ? prefix.size() + 1 : 0;
             size_t j = pre.find('/', i);
             if (j == std::string::npos)
                 j = pre.size();
-            while (true) 
+            while (true)
             {
                 bool open = false;
-                if (!stx::count(path, false)) 
+                if (!stx::count(path, false))
                 {
                     ImGui::SetNextItemOpen(false, ImGuiCond_Appearing);
                     ImGui::PushStyleColor(ImGuiCol_Text, 0xff006060);
@@ -149,7 +150,7 @@ void SelectResource::CustomWidget_Draw(const ImRad::CustomWidgetArgs& args)
             prefix = pre;
         }
         //item
-        if (!stx::count(path, false)) 
+        if (!stx::count(path, false))
         {
             bool open = ImGui::TreeNodeEx((ICON_FA_IMAGE "##" + item).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf);
             if (ImGui::IsItemActivated()) {

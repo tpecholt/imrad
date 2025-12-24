@@ -1,6 +1,6 @@
 ﻿#include "node_standard.h"
-#include "node_container.h"
-#include "node_extra.h"
+/**/#include "node_container.h"
+/**/#include "node_extra.h"
 #include "stx.h"
 #include "cppgen.h"
 #include "binding_input.h"
@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <array>
 
+const std::string TMP_RECT_VAR = "tmpRect";
 const std::string TMP_LAST_ITEM_VAR = "tmpLastItem";
 
 void toggle(std::vector<UINode*>& c, UINode* val)
@@ -643,7 +644,7 @@ UINode::FindChild(const UINode* ch)
 }
 
 std::vector<UINode*>
-UINode::FindInRect(const ImRect& r)
+UINode::FindInRect(const ImRad::Rect& r)
 {
     std::vector<UINode*> sel;
 
@@ -924,7 +925,7 @@ Widget::Layout Widget::GetLayout(UINode* parent)
                 colId += child->nextColumn;
             }
         }
-        else if (child->sameLine && !child->nextColumn) {
+        else if (child->sameLine && !child->nextColumn && !firstWidget) {
             leftmost = false;
         }
 
@@ -977,8 +978,8 @@ void Widget::Draw(UIContext& ctx)
 
     if (hasPos)
     {
-        ImRect r = parent->Behavior() & SnapItemInterior ?
-            ImRect{ parent->cached_pos, parent->cached_pos + parent->cached_size } :
+        ImRad::Rect r = parent->Behavior() & SnapItemInterior ?
+            ImRad::Rect{ parent->cached_pos, parent->cached_pos + parent->cached_size } :
             ImRad::GetParentInnerRect();
         ImVec2 pos{ pos_x.eval_px(ImGuiAxis_X, ctx), pos_y.eval_px(ImGuiAxis_Y, ctx) };
         if (hasPos & ImRad::AlignLeft)
@@ -1112,15 +1113,16 @@ void Widget::Draw(UIContext& ctx)
                 size_y.eval_px(ImGuiAxis_Y, ctx);
             HashCombineData(ctx.layoutHash, sizeY);
         }
+        float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.y;
         if (size_y.stretched()) {
             if (l.flags & Layout::Leftmost)
-                vbox.AddSize(spacing, ImRad::VBox::Stretch(sizeY));
+                vbox.AddSize(sp, ImRad::VBox::Stretch(sizeY));
             else
                 vbox.UpdateSize(0, ImRad::VBox::Stretch(sizeY));
         }
         else {
             if (l.flags & Layout::Leftmost)
-                vbox.AddSize(spacing, sizeY);
+                vbox.AddSize(sp, sizeY);
             else
                 vbox.UpdateSize(0, sizeY);
         }
@@ -1135,7 +1137,8 @@ void Widget::Draw(UIContext& ctx)
                 size_x.eval_px(ImGuiAxis_X, ctx);
             HashCombineData(ctx.layoutHash, sizeX);
         }
-        int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
+        float sp = (l.flags & Layout::Leftmost) ? 0 : (float)spacing;
+        sp *= ImGui::GetStyle().ItemSpacing.x;
         if (size_x.stretched())
             hbox.AddSize(sp, ImRad::HBox::Stretch(sizeX));
         else
@@ -1667,7 +1670,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
                 size_y.to_arg(ctx.unit);
         }
         if (l.flags & Layout::Leftmost)
-            os << ctx.ind << vbName << ".AddSize(" << spacing << ", " << sizeY << ");\n";
+            os << ctx.ind << vbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+                << sizeY << ");\n";
         else
             os << ctx.ind << vbName << ".UpdateSize(0, " << sizeY << ");\n";
     }
@@ -1683,7 +1687,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
                 size_x.to_arg(ctx.unit);
         }
         int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
-        os << ctx.ind << hbName << ".AddSize(" << sp << ", " << sizeX << ");\n";
+        os << ctx.ind << hbName << ".AddSize(" << sp << " * ImGui::GetStyle().ItemSpacing.x, "
+            << sizeX << ");\n";
     }
 
     if (!style_frameBorderSize.empty())
@@ -2019,6 +2024,13 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             screenPosIt = sit;
         }
         else if (sit->kind == cpp::CallExpr &&
+            (!sit->callee.compare(0, ctx.codeGen->HBOX_NAME.size(), ctx.codeGen->HBOX_NAME) ||
+             !sit->callee.compare(0, ctx.codeGen->VBOX_NAME.size(), ctx.codeGen->VBOX_NAME)) &&
+            sit->callee.find(".BeginLayout") != std::string::npos)
+        {
+            //just ignore
+        }
+        else if (sit->kind == cpp::CallExpr &&
             !sit->callee.compare(0, ctx.codeGen->VBOX_NAME.size(), ctx.codeGen->VBOX_NAME) &&
             (sit->callee.find(".AddSize") != std::string::npos ||
              sit->callee.find(".UpdateSize") != std::string::npos))
@@ -2273,15 +2285,27 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     hasPos |= ImRad::AlignHCenter;
                     pos_x.set_from_arg(pos.first.substr(41));
                 }
-                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.x%100s").c_str(), &tmp, buf) == 2) {
+                else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.Min.x%100s").c_str(), &tmp, buf) == 2) {
                     hasPos |= ImRad::AlignLeft;
                     pos_x.set_from_arg(buf);
                 }
-                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.x%100s").c_str(), &tmp, buf) == 2) {
+                else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.Max.x%100s").c_str(), &tmp, buf) == 2) {
                     hasPos |= ImRad::AlignRight;
                     pos_x.set_from_arg(buf);
                 }
-                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().x%100s").c_str(), &tmp, buf) == 2) {
+                else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.GetCenter().x%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignHCenter;
+                    pos_x.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.x%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                    hasPos |= ImRad::AlignLeft;
+                    pos_x.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.x%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                    hasPos |= ImRad::AlignRight;
+                    pos_x.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().x%100s").c_str(), &tmp, buf) == 2) { //compatibility
                     hasPos |= ImRad::AlignHCenter;
                     pos_x.set_from_arg(buf);
                 }
@@ -2310,15 +2334,27 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     hasPos |= ImRad::AlignVCenter;
                     pos_y.set_from_arg(pos.second.substr(41));
                 }
-                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.y%100s").c_str(), &tmp, buf) == 2) {
+                else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.Min.y%100s").c_str(), &tmp, buf) == 2) {
                     hasPos |= ImRad::AlignTop;
                     pos_y.set_from_arg(buf);
                 }
-                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.y%100s").c_str(), &tmp, buf) == 2) {
+                else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.Max.y%100s").c_str(), &tmp, buf) == 2) {
                     hasPos |= ImRad::AlignBottom;
                     pos_y.set_from_arg(buf);
                 }
-                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().y%100s").c_str(), &tmp, buf) == 2) {
+                else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.GetCenter().y%100s").c_str(), &tmp, buf) == 2) {
+                    hasPos |= ImRad::AlignHCenter;
+                    pos_y.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.y%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                    hasPos |= ImRad::AlignTop;
+                    pos_y.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.y%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                    hasPos |= ImRad::AlignBottom;
+                    pos_y.set_from_arg(buf);
+                }
+                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().y%100s").c_str(), &tmp, buf) == 2) { //compatibility
                     hasPos |= ImRad::AlignVCenter;
                     pos_y.set_from_arg(buf);
                 }
@@ -2628,7 +2664,10 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         return changed;
     case 1:
-        ImGui::BeginDisabled(!snapSides);
+    {
+        //assert(ctx.parents.size() >= 2 && ctx.parents.back() == this);
+        //Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
+        ImGui::BeginDisabled(!snapSides); // || (l.flags & Layout::Leftmost));
         ImGui::Text(sameLine && !nextColumn ? "spacing_x" : "spacing_y");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -2641,6 +2680,7 @@ bool Widget::PropertyUI(int i, UIContext& ctx)
         }
         ImGui::EndDisabled();
         return changed;
+    }
     case 2:
         ImGui::BeginDisabled(!snapSides || nextColumn);
         ImGui::Text("sameLine");
@@ -2864,7 +2904,8 @@ void Widget::TreeUI(UIContext& ctx)
             icon += "##IC" + std::to_string((unsigned long long)this);
             //encourage to use $index, $item not the actual var name
             std::string label;// = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
-            label += "$index=0.." + itemCount.limit.to_arg() + "";
+            //label += "$index=0.." + itemCount.limit.to_arg() + "";
+            label = "$item, $index";
             bool selected = ctx.mode == UIContext::SnapInsert && ctx.snapParent == this;
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             //we keep all items open, OpenOnDoubleClick is to block flickering
@@ -3137,7 +3178,7 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
         auto* parent = ctx.parents[ctx.parents.size() - 2];
         if (parent->Behavior() & SnapItemInterior)
             //wrapWidth = parent->cached_pos.x + parent->cached_size.x - pad - ImGui::GetWindowPos().x;
-            wrapWidth = ImGui::GetCurrentWindow()->ClipRect.Max.x - ImGui::GetWindowPos().x;
+            wrapWidth = ImRad::GetWindowClipRect().Max.x - ImGui::GetWindowPos().x;
         ImGui::PushTextWrapPos(wrapWidth);
     }
 
@@ -3182,7 +3223,7 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         if (parent->Behavior() & SnapItemInterior)
         {
             os << ctx.ind << "ImGui::PushTextWrapPos(";
-            os << "ImGui::GetCurrentWindow()->ClipRect.Max.x - ImGui::GetWindowPos().x";
+            os << "ImRad::GetWindowClipRect().Max.x - ImGui::GetWindowPos().x";
             os << ");\n";
         }
         else
@@ -3419,9 +3460,6 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     if (!style_header.empty())
         ImGui::PushStyleColor(ImGuiCol_Header, style_header.eval(ImGuiCol_Header, ctx));
 
-    if (staticOnly)
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); //won't affect text color
-
     if (alignToFrame)
         ImGui::AlignTextToFramePadding();
 
@@ -3430,11 +3468,9 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
     auto ps = PrepareString(label.value());
     bool sel = selected.eval(ctx);
-    ImRad::Selectable(ps.label.c_str(), sel, flags, size);
+    int fl = flags | (staticOnly ? ImGuiSelectableFlags_Disabled : 0);
+    ImRad::Selectable(ps.label.c_str(), sel, fl, size);
     DrawTextArgs(ps, ctx, { 0, 0 }, size, alignment);
-
-    if (staticOnly)
-        ImGui::PopItemFlag();
 
     if (!style_header.empty())
         ImGui::PopStyleColor();
@@ -3445,10 +3481,11 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
     if (!style_interiorPadding.empty())
         padding = style_interiorPadding.eval_px(ctx);
     auto curData = ImRad::GetCursorData();
-    auto lastItem = ImRad::GetLastItemData();
-    ImGui::PushClipRect(lastItem.Rect.Min + padding, lastItem.Rect.Max - padding, true);
-    ImGui::SetCursorScreenPos(lastItem.Rect.Min + padding);
+    auto itemData = ImRad::GetLastItemData();
+    auto rect = ImRad::Rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    ImGui::SetCursorScreenPos(rect.Min + padding);
     ImGui::BeginGroup();
+    ImGui::PushClipRect(rect.Min + padding, rect.Max - padding, true);
 
     for (auto& child : child_iterator(children, false))
     {
@@ -3459,10 +3496,10 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
         child->Draw(ctx);
     }
 
-    ImGui::EndGroup();
     ImGui::PopClipRect();
-    ImRad::SetLastItemData(lastItem);
+    ImGui::EndGroup();
     ImRad::SetCursorData(curData);
+    ImRad::SetLastItemData(itemData);
 
     return ImGui::GetWindowDrawList();
 }
@@ -3485,13 +3522,10 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
     if (!style_header.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_Header, " << style_header.to_arg() << ");\n";
 
-    if (staticOnly)
-        os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);\n";
-
     if (alignToFrame)
         os << ctx.ind << "ImGui::AlignTextToFramePadding();\n";
 
-    if (multiSelect)
+    if (multiSelected)
         os << ctx.ind << "ImGui::SetNextItemSelectionUserData(" << ctx.varItemIndex << ");\n";
 
     bool closePopup = ctx.kind == TopWindow::ModalPopup && modalResult != ImRad::None;
@@ -3503,14 +3537,19 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         PushError(ctx, "label is formatted wrongly");
 
     os << "ImRad::Selectable(" << label.to_arg() << ", ";
-    if (multiSelect)
+    if (multiSelected)
         os << ctx.varSelection << ".Contains(" << ctx.varItemIndex << ")";
     else if (selected.is_reference())
         os << "&" << selected.to_arg();
     else
         os << selected.to_arg();
 
-    os << ", " << flags.to_arg() << ", { "
+    auto fl = flags;
+    fl.add$(ImGuiSelectableFlags_Disabled);
+    if (staticOnly)
+        fl |= ImGuiSelectableFlags_Disabled;
+
+    os << ", " << fl.to_arg() << ", { "
         << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
         << " })";
@@ -3532,9 +3571,6 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << ";\n";
     }
 
-    if (staticOnly)
-        os << ctx.ind << "ImGui::PopItemFlag();\n";
-
     if (!style_header.empty())
         os << ctx.ind << "ImGui::PopStyleColor();\n";
 
@@ -3542,15 +3578,18 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
     if (children.size())
     {
-        std::string tmp = ctx.parentVarName;
-        ctx.parentVarName = TMP_LAST_ITEM_VAR + std::to_string(ctx.varCounter) + ".Rect";
+        std::string varItem = "tmpItem" + std::to_string(ctx.varCounter);
+        std::string varCursor = "tmpCursor" + std::to_string(ctx.varCounter);
+        std::string varRect = TMP_RECT_VAR + std::to_string(ctx.varCounter);
         std::string varPad = "tmpPadding" + std::to_string(ctx.varCounter);
+        std::string tmp = ctx.parentVarName;
+        ctx.parentVarName = varRect;
 
         os << "\n";
-        os << ctx.ind << "auto tmpCursor" << ctx.varCounter
-            << " = ImRad::GetCursorData();\n";
-        os << ctx.ind << "auto " << TMP_LAST_ITEM_VAR << ctx.varCounter
-            << " = ImRad::GetLastItemData();\n";
+        os << ctx.ind << "auto " << varCursor << " = ImRad::GetCursorData();\n";
+        os << ctx.ind << "auto " << varItem << " = ImRad::GetLastItemData();\n";
+        os << ctx.ind << "auto " << TMP_RECT_VAR << ctx.varCounter
+            << " = ImRad::Rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());\n";
         os << ctx.ind << "ImVec2 " << varPad;
         if (!style_interiorPadding.empty())
             os << style_interiorPadding.to_arg(ctx.unit);
@@ -3558,13 +3597,15 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
             os << " = ImGui::GetStyle().FramePadding";
         os << ";\n";
 
-        os << ctx.ind << "ImGui::SetCursorScreenPos({ ImGui::GetItemRectMin().x + "
-            << varPad << ".x, ImGui::GetItemRectMin().y + " << varPad << ".y });\n";
+        os << ctx.ind << "ImGui::SetCursorScreenPos({"
+            << varRect << ".Min.x + " << varPad << ".x, "
+            << varRect << ".Min.y + " << varPad << ".y });\n";
         os << ctx.ind << "ImGui::BeginGroup();\n";
-        os << ctx.ind << "ImGui::PushClipRect({ ImGui::GetItemRectMin().x + "
-            << varPad << ".x, ImGui::GetItemRectMin().y + " << varPad << ".y }, "
-            << "{ ImGui::GetItemRectMax().x - " << varPad << ".x, "
-            << "ImGui::GetItemRectMax().y - " << varPad << ".y }, true);\n";
+        os << ctx.ind << "ImGui::PushClipRect({ "
+            << varRect << ".Min.x + " << varPad << ".x, "
+            << varRect << ".Min.y + " << varPad << ".y }, { "
+            << varRect << ".Max.x - " << varPad << ".x, "
+            << varRect << ".Max.y - " << varPad << ".y }, true);\n";
         os << ctx.ind << "/// @separator\n\n";
 
         for (auto& child : child_iterator(children, false))
@@ -3581,8 +3622,8 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
         os << ctx.ind << "ImGui::EndGroup();\n";
-        os << ctx.ind << "ImRad::SetLastItemData(" << TMP_LAST_ITEM_VAR << ctx.varCounter << ");\n";
-        os << ctx.ind << "ImRad::SetCursorData(tmpCursor" << ctx.varCounter << ");\n";
+        os << ctx.ind << "ImRad::SetCursorData(" << varCursor << ");\n";
+        os << ctx.ind << "ImRad::SetLastItemData(" << varItem << ");\n";
 
         ++ctx.varCounter;
     }
@@ -3590,6 +3631,9 @@ void Selectable::DoExport(std::ostream& os, UIContext& ctx)
 
 void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
+    int dummy;
+    char buf[256];
+
     if ((sit->kind == cpp::CallExpr && sit->callee == "ImRad::Selectable") ||
         (sit->kind == cpp::IfCallBlock && sit->callee == "ImRad::Selectable") ||
         (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Selectable") || //compatibility
@@ -3609,8 +3653,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
                 selected.set_from_arg(sit->params[1]);
         }
         if (sit->params.size() >= 3) {
-            std::string fl = Replace(sit->params[2], "ImGuiSelectableFlags_DontClosePopups", "ImGuiSelectableFlags_NoAutoClosePopups"); //compatibility
-            if (!flags.set_from_arg(fl))
+            std::string tmp = sit->params[2];
+            tmp = Replace(tmp, "ImGuiSelectableFlags_DontClosePopups", "ImGuiSelectableFlags_NoAutoClosePopups"); //compatibility
+            staticOnly = tmp.find("ImGuiSelectableFlags_Disabled") != std::string::npos;
+            tmp = Replace(tmp, "ImGuiSelectableFlags_Disabled", "ImGuiSelectableFlags_None");
+            if (!flags.set_from_arg(tmp))
                 PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
         }
         if (sit->params.size() >= 4) {
@@ -3657,7 +3704,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushItemFlag")
     {
-        if (sit->params.size() && sit->params[0] == "ImGuiItemFlags_Disabled")
+        if (sit->params.size() && sit->params[0] == "ImGuiItemFlags_Disabled") //compatibility
             staticOnly = true;
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::AlignTextToFramePadding")
@@ -3671,7 +3718,11 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemSelectionUserData")
     {
-        multiSelect = true;
+        multiSelected = true;
+    }
+    else if (sit->kind == cpp::Other && std::sscanf(sit->line.c_str(), "ImVec2 tmpPadding%d%255s;", &dummy, buf) == 2)
+    {
+        style_interiorPadding.set_from_arg(buf);
     }
 }
 
@@ -3693,7 +3744,7 @@ Selectable::Properties()
         { "behavior.label", &label, true },
         { "behavior.staticOnly", &staticOnly },
         { "behavior.modalResult##selectable", &modalResult },
-        { "bindings.multiSelect", &multiSelect },
+        { "bindings.multiSelected", &multiSelected },
         { "bindings.selected##selectable", &selected },
         });
     return props;
@@ -3799,13 +3850,13 @@ bool Selectable::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 13:
-        ImGui::Text("multiSelect");
+        ImGui::Text("multiSelected");
         ImGui::TableNextColumn();
-        fl = multiSelect != Defaults().multiSelect ? InputDirectVal_Modified : 0;
-        InputDirectVal(&multiSelect, fl, ctx);
+        fl = multiSelected != Defaults().multiSelected ? InputDirectVal_Modified : 0;
+        InputDirectVal(&multiSelected, fl, ctx);
         break;
     case 14:
-        ImGui::BeginDisabled(multiSelect);
+        ImGui::BeginDisabled(multiSelected);
         ImGui::Text("selected");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -4791,7 +4842,8 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     if (!value.is_reference())
         PushError(ctx, "value only supports l-values");
 
-    if (!(flags & ImGuiInputTextFlags_Multiline))
+    bool multiLine = flags & ImGuiInputTextFlags_Multiline;
+    if (!multiLine)
         os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
     std::string tid = type.get_id();
@@ -4837,8 +4889,9 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
         os << "ImGui::Input" << cap << "(" << id << ", &"
             << value.to_arg() << ", " << format.to_arg() << ")";
     }
-    else if (flags & ImGuiInputTextFlags_Multiline)
+    else if (multiLine)
     {
+        flags &= ~ImGuiInputTextFlags_Multiline; //imgui_internal only
         os << "ImGui::InputTextMultiline(" << id << ", &"
             << value.to_arg() << ", { "
             << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
@@ -4847,6 +4900,7 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
         if (!onCallback.empty())
             os << ", IMRAD_INPUTTEXT_EVENT(" << ctx.codeGen->GetName() << ", " << onCallback.to_arg() << ")";
         os << ")";
+        flags |= ImGuiInputTextFlags_Multiline;
     }
     else if (tid == "std::string")
     {
@@ -4940,6 +4994,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 4) {
             if (!flags.set_from_arg(sit->params[3]))
                 PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
+            flags |= ImGuiInputTextFlags_Multiline;
         }
 
         if (sit->params.size() >= 5 &&
@@ -6728,14 +6783,24 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
         size.y = 20;
 
     std::string id = std::to_string((uintptr_t)this);
-    ImGui::BeginChild(id.c_str(), size, ImGuiChildFlags_Borders);
-    ImGui::EndChild();
+    if (ImGui::BeginChild(id.c_str(), size, ImGuiChildFlags_Borders))
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        auto clr = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+        dl->AddLine(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr));
+        dl->AddLine(cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(cached_size.x, 0), ImGui::ColorConvertFloat4ToU32(clr));
 
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    auto clr = ImGui::GetStyle().Colors[ImGuiCol_Border];
-    dl->AddLine(cached_pos, cached_pos + cached_size, ImGui::ColorConvertFloat4ToU32(clr));
-    dl->AddLine(cached_pos + ImVec2(0, cached_size.y), cached_pos + ImVec2(cached_size.x, 0), ImGui::ColorConvertFloat4ToU32(clr));
+        ImGui::SetCursorScreenPos(cached_pos);
+        auto ps = PrepareString(label.value());
+        ImVec2 sz = ImGui::CalcTextSize(ps.label.c_str());
+        ImVec2 realSize = ImGui::CalcItemSize(size, size.x, size.y);
+        ImVec2 pos{ 0.5f * (realSize.x - sz.x), 0.5f * (realSize.y - sz.y) };
+        ImGui::SetCursorScreenPos(cached_pos + pos);
+        ImGui::Text(ps.label.c_str());
+        DrawTextArgs(ps, ctx, pos);
 
+        ImGui::EndChild();
+    }
     return ImGui::GetWindowDrawList();
 }
 
@@ -6745,10 +6810,11 @@ void CustomWidget::DoExport(std::ostream& os, UIContext& ctx)
         PushError(ctx, "Draw event not set");
         return;
     }
-    os << ctx.ind << onDraw.to_arg() << "({ "
+    os << ctx.ind << onDraw.to_arg() << "(ImRad::CustomWidgetArgs("
+        << label.to_arg() << ", { "
         << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
         << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1])
-        << " });\n";
+        << " }));\n";
 }
 
 void CustomWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
@@ -6757,8 +6823,22 @@ void CustomWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         onDraw.set_from_arg(sit->callee);
 
-        if (sit->params.size()) {
-            auto size = cpp::parse_size(sit->params[0]);
+        if (sit->params.size())
+        {
+            std::string sizeParam = sit->params[0]; //compatibility
+
+            if (!sit->params[0].compare(0, 24, "ImRad::CustomWidgetArgs("))
+            {
+                std::istringstream is(sit->params[0]);
+                cpp::token_iterator it(is);
+                cpp::stmt_iterator cit(it);
+                if (cit->kind == cpp::CallExpr && cit->params.size())
+                    label.set_from_arg(cit->params[0]);
+                if (cit->kind == cpp::CallExpr && cit->params.size() >= 2)
+                    sizeParam = cit->params[1];
+            }
+
+            auto size = cpp::parse_size(sizeParam);
             size_x.set_from_arg(size.first);
             size_y.set_from_arg(size.second);
         }
@@ -6768,12 +6848,30 @@ void CustomWidget::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 std::vector<UINode::Prop>
 CustomWidget::Properties()
 {
-    return Widget::Properties();
+    auto props = Widget::Properties();
+    props.insert(props.begin(), {
+        { "behavior.label", &label },
+        });
+    return props;
 }
 
 bool CustomWidget::PropertyUI(int i, UIContext& ctx)
 {
-    return Widget::PropertyUI(i, ctx);
+    bool changed = false;
+    switch (i)
+    {
+    case 0:
+        ImGui::Text("label");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&label, 0, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("label", &label, ctx);
+        break;
+    default:
+        return Widget::PropertyUI(i - 1, ctx);
+    }
+    return false;
 }
 
 std::vector<UINode::Prop>

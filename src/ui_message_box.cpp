@@ -35,13 +35,11 @@ void MessageBox::Draw()
         float height = std::max(30.f, szm.y);
         if (icon != None) {
             ImGui::PushFont(nullptr, 25.f);
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0.5 });
             ImGui::PushStyleColor(ImGuiCol_Text, ICONCLR[icon]);
-            ImRad::Selectable(ICON[icon], false, 0, { 0, height });
+            ImRad::Selectable(ICON[icon], false, ImGuiSelectableFlags_Disabled, { 0, height });
             ImGui::PopStyleColor();
             ImGui::PopStyleVar();
-            ImGui::PopItemFlag();
             ImGui::PopFont();
             ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         }

@@ -30,6 +30,7 @@ void TableCols::Init()
 
 void TableCols::Draw()
 {
+    /// @dpi-info 141.357,1.25
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
@@ -60,7 +61,7 @@ void TableCols::Draw()
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 1.f });
         ImRad::Selectable("Columns:", false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
         ImGui::PopStyleVar();
-        vb1.AddSize(1, ImRad::VBox::ItemSize);
+        vb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
         ImGui::EndDisabled();
         /// @end Selectable
 
@@ -84,6 +85,7 @@ void TableCols::Draw()
 
                 for (int i = 0; i < columns.size(); ++i)
                 {
+                    auto& _item = columns[i];
                     ImGui::PushID(i);
                     ImGui::TableNextRow(0, 0);
                     ImGui::TableSetColumnIndex(0);
@@ -116,13 +118,13 @@ void TableCols::Draw()
 
             /// @begin CustomWidget
             ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-            Properties_Draw({ -1, -1 });
+            Properties_Draw(ImRad::CustomWidgetArgs("", { -1, -1 }));
             /// @end CustomWidget
 
             /// @separator
             ImGui::EndChild();
         }
-        vb1.AddSize(1, ImRad::VBox::Stretch(1));
+        vb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::Stretch(1.0f));
         /// @end Splitter
 
         /// @begin Button
@@ -130,7 +132,7 @@ void TableCols::Draw()
         {
             AddButton_Change();
         }
-        vb1.AddSize(1, ImRad::VBox::ItemSize);
+        vb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Add new column");
         /// @end Button
@@ -178,9 +180,7 @@ void TableCols::Draw()
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImRad::Selectable(ImRad::Format("{}##error", error).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
-        ImGui::PopItemFlag();
+        ImRad::Selectable(ImRad::Format("{}##error", error).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 0, 0 });
         ImGui::PopStyleVar();
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
         ImGui::PopStyleColor();
@@ -190,8 +190,8 @@ void TableCols::Draw()
         hb4.BeginLayout();
         ImRad::Spacing(2);
         ImRad::Dummy({ hb4.GetSize(), 0 });
-        vb1.AddSize(3, ImRad::VBox::ItemSize);
-        hb4.AddSize(0, ImRad::HBox::Stretch(1));
+        vb1.AddSize(3 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
+        hb4.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Button
@@ -201,7 +201,7 @@ void TableCols::Draw()
             ClosePopup(ImRad::Ok);
         }
         vb1.UpdateSize(0, 30);
-        hb4.AddSize(1, 100);
+        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
         /// @end Button
 
         /// @begin Button
@@ -212,7 +212,7 @@ void TableCols::Draw()
             ClosePopup(ImRad::Cancel);
         }
         vb1.UpdateSize(0, 30);
-        hb4.AddSize(1, 100);
+        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
         /// @end Button
 
         /// @separator

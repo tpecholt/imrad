@@ -1,4 +1,3 @@
-#include "imrad.h"
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_android.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
@@ -12,6 +11,10 @@
 #include <string>
 
 // TODO: include activity headers here
+
+// must come last
+#define IMRAD_H_IMPLEMENTATION
+#include <imrad.h>
 
 // Data
 static EGLDisplay           g_EglDisplay = EGL_NO_DISPLAY;
@@ -36,7 +39,6 @@ static void FreeMem();
 static void MainLoopStep();
 static int ShowSoftKeyboardInput(int mode);
 static void PerformHapticFeedback(int kind);
-/*static*/ int GetAssetData(const char* filename, void** out_data);
 static void GetDisplayInfo();
 static void UpdateScreenRect();
 
@@ -253,13 +255,13 @@ void Init(struct android_app* app)
 
         GetDisplayInfo();
         io.MouseDragThreshold *= ImRad::GetUserData().dpiScale;
-        // Load ImRAD style including fonts:
-        // ImRad::LoadStyle(fname, ImRad::GetUserData().dpiScale);
+        // TODO: Load ImRAD style including fonts:
+        // ImRad::LoadStyle(fname);
         // Alternatively, setup Dear ImGui style
         ImGui::StyleColorsDark();
         //ImGui::StyleColorsLight();
         ImGui::GetStyle().ScaleAllSizes(ImRad::GetUserData().dpiScale);
-        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale * 1.f; // TODO: use your font scaling factor
+        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale;
 
         // TODO: Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -268,23 +270,17 @@ void Init(struct android_app* app)
         // - Read 'docs/FONTS.md' for more instructions and details.
         // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
         // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them
-
         ImFontConfig cfg;
         cfg.SizePixels = 18.0f;
         io.Fonts->AddFontDefault(&cfg);
-
-        /*void *roboto_data, *material_data;
-        int roboto_size, material_size;
-        ImFont *font;
-        roboto_size = GetAssetData("Roboto-Regular.ttf", &roboto_data);
-        material_size = GetAssetData(FONT_ICON_FILE_NAME_MD, &material_data);
-        static ImWchar icons_ranges[] = {ICON_MIN_MD, ICON_MAX_16_MD, 0};
-
-        font = io.Fonts->AddFontFromMemoryTTF(roboto_data, roboto_size, 20.0f);
+        /*ImFont *font;
+        auto roboto_data = GetAndroidAsset("Roboto-Regular.ttf");
+        auto material_data = GetAndroidAsset(FONT_ICON_FILE_NAME_MD);
+        font = io.Fonts->AddFontFromMemoryTTF(roboto_data.first, roboto_data.second, 20.0f);
         IM_ASSERT(font != nullptr);
         cfg.MergeMode = true;
         cfg.GlyphOffset.y = 20.f / 5;
-        font = io.Fonts->AddFontFromMemoryTTF(material_data, material_size, 20.0f, &cfg, icons_ranges);
+        font = io.Fonts->AddFontFromMemoryTTF(material_data.first, material_data.second, 20.0f, &cfg);
         IM_ASSERT(font != nullptr);*/
     }
 }
@@ -371,19 +367,19 @@ void MainLoopStep()
 // Helper functions
 
 // Helper to retrieve data placed into the assets/ directory (android/app/src/main/assets)
-/*static*/ int GetAssetData(const char* filename, void** outData)
+std::pair<void*, int> GetAndroidAsset(const char* filename)
 {
-    int num_bytes = 0;
+    std::pair<void*, int> ret(nullptr, 0);
     AAsset* asset_descriptor = AAssetManager_open(g_App->activity->assetManager, filename, AASSET_MODE_BUFFER);
     if (asset_descriptor)
     {
-        num_bytes = AAsset_getLength(asset_descriptor);
-        *outData = IM_ALLOC(num_bytes);
-        int64_t num_bytes_read = AAsset_read(asset_descriptor, *outData, num_bytes);
+        ret.second = AAsset_getLength(asset_descriptor);
+        ret.first = IM_ALLOC(ret.second);
+        int64_t num_bytes_read = AAsset_read(asset_descriptor, ret.first, ret.second);
         AAsset_close(asset_descriptor);
-        IM_ASSERT(num_bytes_read == num_bytes);
+        IM_ASSERT(num_bytes_read == ret.second);
     }
-    return num_bytes;
+    return ret;
 }
 
 struct JniBlock 

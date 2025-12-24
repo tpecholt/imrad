@@ -45,19 +45,19 @@
 
 ### New Code features
 
-* DockSpace, DockNode widgets added
+* `DockSpace`, `DockNode` widgets added
   
 * DragSource/Target events added
   
-* ImRad::Format delegates to std::format when available (requires /Zc:__cplusplus on msvc)
+* `ImRad::Format` delegates to `std::format` when available
   
-* Widget shortcuts now support RouteGlobal, Repeat flags
+* Widget shortcuts now support `RouteGlobal`, `Repeat` flags
   
-* Many two way binding properties now allow to bind into arrays (std::vector/array/span) and specify binding expression using the Binding dialog
+* Many two way binding properties now allow to bind into arrays (`std::vector`/`array`/`span`) and specify binding expression using the Binding dialog
   
 * Bindings into array elements can now use $item and $index expressions so the array and index variable names don't need to be used directly
   
-* Certain bindings now support both l-values and r-values and the appropriate code will be generated (such as for Selectables, RadioButtons which come in two overloads)
+* Certain bindings now support both l-values and r-values and the appropriate code will be generated (such as for `Selectable`, `RadioButton` which come in two overloads)
   
 * Android template implements haptic feedback for long press events
   
@@ -69,10 +69,21 @@
 
 * initialFocus / forceFocus moved into Common section so it's available to all widgets
 
-* BREAKING: ImRad::IOUserData was moved inside ImRad::GetUserData() so it's not longer required to instantiate it and pass it to ImGui::IO::UserData. Use ImRad::GetUserData() directly.
+* BREAKING: `ImRad::IOUserData` was moved inside `ImRad::GetUserData()` so it's no longer required to instantiate it and pass it to `ImGui::IO::UserData`. Use `ImRad::GetUserData()` directly.
 
-* Added multiSelection support for Table, Child, Selectable
+* Added multiSelection support for `Table`, `Child`, `Selectable`
 
+* Added experimental support for loading assets from zip files. Activate it by defining `IMRAD_WITH_MINIZIP` which requires
+the zlib library to be found. After that `LoadTextureFromFile` and font loading code in `LoadStyle` will accept file names with zip: scheme.
+
+* Added DragDropSourceLongPressed event
+
+* BREAKING: `imrad.h` was refactored into interface and implementation parts. By default only the interface part is included so
+`imgui_internal.h` and some other headers used only for the implementation are not leaked and generated code possibly compiles faster. In one of the cpp files #define `IMRAD_H_IMPLEMENTATION` before including `imrad.h` as the last include to create implementation.
+
+* BREAKING: `IMRAD_WITH_GLFW` and `IMRAD_WITH_STB` are no longer used. Use `IMRAD_WITH_LOAD_TEXTURE` to implemented `LoadTextureFromFile` function which is needed for the Image widget. It will require to include stb_image.h and GL/ES headers.
+
+* BREAKING: On android the required extern function `GetAssetData` was changed into `GetAndroidAsset` with more convenient signature.
 
 ### Improvements by Widget Type
 
@@ -135,6 +146,10 @@
 * Slider
   
   * new flags added
+
+* CustomWidget
+
+  * label added
     
 * DockSpace/Node
   

@@ -38,7 +38,7 @@ void SettingsDlg::Init()
 
 void SettingsDlg::Draw()
 {
-    /// @dpi-info 141.767,1.25
+    /// @dpi-info 141.357,1.25
     /// @style imrad
     /// @unit px
     /// @begin TopWindow
@@ -68,23 +68,19 @@ void SettingsDlg::Draw()
         vb1.BeginLayout();
         hb1.BeginLayout();
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0.5f });
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImRad::Selectable("Category", false, ImGuiSelectableFlags_NoAutoClosePopups, { hb1.GetSize(), 0 });
-        ImGui::PopItemFlag();
+        ImRad::Selectable("Category", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { hb1.GetSize(), 0 });
         ImGui::PopStyleVar();
-        vb1.AddSize(0, ImRad::VBox::ItemSize);
-        hb1.AddSize(0, ImRad::HBox::Stretch(0.3f));
+        vb1.AddSize(0 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
+        hb1.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(0.3f));
         /// @end Selectable
 
         /// @begin Selectable
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImRad::Selectable("Environment Settings", false, ImGuiSelectableFlags_NoAutoClosePopups, { hb1.GetSize(), 0 });
-        ImGui::PopItemFlag();
+        ImRad::Selectable("Environment Settings", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { hb1.GetSize(), 0 });
         ImGui::PopStyleVar();
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
-        hb1.AddSize(1, ImRad::HBox::Stretch(1.0f));
+        hb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Selectable
 
         // TODO: Add Draw calls of dependent popup windows here
@@ -109,8 +105,8 @@ void SettingsDlg::Draw()
             /// @separator
             ImGui::EndTable();
         }
-        vb1.AddSize(2, ImRad::VBox::Stretch(1.0f));
-        hb2.AddSize(0, ImRad::HBox::Stretch(0.3f));
+        vb1.AddSize(2 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::Stretch(1.0f));
+        hb2.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(0.3f));
         /// @end Table
 
         /// @begin Child
@@ -130,10 +126,8 @@ void SettingsDlg::Draw()
             /// @begin Selectable
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Regular:##reg1", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
-            ImGui::PopItemFlag();
+            ImRad::Selectable("Regular:##reg1", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -169,10 +163,8 @@ void SettingsDlg::Draw()
             /// @begin Selectable
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Regular:##reg2", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
-            ImGui::PopItemFlag();
+            ImRad::Selectable("Regular:##reg2", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -200,10 +192,8 @@ void SettingsDlg::Draw()
             /// @begin Selectable
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Bold:##bold2", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
-            ImGui::PopItemFlag();
+            ImRad::Selectable("Bold:##bold2", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -226,10 +216,8 @@ void SettingsDlg::Draw()
             /// @begin Selectable
             ImRad::Spacing(1);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::AlignTextToFramePadding();
-            ImRad::Selectable("Regular:##reg3", false, ImGuiSelectableFlags_NoAutoClosePopups, { 60, 0 });
-            ImGui::PopItemFlag();
+            ImRad::Selectable("Regular:##reg3", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 60, 0 });
             ImGui::PopStyleVar();
             /// @end Selectable
 
@@ -259,15 +247,15 @@ void SettingsDlg::Draw()
         }
         ImGui::PopStyleColor();
         vb1.UpdateSize(0, ImRad::VBox::Stretch(1.0f));
-        hb2.AddSize(1, ImRad::HBox::Stretch(1.0f));
+        hb2.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Child
 
         /// @begin Spacer
         hb3.BeginLayout();
         ImRad::Spacing(1);
         ImRad::Dummy({ hb3.GetSize(), 0 });
-        vb1.AddSize(2, ImRad::VBox::ItemSize);
-        hb3.AddSize(0, ImRad::HBox::Stretch(1.0f));
+        vb1.AddSize(2 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
+        hb3.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Button
@@ -277,7 +265,7 @@ void SettingsDlg::Draw()
             ClosePopup(ImRad::Ok);
         }
         vb1.UpdateSize(0, 30);
-        hb3.AddSize(1, 100);
+        hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
         /// @end Button
 
         /// @separator

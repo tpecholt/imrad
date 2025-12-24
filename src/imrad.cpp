@@ -44,6 +44,9 @@
 #include "ui_new_file_dlg.h"
 #include "ui_select_resource.h"
 
+#define IMRAD_H_IMPLEMENTATION
+#include "imrad.h"
+
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -882,13 +885,13 @@ void LoadStyle()
     ImGui::GetStyle().FontScaleDpi = mainScale;
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
-    static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+    //static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
     ImFontConfig cfg;
     cfg.MergeMode = true;
     //icons_config.PixelSnapH = true;
     const float faSize = uiFontSize * 18.f / 20.f;
-    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg, icons_ranges);
-    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), faSize, &cfg);
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg);
     cfg.MergeMode = false;
 
     strcpy(cfg.Name, "imrad.pg");
@@ -898,7 +901,7 @@ void LoadStyle()
     strcpy(cfg.Name, "imrad.explorer");
     io.Fonts->AddFontFromFileTTF((stylePath + "Roboto-Regular.ttf").c_str(), uiFontSize, &cfg);
     cfg.MergeMode = true;
-    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg, icons_ranges);
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg);
     cfg.MergeMode = false;
 
     ctx.defaultStyleFont = nullptr;
@@ -2696,7 +2699,7 @@ int main(int argc, const char* argv[])
     ImGui_ImplOpenGL3_Init(glsl_version);
     const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     ctx.dashTexId = ImRad::LoadTextureFromFile(
-        (rootPath + "/style/dash.png").c_str(), GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT).id;
+        (rootPath + "/style/dash.png").c_str(), false, false, true, true).id;
 
     GetStyles();
     programState = (ProgramState)-1;

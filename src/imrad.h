@@ -1,42 +1,50 @@
-#pragma once
+/*
+imrad.h - ImRAD support library for generated sources
+
+This file contains both the interface and implementation.
+
+Define this:
+   #define IMRAD_H_IMPLEMENTATION
+before you include this file in *one* C++ file to create implementation.
+*/
+
+#ifndef IMRAD_H_INTERFACE
+#define IMRAD_H_INTERFACE
+
 #include <string>
 #include <vector>
-#include <memory>
 #include <functional> //for ModalPopup callback
-#include <fstream> //Save/LoadStyle
-#include <filesystem> //Save/LoadStyle
-#include <iomanip> //std::quoted
-#include <sstream>
 #include <map>
 #include <imgui.h>
-#include <imgui_internal.h> //CurrentItemFlags, GetCurrentWindow, PushOverrideID
-#include <misc/cpp/imgui_stdlib.h> //for Input(std::string)
+#include <misc/cpp/imgui_stdlib.h> //for ImGui::Input(string)
+
+#ifdef _MSVC_LANG
+// in MSVC __cplusplus is not reilable unless /Zc:__cplusplus is given
+#define CPLUSPLUS _MSVC_LANG
+#else
+#define CPLUSPLUS __cplusplus
+#endif
 
 #ifdef IMRAD_WITH_FMT
 #include <fmt/format.h>
-#elif __cplusplus >= 202002L && __has_include(<format>)
+#elif CPLUSPLUS >= 202002L && __has_include(<format>)
 #include <format>
-#endif
-
-#ifdef IMRAD_WITH_GLFW
-#include <GLFW/glfw3.h> //enables kind=MainWindow
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE 0x812F
-#endif
-#endif
-
-#ifdef IMRAD_WITH_STB
-#include <stb_image.h> //for LoadTextureFromFile
-#endif
-
-#ifdef IMRAD_WITH_MINIZIP
-#include <unzip.h>
 #endif
 
 #define IMRAD_INPUTTEXT_EVENT(clazz, member) \
     [](ImGuiInputTextCallbackData* data) { return ((clazz*)data->UserData)->member(*data); }, this
 
-namespace ImRad {
+
+#ifdef ANDROID
+
+// Implement asset loading externally likely by using AAssetManager
+extern std::pair<void*, int> GetAndroidAsset(const char* filename);
+
+#endif
+
+
+namespace ImRad
+{
 
 using Int2 = int[2];
 using Int3 = int[3];
@@ -91,6 +99,63 @@ enum ImeType {
     ImeActionSend = 0x600,
 };
 
+// from imgui_internal.h
+struct Rect
+{
+    ImVec2      Min;    // Upper-left
+    ImVec2      Max;    // Lower-right
+
+    constexpr Rect() : Min(0.0f, 0.0f), Max(0.0f, 0.0f) {}
+    constexpr Rect(const ImVec2& min, const ImVec2& max) : Min(min), Max(max) {}
+    constexpr Rect(const ImVec4& v) : Min(v.x, v.y), Max(v.z, v.w) {}
+    constexpr Rect(float x1, float y1, float x2, float y2) : Min(x1, y1), Max(x2, y2) {}
+
+    ImVec2      GetCenter() const { return ImVec2((Min.x + Max.x) * 0.5f, (Min.y + Max.y) * 0.5f); }
+    ImVec2      GetSize() const { return ImVec2(Max.x - Min.x, Max.y - Min.y); }
+    float       GetWidth() const { return Max.x - Min.x; }
+    float       GetHeight() const { return Max.y - Min.y; }
+    float       GetArea() const { return (Max.x - Min.x) * (Max.y - Min.y); }
+    ImVec2      GetTL() const { return Min; }                   // Top-left
+    ImVec2      GetTR() const { return ImVec2(Max.x, Min.y); }  // Top-right
+    ImVec2      GetBL() const { return ImVec2(Min.x, Max.y); }  // Bottom-left
+    ImVec2      GetBR() const { return Max; }                   // Bottom-right
+    bool        Contains(const ImVec2& p) const { return p.x >= Min.x && p.y >= Min.y && p.x < Max.x && p.y < Max.y; }
+    bool        Contains(const Rect& r) const { return r.Min.x >= Min.x && r.Min.y >= Min.y && r.Max.x <= Max.x && r.Max.y <= Max.y; }
+    bool        ContainsWithPad(const ImVec2& p, const ImVec2& pad) const { return p.x >= Min.x - pad.x && p.y >= Min.y - pad.y && p.x < Max.x + pad.x && p.y < Max.y + pad.y; }
+    bool        Overlaps(const Rect& r) const { return r.Min.y <  Max.y && r.Max.y >  Min.y && r.Min.x <  Max.x && r.Max.x >  Min.x; }
+    void        Add(const ImVec2& p) { if (Min.x > p.x)     Min.x = p.x;     if (Min.y > p.y)     Min.y = p.y;     if (Max.x < p.x)     Max.x = p.x;     if (Max.y < p.y)     Max.y = p.y; }
+    void        Add(const Rect& r) { if (Min.x > r.Min.x) Min.x = r.Min.x; if (Min.y > r.Min.y) Min.y = r.Min.y; if (Max.x < r.Max.x) Max.x = r.Max.x; if (Max.y < r.Max.y) Max.y = r.Max.y; }
+    void        Expand(const float amount) { Min.x -= amount;   Min.y -= amount;   Max.x += amount;   Max.y += amount; }
+    void        Expand(const ImVec2& amount) { Min.x -= amount.x; Min.y -= amount.y; Max.x += amount.x; Max.y += amount.y; }
+    void        Translate(const ImVec2& d) { Min.x += d.x; Min.y += d.y; Max.x += d.x; Max.y += d.y; }
+    void        TranslateX(float dx) { Min.x += dx; Max.x += dx; }
+    void        TranslateY(float dy) { Min.y += dy; Max.y += dy; }
+    //void        ClipWith(const ImRect& r) { Min = ImMax(Min, r.Min); Max = ImMin(Max, r.Max); }                   // Simple version, may lead to an inverted rectangle, which is fine for Contains/Overlaps test but not for display.
+    //void        ClipWithFull(const ImRect& r) { Min = ImClamp(Min, r.Min, r.Max); Max = ImClamp(Max, r.Min, r.Max); } // Full version, ensure both points are fully clipped.
+    //void        Floor() { Min.x = IM_TRUNC(Min.x); Min.y = IM_TRUNC(Min.y); Max.x = IM_TRUNC(Max.x); Max.y = IM_TRUNC(Max.y); }
+    bool        IsInverted() const { return Min.x > Max.x || Min.y > Max.y; }
+    ImVec4      ToVec4() const { return ImVec4(Min.x, Min.y, Max.x, Max.y); }
+    const ImVec4& AsVec4() const { return *(const ImVec4*)&Min.x; }
+};
+
+// UI configuration and UI feedback
+struct IOUserData
+{
+    //to UI
+    float dpiScale = 1.f;
+    ImVec2 displayOffsetMin;
+    ImVec2 displayOffsetMax;
+    float dimBgRatio = 1.f;
+    bool kbdShown = false;
+    std::string activeActivity;
+    //from UI
+    int imeType = ImeText;
+    ImGuiID longPressID = 0;
+
+    void NewFrame();
+    Rect WorkRect() const;
+};
+
 struct Texture
 {
     ImTextureID id = 0;
@@ -100,101 +165,25 @@ struct Texture
 
 struct CustomWidgetArgs
 {
+    const char* id;
     ImVec2 size;
 
-    CustomWidgetArgs(const ImVec2& sz) : size(sz) {}
-    CustomWidgetArgs(float x, float y) : size(x, y) {}
-};
-
-struct IOUserData
-{
-    //to UI
-    float dpiScale = 1;
-    ImVec2 displayOffsetMin;
-    ImVec2 displayOffsetMax;
-    float dimBgRatio = 1;
-    bool kbdShown = false;
-    std::string activeActivity;
-    //from UI
-    int imeType = ImeText;
-    ImGuiID longPressID = 0;
-
-    void NewFrame()
-    {
-        if (!ImGui::GetIO().WantTextInput)
-            imeType = ImeNone;
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            longPressID = 0;
-    }
-    ImRect WorkRect() const
-    {
-        return {
-            displayOffsetMin.x,
-            displayOffsetMin.y,
-            ImGui::GetMainViewport()->Size.x - displayOffsetMax.x,
-            ImGui::GetMainViewport()->Size.y - displayOffsetMax.y };
-    }
+    CustomWidgetArgs(const char* label, const ImVec2& sz) : size(sz) {}
 };
 
 struct Animator
 {
     //todo: configure
-    static inline const float DurOpenPopup = 0.4f;
-    static inline const float DurClosePopup = 0.3f;
+    static const float DurOpenPopup;
+    static const float DurClosePopup;
 
-    void StartAlways(float *v, float s, float e, float dur)
-    {
-        Var nvar{ 0, v, s, e, dur, false };
-        for (auto& var : vars)
-            if (var.var == v) {
-                var = nvar;
-                return;
-            }
-        vars.push_back(nvar);
-    }
-    void StartOnce(float *v, float s, float e, float dur)
-    {
-        Var nvar{ 0, v, s, e, dur, true };
-        for (auto& var : vars)
-            if (var.var == v) {
-                var = nvar;
-                return;
-            }
-        vars.push_back(nvar);
-    }
-    bool IsDone() const
-    {
-        for (const auto& var : vars)
-            if (var.oneShot || std::abs(*var.var - var.end) / std::abs(var.end - var.start) > 0.01)
-                return false;
-        return true;
-    }
+    void StartPersistent(float* v, float s, float e, float dur);
+    void StartOnce(float* v, float s, float e, float dur);
+    bool IsDone() const;
     //to be called from withing Begin
-    void Tick()
-    {
-        wsize = ImGui::GetCurrentWindow()->Size; //cache actual windows size
-        size_t j = 0;
-        for (size_t i = 0; i < vars.size(); ++i) {
-            auto& var = vars[i];
-            var.time += ImGui::GetIO().DeltaTime;
-            float distance = var.end - var.start;
-            float x = var.time / var.duration;
-            if (x > 1)
-                x = 1.f;
-            float y = 1 - (1 - x) * (1 - x); //easeOutQuad
-            *var.var = var.start + y * distance;
-            if (!var.oneShot || std::abs(x - 1.0) >= 0.01) { //keep current var
-                if (j < i)
-                    vars[j] = var;
-                ++j;
-            }
-        }
-        vars.resize(j);
-    }
-    ImVec2 GetWindowSize() const
-    {
-        return wsize;
-    }
+    void Tick();
+
+    ImVec2 GetWindowSize() const;
 
 private:
     struct Var
@@ -209,7 +198,6 @@ private:
     ImVec2 wsize{ 0, 0 };
 };
 
-
 template <bool HORIZ>
 struct BoxLayout
 {
@@ -220,106 +208,19 @@ struct BoxLayout
         Stretch(float v) : value(v) {}
     };
 
-    void Reset()
-    {
-        prevItems.clear();
-    }
-    void BeginLayout()
-    {
-        pos1 = HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
-        std::swap(prevItems, items);
-        items.clear();
+    void Reset();
+    void BeginLayout();
 
-        float avail = HORIZ ? ImGui::GetContentRegionAvail().x : ImGui::GetContentRegionAvail().y;
-        float total = 0;
-        float stretchTotal = 0;
-        for (Item& it : prevItems) {
-            //it.spacing = (int)it.spacing;
-            //it.size = (int)it.size;
-            total += it.spacing;
-            if (it.stretch)
-                stretchTotal += it.size;
-            else if (it.size < 0) {
-                //total = avail + it.size;
-                stretchTotal += 1.0;
-                total += -it.size;
-            }
-            else
-                total += it.size;
-        }
-        for (Item& it : prevItems) {
-            if (it.stretch)
-                it.size = (float)(int)(it.size * (avail - total) / stretchTotal);
-            else if (it.size < 0)
-                it.size = (float)(int)(1.0 * (avail - total) / stretchTotal);
-                //it.size += avail;
-        }
-    }
     //call after a widget call
-    void AddSize(int sp, float size)
-    {
-        float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
-        if (size == ItemSize)
-            size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
-        items.push_back({ spacing, size, false });
-    }
-    void AddSize(int sp, Stretch size)
-    {
-        float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
-        items.push_back({ spacing, size.value, true });
-    }
-    //call after a widget call for vert layout having multiple widgets in a row
-    void UpdateSize(float sp, float size)
-    {
-        assert(items.size());
-        float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
-        if (size == ItemSize)
-            size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
-        Item& it = items.back();
-        if (spacing > it.spacing)
-            it.spacing = spacing;
-        if (!it.stretch && (size > it.size || (size < 0 && it.size > 0)))
-            it.size = size;
-    }
-    void UpdateSize(float sp, Stretch size)
-    {
-        assert(items.size());
-        float spacing = sp * (HORIZ ? ImGui::GetStyle().ItemSpacing.x : ImGui::GetStyle().ItemSpacing.y);
-        Item& it = items.back();
-        if (spacing > it.spacing)
-            it.spacing = spacing;
-        if (!it.stretch || size.value > it.size) {
-            it.stretch = true;
-            it.size = size.value;
-        }
-    }
-    //unused - for use in SetCursorX/Y
-    float GetPos()
-    {
-        if (prevItems.size() <= items.size()) //stop positioning - widgets changed
-            return HORIZ ? ImGui::GetCursorPosX() : ImGui::GetCursorPosY();
-        float pos = pos1;
-        for (size_t i = 0; i < items.size(); ++i) {
-            pos += prevItems[i].size + prevItems[i].spacing;
-        }
-        if (prevItems.size() > items.size())
-            pos += prevItems[items.size()].spacing;
-        return pos;
-    }
-    //deprecated
-    operator float()
-    {
-        return GetPos();
-    }
+    void AddSize(float spacing, float size);
+    void AddSize(float spacing, Stretch size);
+
+    //call after a widget call for 2nd and subsequent widgets in a row
+    void UpdateSize(float spacing, float size);
+    void UpdateSize(float spacing, Stretch size);
+
     //for use in SetNextItemWidth/ctor. Call after possible SameLine
-    float GetSize(bool deprecatedSameLine = false)
-    {
-        bool sameLine = !HORIZ && ImGui::GetCurrentWindow()->DC.IsSameLine;
-        size_t i = sameLine ? items.size() - 1 : items.size();
-        if (i >= prevItems.size()) //widgets changed
-            return 0;
-        return prevItems[i].size;
-    }
+    float GetSize();
 
 private:
     struct Item {
@@ -329,7 +230,6 @@ private:
     };
 
     std::vector<Item> items, prevItems;
-    float pos1;
 };
 
 using HBox = BoxLayout<true>;
@@ -337,17 +237,421 @@ using VBox = BoxLayout<false>;
 
 //------------------------------------------------------------------------
 
-inline IOUserData& GetUserData()
+IOUserData& GetUserData();
+
+void SaveStyle(const std::string& spath, const ImGuiStyle* src = nullptr, const std::map<std::string, std::string>& extra = {});
+
+//This function can be used in your code to load style and fonts from the INI file
+void LoadStyle(const std::string& spath, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr);
+
+//------------------------------------------------------------------------
+
+bool Combo(const char* label, std::string* curr, const std::vector<std::string>& items, int flags = 0);
+
+bool Combo(const char* label, std::string* curr, const char* items, int flags = 0);
+
+// from imgui_internal.h
+using SeparatorFlags = int;
+enum SeparatorFlags_
+{
+    SeparatorFlags_None = 0,
+    SeparatorFlags_Horizontal = 1 << 0,   // Axis default to current layout type, so generally Horizontal unless e.g. in a menu bar
+    SeparatorFlags_Vertical = 1 << 1,
+    SeparatorFlags_SpanAllColumns = 1 << 2,   // Make separator cover all columns of a legacy Columns() set.
+};
+void SeparatorEx(SeparatorFlags flags, float thickness = 1.f);
+
+// Adds negative dimensions support
+void Dummy(const ImVec2& size);
+
+// This is an improved version of ImGui::Selectable.
+// 1. allows to pass negative dimensions similarly to other widgets
+// 2. changes meaning of size.x=0 to use label width. This is more consistent with size.y=0 which doesn't cause
+//    height expansion in ImGui. It also fixes layout calculation in box sizer because GetItemRectSize never
+//    returns the actual size. User can still supply -1 to request available width expansion
+// 3. Interprets ImGuiSelectableFlags_Disabled in terms of PushItemFlag(Disabled) which
+//    is imgui_internal only. For full disable state use Begin/EndDisabled
+bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size);
+
+bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags flags, const ImVec2& size);
+
+bool Splitter(bool split_horiz, float thickness, float* position, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f);
+
+//------------------------------------------------------------------------
+
+bool IsItemDoubleClicked();
+
+bool IsItemContextMenuClicked();
+
+bool IsItemLongPressed(double dur = -1);
+
+bool IsItemImeAction();
+
+bool IsCurrentItemDisabled();
+
+Texture LoadTextureFromFile(const std::string& filename, bool linearX = true, bool linearY = true, bool repeatX = false, bool repeatY = false);
+
+//allows to define popups in the window and open it from widgets calling internally
+//Push/PopID like TabControl
+void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0);
+
+void Spacing(int n);
+
+bool TableNextColumn(int n);
+
+void NextColumn(int n);
+
+Rect GetParentInnerRect();
+
+Rect GetWindowClipRect();
+
+void SetWindowSkipItems(bool skip);
+
+ImFont* GetFontByName(const char* name);
+ImFont* GetFontByName(const std::string& name);
+
+void PushInvisibleScrollbar();
+
+void PopInvisibleScrollbar();
+
+struct CursorData
+{
+    ImVec2 cursorPos; //affects column border height
+    ImVec2 cursorPosPrevLine; //used in SameLine
+    ImVec2 prevLineSize;
+    float prevLineTextBaseOffset;
+    ImVec2 cursorMaxPos; //affects scrollbars
+    ImVec2 idealMaxPos; //affects auto resize
+    ImVec2 currLineSize;
+    float currLineTextBaseOffset;
+    bool isSetPos; //causes ErrorCheckUsingSetCursorPosToExtendParentBoundaries
+    bool isSameLine;
+};
+
+CursorData GetCursorData();
+
+void SetCursorData(const CursorData& data);
+
+struct LastItemData
+{
+    ImGuiID ID;
+    ImGuiItemFlags itemFlags;
+    int statusFlags;
+    Rect rect;
+};
+
+LastItemData GetLastItemData();
+
+//This is to implement items with children such as Selectable
+//Begin/EndGroup also sets itemID and rect but it has its own logic not suitable for us
+void SetLastItemData(const LastItemData& data);
+
+struct IgnoreWindowPaddingData
+{
+    ImVec2 maxPos;
+    ImVec2 workRectMax;
+    bool hasSize;
+};
+
+void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data);
+
+void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data);
+
+//optionally draws scrollbars so they can be kept hidden when no scrolling occurs
+//returns:
+//0 - nothing happening or scrolling continues
+//1 - scrolling started
+//2 - scrolling ended
+int ScrollWhenDragging(bool drawScrollbars);
+
+//this currently
+//* allows to move popups on the screen side further out of the screen just to give it responsive feeling
+//* detects modal/popup close event
+//returns
+// 0 - close popup either by sliding or clicking outside
+// 1 - nothing happening
+// 2 - todo: maximize up/down popup
+int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio);
+
+//todo
+//intended for android
+//original version doesn't respect ioUserData.displayMinMaxOffset
+void RenderDimmedBackground(const Rect& rect, float alpha_mul);
+
+void RenderFilledWindowCorners(ImDrawFlags fl);
+
+//-------------------------------------------------------------------------
+
+inline std::string FormatFallback(const char* fmt, const char* fmte)
+{
+    return std::string(fmt, fmte);
+}
+
+template <class A1, class... A>
+std::string FormatFallback(const char* fmt, const char* fmte, A1&& arg, A&&... args)
+{
+    std::string s;
+    for (const char* p = fmt; p != fmte; ++p)
+    {
+        if (*p == '{') {
+            if (p + 1 == fmte)
+                break;
+            if (p[1] == '{') {
+                s += '{';
+                ++p;
+            }
+            else {
+                const char* next = std::find(p + 1, fmte, '}');
+                if (next == fmte)
+                    break;
+                if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
+                    s += arg;
+                else if constexpr (std::is_same_v<std::decay_t<A1>, const char*> ||
+                                    std::is_same_v<std::decay_t<A1>, char*>)
+                    s += arg;
+                else if constexpr (std::is_same_v<std::decay_t<A1>, char>)
+                    s += arg;
+                else
+                    s += std::to_string(arg);
+                return s + FormatFallback(next + 1, fmte, args...);
+            }
+        }
+        else
+            s += *p;
+    }
+    return s;
+}
+
+#ifdef IMRAD_WITH_FMT
+
+//only support format_string version for compile time checks
+template <class... A>
+std::string Format(fmt::format_string<A...> fmt, A&&... args)
+{
+    return fmt::format(fmt, std::forward<A>(args)...);
+}
+
+#elif CPLUSPLUS >= 202002L && __has_include(<format>)
+
+//only support format_string version for compile time checks
+template <class... A>
+std::string Format(std::format_string<A...> fmt, A&&... args)
+{
+    return std::format(fmt, std::forward<A>(args)...);
+}
+
+#else
+
+template <class... A>
+std::string Format(const char* fmt, A&&... args)
+{
+    return FormatFallback(fmt, fmt + strlen(fmt), std::forward<A>(args)...);
+}
+#endif
+
+} // namespace
+
+#endif // IMRAD_H_INTERFACE
+
+//-------------------------------------------------------------------------
+
+#ifdef IMRAD_H_IMPLEMENTATION
+
+#include <memory>
+#include <fstream>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
+#include <imgui_internal.h> //CurrentItemFlags, GetCurrentWindow, GetCurrentContext, PushOverrideID
+
+#ifdef IMRAD_WITH_LOAD_TEXTURE
+#include <stb_image.h>
+#endif
+
+#ifdef IMRAD_WITH_MINIZIP
+#include <unzip.h>
+#endif
+
+namespace ImRad
+{
+
+void IOUserData::NewFrame()
+{
+    if (!ImGui::GetIO().WantTextInput)
+        imeType = ImeNone;
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        longPressID = 0;
+}
+
+Rect IOUserData::WorkRect() const
+{
+    return {
+        displayOffsetMin.x,
+        displayOffsetMin.y,
+        ImGui::GetMainViewport()->Size.x - displayOffsetMax.x,
+        ImGui::GetMainViewport()->Size.y - displayOffsetMax.y };
+}
+
+const float Animator::DurOpenPopup = 0.4f;
+const float Animator::DurClosePopup = 0.3f;
+
+void Animator::StartPersistent(float* v, float s, float e, float dur)
+{
+    Var nvar{ 0, v, s, e, dur, false };
+    for (auto& var : vars)
+        if (var.var == v) {
+            var = nvar;
+            return;
+        }
+    vars.push_back(nvar);
+}
+
+void Animator::StartOnce(float* v, float s, float e, float dur)
+{
+    Var nvar{ 0, v, s, e, dur, true };
+    for (auto& var : vars)
+        if (var.var == v) {
+            var = nvar;
+            return;
+        }
+    vars.push_back(nvar);
+}
+
+bool Animator::IsDone() const
+{
+    for (const auto& var : vars)
+        if (var.oneShot || std::abs(*var.var - var.end) / std::abs(var.end - var.start) > 0.01)
+            return false;
+    return true;
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::Reset()
+{
+    prevItems.clear();
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::BeginLayout()
+{
+    std::swap(prevItems, items);
+    items.clear();
+
+    float avail = HORIZ ? ImGui::GetContentRegionAvail().x : ImGui::GetContentRegionAvail().y;
+    float total = 0;
+    float stretchTotal = 0;
+    for (Item& it : prevItems) {
+        //it.spacing = (int)it.spacing;
+        //it.size = (int)it.size;
+        total += it.spacing;
+        if (it.stretch)
+            stretchTotal += it.size;
+        else if (it.size < 0) {
+            //total = avail + it.size;
+            stretchTotal += 1.0;
+            total += -it.size;
+        }
+        else
+            total += it.size;
+    }
+    for (Item& it : prevItems) {
+        if (it.stretch)
+            it.size = (float)(int)(it.size * (avail - total) / stretchTotal);
+        else if (it.size < 0)
+            it.size = (float)(int)(1.0 * (avail - total) / stretchTotal);
+        //it.size += avail;
+    }
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::AddSize(float spacing, float size)
+{
+    if (size == ItemSize)
+        size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+    items.push_back({ spacing, size, false });
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::AddSize(float spacing, Stretch size)
+{
+    items.push_back({ spacing, size.value, true });
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::UpdateSize(float spacing, float size)
+{
+    assert(items.size());
+    if (size == ItemSize)
+        size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+    Item& it = items.back();
+    if (spacing > it.spacing)
+        it.spacing = spacing;
+    if (!it.stretch && (size > it.size || (size < 0 && it.size > 0)))
+        it.size = size;
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::UpdateSize(float spacing, Stretch size)
+{
+    assert(items.size());
+    Item& it = items.back();
+    if (spacing > it.spacing)
+        it.spacing = spacing;
+    if (!it.stretch || size.value > it.size) {
+        it.stretch = true;
+        it.size = size.value;
+    }
+}
+
+template <bool HORIZ>
+float BoxLayout<HORIZ>::GetSize()
+{
+    bool sameLine = !HORIZ && ImGui::GetCurrentWindow()->DC.IsSameLine;
+    size_t i = sameLine ? items.size() - 1 : items.size();
+    if (i >= prevItems.size()) //widgets changed
+        return 0;
+    return prevItems[i].size;
+}
+
+//explicit instantiation to allow member functions in cpp
+template struct BoxLayout<true>;
+template struct BoxLayout<false>;
+
+//to be called from withing Begin
+void Animator::Tick()
+{
+    wsize = ImGui::GetWindowSize(); //cache actual windows size
+    size_t j = 0;
+    for (size_t i = 0; i < vars.size(); ++i) {
+        auto& var = vars[i];
+        var.time += ImGui::GetIO().DeltaTime;
+        float distance = var.end - var.start;
+        float x = var.time / var.duration;
+        if (x > 1)
+            x = 1.f;
+        float y = 1 - (1 - x) * (1 - x); //easeOutQuad
+        *var.var = var.start + y * distance;
+        if (!var.oneShot || std::abs(x - 1.0) >= 0.01) { //keep current var
+            if (j < i)
+                vars[j] = var;
+            ++j;
+        }
+    }
+    vars.resize(j);
+}
+
+ImVec2 Animator::GetWindowSize() const
+{
+    return wsize;
+}
+
+IOUserData& GetUserData()
 {
     static IOUserData data;
     return data;
 }
 
-#ifdef ANDROID
-extern int GetAssetData(const char* filename, void** outData);
-#endif
-
-inline bool Combo(const char* label, std::string* curr, const std::vector<std::string>& items, int flags = 0)
+bool Combo(const char* label, std::string* curr, const std::vector<std::string>& items, int flags)
 {
     bool changed = false;
     if (ImGui::BeginCombo(label, curr->c_str(), flags))
@@ -363,7 +667,7 @@ inline bool Combo(const char* label, std::string* curr, const std::vector<std::s
     return changed;
 }
 
-inline bool Combo(const char* label, std::string* curr, const char* items, int flags = 0)
+bool Combo(const char* label, std::string* curr, const char* items, int flags)
 {
     bool changed = false;
     if (ImGui::BeginCombo(label, curr->c_str(), flags))
@@ -381,27 +685,47 @@ inline bool Combo(const char* label, std::string* curr, const char* items, int f
     return changed;
 }
 
-inline void Dummy(const ImVec2& size)
+void SeparatorEx(SeparatorFlags flags, float thickness)
+{
+    ImGuiSeparatorFlags fl = 0;
+    if (flags & SeparatorFlags_Horizontal)
+        fl |= ImGuiSeparatorFlags_Horizontal;
+    if (flags & SeparatorFlags_Vertical)
+        fl |= ImGuiSeparatorFlags_Vertical;
+    if (flags & SeparatorFlags_SpanAllColumns)
+        fl |= ImGuiSeparatorFlags_SpanAllColumns;
+
+    ImGui::SeparatorEx(flags, thickness);
+}
+
+void Dummy(const ImVec2& size)
 {
     //ImGui Dummy doesn't support negative dimensions like other controls
     ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
     return ImGui::Dummy(sz);
 }
 
-//ImGui::Selectable behaves differently in many ways. Here we
-// * use CalcItemSize to support negative dimensions
-// * change meaning of size.x=0 to label width. This fixes layout calculation in box sizer because
-// ImGui::Selectable always reports avail. User can still supply -1 to request avail width expansion
-// * size.y=0 doesn't cause avail width expansion in ImGui so changing size.x=0 fixes the inconsistency
-inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
+bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
 {
+    //support negative dimensions
     ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
+    //fit width by default
     if (!sz.x && !(flags & ImGuiSelectableFlags_SpanAllColumns))
         sz.x = ImGui::CalcTextSize(label, nullptr, true).x;
-    return ImGui::Selectable(label, selected, flags, sz);
+    //redefine ImGuiSelectableFlags_Disabled in terms of PushItemFlags
+    //to avoid going through imgui_internal.h
+    bool disabled = flags & ImGuiSelectableFlags_Disabled;
+    flags &= ~ImGuiSelectableFlags_Disabled;
+
+    if (disabled)
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+    bool ret = ImGui::Selectable(label, selected, flags, sz);
+    if (disabled)
+        ImGui::PopItemFlag();
+    return ret;
 }
 
-inline bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags flags, const ImVec2& size)
+bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags flags, const ImVec2& size)
 {
     if (Selectable(label, *selected, flags, size)) {
         *selected = !*selected;
@@ -410,11 +734,9 @@ inline bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags f
     return false;
 }
 
-inline bool Splitter(bool split_horiz, float thickness, float* position, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
+bool Splitter(bool split_horiz, float thickness, float* position, float min_size1, float min_size2, float splitter_long_axis_size)
 {
-    using namespace ImGui;
-    ImGuiContext& g = *GImGui;
-    ImGuiWindow* window = g.CurrentWindow;
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiID id = window->GetID("##Splitter");
     ImRect bb;
     bb.Min = window->DC.CursorPos;
@@ -424,49 +746,48 @@ inline bool Splitter(bool split_horiz, float thickness, float* position, float m
     ImVec2 sz(thickness, splitter_long_axis_size);
     if (!split_horiz)
         std::swap(sz[0], sz[1]);
-    sz = CalcItemSize(sz, 0.0f, 0.0f);
+    sz = ImGui::CalcItemSize(sz, 0.0f, 0.0f);
     bb.Max[0] += sz[0];
     bb.Max[1] += sz[1];
 
     float tmp = ImGui::GetContentRegionAvail().x - *position - thickness;
-    return SplitterBehavior(bb, id, split_horiz ? ImGuiAxis_X : ImGuiAxis_Y, position, &tmp, min_size1, min_size2, 0.0f);
+    return ImGui::SplitterBehavior(bb, id, split_horiz ? ImGuiAxis_X : ImGuiAxis_Y, position, &tmp, min_size1, min_size2, 0.0f);
 }
 
-inline bool IsItemDoubleClicked()
+bool IsItemDoubleClicked()
 {
     return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered();
 }
 
-inline bool IsItemContextMenuClicked()
+bool IsItemContextMenuClicked()
 {
     return ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonDefault_) &&
         ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
 }
 
-inline bool IsItemLongPressed(double dur = -1)
+bool IsItemLongPressed(double dur)
 {
     if (dur < 0)
         dur = 0.5f;
     double time = ImGui::GetTime() - ImGui::GetIO().MouseClickedTime[ImGuiMouseButton_Left];
-    return
+    return time > dur &&
         ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-        ImGui::IsItemHovered() &&
-        time > dur;
+        ImGui::IsItemHovered();
 }
 
-inline bool IsItemImeAction()
+bool IsItemImeAction()
 {
     return ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_AppForward);
 }
 
-inline bool IsCurrentItemDisabled()
+bool IsCurrentItemDisabled()
 {
     return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;
 }
 
 //allows to define popups in the window and open it from widgets calling internally
 //Push/PopID like TabControl
-inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
+void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags)
 {
     //RootWindow skips child window parents
     ImGui::PushOverrideID(ImGui::GetCurrentWindow()->RootWindow->ID);
@@ -475,26 +796,26 @@ inline void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0)
     ImGui::PopID();
 }
 
-inline ImRect GetParentInnerRect()
+Rect GetParentInnerRect()
 {
     ImRect r = ImGui::GetCurrentWindow()->InnerRect;
     if (ImGui::GetCurrentTable())
         r.ClipWith(ImGui::GetCurrentTable()->InnerRect);
-    return r;
+    return r.ToVec4();
 }
 
-inline void Spacing(int n)
+void Spacing(int n)
 {
     /*while (n--)
         ImGui::Spacing();*/
-    /*ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if (window->SkipItems)
-        return;*/
+        /*ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (window->SkipItems)
+            return;*/
     float sp = ImGui::GetStyle().ItemSpacing.y;
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + n * sp);
 }
 
-inline bool TableNextColumn(int n)
+bool TableNextColumn(int n)
 {
     bool b = true;
     while (n--)
@@ -502,13 +823,23 @@ inline bool TableNextColumn(int n)
     return b;
 }
 
-inline void NextColumn(int n)
+void NextColumn(int n)
 {
     while (n--)
         ImGui::NextColumn();
 }
 
-inline void PushInvisibleScrollbar()
+Rect GetWindowClipRect()
+{
+    return ImGui::GetCurrentWindow()->ClipRect.ToVec4();
+}
+
+void SetWindowSkipItems(bool skip)
+{
+    ImGui::GetCurrentWindow()->SkipItems = skip;
+}
+
+void PushInvisibleScrollbar()
 {
     ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarBg);
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, { clr.x, clr.y, clr.z, 0 });
@@ -516,22 +847,17 @@ inline void PushInvisibleScrollbar()
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 0 });
 }
 
-inline void PopInvisibleScrollbar()
+void PopInvisibleScrollbar()
 {
     ImGui::PopStyleColor(2);
 }
 
-struct CursorData
+void SetItemID(ImGuiID id)
 {
-    ImVec2 cursorPos; //affects column border height
-    ImVec2 cursorPosPrevLine; //used in SameLine
-    ImVec2 prevLineSize;
-    float prevLineTextBaseOffset;
-    ImVec2 cursorMaxPos; //affects scrollbars
-    ImVec2 idealMaxPos; //affects auto resize
-};
+    GImGui->LastItemData.ID = id;
+}
 
-inline CursorData GetCursorData()
+CursorData GetCursorData()
 {
     CursorData data;
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
@@ -541,10 +867,14 @@ inline CursorData GetCursorData()
     data.prevLineTextBaseOffset = wnd->DC.PrevLineTextBaseOffset;
     data.cursorMaxPos = wnd->DC.CursorMaxPos;
     data.idealMaxPos = wnd->DC.IdealMaxPos;
+    data.currLineSize = wnd->DC.CurrLineSize;
+    data.currLineTextBaseOffset = wnd->DC.CurrLineTextBaseOffset;
+    data.isSetPos = wnd->DC.IsSetPos;
+    data.isSameLine = wnd->DC.IsSameLine;
     return data;
 }
 
-inline void SetCursorData(const CursorData& data)
+void SetCursorData(const CursorData& data)
 {
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
     wnd->DC.CursorPos = data.cursorPos;
@@ -553,26 +883,29 @@ inline void SetCursorData(const CursorData& data)
     wnd->DC.PrevLineTextBaseOffset = data.prevLineTextBaseOffset;
     wnd->DC.CursorMaxPos = data.cursorMaxPos;
     wnd->DC.IdealMaxPos = data.idealMaxPos;
+    wnd->DC.CurrLineSize = data.currLineSize;
+    wnd->DC.CurrLineTextBaseOffset = data.currLineTextBaseOffset;
+    wnd->DC.IsSetPos = data.isSetPos;
+    wnd->DC.IsSameLine = data.isSameLine;
 }
 
-inline const ImGuiLastItemData& GetLastItemData()
+LastItemData GetLastItemData()
 {
-    return ImGui::GetCurrentContext()->LastItemData;
+    const auto& imd = GImGui->LastItemData;
+    LastItemData data;
+    data.ID = imd.ID;
+    data.itemFlags = imd.ItemFlags;
+    data.statusFlags = imd.StatusFlags;
+    data.rect = imd.Rect.ToVec4();
+    return data;
 }
 
-inline void SetLastItemData(const ImGuiLastItemData& data)
+void SetLastItemData(const LastItemData& data)
 {
-    ImGui::GetCurrentContext()->LastItemData = data;
+    ImGui::SetLastItemData(data.ID, data.itemFlags, data.statusFlags, data.rect.ToVec4());
 }
 
-struct IgnoreWindowPaddingData
-{
-    ImVec2 maxPos;
-    ImVec2 workRectMax;
-    bool hasSize;
-};
-
-inline void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data)
+void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data)
 {
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
     data->hasSize = sz != nullptr;
@@ -597,7 +930,7 @@ inline void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data)
         sz->y = r.Max.y + sz->y + 1 - pos.y;
 }
 
-inline void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data)
+void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data)
 {
     ImGuiWindow* wnd = ImGui::GetCurrentWindow();
     wnd->WorkRect.Max = data.workRectMax;
@@ -612,12 +945,7 @@ inline void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data)
     ImGui::PopClipRect();
 }
 
-//optionally draws scrollbars so they can be kept hidden when no scrolling occurs
-//returns:
-//0 - nothing happening or scrolling continues
-//1 - scrolling started
-//2 - scrolling ended
-inline int ScrollWhenDragging(bool drawScrollbars)
+int ScrollWhenDragging(bool drawScrollbars)
 {
     static int dragState = 0;
 
@@ -628,7 +956,7 @@ inline int ScrollWhenDragging(bool drawScrollbars)
     {
         int ret = !dragState ? 1 : 0;
         dragState = 1;
-        ImGuiWindow *window = ImGui::GetCurrentWindow();
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
         ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
         ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
         if (delta.x)
@@ -666,14 +994,7 @@ inline int ScrollWhenDragging(bool drawScrollbars)
     return 0;
 }
 
-//this currently
-//* allows to move popups on the screen side further out of the screen just to give it responsive feeling
-//* detects modal/popup close event
-//returns
-// 0 - close popup either by sliding or clicking outside
-// 1 - nothing happening
-// 2 - todo: maximize up/down popup
-inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
+int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 {
     static int dragState = 0;
     static ImVec2 mousePos[3];
@@ -693,7 +1014,7 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
             mousePos[0] = mousePos[1];
             mousePos[1] = mousePos[2];
             mousePos[2] = ImGui::GetMousePos();
-            ImGuiWindow *window = ImGui::GetCurrentWindow();
+            ImGuiWindow* window = ImGui::GetCurrentWindow();
             ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
 
             ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
@@ -762,7 +1083,7 @@ inline int MoveWhenDragging(ImGuiDir dir, ImVec2& pos, float& dimBgRatio)
 //todo
 //intended for android
 //original version doesn't respect ioUserData.displayMinMaxOffset
-inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
+void RenderDimmedBackground(const Rect& rect, float alpha_mul)
 {
     static ImVec4 origDimColor = { 0, 0, 0, 0.5f };
     ImVec4& styleDimColor = ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg];
@@ -825,7 +1146,7 @@ inline void RenderDimmedBackground(const ImRect& rect, float alpha_mul)
     dl->PopClipRect();
 }
 
-inline void RenderFilledWindowCorners(ImDrawFlags fl)
+void RenderFilledWindowCorners(ImDrawFlags fl)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImGuiWindow* win = ImGui::GetCurrentWindow();
@@ -840,7 +1161,7 @@ inline void RenderFilledWindowCorners(ImDrawFlags fl)
     ImGui::PushClipRect(pos, { pos.x + size.x, pos.y + size.y }, false);
 
     if (fl & ImDrawFlags_RoundCornersBottomLeft)
-        dl->AddRectFilled({ pos.x, pos.y + size.y - r }, { pos.x + r, pos.y + size.y },    col);
+        dl->AddRectFilled({ pos.x, pos.y + size.y - r }, { pos.x + r, pos.y + size.y }, col);
     if (fl & ImDrawFlags_RoundCornersBottomRight)
         dl->AddRectFilled({ pos.x + size.x - r, pos.y + size.y - r }, { pos.x + size.x, pos.y + size.y }, col);
     if (fl & ImDrawFlags_RoundCornersTopLeft)
@@ -851,74 +1172,8 @@ inline void RenderFilledWindowCorners(ImDrawFlags fl)
     ImGui::PopClipRect();
 }
 
-inline std::string FormatFallback(std::string_view fmt)
-{
-    return std::string(fmt);
-}
-
-template <class A1, class... A>
-std::string FormatFallback(std::string_view fmt, A1&& arg, A&&... args)
-{
-    //todo
-    std::string s;
-    for (size_t i = 0; i < fmt.size(); ++i)
-    {
-        if (fmt[i] == '{') {
-            if (i + 1 == fmt.size())
-                break;
-            if (fmt[i + 1] == '{') {
-                s += '{';
-                ++i;
-            }
-            else {
-                auto j = fmt.find('}', i + 1);
-                if (j == std::string::npos)
-                    break;
-                if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
-                    s += arg;
-                else if constexpr (std::is_same_v<std::decay_t<A1>, const char*> ||
-                                    std::is_same_v<std::decay_t<A1>, char*>)
-                    s += arg;
-                else if constexpr (std::is_same_v<std::decay_t<A1>, char>)
-                    s += arg;
-                else
-                    s += std::to_string(arg);
-                return s + FormatFallback(fmt.substr(j + 1), args...);
-            }
-        }
-        else
-            s += fmt[i];
-    }
-    return s;
-}
-
-#ifdef IMRAD_WITH_FMT
-template <class... A>
-std::string Format(std::string_view fmt, A&&... args)
-{
-    return fmt::format(fmt, std::forward<A>(args)...);
-}
-
-#elif __cplusplus >= 202002L && __has_include(<format>)
-
-//only support format_string version for compile time checks
-template <class... A>
-std::string Format(std::format_string<A...> fmt, A&&... args)
-{
-    return std::format(fmt, std::forward<A>(args)...);
-}
-
-#else
-
-template <class... A>
-std::string Format(std::string_view fmt, A&&... args)
-{
-    return FormatFallback(fmt, std::forward<A>(args)...);
-}
-#endif
-
 #ifdef IMRAD_WITH_MINIZIP
-inline std::vector<uint8_t> UnzipAssetData(std::string_view url)
+std::vector<uint8_t> UnzipAssetData(const std::string& url)
 {
     std::vector<uint8_t> buffer;
 
@@ -982,24 +1237,25 @@ inline std::vector<uint8_t> UnzipAssetData(std::string_view url)
 }
 #endif
 
-#if (defined (IMRAD_WITH_GLFW) || defined(ANDROID)) && defined(IMRAD_WITH_STB)
+#ifdef IMRAD_WITH_LOAD_TEXTURE
+
+#ifndef GL_TEXTURE_2D
+#error IMRAD_WITH_LOAD_TEXTURE requires OpenGL/ES header to be included *before* IMRAD_H_IMPLEMENTATION
+#endif
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
 
 // Simple helper function to load an image into a OpenGL texture with common settings
 // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
-inline Texture LoadTextureFromFile(
-    std::string_view filename,
-    int minFilter = GL_LINEAR,
-    int magFilter = GL_LINEAR,
-    int wrapS = GL_CLAMP_TO_EDGE, // This is required on WebGL for non power-of-two textures
-    int wrapT = GL_CLAMP_TO_EDGE // Same
-) {
+Texture LoadTextureFromFile(const std::string& filename, bool linearX, bool linearY, bool repeatX, bool repeatY)
+{
     // Load from file
     Texture tex;
     unsigned char* image_data = nullptr;
 #ifdef ANDROID
-    unsigned char* buffer;
-    int len = GetAssetData(std::string(filename.begin(), filename.end()), &buffer);
-    image_data = stbi_load_from_memory(buffer, len, &tex.w, &tex.h, NULL, 4);
+    auto image = GetAndroidAsset(filename.c_str());
+    image_data = stbi_load_from_memory(image.first, image.second, &tex.w, &tex.h, NULL, 4);
 #else
 #ifdef IMRAD_WITH_MINIZIP
     if (!filename.compare(0, 4, "zip:"))
@@ -1010,8 +1266,7 @@ inline Texture LoadTextureFromFile(
     else
 #endif
     {
-        std::string tmp(filename);
-        image_data = stbi_load(tmp.c_str(), &tex.w, &tex.h, NULL, 4);
+        image_data = stbi_load(filename.c_str(), &tex.w, &tex.h, NULL, 4);
     }
 #endif
     if (image_data == NULL)
@@ -1024,10 +1279,10 @@ inline Texture LoadTextureFromFile(
     glBindTexture(GL_TEXTURE_2D, image_texture);
 
     // Setup filtering parameters for display
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, linearX ? GL_LINEAR : GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linearY ? GL_LINEAR : GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeatX ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeatY ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 
     // Upload pixels into texture
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
@@ -1038,30 +1293,27 @@ inline Texture LoadTextureFromFile(
 
     return tex;
 }
-#else
-Texture LoadTextureFromFile(std::string_view filename);
 #endif
 
-inline std::filesystem::path u8path(std::string_view s)
+std::filesystem::path u8path(const std::string& s)
 {
-#if __cplusplus >= 202002L
+#if CPLUSPLUS >= 202002L
     return std::filesystem::path((const char8_t*)s.data(), (const char8_t*)s.data() + s.size());
 #else
     return std::filesystem::u8path(s);
 #endif
 }
 
-inline std::string u8string(const std::filesystem::path& p)
+std::string u8string(const std::filesystem::path& p)
 {
-#if __cplusplus >= 202002L
+#if CPLUSPLUS >= 202002L
     return std::string((const char*)p.u8string().data());
 #else
     return p.u8string();
 #endif
 }
 
-//For debugging pruposes
-inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, const std::map<std::string, std::string>& extra = {})
+void SaveStyle(const std::string& spath, const ImGuiStyle* src, const std::map<std::string, std::string>& extra)
 {
     const ImGuiStyle* style = src ? src : &ImGui::GetStyle();
     auto stylePath = u8path(spath);
@@ -1126,7 +1378,7 @@ inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, c
 #undef WRITE_VEC
 
     fout << "\n[fonts]\n";
-    fout << "Default = \"Roboto-Medium.ttf\" size 20\n";
+    fout << "Default = \"Roboto-Regular.ttf\" size 15\n";
 
     std::string lastSection;
     for (const auto& kv : extra)
@@ -1142,9 +1394,7 @@ inline void SaveStyle(std::string_view spath, const ImGuiStyle* src = nullptr, c
     }
 }
 
-//This function can be used in your code to load style and fonts from the INI file
-//It is also used by ImRAD when switching themes
-inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle* dst = nullptr, std::map<std::string, ImFont*>* fontMap = nullptr, std::map<std::string, std::string>* extra = nullptr)
+void LoadStyle(const std::string& spath, float fontScaling, ImGuiStyle* dst, std::map<std::string, ImFont*>* fontMap, std::map<std::string, std::string>* extra)
 {
     ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
     *style = ImGuiStyle();
@@ -1246,11 +1496,6 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
                 static std::vector<std::unique_ptr<ImWchar[]>> rngs;
 
                 is >> std::quoted(fname);
-                auto fpath = u8path(fname);
-#ifndef ANDROID
-                if (fpath.is_relative())
-                    fpath = stylePath.parent_path() / fpath;
-#endif
                 std::string tmp;
                 while (is >> tmp)
                 {
@@ -1269,24 +1514,41 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
                 }
 
                 ImFontConfig cfg;
-                strncpy(cfg.Name, key.c_str(), sizeof(cfg.Name));
-                cfg.Name[sizeof(cfg.Name) - 1] = '\0';
+                snprintf(cfg.Name, sizeof(cfg.Name), "%s", key.c_str());
                 cfg.MergeMode = key == lastFont;
                 cfg.GlyphRanges = hasRange ? rngs.back().get() : nullptr;
                 cfg.GlyphOffset = { goffset.x * fontScaling, goffset.y * fontScaling };
+                ImFont* font;
 #ifdef ANDROID
-                void* font_data;
-                int font_data_size = GetAssetData(u8string(fpath).c_str(), &font_data);
-                ImFont* fnt = io.Fonts->AddFontFromMemoryTTF(font_data, font_data_size, size * fontScaling);
+                auto font_data = GetAndroidAsset(fname.c_str());
+                font = io.Fonts->AddFontFromMemoryTTF(font_data.first, font_data.second, size * fontScaling, &cfg);
 #else
-                if (!std::ifstream(fpath))
-                    throw std::runtime_error("Can't read '" + u8string(fpath) + "'");
-                ImFont* fnt = io.Fonts->AddFontFromFileTTF(u8string(fpath).c_str(), size * fontScaling, &cfg);
+#ifdef IMRAD_WITH_MINIZIP
+                if (!fname.compare(0, 4, "zip:"))
+                {
+                    auto fpath = u8path(fname.substr(4));
+                    if (fpath.is_relative())
+                        fpath = stylePath.parent_path() / fpath;
+                    auto buffer = UnzipAssetData("zip:" + u8string(fpath));
+                    if (buffer.empty())
+                        throw std::runtime_error("Can't read '" + u8string(fname) + "'");
+                    font = io.Fonts->AddFontFromMemoryTTF(buffer.data(), (int)buffer.size(), size * fontScaling, &cfg);
+                }
+                else
 #endif
-                if (!fnt)
-                    throw std::runtime_error("Can't load " + u8string(fpath));
+                {
+                    auto fpath = u8path(fname);
+                    if (fpath.is_relative())
+                        fpath = stylePath.parent_path() / fpath;
+                    if (!std::ifstream(fpath))
+                        throw std::runtime_error("Can't read '" + u8string(fpath) + "'");
+                    font = io.Fonts->AddFontFromFileTTF(u8string(fpath).c_str(), size * fontScaling, &cfg);
+                }
+#endif
+                if (!font)
+                    throw std::runtime_error("Can't load " + fname);
                 if (!cfg.MergeMode && fontMap)
-                    (*fontMap)[lastFont == "" ? "" : key] = fnt;
+                    (*fontMap)[lastFont == "" ? "" : key] = font;
 
                 lastFont = key;
             }
@@ -1300,20 +1562,26 @@ inline void LoadStyle(std::string_view spath, float fontScaling = 1, ImGuiStyle*
         (*fontMap)[""] = io.Fonts->AddFontDefault();
 }
 
-//This function will be called from the generated code when alternate font is used
-inline ImFont* GetFontByName(std::string_view name)
+ImFont* GetFontByName(const char* name)
 {
-    if (name == "")
+    if (!*name)
         return ImGui::GetDefaultFont();
 
     const auto& io = ImGui::GetIO();
     for (const auto& cfg : io.Fonts->Sources) {
         if (cfg.MergeMode)
             continue;
-        if (name == cfg.Name)
+        if (!strcmp(name, cfg.Name))
             return cfg.DstFont;
     }
     return nullptr;
 }
 
+ImFont* GetFontByName(const std::string& name)
+{
+    return GetFontByName(name.c_str());
 }
+
+} // namespace
+
+#endif

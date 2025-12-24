@@ -96,7 +96,7 @@ ImU32 bindable<color_t>::eval(int defClr, const UIContext& ctx) const
     return ImGui::ColorConvertFloat4ToU32(ctx.style.Colors[defClr]);
 }
 
-ImFont* bindable<font_name_t>::eval(UIContext& ctx) const 
+ImFont* bindable<font_name_t>::eval(UIContext& ctx) const
 {
     if (!has_value())
         return nullptr;

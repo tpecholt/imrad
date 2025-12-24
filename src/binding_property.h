@@ -790,7 +790,7 @@ struct bindable<std::string> : property_base
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {
-        return cpp::to_str_arg(str); 
+        return cpp::to_str_arg(str);
         //todo: prefer single variable. Does it need to be c_str()??
         // , has_single_variable());
     }
@@ -907,7 +907,7 @@ struct bindable<font_name_t> : property_base
     }
 
     ImFont* eval(UIContext& ctx) const;
-    
+
     void set_font_name(std::string_view fn) {
         str = "ImRad::GetFontByName(\"" + std::string(fn) + "\")";
     }

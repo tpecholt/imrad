@@ -178,7 +178,7 @@ void ErrorBox::Draw()
             /// @separator
 
             /// @begin CustomWidget
-            CustomWidget_Draw({ -1, -1 });
+            CustomWidget_Draw(ImRad::CustomWidgetArgs("", { -1, -1 }));
             /// @end CustomWidget
 
             /// @separator

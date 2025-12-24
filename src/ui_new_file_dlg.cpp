@@ -5,6 +5,7 @@
 #include "IconsFontAwesome6.h"
 #include "node_window.h"
 #include "cursor.h"
+#include <imgui_internal.h>
 #include <httplib.h>
 
 NewFileDlg newFileDlg;
@@ -179,29 +180,30 @@ void NewFileDlg::Draw()
                 ImGui::PopStyleVar();
 
                 auto tmpCursor2 = ImRad::GetCursorData();
-                auto tmpLastItem2 = ImRad::GetLastItemData();
+                auto tmpRect2 = ImRad::Rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
                 ImVec2 tmpPadding2 = ImGui::GetStyle().FramePadding;
-                ImGui::SetCursorScreenPos({ ImGui::GetItemRectMin().x + tmpPadding2.x, ImGui::GetItemRectMin().y + tmpPadding2.y });
+                ImGui::SetCursorScreenPos(tmpRect2.Min);
                 ImGui::BeginGroup();
-                ImGui::PushClipRect({ ImGui::GetItemRectMin().x + tmpPadding2.x, ImGui::GetItemRectMin().y + tmpPadding2.y }, { ImGui::GetItemRectMax().x - tmpPadding2.x, ImGui::GetItemRectMax().y - tmpPadding2.y }, true);
+                ImGui::SetCursorScreenPos({ tmpRect2.Min.x + tmpPadding2.x, tmpRect2.Min.y + tmpPadding2.y });
+                ImGui::PushClipRect({ tmpRect2.Min.x + tmpPadding2.x, tmpRect2.Min.y + tmpPadding2.y }, { tmpRect2.Max.x - tmpPadding2.x, tmpRect2.Max.y - tmpPadding2.y }, true);
                 /// @separator
 
                 /// @begin Text
-                ImGui::SetCursorScreenPos({ tmpLastItem2.Rect.Max.x-80*dp, tmpLastItem2.Rect.Min.y+7*dp }); //overlayPos
+                ImGui::SetCursorScreenPos({ tmpRect2.Max.x-80*dp, tmpRect2.Min.y+7*dp }); //overlayPos
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
                 ImGui::TextUnformatted(ImRad::Format("{}", _item.platform).c_str());
                 ImGui::PopStyleColor();
                 /// @end Text
 
                 /// @begin Text
-                ImGui::SetCursorScreenPos({ tmpLastItem2.Rect.Min.x+7*dp, tmpLastItem2.Rect.Min.y+32*dp }); //overlayPos
+                ImGui::SetCursorScreenPos({ tmpRect2.Min.x+7*dp, tmpRect2.Min.y+32*dp }); //overlayPos
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(category==GithubTemplate?ImGuiCol_TextDisabled:ImGuiCol_Text));
                 ImGui::TextUnformatted(ImRad::Format("{}", _item.description).c_str());
                 ImGui::PopStyleColor();
                 /// @end Text
 
                 /// @begin Text
-                ImGui::SetCursorScreenPos({ tmpLastItem2.Rect.Min.x+7*dp, tmpLastItem2.Rect.Min.y+7*dp }); //overlayPos
+                ImGui::SetCursorScreenPos({ tmpRect2.Min.x+7*dp, tmpRect2.Min.y+7*dp }); //overlayPos
                 ImGui::PushFont(nullptr, ::uiFontSize*1.1f);
                 ImGui::PushStyleColor(ImGuiCol_Text, 0xff000080);
                 ImGui::TextUnformatted(ImRad::Format("{}", _item.label).c_str());
@@ -210,10 +212,9 @@ void NewFileDlg::Draw()
                 /// @end Text
 
                 /// @separator
-                ImGui::PopClipRect();
-                ImGui::EndGroup();
-                ImRad::SetLastItemData(tmpLastItem2);
                 ImRad::SetCursorData(tmpCursor2);
+                ImGui::EndGroup();
+                ImGui::PopClipRect();
                 ImGui::EndDisabled();
                 /// @end Selectable
 

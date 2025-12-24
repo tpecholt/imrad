@@ -84,7 +84,7 @@ void TopWindow::Draw(UIContext& ctx)
         fl |= ImGuiWindowFlags_NoTitleBar /*| ImGuiWindowFlags_NoResize*/ | ImGuiWindowFlags_NoCollapse;
     fl |= flags;
 
-    if (!style_fontName.empty() || !style_fontSize.empty()) 
+    if (!style_fontName.empty() || !style_fontSize.empty())
         ImGui::PushFont(style_fontName.eval(ctx), style_fontSize.eval(ctx));
     if (style_padding.has_value())
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, style_padding.eval_px(ctx));
@@ -229,7 +229,7 @@ void TopWindow::Draw(UIContext& ctx)
         else {
             ImVec2 a{ std::min(ctx.selStart.x, ctx.selEnd.x), std::min(ctx.selStart.y, ctx.selEnd.y) };
             ImVec2 b{ std::max(ctx.selStart.x, ctx.selEnd.x), std::max(ctx.selStart.y, ctx.selEnd.y) };
-            auto sel = FindInRect(ImRect(a, b));
+            auto sel = FindInRect({ a, b });
             stx::erase(sel, this);
             if (sel.size()) {
                 if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl)) {
@@ -320,7 +320,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     bool autoSize = flags & ImGuiWindowFlags_AlwaysAutoResize;
 
     os << ctx.ind << "/// @begin TopWindow\n";
-    
+
     if (ctx.unit == "dp")
     {
         os << ctx.ind << "const float dp = ImRad::GetUserData().dpiScale;\n";
@@ -347,7 +347,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     if (!style_fontName.empty() || !style_fontSize.empty())
     {
-        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ", " 
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ", "
             << style_fontSize.to_arg() << ");\n";
     }
     if (!style_bg.empty())
@@ -762,7 +762,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleColor();\n";
     if (!style_fontName.empty() || !style_fontSize.empty())
         os << ctx.ind << "ImGui::PopFont();\n";
-    
+
     os << ctx.ind << "/// @end TopWindow\n";
 
     if (userCodeAfter != "")

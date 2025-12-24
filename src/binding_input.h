@@ -539,7 +539,7 @@ inline bool InputBindable(bindable<T>* val, const std::string& type, int flags, 
             ImGui::Separator();
             auto vars = ctx.codeGen->GetVarExprs(type, true, ctx.GetCurrentArray());
             /*auto* dc = ImGui::GetCurrentWindow()->DrawList;
-            float sp = ImGui::CalcTextSize(" ").x;*/ 
+            float sp = ImGui::CalcTextSize(" ").x;*/
             for (const auto& v : vars)
             {
                 if (ImGui::Selectable(v.first.c_str(), v.first == val->c_str()))
@@ -836,7 +836,7 @@ inline bool InputBindable(bindable<std::string>* val, int flags, UIContext& ctx,
     );
     bool changed = ImGui::InputText(id.c_str(), val->access(), ImGuiInputTextFlags_CallbackCharFilter, DefaultCharFilter);
     ImGui::PopFont();
-    
+
     if (hasButton && high)
     {
         ImGui::SameLine(0, 0);
@@ -873,7 +873,7 @@ inline bool InputBindable(bindable<std::string>* val, int flags, UIContext& ctx,
 
 inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ctx)
 {
-    if (val == ctx.setProp) 
+    if (val == ctx.setProp)
     {
         ctx.setProp = nullptr;
         *val->access() = ctx.setPropValue;

@@ -212,7 +212,7 @@ void CppGen::CreateH(std::ostream& out)
         << "// visit " << GITHUB_URL << "\n\n";
 
     out << "#pragma once\n";
-    out << "#include \"imrad.h\"\n";
+    out << "#include <imrad.h>\n";
 
     out << "\nclass " << m_name << "\n{\npublic:\n";
     out << INDENT << "/// @begin interface\n";
@@ -250,6 +250,7 @@ CppGen::ExportH(
     int level = 0;
     bool in_class = false;
     bool preamble = true;
+    bool first_include = true;
     int skip_to_level = -1;
     std::vector<std::string> line;
     std::streampos fpos = 0;
@@ -528,6 +529,26 @@ CppGen::ExportH(
         }
         else if (!tok.compare(0, 1, "#")) {
             preamble = false;
+            if (!tok.compare(0, 8, "#include"))
+            {
+                if (node->kind == TopWindow::MainWindow &&
+                    first_include &&
+                    tok.find("glfw") == std::string::npos)
+                {
+                    //add GLFW include
+                    copy_content(-(int)tok.size());
+                    out << "#include <GLFW/glfw3.h>\n";
+                    out << tok << "\n";
+                }
+                else if (node->kind != TopWindow::MainWindow &&
+                    first_include &&
+                    tok.find("glfw") != std::string::npos)
+                {
+                    //remove GLFW include
+                    copy_content(-(int)tok.size());
+                }
+                first_include = false;
+            }
         }
         else if (tok == ";") {
             if (line.size() == 3 && line[0] == "extern" && line[1] == origName) {
@@ -781,11 +802,11 @@ bool CppGen::WriteStub(
         if (animPos != TopWindow::Placement::None)
         {
             if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-                fout << INDENT << "animator.StartAlways(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+                fout << INDENT << "animator.StartPersistent(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
             else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-                fout << INDENT << "animator.StartAlways(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+                fout << INDENT << "animator.StartPersistent(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
             if (kind == TopWindow::ModalPopup)
-                fout << INDENT << "animator.StartAlways(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
+                fout << INDENT << "animator.StartPersistent(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
         }
         else if (kind == TopWindow::ModalPopup)
         {

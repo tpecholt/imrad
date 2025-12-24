@@ -1,6 +1,5 @@
-#include "imrad.h"
 #include <imgui.h>
-//#include <IconsFontAwesome6.h>
+//TODO #include <IconsFontAwesome6.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <iostream>
@@ -8,15 +7,16 @@
 #ifdef IMGUI_IMPL_OPENGL_ES2
 #include <GLES2/gl2.h>
 #endif
-#ifndef IMRAD_WITH_GLFW
-#error Please recompile with IMRAD_WITH_GLFW to unlock all features such as GLFW MainWindow
-#endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-//TODO: add your includes here
+//TODO: include your ImRAD generated headers here
 
 // must come last
-#ifdef IMRAD_WITH_STB
+#define IMRAD_H_IMPLEMENTATION
+#include <imrad.h>
+
+// must come last
+#ifdef IMRAD_WITH_LOAD_TEXTURE
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #endif
@@ -25,7 +25,7 @@ GLFWwindow* window;
 
 void Draw()
 {
-	// TODO: Add your drawing code here
+	// TODO: Call your drawing code here
 	ImGui::ShowDemoWindow();
 }
 
@@ -55,8 +55,8 @@ static void glfw_framebuffer_size_callback(GLFWwindow* window, int w, int h)
     glfwSwapBuffers(window);
 }
 
-// On Windows if you want to avoid console window to be shown 
-// Use /SUBSYSTEM:WINDOWS and implement wWinMain instead
+// On Windows if you want to avoid console window to be shown
+// Use /SUBSYSTEM:WINDOWS and implement wWinMain instead like this:
 // int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 int main(int argc, const char* argv[])
 {
@@ -113,29 +113,30 @@ int main(int argc, const char* argv[])
 	// TODO: Load custom style and fonts from the ImRAD INI file
 	//ImRad::LoadStyle("my-style.ini");
 
-	// Alternatively set ImGui style and fonts manually
+	// TODO: Alternatively set ImGui style and fonts manually
 	// Read 'docs/FONTS.md' for more instructions and details.
 	ImGui::StyleColorsDark();
-	ImGui::GetStyle().ScaleAllSizes(mainScale);
-	ImGui::GetStyle().FontScaleDpi = mainScale;
-	ImRad::GetUserData().dpiScale = mainScale;
-	
 	/*
-	io.Fonts->AddFontFromFileTTF("Roboto-Medium.ttf", 20.0f);
-	
-	ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+	io.Fonts->AddFontFromFileTTF("Roboto-Regulara.ttf", 15.0f);
 	ImFontConfig icons_config;
 	icons_config.MergeMode = true;
 	//icons_config.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 18.0f, &icons_config, icons_ranges);
-	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 18.0f, &icons_config, icons_ranges);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAR, 15.0f, &icons_config);
+	io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 15.0f, &icons_config);
 	*/
-	
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+	// TODO: Make UI DPI aware
+	/*
+	ImGui::GetStyle().ScaleAllSizes(mainScale);
+	ImGui::GetStyle().FontScaleDpi = mainScale;
+	ImRad::GetUserData().dpiScale = mainScale;
+	*/
+
+	const ImVec4 clear_color(0.45f, 0.55f, 0.60f, 1.00f);
 
 	while (true)
 	{
-		if (glfwWindowShouldClose(window)) 
+		if (glfwWindowShouldClose(window))
 			break;
 
 		// Poll and handle events (inputs, window resize, etc.)
@@ -150,8 +151,8 @@ int main(int argc, const char* argv[])
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		Draw();	
-		
+		Draw();
+
 		// Rendering
 		ImGui::Render();
 		int display_w, display_h;

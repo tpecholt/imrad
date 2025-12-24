@@ -7,6 +7,7 @@
 #include <sstream>
 #include <chrono>
 #include <IconsFontAwesome6.h>
+#include <imgui_internal.h>
 
 struct ExplorerEntry
 {

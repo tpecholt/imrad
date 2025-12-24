@@ -194,12 +194,15 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
                 ImGui::PopFont();
         }
 
-        ImGui::TableNextRow(0, rh);
-        ImGui::TableSetColumnIndex(0);
-
-        for (const auto& child : child_iterator(children, false))
+        if (child_iterator(children, false))
         {
-            child->Draw(ctx);
+            ImGui::TableNextRow(0, rh);
+            ImGui::TableSetColumnIndex(0);
+
+            for (const auto& child : child_iterator(children, false))
+            {
+                child->Draw(ctx);
+            }
         }
 
         int n = itemCount.limit.value();
@@ -208,9 +211,9 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
 
         if (child_iterator(children, true))
         {
-            //ImGui::GetCurrentWindow()->SkipItems = false;
             auto cpos = ImRad::GetCursorData();
             ImGui::PushClipRect(ImGui::GetCurrentTable()->InnerRect.Min, ImGui::GetCurrentTable()->InnerClipRect.Max, false);
+            ImRad::SetWindowSkipItems(false);
             for (const auto& child : child_iterator(children, true))
             {
                 child->Draw(ctx);
@@ -255,7 +258,7 @@ Table::Properties()
         { "appearance.hfont.size", &style_headerFontSize },
         { "appearance.header##table", &header },
         { "behavior.flags##table", &flags },
-        { "behavior.selectionFlags", &msflags },
+        { "behavior.multiSelFlags", &msflags },
         { "behavior.columns##table", nullptr },
         { "behavior.rowCount##table", &itemCount.limit },
         { "behavior.rowFilter##table", &rowFilter },
@@ -264,7 +267,7 @@ Table::Properties()
         { "behavior.scrollFreeze.y##table", &scrollFreeze_y },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
         { "bindings.rowIndex##1", &itemCount.index },
-        { "bindings.selection##1", &mssel },
+        { "bindings.multiSelection##1", &mssel },
         });
     return props;
 }
@@ -379,7 +382,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         break;
     case 14:
         ImGui::BeginDisabled(mssel.empty());
-        changed = InputDirectValFlags("selectionFlags", &msflags, Defaults().msflags, ctx);
+        changed = InputDirectValFlags("multiSelFlags", &msflags, Defaults().msflags, ctx);
         ImGui::EndDisabled();
         break;
     case 15:
@@ -466,7 +469,7 @@ bool Table::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 23:
-        ImGui::Text("selection");
+        ImGui::Text("multiSelection");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&mssel, true, ctx);
@@ -616,77 +619,81 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::PopFont();\n";
     }
 
-    if (!itemCount.empty())
+    if (child_iterator(children, false))
     {
-        std::string contVar = itemCount.container_expr();
-        std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
-
-        if (!mssel.empty())
+        if (!itemCount.empty())
         {
-            ctx.varSelection = mssel.to_arg();
-            os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::BeginMultiSelect(";
-            os << msflags.to_arg() << ", " << mssel.to_arg() << ".Size, "
-                << "(int)" << itemCount.limit.to_arg() << "));\n";
-        }
+            std::string contVar = itemCount.container_expr();
+            std::string idxVar = itemCount.index_name_or(ctx.codeGen->FOR_VAR_NAME);
 
-        os << "\n" << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
-        ctx.ind_up();
+            if (!mssel.empty())
+            {
+                ctx.varSelection = mssel.to_arg();
+                os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::BeginMultiSelect(";
+                os << msflags.to_arg() << ", " << mssel.to_arg() << ".Size, "
+                    << "(int)" << itemCount.limit.to_arg() << "));\n";
+            }
 
-        if (contVar != "")
-        {
-            os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
-                << contVar << "[" << idxVar << "];\n";
-        }
-        if (!rowFilter.empty())
-        {
-            os << ctx.ind << "if (!(" << rowFilter.to_arg() << "))\n";
+            os << "\n" << ctx.ind << itemCount.to_arg(ctx.codeGen->FOR_VAR_NAME) << "\n" << ctx.ind << "{\n";
             ctx.ind_up();
-            os << ctx.ind << "continue;\n";
-            ctx.ind_down();
+
+            if (contVar != "")
+            {
+                os << ctx.ind << "auto& " << ctx.codeGen->CUR_ITEM_VAR_NAME << " = "
+                    << contVar << "[" << idxVar << "];\n";
+            }
+            if (!rowFilter.empty())
+            {
+                os << ctx.ind << "if (!(" << rowFilter.to_arg() << "))\n";
+                ctx.ind_up();
+                os << ctx.ind << "continue;\n";
+                ctx.ind_down();
+            }
+
+            os << ctx.ind << "ImGui::PushID(" << idxVar << ");\n";
         }
 
-        os << ctx.ind << "ImGui::PushID(" << idxVar << ");\n";
-    }
+        os << ctx.ind << "ImGui::TableNextRow(0, ";
+        if (!rowHeight.empty())
+            os << rowHeight.to_arg(ctx.unit);
+        else
+            os << "0";
+        os << ");\n";
+        os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
 
-    os << ctx.ind << "ImGui::TableNextRow(0, ";
-    if (!rowHeight.empty())
-        os << rowHeight.to_arg(ctx.unit);
-    else
-        os << "0";
-    os << ");\n";
-    os << ctx.ind << "ImGui::TableSetColumnIndex(0);\n";
+        if (!onBeginRow.empty() && !itemCount.empty())
+            os << ctx.ind << onBeginRow.to_arg() << "(); //beginRow\n";
 
-    if (!onBeginRow.empty() && !itemCount.empty())
-        os << ctx.ind << onBeginRow.to_arg() << "();\n";
+        os << ctx.ind << "/// @separator\n\n";
 
-    os << ctx.ind << "/// @separator\n\n";
+        for (auto& child : child_iterator(children, false))
+            child->Export(os, ctx);
 
-    for (auto& child : child_iterator(children, false))
-        child->Export(os, ctx);
+        os << ctx.ind << "/// @separator\n";
 
-    os << ctx.ind << "/// @separator\n";
+        if (!onEndRow.empty() && !itemCount.empty())
+            os << ctx.ind << onEndRow.to_arg() << "(); //endRow\n";
 
-    if (!onEndRow.empty() && !itemCount.empty())
-        os << ctx.ind << onEndRow.to_arg() << "();\n";
+        if (!itemCount.empty())
+        {
+            os << ctx.ind << "ImGui::PopID();\n";
+            ctx.ind_down();
+            os << ctx.ind << "}\n";
 
-    if (!itemCount.empty())
-    {
-        os << ctx.ind << "ImGui::PopID();\n";
-        ctx.ind_down();
-        os << ctx.ind << "}\n";
-
-        if (!mssel.empty())
-            os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::EndMultiSelect());\n";
+            if (!mssel.empty())
+                os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::EndMultiSelect());\n";
+        }
     }
 
     if (child_iterator(children, true))
     {
         //draw overlay children at the end so they are visible,
         //inside table's child because ItemOverlap works only between items in same window
-        os << ctx.ind << "auto cpos" << ctx.varCounter << " = ImRad::GetCursorData();\n";
+        os << "\n";
+        os << ctx.ind << "auto tmpCursor" << ctx.varCounter << " = ImRad::GetCursorData();\n";
         os << ctx.ind << "ImGui::PushClipRect(ImRad::GetParentInnerRect().Min, ImRad::GetParentInnerRect().Max, false);\n";
         //SkipItems is normally reset by TableSetColumnIndex but in case there are no rows...
-        os << ctx.ind << "ImGui::GetCurrentWindow()->SkipItems = false;\n";
+        os << ctx.ind << "ImRad::SetWindowSkipItems(false);\n";
         os << ctx.ind << "/// @separator\n\n";
 
         for (auto& child : child_iterator(children, true))
@@ -694,7 +701,7 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
 
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
-        os << ctx.ind << "ImRad::SetCursorData(cpos" << ctx.varCounter << ");\n";
+        os << ctx.ind << "ImRad::SetCursorData(tmpCursor" << ctx.varCounter << ");\n";
     }
 
     os << ctx.ind << "ImGui::EndTable();\n";
@@ -1218,12 +1225,12 @@ Child::Properties()
         { "appearance.column_border##child", &columnBorder },
         { "behavior.childFlags", &flags },
         { "behavior.windowFlags", &wflags },
-        { "behavior.selectionFlags", &msflags },
+        { "behavior.multiSelFlags", &msflags },
         { "behavior.columnCount##child", &columnCount },
         { "behavior.itemCount##child", &itemCount.limit },
         { "behavior.scrollWhenDragging", &scrollWhenDragging },
         { "bindings.itemIndex##1", &itemCount.index },
-        { "bindings.selection##1", &mssel },
+        { "bindings.multiSelection##1", &mssel },
         });
     return props;
 }
@@ -1336,7 +1343,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         break;
     case 13:
         ImGui::BeginDisabled(mssel.empty());
-        changed = InputDirectValFlags("selectionFlags", &msflags, Defaults().msflags, ctx);
+        changed = InputDirectValFlags("multiSelFlags", &msflags, Defaults().msflags, ctx);
         ImGui::EndDisabled();
         break;
     case 14:
@@ -1372,7 +1379,7 @@ bool Child::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 18:
-        ImGui::Text("selection");
+        ImGui::Text("multiSelection");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputFieldRef(&mssel, true, ctx);

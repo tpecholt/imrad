@@ -73,7 +73,7 @@ void AboutDlg::Draw()
         ImRad::Spacing(1);
         ImRad::IgnoreWindowPaddingData _data1;
         ImRad::PushIgnoreWindowPadding(nullptr, &_data1);
-        ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
+        ImRad::SeparatorEx(ImRad::SeparatorFlags_Horizontal);
         ImRad::PopIgnoreWindowPadding(_data1);
         /// @end Separator
 

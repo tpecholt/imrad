@@ -119,10 +119,8 @@ void HorizLayout::Draw()
 
         /// @begin Selectable
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::AlignTextToFramePadding();
-        ImRad::Selectable("spacing", false, ImGuiSelectableFlags_NoAutoClosePopups, { 65, 0 });
-        ImGui::PopItemFlag();
+        ImRad::Selectable("spacing", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 65, 0 });
         ImGui::PopStyleVar();
         /// @end Selectable
 
@@ -138,10 +136,8 @@ void HorizLayout::Draw()
 
         /// @begin Selectable
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::AlignTextToFramePadding();
-        ImRad::Selectable("padding", false, ImGuiSelectableFlags_NoAutoClosePopups, { 65, 0 });
-        ImGui::PopItemFlag();
+        ImRad::Selectable("padding", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 65, 0 });
         ImGui::PopStyleVar();
         /// @end Selectable
 
