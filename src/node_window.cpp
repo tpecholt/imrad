@@ -479,32 +479,33 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     }
     else if (kind == Window)
     {
-        ImVec2 gap = style_placementGap.has_value() ? (ImVec2)style_placementGap : ImVec2{ 0, 0 };
+        std::string gapx = style_placementGap.pzx_to_arg(ctx.unit);
+        std::string gapy = style_placementGap.pzy_to_arg(ctx.unit);
 
         //pos
         if (placement == Left || placement == Top)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ "
-                << "ImRad::GetUserData().WorkRect().Min.x + " << gap.x << ", "
-                << "ImRad::GetUserData().WorkRect().Min.y + " << gap.y << " });";
+                << "ImRad::GetUserData().WorkRect().Min.x + " << gapx << ", "
+                << "ImRad::GetUserData().WorkRect().Min.y + " << gapy << " });";
             os << (placement == Left ? " //Left" : " //Top");
-            os << ", Gap={" << gap.x << "," << gap.y << "}\n";
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
         }
         else if (placement == Right || placement == Bottom)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ "
-                << "ImRad::GetUserData().WorkRect().Max.x - " << gap.x << ", "
-                << "ImRad::GetUserData().WorkRect().Max.y - " << gap.y << " }, "
+                << "ImRad::GetUserData().WorkRect().Max.x - " << gapx << ", "
+                << "ImRad::GetUserData().WorkRect().Max.y - " << gapy << " }, "
                 << "0, { 1, 1 });";
             os << (placement == Right ? " //Right" : " //Bottom");
-            os << ", Gap={" << gap.x << "," << gap.y << "}\n";
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
         }
 
         //size
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
         if (placement == Top || placement == Bottom)
-            os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gap.x;
+            os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gapx;
         else if (autoSize)
             os << "0";
         else
@@ -513,7 +514,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ", ";
 
         if (placement == Left || placement == Right)
-            os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gap.y;
+            os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gapy;
         else if (autoSize)
             os << "0";
         else
@@ -549,33 +550,35 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     }
     else if (kind == Popup || kind == ModalPopup)
     {
-        ImVec2 gap = style_placementGap.has_value() ? (ImVec2)style_placementGap : ImVec2{ 0, 0 };
+        std::string gapx = style_placementGap.pzx_to_arg(ctx.unit);
+        std::string gapy = style_placementGap.pzy_to_arg(ctx.unit);
 
         if (placement == Left || placement == Top)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
-            os << "ImRad::GetUserData().WorkRect().Min.x + " << gap.x;
+            os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
             if (animate)
                 os << " + animPos.x";
-            os << ", ImRad::GetUserData().WorkRect().Min.y + " << gap.y;
+            os << ", ImRad::GetUserData().WorkRect().Min.y + " << gapy;
             if (animate)
                 os << " + animPos.y";
             os << " });";
             os << (placement == Left ? " //Left" : " //Top");
-            os << ",Gap={" << gap.x << "," << gap.y << "}\n";
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
         }
         else if (placement == Right || placement == Bottom)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
-            os << "ImRad::GetUserData().WorkRect().Max.x - " << gap.x;
+            os << "ImRad::GetUserData().WorkRect().Max.x - " << gapx;
             if (animate)
                 os << " - animPos.x";
-            os << ", ImRad::GetUserData().WorkRect().Max.y - " << gap.y;
+            os << ", ImRad::GetUserData().WorkRect().Max.y - " << gapy;
             if (animate)
                 os << " - animPos.y";
             os << " }, 0, { 1, 1 });";
             os << (placement == Right ? " //Right" : " //Bottom");
-            os << ",Gap={" << gap.x << "," << gap.y << "}\n";
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
+
         }
         else if (placement == Center)
         {
@@ -591,7 +594,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
         if (placement == Top || placement == Bottom)
-            os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gap.x;
+            os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gapx;
         else if (autoSize)
             os << "0";
         else
@@ -600,7 +603,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ", ";
 
         if (placement == Left || placement == Right)
-            os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gap.y;
+            os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gapy;
         else if (autoSize)
             os << "0";
         else
@@ -685,7 +688,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             ctx.ind_down();
         }
         if (style_rounding &&
-            !gap.x &&
+            (!style_placementGap.has_value() || !style_placementGap[0]) &&
             (placement == Left || placement == Right))
         {
             os << ctx.ind << "ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCorners";
@@ -696,7 +699,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ");\n";
         }
         if (style_rounding &&
-            !gap.y &&
+            (!style_placementGap.has_value() || !style_placementGap[1]) &&
             (placement == Top || placement == Bottom))
         {
             os << ctx.ind << "ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCorners";

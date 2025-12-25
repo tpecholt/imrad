@@ -408,6 +408,24 @@ struct direct_val<pzdimension2_t> : property_base
         os << " }";
         return os.str();
     }
+    std::string pzx_to_arg(std::string_view unit) const {
+        if (!has_value())
+            return "0";
+        std::ostringstream os;
+        os << val[0];
+        if (unit != "" && val[0])
+            os << "*" << unit;
+        return os.str();
+    }
+    std::string pzy_to_arg(std::string_view unit) const {
+        if (!has_value())
+            return "0";
+        std::ostringstream os;
+        os << val[1];
+        if (unit != "" && val[1])
+            os << "*" << unit;
+        return os.str();
+    }
     std::vector<std::string> used_variables() const {
         return {};
     }

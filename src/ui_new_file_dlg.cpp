@@ -16,6 +16,7 @@ void NewFileDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     modalResult = ImRad::None;
     ImRad::GetUserData().dimBgRatio = 1.f;
+    IM_ASSERT(ID && "Call Draw at least once to get ID assigned");
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -69,8 +70,8 @@ void NewFileDlg::Draw()
         ImRad::Spacing(1);
         ImGui::PushFont(nullptr, uiFontSize*1.4f);
         ImGui::TextUnformatted("New File");
-        vb1.AddSize(1, ImRad::VBox::ItemSize);
-        hb1.AddSize(0, ImRad::HBox::ItemSize);
+        vb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
+        hb1.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::ItemSize);
         ImGui::PopFont();
         /// @end Text
 
@@ -78,7 +79,7 @@ void NewFileDlg::Draw()
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImRad::Dummy({ hb1.GetSize(), 20*dp });
         vb1.UpdateSize(0, 20*dp);
-        hb1.AddSize(1, ImRad::HBox::Stretch(1.0f));
+        hb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Selectable
@@ -92,7 +93,7 @@ void NewFileDlg::Draw()
         }
         ImGui::PopStyleVar();
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
-        hb1.AddSize(1, ImRad::HBox::ItemSize);
+        hb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::ItemSize);
         ImGui::PopFont();
         ImGui::PopItemFlag();
         /// @end Selectable
@@ -147,8 +148,8 @@ void NewFileDlg::Draw()
         }
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
-        vb1.AddSize(4, ImRad::VBox::Stretch(1.0f));
-        hb2.AddSize(0, ImRad::HBox::Stretch(0.3f));
+        vb1.AddSize(4 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::Stretch(1.0f));
+        hb2.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(0.3f));
         ImGui::PopItemFlag();
         /// @end Table
 
@@ -180,11 +181,11 @@ void NewFileDlg::Draw()
                 ImGui::PopStyleVar();
 
                 auto tmpCursor2 = ImRad::GetCursorData();
+                auto tmpItem2 = ImRad::GetLastItemData();
                 auto tmpRect2 = ImRad::Rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
                 ImVec2 tmpPadding2 = ImGui::GetStyle().FramePadding;
-                ImGui::SetCursorScreenPos(tmpRect2.Min);
+                ImGui::SetCursorScreenPos({tmpRect2.Min.x + tmpPadding2.x, tmpRect2.Min.y + tmpPadding2.y });
                 ImGui::BeginGroup();
-                ImGui::SetCursorScreenPos({ tmpRect2.Min.x + tmpPadding2.x, tmpRect2.Min.y + tmpPadding2.y });
                 ImGui::PushClipRect({ tmpRect2.Min.x + tmpPadding2.x, tmpRect2.Min.y + tmpPadding2.y }, { tmpRect2.Max.x - tmpPadding2.x, tmpRect2.Max.y - tmpPadding2.y }, true);
                 /// @separator
 
@@ -212,9 +213,10 @@ void NewFileDlg::Draw()
                 /// @end Text
 
                 /// @separator
-                ImRad::SetCursorData(tmpCursor2);
-                ImGui::EndGroup();
                 ImGui::PopClipRect();
+                ImGui::EndGroup();
+                ImRad::SetCursorData(tmpCursor2);
+                ImRad::SetLastItemData(tmpItem2);
                 ImGui::EndDisabled();
                 /// @end Selectable
 
@@ -225,7 +227,7 @@ void NewFileDlg::Draw()
         }
         ImGui::PopStyleColor();
         vb1.UpdateSize(0, ImRad::VBox::Stretch(1.0f));
-        hb2.AddSize(1, ImRad::HBox::Stretch(1.0f));
+        hb2.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         ImGui::PopItemFlag();
         /// @end Table
 
