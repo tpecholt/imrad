@@ -13,7 +13,7 @@ ImRAD is a GUI builder for the ImGui library. It generates and parses C++ code w
 Unlike other tools ImRAD can be used for continuous modification of the generated UI. Data binding, events and even manual
 UI code additions are well supported. 
 
-ImRAD runs on Windows, Linux and MacOS. 
+ImRAD runs on Windows, Linux and MacOS. The generated code can be run on Windows, Linux, MacOS and Android.
 
 <hr>
 
@@ -53,8 +53,8 @@ ImRAD runs on Windows, Linux and MacOS.
   * container widgets like `Child`, `Table`, `CollapsingHeader`, `TreeNode`, `TabBar`,
   * more exotic widgets such as `Splitter` and `DockSpace`
   * `MenuBar` and context menu editing
-  * `CustomWidget` (a placeholder to user code)
-
+  * `CustomWidget` which allows to call external widgets code
+    
 * Generates layout using `SameLine`/`Spacing`/`NextColumn` instead of absolute positioning 
   
   * this ensures widgets respect item spacing and frame padding in a consistent way
@@ -89,11 +89,11 @@ ImRAD runs on Windows, Linux and MacOS.
   * ImRAD will follow chosen style settings when designing your UI
   * stored style can be loaded in your app by using `LoadStyle` call  
 
-* Generated code is ready to use in your project and depends only on ImGui library and one accompanying header file (imrad.h)
-
-  * some features such as MainWindow or Image widget require GLFW dependency. Compile your code with `IMRAD_WITH_GLFW` to activate it
-  * currently Image widget requires stb library as well. Compile your code with `IMRAD_WITH_STB` or supply your own `LoadTextureFromFile()`
-  * in generated code `ImRad::Format` delegates to `std::format` by default but when requested popular `fmt` library can be used instead by defining `IMRAD_WITH_FMT`. If neither is available simple formatting routine which skips formatting flags will be used.  
+* Generated code is ready to use in your project and depends only on ImGui library and one accompanying header file - *imrad.h*
+  * *imrad.h* contains both the interface and implementation. Define IMRAD_H_IMPLEMENTATION prior including it in the main.cpp file to create implementation. 
+  * Generated code used `ImRad::Format` routines. In C++20 it will delegate to `std::format` by default but when requested popular `fmt` library can be used instead by defining `IMRAD_WITH_FMT`. If neither is available simple formatting routine which skips formatting flags will be used.
+  * Some features such as MainWindow or Image widget require additional library dependencies (GLFW, STB) and need to be explicitly requested (IMRAD_WITH_LOAD_TEXTURE)
+  * *imrad.h* supports loading assets from zipped file using the *zlib* library. Activate it by defining IMRAD_WITH_MINIZIP
 
 * ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
 
