@@ -153,13 +153,14 @@ void TopWindow::Draw(UIContext& ctx)
     if (ctx.beingResized)
         ctx.selected = { this }; //reset selection so there is no visual noise
 
-    if (placement == Left)
+    ImVec2 gap = style_placementGap.has_value() ? (ImVec2)style_placementGap : ImVec2{ 0, 0 };
+    if (placement == Left && !gap.x)
         ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersLeft);
-    else if (placement == Right)
+    else if (placement == Right && !gap.x)
         ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersRight);
-    else if (placement == Top)
+    else if (placement == Top && !gap.y)
         ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersTop);
-    else if (placement == Bottom)
+    else if (placement == Bottom && !gap.y)
         ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCornersBottom);
 
     ImGui::GetCurrentContext()->NavHighlightItemUnderNav = true;
@@ -478,23 +479,32 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     }
     else if (kind == Window)
     {
+        ImVec2 gap = style_placementGap.has_value() ? (ImVec2)style_placementGap : ImVec2{ 0, 0 };
+
         //pos
         if (placement == Left || placement == Top)
         {
-            os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);";
-            os << (placement == Left ? " //Left\n" : " //Top\n");
+            os << ctx.ind << "ImGui::SetNextWindowPos({ "
+                << "ImRad::GetUserData().WorkRect().Min.x + " << gap.x << ", "
+                << "ImRad::GetUserData().WorkRect().Min.y + " << gap.y << " });";
+            os << (placement == Left ? " //Left" : " //Top");
+            os << ", Gap={" << gap.x << "," << gap.y << "}\n";
         }
         else if (placement == Right || placement == Bottom)
         {
-            os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Max, 0, { 1, 1 });";
-            os << (placement == Right ? " //Right\n" : " //Bottom\n");
+            os << ctx.ind << "ImGui::SetNextWindowPos({ "
+                << "ImRad::GetUserData().WorkRect().Max.x - " << gap.x << ", "
+                << "ImRad::GetUserData().WorkRect().Max.y - " << gap.y << " }, "
+                << "0, { 1, 1 });";
+            os << (placement == Right ? " //Right" : " //Bottom");
+            os << ", Gap={" << gap.x << "," << gap.y << "}\n";
         }
 
         //size
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
         if (placement == Top || placement == Bottom)
-            os << "ImRad::GetUserData().WorkRect().GetWidth()";
+            os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gap.x;
         else if (autoSize)
             os << "0";
         else
@@ -503,7 +513,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ", ";
 
         if (placement == Left || placement == Right)
-            os << "ImRad::GetUserData().WorkRect().GetHeight()";
+            os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gap.y;
         else if (autoSize)
             os << "0";
         else
@@ -539,23 +549,33 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     }
     else if (kind == Popup || kind == ModalPopup)
     {
+        ImVec2 gap = style_placementGap.has_value() ? (ImVec2)style_placementGap : ImVec2{ 0, 0 };
+
         if (placement == Left || placement == Top)
         {
-            os << ctx.ind << "ImGui::SetNextWindowPos(";
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ";
+            os << "ImRad::GetUserData().WorkRect().Min.x + " << gap.x;
             if (animate)
-                os << "{ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y + animPos.y }";
-            else
-                os << "ImRad::GetUserData().WorkRect().Min";
-            os << "); " << (placement == Left ? " //Left\n" : " //Top\n");
+                os << " + animPos.x";
+            os << ", ImRad::GetUserData().WorkRect().Min.y + " << gap.y;
+            if (animate)
+                os << " + animPos.y";
+            os << " });";
+            os << (placement == Left ? " //Left" : " //Top");
+            os << ",Gap={" << gap.x << "," << gap.y << "}\n";
         }
         else if (placement == Right || placement == Bottom)
         {
-            os << ctx.ind << "ImGui::SetNextWindowPos(";
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ";
+            os << "ImRad::GetUserData().WorkRect().Max.x - " << gap.x;
             if (animate)
-                os << "{ ImRad::GetUserData().WorkRect().Max.x - animPos.x, ImRad::GetUserData().WorkRect().Max.y - animPos.y }, 0, { 1, 1 }";
-            else
-                os << "ImRad::GetUserData().WorkRect().Max, 0, { 1, 1 }";
-            os << "); " << (placement == Right ? " //Right\n" : " //Bottom\n");
+                os << " - animPos.x";
+            os << ", ImRad::GetUserData().WorkRect().Max.y - " << gap.y;
+            if (animate)
+                os << " - animPos.y";
+            os << " }, 0, { 1, 1 });";
+            os << (placement == Right ? " //Right" : " //Bottom");
+            os << ",Gap={" << gap.x << "," << gap.y << "}\n";
         }
         else if (placement == Center)
         {
@@ -571,7 +591,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
         if (placement == Top || placement == Bottom)
-            os << "ImRad::GetUserData().WorkRect().GetWidth()";
+            os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gap.x;
         else if (autoSize)
             os << "0";
         else
@@ -580,7 +600,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ", ";
 
         if (placement == Left || placement == Right)
-            os << "ImRad::GetUserData().WorkRect().GetHeight()";
+            os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gap.y;
         else if (autoSize)
             os << "0";
         else
@@ -665,14 +685,22 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             ctx.ind_down();
         }
         if (style_rounding &&
-            (placement == Left || placement == Right || placement == Top || placement == Bottom))
+            !gap.x &&
+            (placement == Left || placement == Right))
         {
             os << ctx.ind << "ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCorners";
             if (placement == Left)
                 os << "Left";
             else if (placement == Right)
                 os << "Right";
-            else if (placement == Top)
+            os << ");\n";
+        }
+        if (style_rounding &&
+            !gap.y &&
+            (placement == Top || placement == Bottom))
+        {
+            os << ctx.ind << "ImRad::RenderFilledWindowCorners(ImDrawFlags_RoundCorners";
+            if (placement == Top)
                 os << "Top";
             else if (placement == Bottom)
                 os << "Bottom";
@@ -1044,18 +1072,22 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         }
         else if (sit->kind == cpp::Comment && parseCommentPos)
         {
-            if (sit->line == "//Left")
+            if (sit->line.find("Left") != std::string::npos)
                 placement = Left;
-            else if (sit->line == "//Right")
+            else if (sit->line.find("Right") != std::string::npos)
                 placement = Right;
-            else if (sit->line == "//Top")
+            else if (sit->line.find("Top") != std::string::npos)
                 placement = Top;
-            else if (sit->line == "//Bottom")
+            else if (sit->line.find("Bottom") != std::string::npos)
                 placement = Bottom;
-            else if (sit->line == "//Center")
+            else if (sit->line.find("Center") != std::string::npos)
                 placement = Center;
-            else if (sit->line == "//Maximize")
+            else if (sit->line.find("Maximize") != std::string::npos)
                 placement = Maximize;
+
+            size_t i = sit->line.find("Gap=");
+            if (i != std::string::npos)
+                style_placementGap.set_from_arg(sit->line.substr(i + 4));
         }
     }
 
@@ -1113,6 +1145,7 @@ TopWindow::Properties()
         { "appearance.scrollbarSize", &style_scrollbarSize },
         { "appearance.spacing", &style_spacing },
         { "appearance.innerSpacing", &style_innerSpacing },
+        { "appearance.placementGap", &style_placementGap },
         { "appearance.font.summary", nullptr },
         { "appearance.font.name", &style_fontName },
         { "appearance.font.size", &style_fontSize },
@@ -1215,13 +1248,21 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
     }
     case 9:
     {
+        ImGui::Text("placementGap");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_placementGap, ctx);
+        break;
+    }
+    case 10:
+    {
         ImGui::Text("font");
         ImGui::TableNextColumn();
         fl = style_fontName != Defaults().style_fontName || style_fontSize != Defaults().style_fontSize;
         TextFontInfo(style_fontName, style_fontSize, fl, ctx);
         break;
     }
-    case 10:
+    case 11:
         ImGui::Text("name");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1229,7 +1270,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_fontName, ctx);
         break;
-    case 11:
+    case 12:
         ImGui::Text("size");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1237,14 +1278,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font_size", &style_fontSize, ctx);
         break;
-    case 12:
+    case 13:
         ImGui::Text("kind");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = kind != Defaults().kind ? InputDirectVal_Modified : 0;
         changed = InputDirectValEnum(&kind, fl, ctx);
         break;
-    case 13:
+    case 14:
     {
         bool hasAutoResize = flags & ImGuiWindowFlags_AlwaysAutoResize;
         bool hasMB = children.size() && dynamic_cast<MenuBar*>(children[0].get());
@@ -1259,7 +1300,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         }
         break;
     }
-    case 14:
+    case 15:
         ImGui::Text("title");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1267,7 +1308,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("title", &title, ctx);
         break;
-    case 15:
+    case 16:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
         ImGui::Text("closeOnEscape");
         ImGui::TableNextColumn();
@@ -1276,7 +1317,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&closeOnEscape, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 16:
+    case 17:
         ImGui::BeginDisabled(kind != Activity);
         ImGui::Text("initialActivity");
         ImGui::TableNextColumn();
@@ -1285,7 +1326,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&initialActivity, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 17:
+    case 18:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup);
         ImGui::Text("animate");
         ImGui::TableNextColumn();
@@ -1294,7 +1335,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&animate, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 18:
+    case 19:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text(kind == Activity ? "designSize" : "size");
         ImGui::TableNextColumn();
@@ -1305,7 +1346,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 19:
+    case 20:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1316,7 +1357,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 20:
+    case 21:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1327,7 +1368,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 21:
+    case 22:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("minimumSize");
         ImGui::TableNextColumn();
@@ -1338,7 +1379,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 22:
+    case 23:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1349,7 +1390,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_x", &minSize_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 23:
+    case 24:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1360,7 +1401,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_y", &minSize_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 24:
+    case 25:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");

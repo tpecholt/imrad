@@ -813,6 +813,7 @@ bool CppGen::WriteStub(
             fout << INDENT << "ImRad::GetUserData().dimBgRatio = 1.f;\n";
         }
 
+        fout << INDENT << "IM_ASSERT(ID && \"Call Draw at least once to get ID assigned\");\n";
         fout << INDENT << "ImGui::OpenPopup(ID);\n";
         fout << INDENT << "Init();\n";
         fout << "}";

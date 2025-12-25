@@ -22,6 +22,7 @@ struct TopWindow : UINode
     direct_val<pzdimension_t> style_rounding;
     direct_val<pzdimension_t> style_scrollbarSize;
     direct_val<pzdimension2_t> style_titlePadding;
+    direct_val<pzdimension2_t> style_placementGap;
     bindable<color_t> style_bg;
     bindable<color_t> style_menuBg;
     direct_val<Placement> placement = None;
