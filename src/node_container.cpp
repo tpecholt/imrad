@@ -1001,8 +1001,8 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     std::string datavar, szvar;
     if (!style_outerPadding)
     {
-        datavar = "_data" + std::to_string(ctx.varCounter);
-        szvar = "_sz" + std::to_string(ctx.varCounter);
+        datavar = "tmpPadding" + std::to_string(ctx.varCounter);
+        szvar = "tmpSize" + std::to_string(ctx.varCounter);
         os << ctx.ind << "ImVec2 " << szvar << "{ "
             << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
             << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " };\n";
@@ -1142,7 +1142,8 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             style_borderSize.set_from_arg(sit->params[1]);
     }
     else if (sit->kind == cpp::Other &&
-        (!sit->line.compare(0, 10, "ImVec2 _sz") || !sit->line.compare(0, 9, "ImVec2 sz"))) //sz for compatibility
+        !sit->line.compare(0, 6, "ImVec2"))
+        //(!sit->line.compare(0, 10, "ImVec2 _sz") || !sit->line.compare(0, 9, "ImVec2 sz"))) //sz for compatibility
     {
         style_outerPadding = false;
         size_t i = sit->line.find('{');
@@ -1156,7 +1157,7 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 2) {
             auto size = cpp::parse_size(sit->params[1]);
-            if (size.first != "" && size.second != "") {
+            if (size.first != "" && size.second != "") { // empty if pushIgnoreWindowPadding
                 size_x.set_from_arg(size.first);
                 size_y.set_from_arg(size.second);
             }

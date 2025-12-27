@@ -913,13 +913,12 @@ void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data)
     data->maxPos = wnd->DC.CursorMaxPos;
     data->workRectMax = wnd->WorkRect.Max;
     ImRect r = wnd->InnerRect;
-    float fixbs = wnd->WindowBorderSize ? 1.f : 0; //not sure why imgui renders some additional border shadow
-    r.Min.x += fixbs;
-    r.Max.x -= fixbs;
+    float bs2 = std::floor(wnd->WindowBorderSize / 2.f);
+    r.Expand(-bs2);
     ImGui::PushClipRect(r.Min, r.Max, false);
     ImVec2 pos = ImGui::GetCursorScreenPos();
     if (pos.x <= wnd->DC.CursorStartPos.x)
-        pos.x = r.Min.x + fixbs;
+        pos.x = r.Min.x;
     if (pos.y <= wnd->DC.CursorStartPos.y)
         pos.y = r.Min.y;
     ImGui::SetCursorScreenPos(pos);

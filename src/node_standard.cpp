@@ -3067,7 +3067,7 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
     std::string datavar;
     if (!style_outerPadding && !sameLine)
     {
-        datavar = "_data" + std::to_string(ctx.varCounter);
+        datavar = "tmpPadding" + std::to_string(ctx.varCounter);
         ++ctx.varCounter;
         os << ctx.ind << "ImRad::IgnoreWindowPaddingData " << datavar << ";\n";
         os << ctx.ind << "ImRad::PushIgnoreWindowPadding(nullptr, &" << datavar << ");\n";
