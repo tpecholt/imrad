@@ -2671,6 +2671,7 @@ int main(int argc, const char* argv[])
     if (glfwWindow == NULL)
         return 1;
     glfwSetWindowContentScaleCallback(glfwWindow, GLFWContentScaleCallback);
+#ifndef __APPLE__
     GLFWimage icons[2];
     icons[0].pixels = stbi_load((rootPath + "/style/icon-40.png").c_str(), &icons[0].width, &icons[0].height, 0, 4);
     icons[1].pixels = stbi_load((rootPath + "/style/icon-100.png").c_str(), &icons[1].width, &icons[1].height, 0, 4);
@@ -2678,6 +2679,7 @@ int main(int argc, const char* argv[])
         glfwSetWindowIcon(glfwWindow, 2, icons);
     stbi_image_free(icons[0].pixels);
     stbi_image_free(icons[1].pixels);
+#endif
     glfwMakeContextCurrent(glfwWindow);
     glfwSwapInterval(1); // Enable vsync
     glfwMaximizeWindow(glfwWindow);
