@@ -87,23 +87,29 @@ the zlib library to be found. After that `LoadTextureFromFile` and font loading 
 
 ### Improvements by Widget Type
 
-* Window
+* Child
   
-  * minimumSize added
+  * new flags like ResizeX, ResizeY, NoNavFocus
+    
+  * multi-selection support added
+
+* CustomWidget
+
+  * label added
+    
+* DockSpace/Node
   
-  * innerSpacing added
-    
-  * new flags like NoFocusOnAppearing
-    
+  * newly added widgets (requires imgui/docking branch)
+
+* Image
+  
+  * Allows to specify image resource inside a zip file
+  
 * Input
   
   * allows to set member function callback like character filter, auto completion etc.
     
   * new flags such as ElideLeft, DisplayEmptyRefVal, AllowTabInput, WordWrap added
-    
-* Text
-  
-  * Link property added
     
 * Selectable
   
@@ -115,18 +121,16 @@ the zlib library to be found. After that `LoadTextureFromFile` and font loading 
   
   * multi-selection support added
   
-  * Selectable now behaves as a container so it's possible to insert additional child widgets which will be automatically clipped. Useful for implementing structured table items with row selection
+  * Selectable now behaves as a container so it's possible to insert additional child widgets which will be automatically clipped. Useful for implementing structured table items with row selection 
 
-* Image
+* Separator
   
-  * Allows to specify image resource inside a zip file 
+  * added alignment, thickness for labeled separators
     
-* Child
+* Slider
   
-  * new flags like ResizeX, ResizeY, NoNavFocus
-    
-  * multi-selection support added
-  
+  * new flags added
+
 * Table
   
   * ScrollFreeze property implemented
@@ -138,22 +142,22 @@ the zlib library to be found. After that `LoadTextureFromFile` and font loading 
   * Separate headerFont added
     
   * multi-selection support added
+
+* Text
+  
+  * Link property added
   
 * TreeNode
   
   * new flags like DefaultOpen, NoTreePushOnOpen
-    
-* Slider
   
-  * new flags added
-
-* CustomWidget
-
-  * label added
-    
-* DockSpace/Node
+  * Window
   
-  * newly added widgets (requires imgui/docking branch)
+  * minimumSize added
+  
+  * innerSpacing added
+    
+  * new flags like NoFocusOnAppearing
   
   
 ### Tutorials
@@ -162,6 +166,6 @@ the zlib library to be found. After that `LoadTextureFromFile` and font loading 
 
   * Data Binding & Events added
 
-  * Widget Placement & Size updated
+  * tutorials updated
   
   

@@ -229,6 +229,7 @@ struct Spacer : Widget
 struct Separator : Widget
 {
     bindable<std::string> label;
+    direct_val<ImRad::Alignment> style_alignment = ImRad::AlignLeft;
     direct_val<pzdimension_t> style_thickness;
     direct_val<bool> style_outerPadding = true;
 

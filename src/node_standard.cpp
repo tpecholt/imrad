@@ -1547,27 +1547,41 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
 
     if (hasPos)
     {
+        std::string pos;
         os << ctx.ind << "ImGui::SetCursorScreenPos({ ";
         std::string parentRect = parent->Behavior() & SnapItemInterior ?
             ctx.parentVarName : "ImRad::GetParentInnerRect()";
-        if (hasPos & ImRad::AlignLeft)
+        if (hasPos & ImRad::AlignLeft) {
             os << parentRect << ".Min.x";
-        else if (hasPos & ImRad::AlignRight)
+            pos = "AlignLeft";
+        }
+        else if (hasPos & ImRad::AlignRight) {
             os << parentRect << ".Max.x";
-        else if (hasPos & ImRad::AlignHCenter)
+            pos = "AlignRight";
+        }
+        else if (hasPos & ImRad::AlignHCenter) {
             os << parentRect << ".GetCenter().x";
+            pos = "AlignHCenter";
+        }
         os << (!pos_x.has_value() || !pos_x.has_sign() ? "+" : "")
             << pos_x.to_arg(ctx.unit);
         os << ", ";
-        if (hasPos & ImRad::AlignTop)
+        if (hasPos & ImRad::AlignTop) {
             os << parentRect << ".Min.y";
-        else if (hasPos & ImRad::AlignBottom)
+            pos += "|AlignTop";
+        }
+        else if (hasPos & ImRad::AlignBottom) {
             os << parentRect << ".Max.y";
-        else if (hasPos & ImRad::AlignVCenter)
+            pos += "|AlignBottom";
+        }
+        else if (hasPos & ImRad::AlignVCenter) {
             os << parentRect << ".GetCenter().y";
+            pos += "|AlignVCenter";
+        }
         os << (!pos_y.has_value() || !pos_y.has_sign() ? "+" : "")
             << pos_y.to_arg(ctx.unit);
-        os << " }); //overlayPos\n";
+        os << " }); //overlayPos=" << pos;
+        os << "," << pos_x.to_arg(ctx.unit) << "," << pos_y.to_arg(ctx.unit) << "\n";
     }
     else
     {
@@ -2267,108 +2281,140 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         }
         if (screenPosIt != cpp::stmt_iterator() && sit != cpp::stmt_iterator())
         {
-            if (sit->kind == cpp::Comment && sit->line == "//overlayPos" && sit->params.size())
+            if (sit->kind == cpp::Comment && !sit->line.compare(0, 12, "//overlayPos") && sit->params.size())
             {
                 hasPos = 0;
-                auto pos = cpp::parse_size(sit->params[0]);
-                int tmp;
-                char buf[101];
-                if (!pos.first.compare(0, 33, "ImRad::GetParentInnerRect().Min.x")) {
-                    hasPos |= ImRad::AlignLeft;
-                    pos_x.set_from_arg(pos.first.substr(33));
+                if (!sit->line.compare(0, 13, "//overlayPos="))
+                {
+                    std::string tmp = sit->line.substr(13);
+                    stx::replace(tmp, ',', ' ');
+                    stx::replace(tmp, '|', ' ');
+                    std::istringstream is(tmp);
+                    int n = 0;
+                    while (is >> tmp) {
+                        if (tmp == "AlignLeft")
+                            hasPos |= ImRad::AlignLeft;
+                        else if (tmp == "AlignRight")
+                            hasPos |= ImRad::AlignRight;
+                        else if (tmp == "AlignHCenter")
+                            hasPos |= ImRad::AlignHCenter;
+                        else if (tmp == "AlignTop")
+                            hasPos |= ImRad::AlignTop;
+                        else if (tmp == "AlignBottom")
+                            hasPos |= ImRad::AlignBottom;
+                        else if (tmp == "AlignVCenter")
+                            hasPos |= ImRad::AlignVCenter;
+                        else if (!n) {
+                            pos_x.set_from_arg(tmp);
+                            ++n;
+                        }
+                        else {
+                            pos_y.set_from_arg(tmp);
+                        }
+                    }
                 }
-                else if (!pos.first.compare(0, 33, "ImRad::GetParentInnerRect().Max.x")) {
-                    hasPos |= ImRad::AlignRight;
-                    pos_x.set_from_arg(pos.first.substr(33));
-                }
-                else if (!pos.first.compare(0, 41, "ImRad::GetParentInnerRect().GetCenter().x")) {
-                    hasPos |= ImRad::AlignHCenter;
-                    pos_x.set_from_arg(pos.first.substr(41));
-                }
-                else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.Min.x%100s").c_str(), &tmp, buf) == 2) {
-                    hasPos |= ImRad::AlignLeft;
-                    pos_x.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.Max.x%100s").c_str(), &tmp, buf) == 2) {
-                    hasPos |= ImRad::AlignRight;
-                    pos_x.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.GetCenter().x%100s").c_str(), &tmp, buf) == 2) {
-                    hasPos |= ImRad::AlignHCenter;
-                    pos_x.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.x%100s").c_str(), &tmp, buf) == 2) { //compatibility
-                    hasPos |= ImRad::AlignLeft;
-                    pos_x.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.x%100s").c_str(), &tmp, buf) == 2) { //compatibility
-                    hasPos |= ImRad::AlignRight;
-                    pos_x.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().x%100s").c_str(), &tmp, buf) == 2) { //compatibility
-                    hasPos |= ImRad::AlignHCenter;
-                    pos_x.set_from_arg(buf);
-                }
-                else if (!pos.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x")) { //compatibility
-                    hasPos |= ImRad::AlignRight;
-                    pos_x.set_from_arg(pos.first.substr(42));
-                }
-                else if (!pos.first.compare(0, 47, "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.x")) { //compatibility
-                    hasPos |= ImRad::AlignHCenter;
-                    pos_x.set_from_arg(pos.first.substr(47));
-                }
-                else {
-                    hasPos |= ImRad::AlignLeft;
-                    pos_x.set_from_arg(pos.first);
-                }
+                else //compatibility
+                {
+                    auto pos = cpp::parse_size(sit->params[0]);
+                    int tmp;
+                    char buf[101];
+                    if (!pos.first.compare(0, 33, "ImRad::GetParentInnerRect().Min.x")) {
+                        hasPos |= ImRad::AlignLeft;
+                        pos_x.set_from_arg(pos.first.substr(33));
+                    }
+                    else if (!pos.first.compare(0, 33, "ImRad::GetParentInnerRect().Max.x")) {
+                        hasPos |= ImRad::AlignRight;
+                        pos_x.set_from_arg(pos.first.substr(33));
+                    }
+                    else if (!pos.first.compare(0, 41, "ImRad::GetParentInnerRect().GetCenter().x")) {
+                        hasPos |= ImRad::AlignHCenter;
+                        pos_x.set_from_arg(pos.first.substr(41));
+                    }
+                    else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.Min.x%100s").c_str(), &tmp, buf) == 2) {
+                        hasPos |= ImRad::AlignLeft;
+                        pos_x.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.Max.x%100s").c_str(), &tmp, buf) == 2) {
+                        hasPos |= ImRad::AlignRight;
+                        pos_x.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.first.c_str(), (TMP_RECT_VAR + "%d.GetCenter().x%100s").c_str(), &tmp, buf) == 2) {
+                        hasPos |= ImRad::AlignHCenter;
+                        pos_x.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.x%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                        hasPos |= ImRad::AlignLeft;
+                        pos_x.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.x%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                        hasPos |= ImRad::AlignRight;
+                        pos_x.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.first.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().x%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                        hasPos |= ImRad::AlignHCenter;
+                        pos_x.set_from_arg(buf);
+                    }
+                    else if (!pos.first.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.x")) { //compatibility
+                        hasPos |= ImRad::AlignRight;
+                        pos_x.set_from_arg(pos.first.substr(42));
+                    }
+                    else if (!pos.first.compare(0, 47, "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.x")) { //compatibility
+                        hasPos |= ImRad::AlignHCenter;
+                        pos_x.set_from_arg(pos.first.substr(47));
+                    }
+                    else {
+                        hasPos |= ImRad::AlignLeft;
+                        pos_x.set_from_arg(pos.first);
+                    }
 
-                if (!pos.second.compare(0, 33, "ImRad::GetParentInnerRect().Min.y")) {
-                    hasPos |= ImRad::AlignTop;
-                    pos_y.set_from_arg(pos.second.substr(33));
-                }
-                else if (!pos.second.compare(0, 33, "ImRad::GetParentInnerRect().Max.y")) {
-                    hasPos |= ImRad::AlignBottom;
-                    pos_y.set_from_arg(pos.second.substr(33));
-                }
-                else if (!pos.second.compare(0, 41, "ImRad::GetParentInnerRect().GetCenter().y")) {
-                    hasPos |= ImRad::AlignVCenter;
-                    pos_y.set_from_arg(pos.second.substr(41));
-                }
-                else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.Min.y%100s").c_str(), &tmp, buf) == 2) {
-                    hasPos |= ImRad::AlignTop;
-                    pos_y.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.Max.y%100s").c_str(), &tmp, buf) == 2) {
-                    hasPos |= ImRad::AlignBottom;
-                    pos_y.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.GetCenter().y%100s").c_str(), &tmp, buf) == 2) {
-                    hasPos |= ImRad::AlignHCenter;
-                    pos_y.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.y%100s").c_str(), &tmp, buf) == 2) { //compatibility
-                    hasPos |= ImRad::AlignTop;
-                    pos_y.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.y%100s").c_str(), &tmp, buf) == 2) { //compatibility
-                    hasPos |= ImRad::AlignBottom;
-                    pos_y.set_from_arg(buf);
-                }
-                else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().y%100s").c_str(), &tmp, buf) == 2) { //compatibility
-                    hasPos |= ImRad::AlignVCenter;
-                    pos_y.set_from_arg(buf);
-                }
-                else if (!pos.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y")) { //compatibility
-                    hasPos |= ImRad::AlignBottom;
-                    pos_y.set_from_arg(pos.second.substr(42));
-                }
-                else if (!pos.second.compare(0, 47, "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.y")) { //compatibility
-                    hasPos |= ImRad::AlignVCenter;
-                    pos_y.set_from_arg(pos.second.substr(47));
-                }
-                else {
-                    hasPos |= ImRad::AlignTop;
-                    pos_y.set_from_arg(pos.second);
+                    if (!pos.second.compare(0, 33, "ImRad::GetParentInnerRect().Min.y")) {
+                        hasPos |= ImRad::AlignTop;
+                        pos_y.set_from_arg(pos.second.substr(33));
+                    }
+                    else if (!pos.second.compare(0, 33, "ImRad::GetParentInnerRect().Max.y")) {
+                        hasPos |= ImRad::AlignBottom;
+                        pos_y.set_from_arg(pos.second.substr(33));
+                    }
+                    else if (!pos.second.compare(0, 41, "ImRad::GetParentInnerRect().GetCenter().y")) {
+                        hasPos |= ImRad::AlignVCenter;
+                        pos_y.set_from_arg(pos.second.substr(41));
+                    }
+                    else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.Min.y%100s").c_str(), &tmp, buf) == 2) {
+                        hasPos |= ImRad::AlignTop;
+                        pos_y.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.Max.y%100s").c_str(), &tmp, buf) == 2) {
+                        hasPos |= ImRad::AlignBottom;
+                        pos_y.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.second.c_str(), (TMP_RECT_VAR + "%d.GetCenter().y%100s").c_str(), &tmp, buf) == 2) {
+                        hasPos |= ImRad::AlignHCenter;
+                        pos_y.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Min.y%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                        hasPos |= ImRad::AlignTop;
+                        pos_y.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.Max.y%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                        hasPos |= ImRad::AlignBottom;
+                        pos_y.set_from_arg(buf);
+                    }
+                    else if (std::sscanf(pos.second.c_str(), (TMP_LAST_ITEM_VAR + "%d.Rect.GetCenter().y%100s").c_str(), &tmp, buf) == 2) { //compatibility
+                        hasPos |= ImRad::AlignVCenter;
+                        pos_y.set_from_arg(buf);
+                    }
+                    else if (!pos.second.compare(0, 42, "ImGui::GetCurrentWindow()->InnerRect.Max.y")) { //compatibility
+                        hasPos |= ImRad::AlignBottom;
+                        pos_y.set_from_arg(pos.second.substr(42));
+                    }
+                    else if (!pos.second.compare(0, 47, "0.5f*ImGui::GetCurrentWindow()->InnerRect.Max.y")) { //compatibility
+                        hasPos |= ImRad::AlignVCenter;
+                        pos_y.set_from_arg(pos.second.substr(47));
+                    }
+                    else {
+                        hasPos |= ImRad::AlignTop;
+                        pos_y.set_from_arg(pos.second);
+                    }
                 }
             }
             else
@@ -3020,6 +3066,9 @@ bool Spacer::PropertyUI(int i, UIContext& ctx)
 
 Separator::Separator(UIContext& ctx)
 {
+    style_alignment.add("AlignLeft", ImRad::AlignLeft);
+    style_alignment.add("AlignHCenter", ImRad::AlignHCenter);
+    style_alignment.add("AlignRight", ImRad::AlignRight);
 }
 
 std::unique_ptr<Widget> Separator::Clone(UIContext& ctx)
@@ -3032,14 +3081,23 @@ ImDrawList* Separator::DoDraw(UIContext& ctx)
     ImRad::IgnoreWindowPaddingData data;
     if (!style_outerPadding && !sameLine)
         ImRad::PushIgnoreWindowPadding(nullptr, &data);
+    if (style_thickness.has_value())
+        ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextBorderSize, style_thickness.eval_px(ctx));
+    float align = style_alignment == ImRad::AlignLeft ? 0.f :
+        style_alignment == ImRad::AlignRight ? 1.f :
+        0.5f;
+    ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextAlign, { align, 0 });
 
     if (!label.empty())
         ImGui::SeparatorText(DRAW_STR(label));
     else if (style_thickness.has_value())
-        ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal, style_thickness);
+        ImRad::SeparatorEx(sameLine ? ImRad::SeparatorFlags_Vertical : ImRad::SeparatorFlags_Horizontal, style_thickness);
     else
-        ImGui::SeparatorEx(sameLine ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal);
+        ImRad::SeparatorEx(sameLine ? ImRad::SeparatorFlags_Vertical : ImRad::SeparatorFlags_Horizontal);
 
+    ImGui::PopStyleVar();
+    if (style_thickness.has_value())
+        ImGui::PopStyleVar();
     if (!style_outerPadding && !sameLine)
         ImRad::PopIgnoreWindowPadding(data);
 
@@ -3075,17 +3133,30 @@ void Separator::DoExport(std::ostream& os, UIContext& ctx)
 
     if (label.empty())
     {
-        os << ctx.ind << "ImGui::SeparatorEx("
-            << (sameLine ? "ImGuiSeparatorFlags_Vertical" : "ImGuiSeparatorFlags_Horizontal");
+        os << ctx.ind << "ImRad::SeparatorEx("
+            << (sameLine ? "ImRad::SeparatorFlags_Vertical" : "ImRad::SeparatorFlags_Horizontal");
         if (style_thickness.has_value())
             os << ", " << style_thickness.to_arg(ctx.unit);
         os << ");\n";
     }
-    else {
-        os << ctx.ind << "ImGui::SeparatorText(" << label.to_arg();
+    else
+    {
         if (style_thickness.has_value())
-            os << ", " << style_thickness.to_arg(ctx.unit);
-        os << ");\n";
+            os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextBorderSize, "
+                << style_thickness.to_arg(ctx.unit) << ");\n";
+
+        std::string align = style_alignment == ImRad::AlignLeft ? "0" :
+            style_alignment == ImRad::AlignHCenter ? "0.5f" :
+            "1.f";
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextAlign, { "
+            << align << ", 0 });\n";
+
+        os << ctx.ind << "ImGui::SeparatorText(" << label.to_arg() << ");\n";
+
+        os << ctx.ind << "ImGui::PopStyleVar();\n";
+
+        if (style_thickness.has_value())
+            os << ctx.ind << "ImGui::PopStyleVar();\n";
     }
 
     if (!style_outerPadding && !sameLine)
@@ -3106,6 +3177,21 @@ void Separator::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 2)
             style_thickness.set_from_arg(sit->params[1]);
     }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar")
+    {
+        if (sit->params.size() >= 2 && sit->params[0] == "ImGuiStyleVar_SeparatorTextBorderSize")
+            style_thickness.set_from_arg(sit->params[1]);
+
+        if (sit->params.size() >= 2 && sit->params[0] == "ImGuiStyleVar_SeparatorTextAlign") {
+            float align = cpp::parse_fsize(sit->params[1]).x;
+            if (align == 0)
+                style_alignment = ImRad::AlignLeft;
+            else if (align == 0.5f)
+                style_alignment = ImRad::AlignHCenter;
+            else
+                style_alignment = ImRad::AlignRight;
+        }
+    }
     else if (sit->kind == cpp::CallExpr &&
         (sit->callee == "ImRad::PushIgnoreWindowPadding" || sit->callee == "ImGui::PushClipRect")) //PushClipRect for compatibility
     {
@@ -3118,6 +3204,7 @@ Separator::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
+        { "appearance.alignment", &style_alignment },
         { "appearance.thickness", &style_thickness },
         { "appearance.outer_padding", &style_outerPadding },
         { "behavior.label", &label, true }
@@ -3128,21 +3215,29 @@ Separator::Properties()
 bool Separator::PropertyUI(int i, UIContext& ctx)
 {
     bool changed = false;
+    int fl;
     switch (i)
     {
     case 0:
+        ImGui::Text("alignment");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = style_alignment != Defaults().style_alignment ? InputDirectVal_Modified : 0;
+        changed = InputDirectValEnum(&style_alignment, fl, ctx);
+        break;
+    case 1:
         ImGui::Text("thickness");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&style_thickness, ctx);
         break;
-    case 1:
+    case 2:
         ImGui::Text("outerPadding");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&style_outerPadding, 0, ctx);
         break;
-    case 2:
+    case 3:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3151,7 +3246,7 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("label", &label, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 3, ctx);
+        return Widget::PropertyUI(i - 4, ctx);
     }
     return changed;
 }

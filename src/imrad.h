@@ -686,14 +686,22 @@ bool Combo(const char* label, std::string* curr, const char* items, int flags)
     return changed;
 }
 
+//from imgui_internal.h
 void SeparatorEx(SeparatorFlags flags, float thickness)
 {
+    if (ImGui::GetCurrentWindow()->SkipItems)
+        return;
+
     ImGuiSeparatorFlags fl = 0;
     if (flags & SeparatorFlags_Horizontal)
         fl |= ImGuiSeparatorFlags_Horizontal;
     if (flags & SeparatorFlags_Vertical)
         fl |= ImGuiSeparatorFlags_Vertical;
     if (flags & SeparatorFlags_SpanAllColumns)
+        fl |= ImGuiSeparatorFlags_SpanAllColumns;
+
+    // Only applies to legacy Columns() api as they relied on Separator() a lot.
+    if (ImGui::GetCurrentWindow()->DC.CurrentColumns)
         fl |= ImGuiSeparatorFlags_SpanAllColumns;
 
     ImGui::SeparatorEx(flags, thickness);
