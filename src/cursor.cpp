@@ -60,7 +60,8 @@ struct WrappedCursor
     }
     ~WrappedCursor()
     {
-        glfwDestroyCursor(cursor);
+        if (cursor)
+            glfwDestroyCursor(cursor);
         cursor = nullptr;
     }
     GLFWcursor* get()
@@ -90,4 +91,10 @@ void SetWaitCursor()
 void SetCrossCursor()
 {
     glfwSetCursor(glfwWindow, curCross.get());
+}
+
+void DestroyCursors()
+{
+    curWait.~WrappedCursor();
+    curCross.~WrappedCursor();
 }

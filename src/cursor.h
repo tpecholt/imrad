@@ -2,3 +2,4 @@
 
 void SetWaitCursor();
 void SetCrossCursor();
+void DestroyCursors();

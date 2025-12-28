@@ -53,7 +53,7 @@
 
 static void glfw_error_callback(int error, const char* description)
 {
-    std::cerr << "Glfw Error: " << description;
+    std::cerr << "ERROR: " << description << std::endl;
 }
 
 const std::string UNTITLED = "Untitled";
@@ -2715,6 +2715,7 @@ int main(int argc, const char* argv[])
         else if (programState == Init)
         {
             programState = Run;
+            reloadStyle = true; //after INI font sizes were loaded
         }
         else if (programState == Shutdown)
         {
@@ -2738,6 +2739,7 @@ int main(int argc, const char* argv[])
         }
 
         //font loading must be called before NewFrame
+        //at the same time font sizes are loaded from INI in NewFrame
         LoadStyle();
 
         // Poll and handle events (inputs, window resize, etc.)
@@ -2787,6 +2789,7 @@ int main(int argc, const char* argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
+    DestroyCursors();
     glfwDestroyWindow(glfwWindow);
     glfwTerminate();
 
