@@ -6245,7 +6245,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&value, InputBindable_ShowVariables, ctx);
         ImGui::SameLine(0, 0);
-        changed |= BindingButton("value", &value, BindingButton_ReferenceOnly, ctx);
+        changed |= BindingButton("value", &value, 0, ctx);
         break;
     default:
         return Widget::PropertyUI(i - 10, ctx);
