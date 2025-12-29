@@ -3124,7 +3124,7 @@ void MenuIt::ExportShortcut(std::ostream& os, UIContext& ctx)
         return;
 
     os << ctx.ind << "if (";
-    if (!disabled.has_value() || disabled.value())
+    if (!disabled.empty())
         os << "!(" << disabled.to_arg() << ") && ";
     //force RouteGlobal otherwise it won't get fired when menu popup is open
     os << "ImGui::Shortcut(" << shortcut.to_arg() << "))\n";
@@ -3192,7 +3192,7 @@ MenuIt::Properties()
 {
     auto props = Widget::Properties();
     props.insert(props.begin(), {
-        { "appearance.ownerDraw", &ownerDraw },
+        { "behavior.ownerDraw", &ownerDraw },
         { "behavior.label", &label, true },
         { "behavior.shortcut", &shortcut },
         { "behavior.separator", &separator },
