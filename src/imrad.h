@@ -13,6 +13,7 @@ before you include this file in *one* C++ file to create implementation.
 
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <functional> //for ModalPopup callback
 #include <map>
 #include <imgui.h>
