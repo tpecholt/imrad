@@ -2874,25 +2874,146 @@ UINode::Style(UIContext& ctx)
     return {
         { "color.text", NULL },
         { "color.textDisabled", NULL },
+        { "color.windowBg", NULL },
+        { "color.childBg", NULL },
+        { "color.popupBg", NULL },
+        { "color.border", NULL },
+        { "color.borderShadow", NULL },
+        { "color.frameBg", NULL },
+        { "color.frameBgHovered", NULL },
+        { "color.frameBgActive", NULL },
+        { "color.titleBg", NULL },
+        { "color.titleBgActive", NULL },
+        { "color.titleBgCollapsed", NULL },
+        { "color.menuBarBg", NULL },
+        { "color.scrollbarBg", NULL },
+        { "color.scrollbarGrab", NULL },
+        { "color.scrollbarGrabHovered", NULL },
+        { "color.scrollbarGrabActive", NULL },
+        { "color.checkMark", NULL },
+        { "color.sliderGrab", NULL },
+        { "color.sliderGrabActive", NULL },
+        { "color.button", NULL },
+        { "color.buttonHovered", NULL },
+        { "color.buttonActive", NULL },
+        { "color.header", NULL },
+        { "color.headerHovered", NULL },
+        { "color.headerActive", NULL },
+        { "color.separator", NULL },
+        { "color.separatorHovered", NULL },
+        { "color.separatorActive", NULL },
+        { "color.resizeGrip", NULL },
+        { "color.resizeGripHovered", NULL },
+        { "color.resizeGripActive", NULL },
+        { "color.inputTextCursor", NULL },
+        { "color.tabHovered", NULL },
+        { "color.tab", NULL },
+        { "color.tabSelected", NULL },
+        { "color.tabSelectedOverline", NULL },
+        { "color.tabDimmed", NULL },
+        { "color.tabDimmedSelected", NULL },
+        { "color.tabDimmedSelectedOverline", NULL },
+        { "color.dockingPreview", NULL },
+        { "color.dockingEmptyBg", NULL },
+        { "color.plotLines", NULL },
+        { "color.plotLinesHovered", NULL },
+        { "color.plotHistogram", NULL },
+        { "color.plotHistogramHovered", NULL },
+        { "color.tableHeaderBg", NULL },
+        { "color.tableBorderStrong", NULL },
+        { "color.tableBorderLight", NULL },
+        { "color.tableRowBg", NULL },
+        { "color.tableRowBgAlt", NULL },
+        { "color.textLink", NULL },
+        { "color.textSelectedBg", NULL },
+        { "color.treeLines", NULL },
+        { "color.dragDropTarget", NULL },
+        { "color.navCursor", NULL },
+        { "color.navWindowingHighlight", NULL },
+        { "color.navWindowingDimBg", NULL },
+        { "color.modalWindowDimBg", NULL }
     };
 }
 
 bool UINode::StyleUI(int i, UIContext& ctx)
 {
     bool changed = false;
-    if (!i)
+    
+    // Name & ID
+    const char* names[] = {
+        "Text",
+        "TextDisabled",
+        "WindowBg",
+        "ChildBg",
+        "PopupBg",
+        "Border",
+        "BorderShadow",
+        "FrameBg",
+        "FrameBgHovered",
+        "FrameBgActive",
+        "TitleBg",
+        "TitleBgActive",
+        "TitleBgCollapsed",
+        "MenuBarBg",
+        "ScrollbarBg",
+        "ScrollbarGrab",
+        "ScrollbarGrabHovered",
+        "ScrollbarGrabActive",
+        "CheckMark",
+        "SliderGrab",
+        "SliderGrabActive",
+        "Button",
+        "ButtonHovered",
+        "ButtonActive",
+        "Header",
+        "HeaderHovered",
+        "HeaderActive",
+        "Separator",
+        "SeparatorHovered",
+        "SeparatorActive",
+        "ResizeGrip",
+        "ResizeGripHovered",
+        "ResizeGripActive",
+        "InputTextCursor",
+        "TabHovered",
+        "Tab",
+        "TabSelected",
+        "TabSelectedOverline",
+        "TabDimmed",
+        "TabDimmedSelected",
+        "TabDimmedSelectedOverline",
+        "DockingPreview",
+        "DockingEmptyBg",
+        "PlotLines",
+        "PlotLinesHovered",
+        "PlotHistogram",
+        "PlotHistogramHovered",
+        "TableHeaderBg",
+        "TableBorderStrong",
+        "TableBorderLight",
+        "TableRowBg",
+        "TableRowBgAlt",
+        "TextLink",
+        "TextSelectedBg",
+        "TreeLines",
+        "DragDropTarget",
+        "NavCursor",
+        "NavWindowingHighlight",
+        "NavWindowingDimBg",
+        "ModalWindowDimBg",
+    };
+    std::string id = "##_" + std::string(names[i]);
+
+    // Generic
+    ImGui::Text("%s", names[i]);
+    ImGui::TableNextColumn();
+    ImGui::SetNextItemWidth(-1);
+
+    // Colors
+    if (i <= 59)
     {
-        ImGui::Text("Text");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        changed = ImGui::ColorEdit4("##_ColorText", (float*)&ctx.style.Colors[ImGuiCol_Text]);
-    }
-    else
-    {
-        ImGui::Text("Disabled Text");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        changed = ImGui::ColorEdit4("##_ColorTextDisabled", (float*)&ctx.style.Colors[ImGuiCol_TextDisabled]);
+        ImGuiColorEditFlags flags = ImGui::GetContentRegionAvail().x < 200 ? ImGuiColorEditFlags_NoInputs : 0;
+        changed = ImGui::ColorEdit4(id.c_str(), (float*)&ctx.style.Colors[i], flags);
     }
     return changed;
 }
