@@ -1,6 +1,7 @@
 ﻿#include "node_standard.h"
 /**/#include "node_container.h"
 /**/#include "node_extra.h"
+#include "imgui.h"
 #include "stx.h"
 #include "cppgen.h"
 #include "binding_input.h"
@@ -2863,6 +2864,35 @@ bool Widget::EventUI(int i, UIContext& ctx)
         break;
     default:
         return false;
+    }
+    return changed;
+}
+
+std::vector<UINode::Prop>
+UINode::Style(UIContext& ctx)
+{
+    return {
+        { "color.text", NULL },
+        { "color.textDisabled", NULL },
+    };
+}
+
+bool UINode::StyleUI(int i, UIContext& ctx)
+{
+    bool changed = false;
+    if (!i)
+    {
+        ImGui::Text("Text");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = ImGui::ColorEdit4("##_ColorText", (float*)&ctx.style.Colors[ImGuiCol_Text]);
+    }
+    else
+    {
+        ImGui::Text("Disabled Text");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = ImGui::ColorEdit4("##_ColorTextDisabled", (float*)&ctx.style.Colors[ImGuiCol_TextDisabled]);
     }
     return changed;
 }

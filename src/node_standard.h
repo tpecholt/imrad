@@ -56,8 +56,10 @@ struct UINode
     virtual void TreeUI(UIContext& ctx) = 0;
     virtual auto Properties()->std::vector<Prop> = 0;
     virtual auto Events()->std::vector<Prop> = 0;
+    virtual auto Style(UIContext& ctx) -> std::vector<Prop>;
     virtual bool PropertyUI(int, UIContext& ctx) = 0;
     virtual bool EventUI(int, UIContext& ctx) = 0;
+    virtual bool StyleUI(int, UIContext& ctx);
     virtual void Export(std::ostream&, UIContext& ctx) = 0;
     virtual void Import(cpp::stmt_iterator& sit, UIContext& ctx) = 0;
     virtual int Behavior() = 0;

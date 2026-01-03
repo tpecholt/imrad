@@ -92,6 +92,7 @@ std::vector<File> fileTabs;
 int activeTab = -1;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
 std::string styleName;
+bool styleCanBeEdited = false;
 bool reloadStyle = true;
 int addInputCharacter = 0;
 std::string lastPropName;
@@ -1313,7 +1314,8 @@ void ToolbarUI()
     }
     ImGui::SameLine();
     auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == styleName; });
-    ImGui::BeginDisabled(stit == styleNames.end() || stit->second.empty());
+    styleCanBeEdited = !(stit == styleNames.end() || stit->second.empty());
+    ImGui::BeginDisabled(!styleCanBeEdited);
     if (ImGui::Button(ICON_FA_PEN_TO_SQUARE))
         EditStyle();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
@@ -1623,7 +1625,7 @@ std::vector<std::string_view> GetCat(std::string_view pname)
     return cat;
 }
 
-void PropertyRowsUI(bool pr)
+void PropertyRowsUI(int pr)
 {
     if (ctx.selected.empty())
         return;
@@ -1664,11 +1666,20 @@ void PropertyRowsUI(bool pr)
     if (pr)
     {
         std::string header;
-        if (ctx.selected.size() == 1) {
-            header = "[" + ctx.selected[0]->GetTypeName() + "]";
+        if (pr == 1)
+        {
+            if (ctx.selected.size() == 1) {
+                header = "[" + ctx.selected[0]->GetTypeName() + "]";
+            }
+            else
+                header = std::to_string(ctx.selected.size()) + " selected";
         }
         else
-            header = std::to_string(ctx.selected.size()) + " selected";
+        {
+            header = "[" + styleName + "]";
+            if (!styleCanBeEdited)
+                header += " (read-only)";
+        }
         ImGui::PushFont(ctx.pgbFont, pgFontSize);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)); // ImGui::GetStyleColorVec4(ImGuiCol_TabUnfocusedActive)); // 0xffc0c0c0);
         //ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
@@ -1697,7 +1708,8 @@ void PropertyRowsUI(bool pr)
     ImGui::PushFont(ctx.pgFont, pgFontSize);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true); //ImGuiChildFlags_NavFlattened emulation
     ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
-    if (ImGui::BeginTable(pr ? "pg" : "pge", 2, flags))
+    const char* tableIds[] = { "pge", "pg", "pgs" };
+    if (ImGui::BeginTable(tableIds[pr], 2, flags))
     {
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
@@ -1719,7 +1731,7 @@ void PropertyRowsUI(bool pr)
         for (auto* node : ctx.selected)
         {
             std::vector<std::string_view> pn;
-            auto props = pr ? node->Properties() : node->Events();
+            auto props = pr == 2 ? node->Style(ctx) : pr ? node->Properties() : node->Events();
             for (auto& p : props) {
                 if (ctx.selected.size() == 1 ||
                     (p.name.size() > 3 && p.name.compare(p.name.size() - 3, 3, "##1")))
@@ -1752,7 +1764,7 @@ void PropertyRowsUI(bool pr)
         //having same property
         ImGui::PushID(ctx.selected[0]);
         //edit first widget
-        auto props = pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
+        auto props = pr == 2 ? ctx.selected[0]->Style(ctx) : pr ? ctx.selected[0]->Properties() : ctx.selected[0]->Events();
         bool copyChange = false;
         std::string pval;
         std::vector<std::string_view> lastCat;
@@ -1801,7 +1813,7 @@ void PropertyRowsUI(bool pr)
                 ImGui::TableSetColumnIndex(0);
                 ImGui::AlignTextToFramePadding();
             }
-            bool change = pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
+            bool change = pr == 2 ? ctx.selected[0]->StyleUI(i, ctx) : pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
             if (change) {
                 fileTabs[activeTab].modified = true;
                 if (props[i].property) {
@@ -1844,7 +1856,7 @@ void PropertyRowsUI(bool pr)
         {
             for (size_t i = 1; i < ctx.selected.size(); ++i)
             {
-                auto props = pr ? ctx.selected[i]->Properties() : ctx.selected[i]->Events();
+                auto props = pr == 2 ? ctx.selected[i]->Style(ctx) : pr ? ctx.selected[i]->Properties() : ctx.selected[i]->Events();
                 for (auto& p : props)
                 {
                     if (p.name == lastPropName)
@@ -1875,6 +1887,12 @@ void PropertyUI()
     if (ImGui::Begin("Properties"))
     {
         PropertyRowsUI(1);
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("Style Editor"))
+    {
+        PropertyRowsUI(2);
     }
     ImGui::End();
 
