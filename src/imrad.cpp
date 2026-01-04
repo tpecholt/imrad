@@ -1,3 +1,4 @@
+#include <algorithm>
 #if WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -528,6 +529,9 @@ void CloseFile(int flags)
 
 void DoSaveFile(int flags)
 {
+    auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == styleName; });
+    if (!stit->second.empty()) ImRad::SaveStyle(stit->second, &ctx.style);
+
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     int width_mm, height_mm;
