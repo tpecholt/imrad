@@ -1817,7 +1817,15 @@ void PropertyRowsUI(int pr)
                 ImGui::TableSetColumnIndex(0);
                 ImGui::AlignTextToFramePadding();
             }
-            bool change = pr == 2 ? ctx.selected[0]->StyleUI(i, ctx) : pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
+            bool change;
+            if (pr == 2)
+            {
+                ImGui::BeginDisabled(!styleCanBeEdited);
+                change = ctx.selected[0]->StyleUI(i, ctx);
+                ImGui::EndDisabled();
+            }
+            else
+                change = pr ? ctx.selected[0]->PropertyUI(i, ctx) : ctx.selected[0]->EventUI(i, ctx);
             if (change) {
                 fileTabs[activeTab].modified = true;
                 if (props[i].property) {
