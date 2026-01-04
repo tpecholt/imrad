@@ -1152,6 +1152,7 @@ void DockspaceUI()
         ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
         ImGui::DockBuilderDockWindow("Explorer", dock_id_left);
         ImGui::DockBuilderDockWindow("Widgets", dock_id_right1);
+        ImGui::DockBuilderDockWindow("Style Editor", dock_id_right2);
         ImGui::DockBuilderDockWindow("Properties", dock_id_right2);
         ImGui::DockBuilderDockWindow("Events", dock_id_right2);
         ImGui::DockBuilderFinish(dockspace_id);

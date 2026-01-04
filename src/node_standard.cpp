@@ -3161,9 +3161,7 @@ bool UINode::StyleUI(int i, UIContext& ctx)
     switch (attributes[i].type)
     {
     case StyleDropdownVec2:
-        ImGui::PushFont(true ? ctx.pgbFont : ctx.pgFont);
         ImGui::Text("%d, %d", (int)((ImVec2*)attributes[i].value)->x, (int)((ImVec2*)attributes[i].value)->y);
-        ImGui::PopFont();
         break;
     case StyleColor:
         changed = ImGui::ColorEdit4(id.c_str(), (float*)attributes[i].value, ImGui::GetContentRegionAvail().x < 200 ? ImGuiColorEditFlags_NoInputs : 0);
