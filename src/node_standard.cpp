@@ -1,7 +1,6 @@
 ﻿#include "node_standard.h"
 /**/#include "node_container.h"
 /**/#include "node_extra.h"
-#include "imgui.h"
 #include "stx.h"
 #include "cppgen.h"
 #include "binding_input.h"
@@ -3161,7 +3160,7 @@ bool UINode::StyleUI(int i, UIContext& ctx)
     switch (attributes[i].type)
     {
     case StyleDropdownVec2:
-        ImGui::Text("%d, %d", (int)((ImVec2*)attributes[i].value)->x, (int)((ImVec2*)attributes[i].value)->y);
+        ImGui::Text("%.3f, %.3f", ((ImVec2*)attributes[i].value)->x, ((ImVec2*)attributes[i].value)->y);
         break;
     case StyleColor:
         changed = ImGui::ColorEdit4(id.c_str(), (float*)attributes[i].value, ImGui::GetContentRegionAvail().x < 200 ? ImGuiColorEditFlags_NoInputs : 0);
