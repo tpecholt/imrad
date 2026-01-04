@@ -2931,90 +2931,251 @@ UINode::Style(UIContext& ctx)
         { "color.navCursor", NULL },
         { "color.navWindowingHighlight", NULL },
         { "color.navWindowingDimBg", NULL },
-        { "color.modalWindowDimBg", NULL }
+        { "color.modalWindowDimBg", NULL },
+        { "style.alpha", NULL },
+        { "style.disabledAlpha", NULL },
+        { "style.windowPadding.summary", NULL },
+        { "style.windowPadding.windowPadding_x", NULL },
+        { "style.windowPadding.windowPadding_y", NULL },
+        { "style.windowRounding", NULL },
+        { "style.windowBorderSize", NULL },
+        { "style.windowMinSize.summary", NULL },
+        { "style.windowMinSize.windowMinSize_x", NULL },
+        { "style.windowMinSize.windowMinSize_y", NULL },
+        { "style.windowTitleAlign.summary", NULL },
+        { "style.windowTitleAlign.windowTitleAlign_x", NULL },
+        { "style.windowTitleAlign.windowTitleAlign_y", NULL },
+        { "style.childRounding", NULL },
+        { "style.childBorderSize", NULL },
+        { "style.popupRounding", NULL },
+        { "style.popupBorderSize", NULL },
+        { "style.framePadding.summary", NULL },
+        { "style.framePadding.framePadding_x", NULL },
+        { "style.framePadding.framePadding_y", NULL },
+        { "style.frameRounding", NULL },
+        { "style.frameBorderSize", NULL },
+        { "style.itemSpacing.summary", NULL },
+        { "style.itemSpacing.itemSpacing_x", NULL },
+        { "style.itemSpacing.itemSpacing_y", NULL },
+        { "style.itemInnerSpacing.summary", NULL },
+        { "style.itemInnerSpacing.itemInnerSpacing_x", NULL },
+        { "style.itemInnerSpacing.itemInnerSpacing_y", NULL },
+        { "style.cellPadding.summary", NULL },
+        { "style.cellPadding.cellPadding_x", NULL },
+        { "style.cellPadding.cellPadding_y", NULL },
+        { "style.touchExtraPadding.summary", NULL },
+        { "style.touchExtraPadding.touchExtraPadding_x", NULL },
+        { "style.touchExtraPadding.touchExtraPadding_y", NULL },
+        { "style.indentSpacing", NULL },
+        { "style.columnsMinSpacing", NULL },
+        { "style.scrollbarSize", NULL },
+        { "style.scrollbarRounding", NULL },
+        { "style.scrollbarPadding", NULL },
+        { "style.grabMinSize", NULL },
+        { "style.grabRounding", NULL },
+        { "style.imageBorderSize", NULL },
+        { "style.tabRounding", NULL },
+        { "style.tabBorderSize", NULL },
+        { "style.tabMinWidthBase", NULL },
+        { "style.tabMinWidthShrink", NULL },
+        { "style.tabCloseButtonMinWidthSelected", NULL },
+        { "style.tabCloseButtonMinWidthUnselected", NULL },
+        { "style.tabBarBorderSize", NULL },
+        { "style.tabBarOverlineSize", NULL },
+        { "style.treeLinesSize", NULL },
+        { "style.treeLinesRounding", NULL },
+        { "style.buttonTextAlign.summary", NULL },
+        { "style.buttonTextAlign.buttonTextAlign_x", NULL },
+        { "style.buttonTextAlign.buttonTextAlign_y", NULL },
+        { "style.selectableTextAlign.summary", NULL },
+        { "style.selectableTextAlign.selectableTextAlign_x", NULL },
+        { "style.selectableTextAlign.selectableTextAlign_y", NULL },
+        { "style.separatorTextBorderSize", NULL },
+        { "style.separatorTextAlign.summary", NULL },
+        { "style.separatorTextAlign.separatorTextAlign_x", NULL },
+        { "style.separatorTextAlign.separatorTextAlign_y", NULL },
+        { "style.separatorTextPadding.summary", NULL },
+        { "style.separatorTextPadding.separatorTextPadding_x", NULL },
+        { "style.separatorTextPadding.separatorTextPadding_y", NULL }
     };
 }
 
 bool UINode::StyleUI(int i, UIContext& ctx)
 {
     bool changed = false;
-    
-    // Name & ID
-    const char* names[] = {
-        "Text",
-        "TextDisabled",
-        "WindowBg",
-        "ChildBg",
-        "PopupBg",
-        "Border",
-        "BorderShadow",
-        "FrameBg",
-        "FrameBgHovered",
-        "FrameBgActive",
-        "TitleBg",
-        "TitleBgActive",
-        "TitleBgCollapsed",
-        "MenuBarBg",
-        "ScrollbarBg",
-        "ScrollbarGrab",
-        "ScrollbarGrabHovered",
-        "ScrollbarGrabActive",
-        "CheckMark",
-        "SliderGrab",
-        "SliderGrabActive",
-        "Button",
-        "ButtonHovered",
-        "ButtonActive",
-        "Header",
-        "HeaderHovered",
-        "HeaderActive",
-        "Separator",
-        "SeparatorHovered",
-        "SeparatorActive",
-        "ResizeGrip",
-        "ResizeGripHovered",
-        "ResizeGripActive",
-        "InputTextCursor",
-        "TabHovered",
-        "Tab",
-        "TabSelected",
-        "TabSelectedOverline",
-        "TabDimmed",
-        "TabDimmedSelected",
-        "TabDimmedSelectedOverline",
-        "DockingPreview",
-        "DockingEmptyBg",
-        "PlotLines",
-        "PlotLinesHovered",
-        "PlotHistogram",
-        "PlotHistogramHovered",
-        "TableHeaderBg",
-        "TableBorderStrong",
-        "TableBorderLight",
-        "TableRowBg",
-        "TableRowBgAlt",
-        "TextLink",
-        "TextSelectedBg",
-        "TreeLines",
-        "DragDropTarget",
-        "NavCursor",
-        "NavWindowingHighlight",
-        "NavWindowingDimBg",
-        "ModalWindowDimBg",
+
+    enum StyleType : uint8_t {
+        StyleInvalid,
+        StyleColor,
+        StyleDropdownColor,
+        StyleFloat,
+        StyleDropdownVec2,
+        StyleYesNo, // Float drag that only accepts 0/1
     };
-    std::string id = "##_" + std::string(names[i]);
+
+    struct StyleAttribute {
+        const char* name;
+        StyleType type;
+        void* value;
+        float min = -100.f;
+        float max = 100.f;
+    };
+    
+    // Attributes
+    StyleAttribute attributes[] = {
+        { "Text", StyleColor, &ctx.style.Colors[ImGuiCol_Text] },
+        { "TextDisabled", StyleColor, &ctx.style.Colors[ImGuiCol_TextDisabled] },
+        { "WindowBg", StyleColor, &ctx.style.Colors[ImGuiCol_WindowBg] },
+        { "ChildBg", StyleColor, &ctx.style.Colors[ImGuiCol_ChildBg] },
+        { "PopupBg", StyleColor, &ctx.style.Colors[ImGuiCol_PopupBg] },
+        { "Border", StyleColor, &ctx.style.Colors[ImGuiCol_Border] },
+        { "BorderShadow", StyleColor, &ctx.style.Colors[ImGuiCol_BorderShadow] },
+        { "FrameBg", StyleColor, &ctx.style.Colors[ImGuiCol_FrameBg] },
+        { "FrameBgHovered", StyleColor, &ctx.style.Colors[ImGuiCol_FrameBgHovered] },
+        { "FrameBgActive", StyleColor, &ctx.style.Colors[ImGuiCol_FrameBgActive] },
+        { "TitleBg", StyleColor, &ctx.style.Colors[ImGuiCol_TitleBg] },
+        { "TitleBgActive", StyleColor, &ctx.style.Colors[ImGuiCol_TitleBgActive] },
+        { "TitleBgCollapsed", StyleColor, &ctx.style.Colors[ImGuiCol_TitleBgCollapsed] },
+        { "MenuBarBg", StyleColor, &ctx.style.Colors[ImGuiCol_MenuBarBg] },
+        { "ScrollbarBg", StyleColor, &ctx.style.Colors[ImGuiCol_ScrollbarBg] },
+        { "ScrollbarGrab", StyleColor, &ctx.style.Colors[ImGuiCol_ScrollbarGrab] },
+        { "ScrollbarGrabHovered", StyleColor, &ctx.style.Colors[ImGuiCol_ScrollbarGrabHovered] },
+        { "ScrollbarGrabActive", StyleColor, &ctx.style.Colors[ImGuiCol_ScrollbarGrabActive] },
+        { "CheckMark", StyleColor, &ctx.style.Colors[ImGuiCol_CheckMark] },
+        { "SliderGrab", StyleColor, &ctx.style.Colors[ImGuiCol_SliderGrab] },
+        { "SliderGrabActive", StyleColor, &ctx.style.Colors[ImGuiCol_SliderGrabActive] },
+        { "Button", StyleColor, &ctx.style.Colors[ImGuiCol_Button] },
+        { "ButtonHovered", StyleColor, &ctx.style.Colors[ImGuiCol_ButtonHovered] },
+        { "ButtonActive", StyleColor, &ctx.style.Colors[ImGuiCol_ButtonActive] },
+        { "Header", StyleColor, &ctx.style.Colors[ImGuiCol_Header] },
+        { "HeaderHovered", StyleColor, &ctx.style.Colors[ImGuiCol_HeaderHovered] },
+        { "HeaderActive", StyleColor, &ctx.style.Colors[ImGuiCol_HeaderActive] },
+        { "Separator", StyleColor, &ctx.style.Colors[ImGuiCol_Separator] },
+        { "SeparatorHovered", StyleColor, &ctx.style.Colors[ImGuiCol_SeparatorHovered] },
+        { "SeparatorActive", StyleColor, &ctx.style.Colors[ImGuiCol_SeparatorActive] },
+        { "ResizeGrip", StyleColor, &ctx.style.Colors[ImGuiCol_ResizeGrip] },
+        { "ResizeGripHovered", StyleColor, &ctx.style.Colors[ImGuiCol_ResizeGripHovered] },
+        { "ResizeGripActive", StyleColor, &ctx.style.Colors[ImGuiCol_ResizeGripActive] },
+        { "InputTextCursor", StyleColor, &ctx.style.Colors[ImGuiCol_InputTextCursor] },
+        { "TabHovered", StyleColor, &ctx.style.Colors[ImGuiCol_TabHovered] },
+        { "Tab", StyleColor, &ctx.style.Colors[ImGuiCol_Tab] },
+        { "TabSelected", StyleColor, &ctx.style.Colors[ImGuiCol_TabSelected] },
+        { "TabSelectedOverline", StyleColor, &ctx.style.Colors[ImGuiCol_TabSelectedOverline] },
+        { "TabDimmed", StyleColor, &ctx.style.Colors[ImGuiCol_TabDimmed] },
+        { "TabDimmedSelected", StyleColor, &ctx.style.Colors[ImGuiCol_TabDimmedSelected] },
+        { "TabDimmedSelectedOverline", StyleColor, &ctx.style.Colors[ImGuiCol_TabDimmedSelectedOverline] },
+        { "DockingPreview", StyleColor, &ctx.style.Colors[ImGuiCol_DockingPreview] },
+        { "DockingEmptyBg", StyleColor, &ctx.style.Colors[ImGuiCol_DockingEmptyBg] },
+        { "PlotLines", StyleColor, &ctx.style.Colors[ImGuiCol_PlotLines] },
+        { "PlotLinesHovered", StyleColor, &ctx.style.Colors[ImGuiCol_PlotLinesHovered] },
+        { "PlotHistogram", StyleColor, &ctx.style.Colors[ImGuiCol_PlotHistogram] },
+        { "PlotHistogramHovered", StyleColor, &ctx.style.Colors[ImGuiCol_PlotHistogramHovered] },
+        { "TableHeaderBg", StyleColor, &ctx.style.Colors[ImGuiCol_TableHeaderBg] },
+        { "TableBorderStrong", StyleColor, &ctx.style.Colors[ImGuiCol_TableBorderStrong] },
+        { "TableBorderLight", StyleColor, &ctx.style.Colors[ImGuiCol_TableBorderLight] },
+        { "TableRowBg", StyleColor, &ctx.style.Colors[ImGuiCol_TableRowBg] },
+        { "TableRowBgAlt", StyleColor, &ctx.style.Colors[ImGuiCol_TableRowBgAlt] },
+        { "TextLink", StyleColor, &ctx.style.Colors[ImGuiCol_TextLink] },
+        { "TextSelectedBg", StyleColor, &ctx.style.Colors[ImGuiCol_TextSelectedBg] },
+        { "TreeLines", StyleColor, &ctx.style.Colors[ImGuiCol_TreeLines] },
+        { "DragDropTarget", StyleColor, &ctx.style.Colors[ImGuiCol_DragDropTarget] },
+        { "NavCursor", StyleColor, &ctx.style.Colors[ImGuiCol_NavCursor] },
+        { "NavWindowingHighlight", StyleColor, &ctx.style.Colors[ImGuiCol_NavWindowingHighlight] },
+        { "NavWindowingDimBg", StyleColor, &ctx.style.Colors[ImGuiCol_NavWindowingDimBg] },
+        { "ModalWindowDimBg", StyleColor, &ctx.style.Colors[ImGuiCol_ModalWindowDimBg] },
+        { "Alpha", StyleFloat, &ctx.style.Alpha, 0, 1 },
+        { "DisabledAlpha", StyleFloat, &ctx.style.DisabledAlpha, 0, 1 },
+        { "WindowPadding", StyleDropdownVec2, &ctx.style.WindowPadding },
+            { "WindowPadding.x", StyleFloat, &ctx.style.WindowPadding.x, 0 },
+            { "WindowPadding.y", StyleFloat, &ctx.style.WindowPadding.y, 0 },
+        { "WindowRounding", StyleFloat, &ctx.style.WindowRounding, 0 },
+        { "WindowBorderSize", StyleYesNo, &ctx.style.WindowBorderSize },
+        { "WindowMinSize", StyleDropdownVec2, &ctx.style.WindowMinSize },
+            { "WindowMinSize.x", StyleFloat, &ctx.style.WindowMinSize.x, 0 },
+            { "WindowMinSize.y", StyleFloat, &ctx.style.WindowMinSize.y, 0 },
+        { "WindowTitleAlign", StyleDropdownVec2, &ctx.style.WindowTitleAlign },
+            { "WindowTitleAlign.x", StyleFloat, &ctx.style.WindowTitleAlign.x, 0, 1 },
+            { "WindowTitleAlign.y", StyleFloat, &ctx.style.WindowTitleAlign.y, 0, 1 },
+        { "ChildRounding", StyleFloat, &ctx.style.ChildRounding, 0 },
+        { "ChildBorderSize", StyleYesNo, &ctx.style.ChildBorderSize },
+        { "PopupRounding", StyleFloat, &ctx.style.PopupRounding, 0 },
+        { "PopupBorderSize", StyleYesNo, &ctx.style.PopupBorderSize },
+        { "FramePadding", StyleDropdownVec2, &ctx.style.FramePadding },
+            { "FramePadding.x", StyleFloat, &ctx.style.FramePadding.x, 0 },
+            { "FramePadding.y", StyleFloat, &ctx.style.FramePadding.y, 0 },
+        { "FrameRounding", StyleFloat, &ctx.style.FrameRounding, 0 },
+        { "FrameBorderSize", StyleYesNo, &ctx.style.FrameBorderSize },
+        { "ItemSpacing", StyleDropdownVec2, &ctx.style.ItemSpacing, 0 },
+            { "ItemSpacing.x", StyleFloat, &ctx.style.ItemSpacing.x, 0 },
+            { "ItemSpacing.y", StyleFloat, &ctx.style.ItemSpacing.y, 0 },
+        { "ItemInnerSpacing", StyleDropdownVec2, &ctx.style.ItemInnerSpacing },
+            { "ItemInnerSpacing.x", StyleFloat, &ctx.style.ItemInnerSpacing.x, 0 },
+            { "ItemInnerSpacing.y", StyleFloat, &ctx.style.ItemInnerSpacing.y, 0 },
+        { "CellPadding", StyleDropdownVec2, &ctx.style.CellPadding },
+            { "CellPadding.x", StyleFloat, &ctx.style.CellPadding.x, 0 },
+            { "CellPadding.y", StyleFloat, &ctx.style.CellPadding.y, 0 },
+        { "TouchExtraPadding", StyleDropdownVec2, &ctx.style.TouchExtraPadding },
+            { "TouchExtraPadding.x", StyleFloat, &ctx.style.TouchExtraPadding.x, 0 },
+            { "TouchExtraPadding.y", StyleFloat, &ctx.style.TouchExtraPadding.y, 0 },
+        { "IndentSpacing", StyleFloat, &ctx.style.IndentSpacing, 0 },
+        { "ColumnsMinSpacing", StyleFloat, &ctx.style.ColumnsMinSpacing, 0 },
+        { "ScrollbarSize", StyleFloat, &ctx.style.ScrollbarSize, 0 },
+        { "ScrollbarRounding", StyleFloat, &ctx.style.ScrollbarRounding, 0 },
+        { "ScrollbarPadding", StyleFloat, &ctx.style.ScrollbarPadding, 0 },
+        { "GrabMinSize", StyleFloat, &ctx.style.GrabMinSize, 0 },
+        { "GrabRounding", StyleFloat, &ctx.style.GrabRounding, 0 },
+        { "ImageBorderSize", StyleYesNo, &ctx.style.ImageBorderSize },
+        { "TabRounding", StyleFloat, &ctx.style.TabRounding },
+        { "TabBorderSize", StyleFloat, &ctx.style.TabBorderSize, 0 }, // StyleYesNo?
+        { "TabMinWidthBase", StyleFloat, &ctx.style.TabMinWidthBase, -1 },
+        { "TabMinWidthShrink", StyleFloat, &ctx.style.TabMinWidthShrink, -1 },
+        { "TabCloseButtonMinWidthSelected", StyleFloat, &ctx.style.TabCloseButtonMinWidthSelected, -1 },
+        { "TabCloseButtonMinWidthUnselected", StyleFloat, &ctx.style.TabCloseButtonMinWidthUnselected, -1 },
+        { "TabBarBorderSize", StyleYesNo, &ctx.style.TabBarBorderSize },
+        { "TabBarOverlineSize", StyleYesNo, &ctx.style.TabBarOverlineSize },
+        { "TreeLinesSize", StyleFloat, &ctx.style.TreeLinesSize, 0 },
+        { "TreeLinesRounding", StyleFloat, &ctx.style.TreeLinesRounding, 0 },
+        { "ButtonTextAlign", StyleDropdownVec2, &ctx.style.ButtonTextAlign },
+            { "ButtonTextAlign.x", StyleFloat, &ctx.style.ButtonTextAlign.x, 0, 1 },
+            { "ButtonTextAlign.y", StyleFloat, &ctx.style.ButtonTextAlign.y, 0, 1 },
+        { "SelectableTextAlign", StyleDropdownVec2, &ctx.style.SelectableTextAlign },
+            { "SelectableTextAlign.x", StyleFloat, &ctx.style.SelectableTextAlign.x, 0, 1 },
+            { "SelectableTextAlign.y", StyleFloat, &ctx.style.SelectableTextAlign.y, 0, 1 },
+        { "SeparatorTextBorderSize", StyleFloat, &ctx.style.SeparatorTextBorderSize, 0 },
+        { "SeparatorTextAlign", StyleDropdownVec2, &ctx.style.SeparatorTextAlign },
+            { "SeparatorTextAlign.x", StyleFloat, &ctx.style.SeparatorTextAlign.x, 0, 1 },
+            { "SeparatorTextAlign.y", StyleFloat, &ctx.style.SeparatorTextAlign.y, 0, 1 },
+        { "SeparatorTextPadding", StyleDropdownVec2, &ctx.style.SeparatorTextPadding },
+            { "SeparatorTextPadding.x", StyleFloat, &ctx.style.SeparatorTextPadding.x, 0 },
+            { "SeparatorTextPadding.y", StyleFloat, &ctx.style.SeparatorTextPadding.y, 0 },
+    };
+    std::string id = "##_" + std::string(attributes[i].name);
 
     // Generic
-    ImGui::Text("%s", names[i]);
+    ImGui::Text("%s", attributes[i].name);
     ImGui::TableNextColumn();
     ImGui::SetNextItemWidth(-1);
 
-    // Colors
-    if (i <= 59)
+    // Do the thing
+    float step = (attributes[i].max - attributes[i].min) / 250.f;
+    switch (attributes[i].type)
     {
-        ImGuiColorEditFlags flags = ImGui::GetContentRegionAvail().x < 200 ? ImGuiColorEditFlags_NoInputs : 0;
-        changed = ImGui::ColorEdit4(id.c_str(), (float*)&ctx.style.Colors[i], flags);
-    }
+    case StyleDropdownVec2:
+        ImGui::PushFont(true ? ctx.pgbFont : ctx.pgFont);
+        ImGui::Text("%d, %d", (int)((ImVec2*)attributes[i].value)->x, (int)((ImVec2*)attributes[i].value)->y);
+        ImGui::PopFont();
+        break;
+    case StyleColor:
+        changed = ImGui::ColorEdit4(id.c_str(), (float*)attributes[i].value, ImGui::GetContentRegionAvail().x < 200 ? ImGuiColorEditFlags_NoInputs : 0);
+        break;
+    case StyleFloat:
+        changed = ImGui::DragFloat(id.c_str(), (float*)attributes[i].value, step, attributes[i].min, attributes[i].max);
+        break;
+    case StyleYesNo:
+        changed = ImGui::DragFloat(id.c_str(), (float*)attributes[i].value, 1.f, 0.f, 1.f);
+    default:
+        break;
+    };
     return changed;
 }
 
