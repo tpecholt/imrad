@@ -8,7 +8,7 @@
 namespace fs = std::filesystem;
 
 #include <version.h>
-inline const std::string VER_STR = IMRAD_VERSION;
+inline const std::string VER_STR = "ImRAD " IMRAD_VERSION; // " WIP";
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 inline const std::string CUR_ITEM_SYMBOL = "$item";
 inline const std::string CUR_INDEX_SYMBOL = "$index";
@@ -97,6 +97,8 @@ inline void HashCombineData(ImU32& hash, T data)
     extern IMGUI_API ImGuiID ImHashData(const void* data, size_t data_size, ImGuiID seed);
     hash = ImHashData(&data, sizeof(data), hash);
 }
+
+int ParseVersion(const std::string& str);
 
 bool ShellExec(const std::string& path);
 

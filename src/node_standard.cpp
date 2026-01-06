@@ -5219,7 +5219,8 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size())
             size_x.set_from_arg(sit->params[0]);
     }
-    else if (sit->kind == cpp::IfCallStmt && sit->callee == "ImGui::IsItemActive")
+    else if ((sit->kind == cpp::IfCallStmt || sit->kind == cpp::IfCallThenCall) &&
+        sit->callee == "ImGui::IsItemActive")
     {
         auto pos = sit->line.find('=');
         if (pos != std::string::npos) {

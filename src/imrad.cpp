@@ -2032,7 +2032,7 @@ RemoveSelected()
 
 void CheckVersion()
 {
-    std::string lastRelease, currRelease;
+    std::string lastRelease;
     try {
         httplib::Headers hs;
         hs.insert({ "Accept", "application/vnd.github+json" });
@@ -2057,17 +2057,12 @@ void CheckVersion()
         return;
     }
 
-    size_t i = lastRelease.find_first_of("0123456789");
-    if (i == std::string::npos)
+    int last = ParseVersion(lastRelease);
+    int curr = ParseVersion(VER_STR);
+    if (!last || !curr)
         return;
-    lastRelease.erase(0, i);
-    currRelease = VER_STR;
-    i = currRelease.find_first_of("0123456789");
-    if (i == std::string::npos)
-        return;
-    currRelease.erase(0, i);
 
-    if (lastRelease != currRelease && lastRelease != checkedRelease)
+    if (last > curr && lastRelease != checkedRelease)
     {
         checkedRelease = lastRelease;
         messageBox.title = "New version";
