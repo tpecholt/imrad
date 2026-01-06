@@ -12,6 +12,7 @@ void SettingsDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     modalResult = ImRad::None;
     ImRad::GetUserData().dimBgRatio = 1.f;
+    IM_ASSERT(ID && "Call Draw at least once to get ID assigned");
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -112,7 +113,7 @@ void SettingsDlg::Draw()
         /// @begin Child
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffd0d0d0);
-        ImGui::BeginChild("child2", { hb2.GetSize(), vb1.GetSize() }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings);
+        if (ImGui::BeginChild("child2", { hb2.GetSize(), vb1.GetSize() }, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings))
         {
             /// @separator
 
@@ -243,8 +244,8 @@ void SettingsDlg::Draw()
             /// @end Combo
 
             /// @separator
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
         ImGui::PopStyleColor();
         vb1.UpdateSize(0, ImRad::VBox::Stretch(1.0f));
         hb2.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));

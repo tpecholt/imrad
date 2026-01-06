@@ -1019,15 +1019,14 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     if (!style_bg.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_ChildBg, " << style_bg.to_arg() << ");\n";
 
-    os << ctx.ind << "ImGui::BeginChild(\"child" << ctx.varCounter << "\", ";
+    os << ctx.ind << "if (ImGui::BeginChild(\"child" << ctx.varCounter << "\", ";
     if (szvar != "")
         os << szvar << ", ";
     else {
         os << "{ " << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ", "
             << size_y.to_arg(ctx.unit, ctx.stretchSizeExpr[1]) << " }, ";
     }
-    os << flags.to_arg() << ", " << wflags.to_arg() << ");\n";
-
+    os << flags.to_arg() << ", " << wflags.to_arg() << "))\n";
     os << ctx.ind << "{\n";
     ctx.ind_up();
 
@@ -1104,9 +1103,9 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImRad::SetCursorData(cpos" << ctx.varCounter << ");\n";
     }
 
-    os << ctx.ind << "ImGui::EndChild();\n";
     ctx.ind_down();
     os << ctx.ind << "}\n";
+    os << ctx.ind << "ImGui::EndChild();\n"; // outside of the block
 
     if (!style_bg.empty())
         os << ctx.ind << "ImGui::PopStyleColor();\n";
@@ -1153,7 +1152,8 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             size_y.set_from_arg(size.second);
         }
     }
-    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::BeginChild")
+    else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallBlock) &&
+        sit->callee == "ImGui::BeginChild")
     {
         if (sit->params.size() >= 2) {
             auto size = cpp::parse_size(sit->params[1]);

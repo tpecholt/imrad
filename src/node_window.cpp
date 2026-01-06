@@ -482,6 +482,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         std::string gapx = style_placementGap.pzx_to_arg(ctx.unit);
         std::string gapy = style_placementGap.pzy_to_arg(ctx.unit);
 
+        os << ctx.ind << "if (isOpen)\n" << ctx.ind << "{\n";
+        ctx.ind_up();
+
         //pos
         if (placement == Left || placement == Top)
         {
@@ -539,7 +542,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " <<
                 style_titlePadding.to_arg(ctx.unit) << ");\n";
         }
-        os << ctx.ind << "if (isOpen && ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
+        os << ctx.ind << "if (ImGui::Begin(" << tit << ", &isOpen, " << flags.to_arg() << "))\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
         if (style_titlePadding.has_value())
@@ -766,7 +769,15 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
         os << ctx.ind << "}\n";
     }
-    else
+    else if (kind == Window)
+    {
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+        os << ctx.ind << "ImGui::End();\n"; //outside of the block
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+    }
+    else // MainWindow, Activity
     {
         os << ctx.ind << "ImGui::End();\n";
         ctx.ind_down();
@@ -811,6 +822,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
     ctx.parents = { this };
     ctx.kind = kind = Window;
     bool hasGlfw = false;
+    bool isActivity = false;
     bool windowAppearingBlock = false;
 
     while (sit != cpp::stmt_iterator())
@@ -874,9 +886,16 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 ctx.userCode += "\n";
             ctx.userCode += sit->line;
         }
-        else if ((sit->kind == cpp::IfCallThenCall && sit->cond == "ImRad::GetUserData().activeActivity==\"\"") ||
-            (sit->kind == cpp::IfStmt && sit->cond == "ioUserData->activeActivity==\"\"")) //compatibility
+        else if ((sit->kind == cpp::IfCallStmt || sit->kind == cpp::IfCallThenCall) &&
+            sit->cond.find("ImRad::GetUserData().activeActivity") != std::string::npos)
         {
+            isActivity = true;
+            if (sit->cond.find("activeActivity==\"\"") != std::string::npos)
+                initialActivity = true;
+        }
+        else if (sit->kind == cpp::IfStmt && sit->cond == "ioUserData->activeActivity==\"\"") //compatibility
+        {
+            isActivity = true;
             initialActivity = true;
         }
         else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::IsWindowAppearing")
@@ -1029,20 +1048,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
             }
         }
-        else if (sit->kind == cpp::IfCallBlock && sit->callee == "isOpen&&ImGui::Begin")
-        {
-            ctx.kind = kind = Window;
-            title.set_from_arg(sit->params[0]);
-            size_t i = title.access()->rfind("###");
-            if (i != std::string::npos)
-                title.access()->resize(i);
-
-            if (sit->params.size() >= 3) {
-                if (!flags.set_from_arg(sit->params[2]))
-                    PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
-            }
-        }
-        else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::Begin")
+        else if (sit->kind == cpp::IfCallBlock && (sit->callee == "ImGui::Begin"
+            || sit->callee == "isOpen&&ImGui::Begin")) //compatibility
         {
             ctx.importLevel = sit->level;
             if (sit->params.size() >= 3) {
@@ -1058,10 +1065,17 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                 size_y = def.size_y;
                 flags &= ~(ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
             }
-            else {
+            else if (isActivity) {
                 ctx.kind = kind = Activity;
                 placement = None;
                 flags &= ~(ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
+            }
+            else {
+                ctx.kind = kind = Window;
+                title.set_from_arg(sit->params[0]);
+                size_t i = title.access()->rfind("###");
+                if (i != std::string::npos)
+                    title.access()->resize(i);
             }
         }
 
