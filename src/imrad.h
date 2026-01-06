@@ -14,6 +14,7 @@ before you include this file in *one* C++ file to create implementation.
 #include <string>
 #include <vector>
 #include <functional> //for ModalPopup callback
+#include <type_traits> //FormatFallback
 #include <map>
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h> //for ImGui::Input(string)
@@ -421,7 +422,10 @@ std::string FormatFallback(const char* fmt, const char* fmte, A1&& arg, A&&... a
                 ++p;
             }
             else {
-                const char* next = std::find(p + 1, fmte, '}');
+                const char* next = p + 1;
+                for (; next != fmte; ++next)
+                    if (*next == '}')
+                        break;
                 if (next == fmte)
                     break;
                 if constexpr (std::is_same_v<std::decay_t<A1>, std::string>)
