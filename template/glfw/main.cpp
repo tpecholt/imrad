@@ -31,7 +31,7 @@ void Draw()
 
 static void glfw_error_callback(int error, const char* description)
 {
-	std::cerr << "Glfw Error: " << description;
+	std::cerr << "glfw-err: " << description << std::endl;
 }
 
 // During window resize the GLFW event loop stalls but this event handler gets called

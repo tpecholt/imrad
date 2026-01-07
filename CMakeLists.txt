@@ -46,6 +46,10 @@ install(
     DIRECTORY "style/"
     DESTINATION "style"
 )
+install(
+    FILES "CHANGELOG.md"
+    DESTINATION "."
+)
 if (WIN32)
 install(
     DIRECTORY "win-x64/"

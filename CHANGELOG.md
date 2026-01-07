@@ -1,3 +1,13 @@
+# v0.9.1
+
+### Fix Release
+
+* Mismatch between generated `ImGui::Begin/End` [[#58]](https://github.com/tpecholt/imrad/issues/58)
+
+* Fix missing include in *imrad.h* on gcc-14 [[#59]](https://github.com/tpecholt/imrad/issues/59)
+
+* Fix UI dock layout not preserved, `Input.imeMode` import, version check crash 
+
 # v0.9
 
 ### UI Improvements
