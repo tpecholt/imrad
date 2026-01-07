@@ -1130,18 +1130,16 @@ void DockspaceUI()
     ImGui::PopStyleVar(2);
 
     ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode);
-    if (programState == Init)
+    if (!ImGui::DockBuilderGetNode(dockspace_id)) //recreate only when there is no imgui.ini
     {
-        ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
-        ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
-        ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
-        ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 350.f / viewport->Size.x, nullptr, &dockspace_id);
-        ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 300.f / (viewport->Size.x - 350), nullptr, &dockspace_id);
+        ImGuiID root_id = ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderSetNodeSize(root_id, viewport->Size);
+        ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(root_id, ImGuiDir_Right, 350.f / viewport->Size.x, nullptr, &root_id);
+        ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(root_id, ImGuiDir_Left, 300.f / (viewport->Size.x - 350), nullptr, &root_id);
         ImGuiID dock_id_right1, dock_id_right2;
         ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Up, 230.f / (viewport->Size.y - tbSize), &dock_id_right1, &dock_id_right2);
         float vh = viewport->Size.y - tbSize;
-        ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, tabSize / vh, nullptr, &dockspace_id);
+        ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(root_id, ImGuiDir_Up, tabSize / vh, nullptr, &root_id);
 
         ImGui::DockBuilderDockWindow("FileTabs", dock_id_top);
         ImGui::DockBuilderDockWindow("Hierarchy", dock_id_left);
@@ -1152,6 +1150,7 @@ void DockspaceUI()
         ImGui::DockBuilderFinish(dockspace_id);
     }
 
+    ImGui::DockSpace(dockspace_id, { 0.0f, 0.0f }, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode);
     ImGuiDockNode* cn = ImGui::DockBuilderGetCentralNode(dockspace_id);
     ctx.designAreaMin = cn->Pos;
     ctx.designAreaMax = cn->Pos + cn->Size;
@@ -1291,7 +1290,7 @@ void ToolbarUI()
     ImGui::SameLine();
     ImGui::Text("Style");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(100);
+    ImGui::SetNextItemWidth(7 * ImGui::GetFontSize());
     styleName = "";
     if (activeTab >= 0)
         styleName = fileTabs[activeTab].styleName;
@@ -1329,7 +1328,7 @@ void ToolbarUI()
     ImGui::SameLine();
     ImGui::Text("Units");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(100);
+    ImGui::SetNextItemWidth(6 * ImGui::GetFontSize());
     const std::string unit = activeTab >= 0 ? fileTabs[activeTab].unit : "";
     std::array<const char*, 2> UNITS{ "px", /*"fs",*/ "dp" };
     int usel = 0;
