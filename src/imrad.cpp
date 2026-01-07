@@ -2038,7 +2038,7 @@ void CheckVersion()
         hs.insert({ "X-GitHub-Api-Version", "2022-11-28" });
         httplib::Client cli("https://api.github.com");
         auto res = cli.Get("/repos/tpecholt/imrad/releases", hs);
-        if (res->status != httplib::StatusCode::OK_200)
+        if (!res || res->status != httplib::StatusCode::OK_200)
             return;
         size_t i = res->body.find("\"name\":");
         if (i == std::string::npos)
