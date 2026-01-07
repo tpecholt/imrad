@@ -779,9 +779,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     }
     else // MainWindow, Activity
     {
-        os << ctx.ind << "ImGui::End();\n";
         ctx.ind_down();
         os << ctx.ind << "}\n";
+        os << ctx.ind << "ImGui::End();\n"; //outside of the block
     }
 
     if (style_titlePadding.has_value() && (kind == Window || kind == ModalPopup))
