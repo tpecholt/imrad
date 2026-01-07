@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(imrad VERSION 0.9)
+project(imrad VERSION 0.9.1)
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden) # linux: don't export all symbols in .so
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # linux: use -fPIC on .a so they can be used by .so
