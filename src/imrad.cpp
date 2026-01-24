@@ -1,18 +1,19 @@
-#if WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#undef min
-#undef max
-#undef MessageBox
-#endif
-#if defined(__APPLE__)
-#include <mach-o/dyld.h>
+#ifdef WIN32
+  #define WIN32_LEAN_AND_MEAN
+  #include <Windows.h>
+  #undef min
+  #undef max
+  #undef MessageBox
+#elif defined(__APPLE__)
+  #include <mach-o/dyld.h>
+#else //linux
+  #include <sys/types.h>
+  #include <sys/inotify.h>
 #endif
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <IconsFontAwesome6.h>
-//#include <misc/fonts/IconsMaterialDesign.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <iostream>
@@ -98,6 +99,7 @@ std::string lastPropName;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
 float pgHeight = 0, pgeHeight = 0;
+std::thread stylesWatcher;
 
 struct TB_Button
 {
@@ -829,6 +831,61 @@ void GetStyles()
             continue;
         styleNames.push_back({ u8string(it->path().stem()), u8string(it->path()) });
     }
+}
+
+void InitStylesWatcher()
+{
+#ifdef WIN32
+    stylesWatcher = std::thread([] {
+        HANDLE hDir = CreateFileW(
+            u8path(rootPath + "/style").wstring().c_str(),
+            FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            NULL
+        );
+        if (hDir == INVALID_HANDLE_VALUE)
+            return;
+        DWORD bytesReturned;
+        std::vector<std::byte> buffer(1024);
+        while (programState != Shutdown) {
+            if (ReadDirectoryChangesW(
+                hDir,
+                buffer.data(),
+                (DWORD)buffer.size(),
+                false,
+                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE,
+                &bytesReturned,
+                NULL,
+                NULL
+            )) {
+                reloadStyle = true;
+            }
+        }
+        });
+    stylesWatcher.detach();
+#elif defined(__APPLE__)
+    //todo
+#else
+    stylesWatcher = std::thread([]{
+        int fd = inotify_init();
+        if (fd < 0)
+            return;
+        int wd = inotify_add_watch(fd, u8path(rootPath + "/style").string().c_str(), IN_MODIFY);
+        std::vector<std::byte> buffer(1024 * (sizeof(struct inotify_event) + 16));
+        while (programState != Shutdown) {
+            int len = read(fd, buffer.data(), buffer.size());
+            if (len < 0)
+                break;
+            reloadStyle = true;
+        }
+        inotify_rm_watch(fd, wd);
+        close(fd);
+    });
+    stylesWatcher.detach();
+#endif
 }
 
 const std::array<ImU32, UIContext::Color::COUNT>&
@@ -2588,7 +2645,7 @@ std::string GetRootPath()
     int n = GetModuleFileNameW(NULL, tmp, (int)std::size(tmp));
     return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
     //test utf8 path: return u8string(L"c:/work/de�o/latest");
-#elif __APPLE__
+#elif defined(__APPLE__)
     char executablePath[PATH_MAX];
     uint32_t len = PATH_MAX;
     if (_NSGetExecutablePath(executablePath, &len) != 0) {
@@ -2614,18 +2671,17 @@ void GLFWContentScaleCallback(GLFWwindow*, float, float)
     reloadStyle = true;
 }
 
-#if (WIN32) && !(__MINGW32__)
+#if defined(WIN32) && !defined(__MINGW32__)
 int WINAPI wWinMain(
     HINSTANCE   hInstance,
     HINSTANCE   hPrevInstance,
     PWSTR       lpCmdLine,
     int         nCmdShow
 )
-{
 #else
 int main(int argc, const char* argv[])
-{
 #endif
+{
     rootPath = GetRootPath();
 
     // Setup glfwWindow
@@ -2655,9 +2711,6 @@ int main(int argc, const char* argv[])
     //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
-
-    // Initialize the native file dialog
-    NFD_Init();
 
     // Create glfwWindow with graphics context
     // TODO: dialogs are currently not dpi aware
@@ -2697,9 +2750,12 @@ int main(int argc, const char* argv[])
     ctx.dashTexId = ImRad::LoadTextureFromFile(
         (rootPath + "/style/dash.png").c_str(), false, false, true, true).id;
 
+    NFD_Init();
     GetStyles();
     programState = (ProgramState)-1;
     bool lastVisible = true;
+    InitStylesWatcher();
+
     while (true)
     {
         if (programState == -1)
@@ -2778,7 +2834,7 @@ int main(int argc, const char* argv[])
 
     // Cleanup
     NFD_Quit();
-
+    
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
