@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.9.1
 // visit https://github.com/tpecholt/imrad
 
 #pragma once

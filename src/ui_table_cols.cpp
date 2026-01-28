@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.9.1
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_table_cols.h"
@@ -12,6 +12,7 @@ void TableCols::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     modalResult = ImRad::None;
     ImRad::GetUserData().dimBgRatio = 1.f;
+    IM_ASSERT(ID && "Call Draw at least once to get ID assigned");
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -36,7 +37,7 @@ void TableCols::Draw()
     /// @begin TopWindow
     ID = ImGui::GetID("###TableCols");
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8, 5 });
-    ImGui::SetNextWindowSize({ 550, 480 }, ImGuiCond_FirstUseEver); //{ 550, 480 }
+    ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver); //{ 550, 480 }
     ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Table Columns###TableCols", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNavInputs))
@@ -177,7 +178,7 @@ void TableCols::Draw()
         /// @end Button
 
         /// @begin Selectable
-        ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SameLine(0, 4 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
         ImRad::Selectable(ImRad::Format("{}##error", error).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 0, 0 });

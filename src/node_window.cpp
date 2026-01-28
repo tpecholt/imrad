@@ -78,6 +78,8 @@ void TopWindow::Draw(UIContext& ctx)
         fl |= ImGuiWindowFlags_NoResize; //so that window resizing doesn't interfere with snap
     if (kind == MainWindow)
         fl |= ImGuiWindowFlags_NoCollapse;
+    else if (kind == ModalPopup)
+        fl |= ImGuiWindowFlags_NoCollapse;
     else if (kind == Popup)
         fl |= ImGuiWindowFlags_NoTitleBar;
     else if (kind == Activity) //only allow resizing here to test layout behavior

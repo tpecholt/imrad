@@ -13,6 +13,7 @@ struct PreparedString
 {
     std::string label;
     ImVec2 pos;
+    float textBaseOffset = 0;
     std::vector<std::pair<size_t, size_t>> fmtArgs;
     bool error = false;
 };

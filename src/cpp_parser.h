@@ -673,6 +673,7 @@ namespace cpp
     //"bongo" -> false
     //i==sel -> false
     //arr[2+i].koko -> true
+    //$item.value -> true
     //(arr[i]) -> false (special case)
     inline bool is_lvalue(std::string_view s)
     {
@@ -691,10 +692,10 @@ namespace cpp
             {
                 if (is_literal(*it))
                     return false;
-                bool op = stx::count_if(*it, [](char c) {
-                    return !std::isspace(c) && !std::isalnum(c) && c != '_';
-                    });
-                if (*it == "::" || *it == "." || *it == "->" || *it == "," ||
+                bool op = !cpp::is_id(*it);
+                if (*it == CUR_ITEM_SYMBOL) //not CUR_INDEX_SYMBOL
+                    op = false;
+                if (*it == "::" || *it == "." || *it == "->" ||
                     *it == "*") //could be pointer dereference
                     op = false;
                 if (op)

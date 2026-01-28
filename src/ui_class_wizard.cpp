@@ -177,7 +177,7 @@ void ClassWizard::Draw()
 
                 bool unused = !stx::count(used, var.name);
                 if (unused)
-                    ImGui::PushStyleColor(ImGuiCol_Text, 0xff400040);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)); // 0xff400040);
 
                 const char* icon =
                     (var.flags & CppGen::Var::Impl) ? ICON_FA_LOCK :
@@ -291,14 +291,22 @@ void ClassWizard::Draw()
         ImGui::BeginDisabled(stypeIdx);
         if (ImGui::Button("Remove Unused", { BWIDTH, 0 }))
         {
-            for (const auto& fi : fields)
-            {
-                if (!stx::count(used, fi.name)) {
-                    *modified = true;
-                    codeGen->RemoveVar(fi.name);
+            messageBox.title = "Remove variables";
+            messageBox.icon = MessageBox::Info;
+            messageBox.message = "Unused fields may still be used in user code. Really remove?";
+            messageBox.buttons = ImRad::Yes | ImRad::Cancel;
+            messageBox.OpenPopup([this](ImRad::ModalResult mr) {
+                if (mr == ImRad::Yes) {
+                    for (const auto& fi : fields)
+                    {
+                        if (!stx::count(used, fi.name)) {
+                            *modified = true;
+                            codeGen->RemoveVar(fi.name);
+                        }
+                    }
+                    Refresh();
                 }
-            }
-            Refresh();
+                });
         }
         ImGui::EndDisabled();
         /// @end Button

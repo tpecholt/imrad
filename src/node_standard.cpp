@@ -121,7 +121,7 @@ PreparedString PrepareString(std::string_view s)
     PreparedString ps;
     ps.error = false;
     ps.pos = ImGui::GetCursorScreenPos();
-    ps.pos.y += ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset;
+    ps.textBaseOffset = ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset;
     ps.label.reserve(s.size() + 10);
     size_t argFrom = 0;
     for (size_t i = 0; i < s.size(); ++i)
@@ -203,11 +203,15 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
         size_t i = 0;
         for (const auto& arg : ps.fmtArgs) {
             pos.x += ImGui::CalcTextSize(ps.label.data() + i, ps.label.data() + arg.first).x;
+            if (pos.x > ps.pos.x + size.x)
+                break;
             ImGui::GetWindowDrawList()->AddText(pos, clr, "{");
             //ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second);
             //ImGui::GetWindowDrawList()->AddRectFilled(pos, pos + sz, 0x50808080);
             ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second - 1);
             pos.x += sz.x;
+            if (pos.x > ps.pos.x + size.x)
+                break;
             ImGui::GetWindowDrawList()->AddText(pos, clr, "}");
             i = arg.second - 1;
         }
@@ -217,6 +221,7 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
     }
     else
     {
+        pos.y += ps.textBaseOffset;
         float wrapWidth = ImGui::CalcWrapWidthForPos(ps.pos, wrapPos);
         const char* text = ps.label.data();
         ImVec2 dp{ 0, 0 };
@@ -4879,13 +4884,14 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
     float ftmp[4] = {};
     int itmp[4] = {};
     double dtmp[4] = {};
-    std::string stmp;
+    std::string stmp = (value.empty() || ctx.beingResized) ? "" : "{" + *value.access() + "}";
     static ImGuiTextFilter filter;
 
     std::string id = label;
     if (id.empty())
         id = "##" + *value.access();
     std::string tid = type.get_id();
+    auto ps = PrepareString(stmp);
 
     if (flags & ImGuiInputTextFlags_Multiline)
     {
@@ -4893,40 +4899,53 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
         size.x = size_x.eval_px(ImGuiAxis_X, ctx);
         size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
         ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
+        DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
     }
     else if (tid == "std::string" || tid == "ImGuiTextFilter")
     {
         float w = size_x.eval_px(ImGuiAxis_X, ctx);
         if (w)
             ImGui::SetNextItemWidth(w);
+
         if (!hint.empty())
-            ImGui::InputTextWithHint(id.c_str(), DRAW_STR(hint), &stmp, flags);
+            ImGui::InputTextWithHint(id.c_str(), DRAW_STR(hint), &ps.label, flags);
         else
             ImGui::InputText(id.c_str(), &stmp, flags);
+
+        DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
     }
     else
     {
+        int istep = (int)step;
+        float fstep = (float)step;
         float w = size_x.eval_px(ImGuiAxis_X, ctx);
         if (w)
             ImGui::SetNextItemWidth(w);
-        if (tid == "int")
-            ImGui::InputInt(id.c_str(), itmp, (int)step);
+
+        if (tid == "int") {
+            ImGui::InputScalar(id.c_str(), ImGuiDataType_S32, itmp, istep ? &istep : nullptr, nullptr, ps.label.c_str());
+            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+        }
         else if (tid == "int2")
             ImGui::InputInt2(id.c_str(), itmp);
         else if (tid == "int3")
             ImGui::InputInt3(id.c_str(), itmp);
         else if (tid == "int4")
             ImGui::InputInt4(id.c_str(), itmp);
-        else if (tid == "float")
-            ImGui::InputFloat(id.c_str(), ftmp, step, 0.f, format.c_str());
+        else if (tid == "float") {
+            ImGui::InputScalar(id.c_str(), ImGuiDataType_Float, ftmp, fstep ? &fstep : nullptr, nullptr, ps.label.c_str());
+            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+        }
         else if (tid == "float2")
             ImGui::InputFloat2(id.c_str(), ftmp, format.c_str());
         else if (tid == "float3")
             ImGui::InputFloat3(id.c_str(), ftmp, format.c_str());
         else if (tid == "float4")
             ImGui::InputFloat4(id.c_str(), ftmp, format.c_str());
-        else if (tid == "double")
-            ImGui::InputDouble(id.c_str(), dtmp, step, 0, format.c_str());
+        else if (tid == "double") {
+            ImGui::InputScalar(id.c_str(), ImGuiDataType_Float, ftmp, fstep ? &fstep : nullptr, nullptr, ps.label.c_str());
+            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+        }
     }
 
     return ImGui::GetWindowDrawList();
@@ -4956,20 +4975,23 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     {
         defIme = "ImRad::ImeNumber";
         os << "ImGui::InputInt(" << id << ", &"
-            << value.to_arg() << ", " << (int)step << ")";
+            << value.to_arg() << ", "
+            << (int)step << ")";
     }
     else if (tid == "float")
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::InputFloat(" << id << ", &"
-            << value.to_arg() << ", " << step.to_arg() << ", 0.f, "
+            << value.to_arg() << ", "
+            << step.to_arg() << ", 0.f, "
             << format.to_arg() << ")";
     }
     else if (tid == "double")
     {
         defIme = "ImRad::ImeDecimal";
         os << "ImGui::InputDouble(" << id << ", &"
-            << value.to_arg() << ", " << step.to_arg() << ", 0.0, "
+            << value.to_arg() << ", "
+            << step.to_arg() << ", 0.0, "
             << format.to_arg() << ")";
     }
     else if (!tid.compare(0, 3, "int"))
@@ -5391,26 +5413,25 @@ bool Input::PropertyUI(int i, UIContext& ctx)
     }
     case 12:
     {
-        ImGui::BeginDisabled(tid != "int" && tid != "float");
+        ImGui::BeginDisabled(tid != "int" && tid != "float" && tid != "double");
         ImGui::Text("step");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        ImGui::PushFont(step != Defaults().step ? ctx.pgbFont : ctx.pgFont);
+        fl = step != Defaults().step ? InputDirectVal_Modified : 0;
         if (tid == "int")
         {
-            int st = (int)*step.access();
-            changed = ImGui::InputInt("##step", &st);
-            *step.access() = (float)st;
+            direct_val<int> istep = (int)*step.access();
+            changed = InputDirectVal(&istep, fl, ctx);
+            *step.access() = *istep.access();
         }
         else {
-            changed = ImGui::InputFloat("##step", step.access());
+            changed = InputDirectVal(&step, fl, ctx);
         }
-        ImGui::PopFont();
         ImGui::EndDisabled();
         break;
     }
     case 13:
-        ImGui::BeginDisabled(tid.compare(0, 5, "float"));
+        ImGui::BeginDisabled(tid.compare(0, 5, "float") && tid.compare(0, 6, "double"));
         ImGui::Text("format");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5510,17 +5531,15 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
     if (id.empty())
         id = std::string("##") + value.c_str();
 
-    auto vars = items.used_variables();
-    if (vars.empty())
-    {
-        std::string tmp = items.c_str();
-        ImRad::Combo(id.c_str(), &tmp, items.c_str(), flags);
-    }
-    else
-    {
-        std::string tmp = '{' + vars[0] + "}\0";
-        ImRad::Combo(id.c_str(), &tmp, "\0", flags);
-    }
+    std::string tmp;
+    if (ctx.beingResized)
+        tmp = *items.access();
+    else if (!value.empty())
+        tmp = "{" + *value.access() + "}";
+
+    auto ps = PrepareString(tmp);
+    ImRad::Combo(id.c_str(), &ps.label, "\0", flags);
+    DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
 
     return ImGui::GetWindowDrawList();
 }

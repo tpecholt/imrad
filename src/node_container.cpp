@@ -598,8 +598,10 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             os << cd.width;
         os << ");\n";
     }
+    /* used by ui_configuration_dlg - not relevant anymore
     if (hasNoPolicy && hasNoPolicy != columnData.size())
         PushError(ctx, "either specify sizingPolicy for all columns or none");
+    */
 
     os << ctx.ind << "ImGui::TableSetupScrollFreeze(" << scrollFreeze_x.to_arg() << ", "
         << scrollFreeze_y.to_arg() << ");\n";
@@ -613,7 +615,10 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::PushFont(" << style_headerFontName.to_arg()
             << ", " << style_headerFontSize.to_arg() << ");\n";
 
+        //keyboard navigation through column names is annoying
+        os << ctx.ind << "ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);\n";
         os << ctx.ind << "ImGui::TableHeadersRow();\n";
+        os << ctx.ind << "ImGui::PopItemFlag();\n";
 
         if (!style_headerFontName.empty() || !style_headerFontSize.empty())
             os << ctx.ind << "ImGui::PopFont();\n";
