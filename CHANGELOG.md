@@ -1,3 +1,20 @@
+# vNext
+
+### UI Improvements
+
+* Styles folder is watched for changes and INI style changes are applied automatically
+
+### New Code Features
+
+* Owner-drawn Combo through onDrawItems event
+
+### Improvements by Widget Type
+
+* Combo
+  
+  * adds onDrawItems event
+
+
 # v0.9.1
 
 ### Fix Release
@@ -7,6 +24,7 @@
 * Fix missing include in *imrad.h* on gcc-14 [[#59]](https://github.com/tpecholt/imrad/issues/59)
 
 * Fix UI dock layout not preserved, `Input.imeMode` import, version check crash 
+
 
 # v0.9
 

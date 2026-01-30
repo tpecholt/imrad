@@ -400,6 +400,7 @@ struct Combo : Widget
     bindable<std::vector<std::string>> items;
     direct_val<ImGuiComboFlags_> flags;
     event<> onChange;
+    event<> onDrawItems;
 
     Combo(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;

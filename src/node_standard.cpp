@@ -1126,8 +1126,10 @@ void Widget::Draw(UIContext& ctx)
                 vbox.UpdateSize(0, ImRad::VBox::Stretch(sizeY));
         }
         else {
-            if (l.flags & Layout::Leftmost)
+            if (l.flags & Layout::Leftmost) {
+                //todo: account for Text with AlignToFramePadding
                 vbox.AddSize(sp, sizeY);
+            }
             else
                 vbox.UpdateSize(0, sizeY);
         }
@@ -4884,13 +4886,25 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
     float ftmp[4] = {};
     int itmp[4] = {};
     double dtmp[4] = {};
-    std::string stmp = (value.empty() || ctx.beingResized) ? "" : "{" + *value.access() + "}";
     static ImGuiTextFilter filter;
 
     std::string id = label;
     if (id.empty())
         id = "##" + *value.access();
     std::string tid = type.get_id();
+    std::string stmp;
+    if (ctx.beingResized) {
+        char buf[100] = "";
+        if (tid == "int")
+            stmp = "0";
+        else if (tid == "float" || tid == "double") {
+            snprintf(buf, sizeof(buf), format.c_str(), 0.f);
+            stmp = buf;
+        }
+    }
+    else if (!value.empty()) {
+        stmp = "{" + *value.access() + "}";
+    }
     auto ps = PrepareString(stmp);
 
     if (flags & ImGuiInputTextFlags_Multiline)
@@ -5422,7 +5436,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         {
             direct_val<int> istep = (int)*step.access();
             changed = InputDirectVal(&istep, fl, ctx);
-            *step.access() = *istep.access();
+            *step.access() = (float)*istep.access();
         }
         else {
             changed = InputDirectVal(&step, fl, ctx);
@@ -5539,35 +5553,49 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
 
     auto ps = PrepareString(tmp);
     ImRad::Combo(id.c_str(), &ps.label, "\0", flags);
-    DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+    if (!(flags & ImGuiComboFlags_NoPreview))
+        DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
 
     return ImGui::GetWindowDrawList();
 }
 
 void Combo::DoExport(std::ostream& os, UIContext& ctx)
 {
-    if (!size_x.empty())
-        os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
-
-    os << ctx.ind;
-    if (!onChange.empty())
-        os << "if (";
-
     std::string id = label.to_arg();
     if (label.empty())
         id = std::string("\"##") + value.c_str() + "\"";
 
-    os << "ImRad::Combo(" << id << ", &" << value.to_arg()
-        << ", " << items.to_arg() << ", " << flags.to_arg() << ")";
+    if (!size_x.empty())
+        os << ctx.ind << "ImGui::SetNextItemWidth(" << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0]) << ");\n";
 
-    if (!onChange.empty()) {
-        os << ")\n";
-        ctx.ind_up();
-        os << ctx.ind << onChange.to_arg() << "();\n";
-        ctx.ind_down();
+    if (onDrawItems.empty())
+    {
+        os << ctx.ind;
+        if (!onChange.empty())
+            os << "if (";
+
+        os << "ImRad::Combo(" << id << ", &" << value.to_arg()
+            << ", " << items.to_arg() << ", " << flags.to_arg() << ")";
+
+        if (!onChange.empty()) {
+            os << ")\n";
+            ctx.ind_up();
+            os << ctx.ind << onChange.to_arg() << "();\n";
+            ctx.ind_down();
+        }
+        else
+            os << ";\n";
     }
-    else {
-        os << ";\n";
+    else
+    {
+        os << ctx.ind << "if (ImGui::BeginCombo(" << id << ", "
+            << value.to_arg() << ".c_str(), " << flags.to_arg() << "))\n";
+        os << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << onDrawItems.to_arg() << "();\n";
+        os << ctx.ind << "ImGui::EndCombo();\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
     }
 }
 
@@ -5603,6 +5631,32 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
+    }
+    else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginCombo")
+    {
+        ctx.importLevel = 1;
+
+        if (sit->params.size()) {
+            label.set_from_arg(sit->params[0]);
+            if (!label.access()->compare(0, 2, "##"))
+                label = "";
+        }
+
+        if (sit->params.size() >= 2 &&
+            !sit->params[1].compare(sit->params[1].size() - 8, 8, ".c_str()"))
+        {
+            value.set_from_arg(sit->params[1].substr(0, sit->params[1].size() - 8));
+        }
+
+        if (sit->params.size() >= 3) {
+            if (!flags.set_from_arg(sit->params[2]))
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
+        }
+    }
+    else if (ctx.importLevel == 1 && sit->kind == cpp::CallExpr &&
+        sit->callee.compare(0, 5, "ImGui") && sit->callee.compare(0, 5, "ImRad"))
+    {
+        onDrawItems.set_from_arg(sit->callee);
     }
 }
 
@@ -5727,7 +5781,8 @@ Combo::Events()
 {
     auto props = Widget::Events();
     props.insert(props.begin(), {
-        { "combo.change", &onChange }
+        { "combo.change", &onChange },
+        { "combo.drawItems", &onDrawItems },
         });
     return props;
 }
@@ -5743,8 +5798,14 @@ bool Combo::EventUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Change", &onChange, 0, ctx);
         break;
+    case 1:
+        ImGui::Text("DrawItems");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_DrawItems", &onDrawItems, 0, ctx);
+        break;
     default:
-        return Widget::EventUI(i - 1, ctx);
+        return Widget::EventUI(i - 2, ctx);
     }
     return changed;
 }
