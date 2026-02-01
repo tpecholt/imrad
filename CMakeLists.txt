@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(imrad VERSION 0.9.1)
+project(imrad VERSION 0.10 DESCRIPTION -WIP)
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden) # linux: don't export all symbols in .so
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # linux: use -fPIC on .a so they can be used by .so
@@ -17,7 +17,7 @@ if (MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
     add_definitions(-D_USE_MATH_DEFINES)
-    string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus")
+    #string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus") imrad.h doesn't need it anymore
     string(APPEND CMAKE_CXX_FLAGS " /utf-8")
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

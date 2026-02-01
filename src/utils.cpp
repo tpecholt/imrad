@@ -12,8 +12,8 @@
 float uiFontSize = 15;
 GLFWwindow* glfwWindow = nullptr;
 
-//ImRAD 0.9 WIP -> 9000
-//imrad-0.9.1 -> 9010
+//ImRAD 0.10-WIP -> 1000
+//imrad-0.9.1 -> 901
 int ParseVersion(const std::string& str)
 {
     std::string s = str.substr(str.find_first_of("0123456789"));
@@ -23,8 +23,6 @@ int ParseVersion(const std::string& str)
     int ver = 0;
     int parts = 0;
     while (is >> num) {
-        if (num < 10)
-            num *= 10;
         ver = ver * 100 + num;
         ++parts;
     }
