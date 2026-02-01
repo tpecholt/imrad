@@ -15,9 +15,16 @@ public:
     static const std::string_view VBOX_NAME;
 
     CppGen();
-    bool ExportUpdate(const std::string& fname, TopWindow* node, const std::map<std::string, std::string>& params, std::string& err);
-    auto Import(const std::string& path, std::map<std::string, std::string>& params, std::string& err) -> std::unique_ptr<TopWindow>;
-    auto AltFName(const std::string& path) const -> std::string;
+
+    struct Config
+    {
+        std::string name;
+        TopWindow* node;
+        std::map<std::string, std::string> params;
+    };
+
+    bool ExportUpdate(const std::string& fname, const std::vector<Config>& configs, std::string& err);
+    auto Import(const std::string& path, std::string& err) -> std::vector<Config>;
     int ReadGenVersion(const std::string& fname) const;
 
     const std::string& GetName() const { return m_name; }
@@ -25,6 +32,7 @@ public:
     //void SetName(const std::string& name) { m_name = name; }
     //void SetVName(const std::string& name) { m_vname = name; }
     void SetNamesFromId(const std::string& fname);
+    auto AltFName(const std::string& path) const -> std::string;
 
     struct Var
     {
@@ -59,17 +67,21 @@ private:
 
     void CreateH(std::ostream& out);
     void CreateCpp(std::ostream& out);
-    auto ExportH(std::ostream& out, std::istream& prev, const std::string& origHName, TopWindow* node) -> std::array<std::string, 3>;
-    void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 3>& origNames, const std::map<std::string, std::string>& params, TopWindow* node, const std::string& code);
-    bool WriteStub(std::ostream& fout,    const std::string& id, TopWindow::Kind kind, TopWindow::Placement animPos, const std::map<std::string, std::string>& params = {}, const std::string& code = {});
-    auto ImportCode(std::istream& in, const std::string& fname, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
+    auto ExportH(std::ostream& out, std::istream& prev, const std::string& origHName, const std::vector<Config>& configs) -> std::array<std::string, 3>;
+    void ExportCpp(std::ostream& out, std::istream& prev, const std::array<std::string, 3>& origNames, const std::vector<Config>& configs, const std::vector<std::string>& drawCode);
+    bool WriteStub(std::ostream& fout, const std::string& id, const std::vector<Config>& configs);
+    void WriteDrawFun(std::ostream& fout, const std::string& id, const std::vector<Config>& configs, const std::string& code);
+    void WriteForEachConfig(std::ostream& out, const std::vector<Config>& configs, std::function<std::string(const Config&)> fun);
+    auto ImportCode(std::istream& in, const std::string& fname) -> std::vector<Config>;
+    auto GetDrawFunName(const std::string& cfgName, size_t size) -> std::string;
 
     bool ParseFieldDecl(const std::string& stype, const std::vector<std::string>& line, int flags);
     auto IsMemFun(const std::vector<std::string>& line)->std::string;
-    bool IsMemDrawFun(const std::vector<std::string>& line);
-    auto ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params) -> std::unique_ptr<TopWindow>;
+    auto ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter) -> std::optional<Config>;
 
     std::map<std::string, std::vector<Var>> m_fields;
+    TopWindow::Kind m_kind;
+    bool m_animate;
     std::string m_name, m_vname, m_hname;
     std::string ctx_workingDir;
     int ctx_importVersion;

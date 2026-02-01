@@ -36,6 +36,7 @@ struct TopWindow : UINode
     std::string userCodeBefore, userCodeAfter, userCodeMid;
 
     TopWindow(UIContext& ctx);
+    auto Clone(UIContext& ctx) -> std::unique_ptr<TopWindow>;
     void Draw(UIContext& ctx);
     void DrawTools(UIContext& ctx) {}
     void TreeUI(UIContext& ctx);

@@ -15,7 +15,7 @@ public:
 
 public:
     CppGen* codeGen;
-    UINode* root;
+    std::vector<UINode*> roots;
     bool* modified;
 
 private:

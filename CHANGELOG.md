@@ -4,9 +4,13 @@
 
 * Styles folder is watched for changes and INI style changes are applied automatically
 
+* Separate style and units combos reworked into single configuration combo and dialog
+
 ### New Code Features
 
 * Owner-drawn Combo through onDrawItems event
+
+* Configurations allow to generate a set of separate Draw functions and select one at runtime. Event handlers and field variables are shared. Useful for designing UI variants like per desktop/mobile platform, by screen rotation etc.
 
 ### Improvements by Widget Type
 

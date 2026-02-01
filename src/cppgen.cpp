@@ -107,33 +107,37 @@ int CppGen::ReadGenVersion(const std::string& fname) const
 
 bool CppGen::ExportUpdate(
     const std::string& fname,
-    TopWindow* node,
-    const std::map<std::string, std::string>& params,
+    const std::vector<Config>& configs,
     std::string& err
 )
 {
-    //enforce uppercase for class name
-    /*auto ext = name.find('.');
-    m_name = name.substr(0, ext);
-    if (m_name.empty() || m_name[0] < 'A' || m_name[0] > 'Z') {
-        err = "class name doesn't start with big letter";
+    if (configs.empty())
         return false;
-    }
-    m_vname = (char)std::tolower(m_name[0]) + m_name.substr(1);
-    */
+    m_kind = configs[0].node->kind; //guaranteed to be same in all configs
+    m_animate = false;
 
     //export node before ExportH
     //TopWindow::Export generates some variables on the fly
-    UIContext ctx;
-    ctx.codeGen = this;
-    ctx.ind = INDENT;
-    auto uit = params.find("unit");
-    if (uit != params.end())
-        ctx.unit = uit->second;
-    std::ostringstream code;
-    node->Export(code, ctx);
-    for (const std::string& e : ctx.errors)
-        err += e + "\n";
+    std::vector<std::string> drawCode;
+    for (const Config& cfg : configs)
+    {
+        if (cfg.node->animate)
+            m_animate = true;
+        UIContext ctx;
+        ctx.codeGen = this;
+        ctx.ind = INDENT;
+        auto uit = cfg.params.find("unit");
+        if (uit != cfg.params.end())
+            ctx.unit = uit->second;
+        std::ostringstream os;
+        cfg.node->Export(os, ctx);
+        drawCode.push_back(os.str());
+        for (const std::string& e : ctx.errors) {
+            if (cfg.name != "")
+                err += cfg.name + ": ";
+            err += e + "\n";
+        }
+    }
 
     //export .h
     m_error = "";
@@ -155,7 +159,7 @@ bool CppGen::ExportUpdate(
     fin.close();
     fprev.seekg(0);
     std::ofstream fout(hpath, std::ios::trunc);
-    auto origNames = ExportH(fout, fprev, m_hname, node);
+    auto origNames = ExportH(fout, fprev, m_hname, configs);
     m_hname = u8string(hpath.filename());
     fout.close();
     err += m_error;
@@ -180,7 +184,7 @@ bool CppGen::ExportUpdate(
     fin.close();
     fprev.seekg(0);
     fout.open(fpath, std::ios::trunc);
-    ExportCpp(fout, fprev, origNames, params, node, code.str());
+    ExportCpp(fout, fprev, origNames, configs, drawCode);
     err += m_error;
     return true;
 }
@@ -223,7 +227,7 @@ CppGen::ExportH(
     std::ostream& fout,
     std::istream& fprev,
     const std::string& origHName,
-    TopWindow* node
+    const std::vector<Config>& configs
 )
 {
     int level = 0;
@@ -267,29 +271,29 @@ CppGen::ExportH(
                 out << "/// @begin interface\n";
 
                 //write special members
-                if (node->kind == TopWindow::ModalPopup)
+                if (m_kind == TopWindow::ModalPopup)
                 {
                     out << INDENT << "void OpenPopup(std::function<void(ImRad::ModalResult)> clb = [](ImRad::ModalResult){});\n";
                     out << INDENT << "void ClosePopup(ImRad::ModalResult mr = ImRad::Cancel);\n";
                     out << INDENT << "void Draw();\n";
                 }
-                else if (node->kind == TopWindow::Popup)
+                else if (m_kind == TopWindow::Popup)
                 {
                     out << INDENT << "void OpenPopup();\n";
                     out << INDENT << "void ClosePopup();\n";
                     out << INDENT << "void Draw();\n";
                 }
-                else if (node->kind == TopWindow::Window)
+                else if (m_kind == TopWindow::Window)
                 {
                     out << INDENT << "void Open();\n";
                     out << INDENT << "void Close();\n";
                     out << INDENT << "void Draw();\n";
                 }
-                else if (node->kind == TopWindow::MainWindow)
+                else if (m_kind == TopWindow::MainWindow)
                 {
                     out << INDENT << "void Draw(GLFWwindow* window);\n";
                 }
-                else if (node->kind == TopWindow::Activity)
+                else if (m_kind == TopWindow::Activity)
                 {
                     out << INDENT << "void Open();\n";
                     out << INDENT << "void Draw();\n";
@@ -365,13 +369,19 @@ CppGen::ExportH(
 
                 //write special members
                 bool found = false;
+                if (configs.size() > 1 || configs[0].name != "")
+                {
+                    found = true;
+                    for (const Config& cfg : configs)
+                        out << INDENT << "void " << GetDrawFunName(cfg.name, configs.size()) << "();\n";
+                }
                 if (hasLayout)
                 {
                     found = true;
                     out << INDENT << "void ResetLayout();\n";
                 }
-                if (node->kind == TopWindow::Popup || node->kind == TopWindow::ModalPopup ||
-                    node->kind == TopWindow::Activity)
+                if (m_kind == TopWindow::Popup || m_kind == TopWindow::ModalPopup ||
+                    m_kind == TopWindow::Activity)
                 {
                     found = true;
                     out << INDENT << "void Init();\n";
@@ -387,40 +397,44 @@ CppGen::ExportH(
                 {
                     if ((var.flags & Var::UserCode) || !(var.flags & Var::Impl))
                         continue;
-                    if (IsFunType(var.type, ret, arg) &&
-                        !stx::count(SPEC_FUN, var.name))
-                    {
-                        found = true;
-                        out << INDENT << ret << " " << var.name << "(";
-                        if (arg != "")
-                            out << arg << " args";
-                        out << ");\n";
-                    }
+                    if (!IsFunType(var.type, ret, arg) ||
+                        stx::count(SPEC_FUN, var.name))
+                        continue;
+                    if (stx::count_if(configs, [&](const auto& c) {
+                        return GetDrawFunName(c.name, configs.size()) == var.name;
+                        }))
+                        continue;
+
+                    found = true;
+                    out << INDENT << ret << " " << var.name << "(";
+                    if (arg != "")
+                        out << arg << " args";
+                    out << ");\n";
                 }
                 if (found)
                     out << "\n";
 
                 //special fields
-                if (node->kind == TopWindow::ModalPopup)
+                if (m_kind == TopWindow::ModalPopup)
                 {
                     out << INDENT << "ImGuiID ID = 0;\n";
                     out << INDENT << "ImRad::ModalResult modalResult;\n";
-                    if (node->animate) {
+                    if (m_animate) {
                         out << INDENT << "ImRad::Animator animator;\n";
                         out << INDENT << "ImVec2 animPos;\n";
                     }
                     out << INDENT << "std::function<void(ImRad::ModalResult)> callback;\n";
                 }
-                else if (node->kind == TopWindow::Popup)
+                else if (m_kind == TopWindow::Popup)
                 {
                     out << INDENT << "ImGuiID ID = 0;\n";
                     out << INDENT << "ImRad::ModalResult modalResult;\n";
-                    if (node->animate) {
+                    if (m_animate) {
                         out << INDENT << "ImRad::Animator animator;\n";
                         out << INDENT << "ImVec2 animPos;\n";
                     }
                 }
-                else if (node->kind == TopWindow::Window)
+                else if (m_kind == TopWindow::Window)
                 {
                     out << INDENT << "bool isOpen = true;\n";
                 }
@@ -510,7 +524,7 @@ CppGen::ExportH(
             preamble = false;
             if (!tok.compare(0, 8, "#include"))
             {
-                if (node->kind == TopWindow::MainWindow &&
+                if (m_kind == TopWindow::MainWindow &&
                     first_include &&
                     tok.find("glfw") == std::string::npos)
                 {
@@ -519,7 +533,7 @@ CppGen::ExportH(
                     out << "#include <GLFW/glfw3.h>\n";
                     out << tok << "\n";
                 }
-                else if (node->kind != TopWindow::MainWindow &&
+                else if (m_kind != TopWindow::MainWindow &&
                     first_include &&
                     tok.find("glfw") != std::string::npos)
                 {
@@ -547,6 +561,7 @@ CppGen::ExportH(
     copy_content();
 
     //replace class name
+    //todo: why is second pass required
     std::string code = out.str();
     cpp::replace_id(code, origName, m_name);
     cpp::replace_id(code, origVName, m_vname);
@@ -562,9 +577,8 @@ CppGen::ExportCpp(
     std::ostream& fout,
     std::istream& fprev,
     const std::array<std::string, 3>& origNames, //name, vname, old header name
-    const std::map<std::string, std::string>& params,
-    TopWindow* node,
-    const std::string& code
+    const std::vector<Config>& configs,
+    const std::vector<std::string>& drawCode
 )
 {
     int level = 0;
@@ -574,7 +588,6 @@ CppGen::ExportCpp(
     std::vector<std::string> line;
     std::streampos fpos = 0;
     std::set<std::string> funs;
-    auto animPos = node->animate ? (TopWindow::Placement)node->placement : TopWindow::None;
 
     //xpos == 0 => copy until current position
     //xpos > 0 => copy until xpos
@@ -624,7 +637,7 @@ CppGen::ExportCpp(
                 if (name == "Init")
                 {
                     std::ostringstream tmp;
-                    if (WriteStub(tmp, name, node->kind, animPos)) {
+                    if (WriteStub(tmp, name, configs)) {
                         funs.insert(name);
                         //copy following code
                     }
@@ -637,9 +650,23 @@ CppGen::ExportCpp(
                         fout << "/* void " << m_name << "::" << name << "() REMOVED\n{";
                     }
                 }
+                else if (name == "Draw" || !name.compare(0, 5, "Draw_"))
+                {
+                    size_t i = configs.size();
+                    for (const Config& cfg : configs) {
+                        if (name == GetDrawFunName(cfg.name, configs.size()))
+                            i = &cfg - configs.data();
+                    }
+                    if (name == "Draw" || i != configs.size()) {
+                        std::string code = i != configs.size() ? drawCode[i] : "";
+                        WriteDrawFun(fout, name, configs, code);
+                        funs.insert(name);
+                        skip_to_level = level - 1;
+                    }
+                }
                 else if (stx::count(SPEC_FUN, name))
                 {
-                    if (WriteStub(fout, name, node->kind, animPos, params, code)) {
+                    if (WriteStub(fout, name, configs)) {
                         funs.insert(name);
                         skip_to_level = level - 1;
                     }
@@ -701,16 +728,37 @@ CppGen::ExportCpp(
     fprev.seekg(0, std::ios::end);
     copy_content();
 
-    //add missing members
+    //add missing spec members
     for (const auto& name : SPEC_FUN)
     {
         if (funs.count(name))
             continue;
         std::ostringstream os;
-        if (WriteStub(os, name, node->kind, animPos, params, code)) {
+        if (WriteStub(os, name, configs)) {
             funs.insert(name);
             fout << "\nvoid " << m_name << os.str() << "\n";
         }
+    }
+
+    //add missing Draw
+    if (!funs.count("Draw") &&
+        (configs.size() >= 2 || configs[0].name != "")) //Draw dispatcher
+    {
+        funs.insert("Draw");
+        fout << "\nvoid " << m_name;
+        WriteDrawFun(fout, "Draw", configs, "");
+        fout << "\n";
+    }
+    for (const auto& cfg : configs)
+    {
+        std::string name = GetDrawFunName(cfg.name, configs.size());
+        if (funs.count(name))
+            continue;
+        funs.insert(name);
+        size_t i = &cfg - configs.data();
+        fout << "\nvoid " << m_name;
+        WriteDrawFun(fout, name, configs, drawCode[i]);
+        fout << "\n";
     }
 
     //add missing events
@@ -750,15 +798,56 @@ std::vector<std::string> CppGen::GetLayoutVars()
     return vars;
 }
 
+// writes if/else if/else statements for each config where fun returns a code
+void CppGen::WriteForEachConfig(std::ostream& out, const std::vector<Config>& configs, std::function<std::string(const Config&)> fun)
+{
+    int n = 0;
+    size_t idefault = -1;
+    for (const Config& cfg : configs)
+    {
+        if (cfg.name == "") {
+            idefault = &cfg - configs.data();
+            continue;
+        }
+        std::string code = fun(cfg);
+        if (code == "")
+            continue;
+        bool block = stx::count(code, '\n') >= 2;
+        out << INDENT << (n ? "else if " : "if ")
+            << "(ImRad::GetUserData().activeConfig == \"" << cfg.name << "\")\n";
+        if (block)
+            out << INDENT << "{\n";
+        //todo: indent in block
+        out << INDENT << INDENT << code;
+        if (block)
+            out << INDENT << "}\n";
+        ++n;
+    }
+    if (idefault < configs.size())
+    {
+        const Config& cfg = configs[idefault];
+        std::string code = fun(cfg);
+        if (code != "") {
+            bool block = stx::count(code, '\n') >= 2;
+            if (!n)
+                //todo: indent in block
+                out << INDENT << code;
+            else {
+                out << INDENT << "else\n";
+                if (block)
+                    out << INDENT << "{\n";
+                //todo: indent in block
+                out << INDENT << INDENT << code;
+                if (block)
+                    out << INDENT << "{\n";
+            }
+        }
+    }
+}
+
 //we always replace code of all generated functions because parameters and code depend
 //on kind and other things
-bool CppGen::WriteStub(
-    std::ostream& fout,
-    const std::string& id,
-    TopWindow::Kind kind,
-    TopWindow::Placement animPos,
-    const std::map<std::string, std::string>& params,
-    const std::string& code)
+bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vector<Config>& configs)
 {
     assert(stx::count(SPEC_FUN, id));
     //OpenPopup has to be called from the window which wants to open it so that's why
@@ -766,9 +855,9 @@ bool CppGen::WriteStub(
     //CloseCurrentPopup has to be called from the popup Draw code so that's why
     //defered call
     if (id == "OpenPopup" &&
-        (kind == TopWindow::ModalPopup || kind == TopWindow::Popup))
+        (m_kind == TopWindow::ModalPopup || m_kind == TopWindow::Popup))
     {
-        if (kind == TopWindow::ModalPopup) {
+        if (m_kind == TopWindow::ModalPopup) {
             fout << "::OpenPopup(std::function<void(ImRad::ModalResult)> clb)\n{\n";
             fout << INDENT << "callback = clb;\n";
             fout << INDENT << "modalResult = ImRad::None;\n";
@@ -778,19 +867,27 @@ bool CppGen::WriteStub(
             fout << INDENT << "modalResult = ImRad::None;\n";
         }
 
-        if (animPos != TopWindow::Placement::None)
-        {
-            if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-                fout << INDENT << "animator.StartPersistent(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
-            else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-                fout << INDENT << "animator.StartPersistent(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
-            if (kind == TopWindow::ModalPopup)
-                fout << INDENT << "animator.StartPersistent(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
-        }
-        else if (kind == TopWindow::ModalPopup)
-        {
+        if (!m_animate)
             fout << INDENT << "ImRad::GetUserData().dimBgRatio = 1.f;\n";
-        }
+        else
+            WriteForEachConfig(fout, configs, [this](const Config& cfg) {
+                std::ostringstream os;
+                if (cfg.node->animate)
+                {
+                    auto animPos = cfg.node->placement;
+                    if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+                        os << "animator.StartPersistent(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+                    else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+                        os << "animator.StartPersistent(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+                    if (m_kind == TopWindow::ModalPopup)
+                        os << "animator.StartPersistent(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
+                }
+                else if (m_kind == TopWindow::ModalPopup)
+                {
+                    os << "ImRad::GetUserData().dimBgRatio = 1.f;\n";
+                }
+                return os.str();
+            });
 
         fout << INDENT << "IM_ASSERT(ID && \"Call Draw at least once to get ID assigned\");\n";
         fout << INDENT << "ImGui::OpenPopup(ID);\n";
@@ -799,9 +896,9 @@ bool CppGen::WriteStub(
         return true;
     }
     else if (id == "ClosePopup" &&
-        (kind == TopWindow::ModalPopup || kind == TopWindow::Popup))
+        (m_kind == TopWindow::ModalPopup || m_kind == TopWindow::Popup))
     {
-        if (kind == TopWindow::ModalPopup) {
+        if (m_kind == TopWindow::ModalPopup) {
             fout << "::ClosePopup(ImRad::ModalResult mr)\n{\n";
             fout << INDENT << "modalResult = mr;\n";
         }
@@ -810,31 +907,39 @@ bool CppGen::WriteStub(
             fout << INDENT << "modalResult = ImRad::Cancel;\n";
         }
 
-        if (animPos != TopWindow::Placement::None)
-        {
-            if (animPos == TopWindow::Left || animPos == TopWindow::Right)
-                fout << INDENT << "animator.StartOnce(&animPos.x, animPos.x, -animator.GetWindowSize().x, ImRad::Animator::DurClosePopup);\n";
-            else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-                fout << INDENT << "animator.StartOnce(&animPos.y, animPos.x, -animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
-            if (kind == TopWindow::ModalPopup)
-                fout << INDENT << "animator.StartOnce(&ImRad::GetUserData().dimBgRatio, ImRad::GetUserData().dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
-        }
-        else if (kind == TopWindow::ModalPopup)
-        {
+        if (!m_animate)
             fout << INDENT << "ImRad::GetUserData().dimBgRatio = 0.f;\n";
-        }
+        else
+            WriteForEachConfig(fout, configs, [this](const Config& cfg) {
+                std::ostringstream os;
+                if (cfg.node->animate)
+                {
+                    auto animPos = cfg.node->placement;
+                    if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+                        os << "animator.StartOnce(&animPos.x, animPos.x, -animator.GetWindowSize().x, ImRad::Animator::DurClosePopup);\n";
+                    else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+                        os << "animator.StartOnce(&animPos.y, animPos.x, -animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
+                    if (m_kind == TopWindow::ModalPopup)
+                        os << "animator.StartOnce(&ImRad::GetUserData().dimBgRatio, ImRad::GetUserData().dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
+                }
+                else if (m_kind == TopWindow::ModalPopup)
+                {
+                    os << "ImRad::GetUserData().dimBgRatio = 0.f;\n";
+                }
+                return os.str();
+                });
 
         fout << "}";
         return true;
     }
-    else if (id == "Open" && kind == TopWindow::Window)
+    else if (id == "Open" && m_kind == TopWindow::Window)
     {
         fout << "::Open()\n{\n";
         fout << INDENT << "isOpen = true;\n";
         fout << "}";
         return true;
     }
-    else if (id == "Open" && kind == TopWindow::Activity)
+    else if (id == "Open" && m_kind == TopWindow::Activity)
     {
         fout << "::Open()\n{\n";
         fout << INDENT << "if (ImRad::GetUserData().activeActivity != \"" << m_name << "\")\n";
@@ -845,7 +950,7 @@ bool CppGen::WriteStub(
         fout << "}";
         return true;
     }
-    else if (id == "Close" && kind == TopWindow::Window)
+    else if (id == "Close" && m_kind == TopWindow::Window)
     {
         fout << "::Close()\n{\n";
         fout << INDENT << "isOpen = false;\n";
@@ -853,7 +958,7 @@ bool CppGen::WriteStub(
         return true;
     }
     else if (id == "Init" &&
-        (kind == TopWindow::ModalPopup || kind == TopWindow::Popup || kind == TopWindow::Activity))
+        (m_kind == TopWindow::ModalPopup || m_kind == TopWindow::Popup || m_kind == TopWindow::Activity))
     {
         fout << "::Init()\n{\n";
         fout << INDENT << "// TODO: Add your code here\n";
@@ -870,26 +975,52 @@ bool CppGen::WriteStub(
         fout << "}";
         return true;
     }
-    else if (id == "Draw")
-    {
-        fout << "::Draw(";
-        if (kind == TopWindow::MainWindow)
-            fout << "GLFWwindow* window";
-        fout << ")\n{\n";
-
-        for (const auto& p : params)
-            fout << INDENT << "/// @" << p.first << " " << p.second << "\n";
-
-        fout << code << "}";
-        return true;
-    }
-    return false;
+   return false;
 }
 
-std::unique_ptr<TopWindow>
+std::string CppGen::GetDrawFunName(const std::string& cfgName, size_t size)
+{
+    if (cfgName == "")
+        return size >= 2 ? "Draw_" : "Draw";
+    else
+        return "Draw_" + cfgName;
+}
+
+void CppGen::WriteDrawFun(std::ostream& fout, const std::string& id, const std::vector<Config>& configs, const std::string& code)
+{
+    fout << "::" << id;
+    fout << "(";
+    if (m_kind == TopWindow::MainWindow)
+        fout << "GLFWwindow* window";
+    fout << ")\n{\n";
+
+    if (id == "Draw" && code == "")
+    {
+        //Draw dispatcher
+        WriteForEachConfig(fout, configs, [&](const Config& cfg) {
+            std::ostringstream os;
+            os << GetDrawFunName(cfg.name, configs.size()) << "();\n";
+            return os.str();
+        });
+    }
+    else
+    {
+        auto cfg = stx::find_if(configs, [&](const auto& c) {
+            return GetDrawFunName(c.name, configs.size()) == id;
+        });
+        if (cfg != configs.end())
+        {
+            for (const auto& p : cfg->params)
+                fout << INDENT << "/// @" << p.first << " " << p.second << "\n";
+            fout << code;
+        }
+    }
+    fout << "}";
+}
+
+std::vector<CppGen::Config>
 CppGen::Import(
     const std::string& path,
-    std::map<std::string, std::string>& params,
     std::string& err
 )
 {
@@ -899,7 +1030,7 @@ CppGen::Import(
     m_error = "";
     ctx_workingDir = u8string(u8path(path).parent_path());
     ctx_importVersion = 0;
-    std::unique_ptr<TopWindow> node;
+    std::vector<Config> configs;
 
     auto fpath = u8path(path).replace_extension("h");
     m_hname = u8string(fpath.filename());
@@ -907,37 +1038,34 @@ CppGen::Import(
     if (!fin)
         m_error += "Can't read " + u8string(fpath) + "\n";
     else
-        node = ImportCode(fin, m_hname, params);
+        ImportCode(fin, m_hname);
     fin.close();
 
     fpath = u8path(path).replace_extension("cpp");
     fin.open(fpath);
     if (!fin)
         m_error += "Can't read \"" + u8string(fpath) + "\"\n";
-    else {
-        auto node2 = ImportCode(fin, u8string(fpath.filename()), params);
-        if (!node)
-            node = std::move(node2);
-    }
+    else
+        configs = ImportCode(fin, u8string(fpath.filename()));
 
     if (m_name == "")
         m_error += "No window class found!\n";
     if (m_vname == "")
         m_error += "No window class variable found!\n";
-    if (!node)
+    if (configs.empty())
         m_error += "No Draw() code found!\n";
     /*if (!found_fields)
         m_error += "No fields section found!\n";
     if (!found_events)
         m_error += "No events section found!\n";*/
     err = m_error;
-    return node;
+    return configs;
 }
 
-std::unique_ptr<TopWindow>
-CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::string, std::string>& params)
+std::vector<CppGen::Config>
+CppGen::ImportCode(std::istream& fin, const std::string& fname)
 {
-    std::unique_ptr<TopWindow> node;
+    std::vector<Config> configs;
     cpp::token_iterator iter(fin);
     bool in_class = false;
     bool in_interface = false;
@@ -958,9 +1086,9 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
             }
             else {
                 scope.push_back("");
-                auto nod = ParseDrawFun(line, iter, params);
-                if (nod)
-                    node = std::move(nod);
+                auto cfg = ParseDrawFun(line, iter);
+                if (cfg)
+                    configs.push_back(std::move(*cfg));
             }
             line.clear();
         }
@@ -1031,7 +1159,7 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname, std::map<std::st
         ++iter;
     }
 
-    return node;
+    return configs;
 }
 
 bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::string>& line, int flags)
@@ -1187,27 +1315,27 @@ std::string CppGen::IsMemFun(const std::vector<std::string>& line)
     return "";
 }
 
-bool CppGen::IsMemDrawFun(const std::vector<std::string>& line)
+std::optional<CppGen::Config>
+CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter)
 {
-    if (IsMemFun(line) != "Draw")
-        return false;
-    if (line.size() == 6)
-        return true;
-    if (line.size() == 9 && line[5] == "GLFWwindow" && line[6] == "*")
-        return true;
-    return false;
-}
-
-std::unique_ptr<TopWindow>
-CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& iter, std::map<std::string, std::string>& params)
-{
-    if (!IsMemDrawFun(line))
+    Config cfg;
+    std::string name = IsMemFun(line);
+    if (name == "Draw")
+        cfg.name;
+    else if (!name.compare(0, 5, "Draw_"))
+        cfg.name = name.substr(5);
+    else
         return {};
 
     auto pos1 = iter.stream().tellg();
     cpp::stmt_iterator sit(iter);
+    int level = sit->level;
     while (sit != cpp::stmt_iterator())
     {
+        if (sit->level < level) { //Draw code not found
+            iter.stream().seekg(pos1);
+            return {};
+        }
         if (sit->line == "/// @begin TopWindow")
             break;
         if (!sit->line.compare(0, 5, "/// @")) {
@@ -1216,7 +1344,7 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
             size_t i2 = i1 + 1;
             while (i2 + 1 < key.size() && (key[i2 + 1] == ' ' || key[i2 + 1] == '\t'))
                 ++i2;
-            params[key.substr(0, i1)] = key.substr(i2);
+            cfg.params[key.substr(0, i1)] = key.substr(i2);
         }
         ++sit;
     }
@@ -1227,12 +1355,15 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
     ctx.codeGen = this;
     ctx.workingDir = ctx_workingDir;
     ctx.importVersion = ctx_importVersion;
-    auto node = std::make_unique<TopWindow>(ctx);
-    node->Import(sit, ctx);
+    cfg.node = new TopWindow(ctx);
+    cfg.node->Import(sit, ctx);
     iter = sit.base();
-    for (const std::string& e : ctx.errors)
+    for (const std::string& e : ctx.errors) {
+        if (cfg.name != "")
+            m_error += cfg.name + ": ";
         m_error += e + "\n";
-    return node;
+    }
+    return cfg;
 }
 
 std::string CppType(const std::string& type)

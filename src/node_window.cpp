@@ -56,6 +56,15 @@ TopWindow::TopWindow(UIContext& ctx)
     placement.add$(Maximize);
 }
 
+std::unique_ptr<TopWindow> TopWindow::Clone(UIContext& ctx)
+{
+    auto clone = std::make_unique<TopWindow>(*this);
+    clone->children.resize(children.size());
+    for (size_t i = 0; i < children.size(); ++i)
+        clone->children[i] = children[i]->Clone(ctx);
+    return clone;
+}
+
 void TopWindow::Draw(UIContext& ctx)
 {
     ctx.unit = ctx.unit == "px" ? "" : ctx.unit;
@@ -1303,6 +1312,11 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = kind != Defaults().kind ? InputDirectVal_Modified : 0;
         changed = InputDirectValEnum(&kind, fl, ctx);
+        if (changed) //kind is synchronized through all configurations due to API effect
+        {
+            for (auto root : ctx.allRoots)
+                ((TopWindow*)root)->kind = kind;
+        }
         break;
     case 14:
     {

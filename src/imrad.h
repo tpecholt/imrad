@@ -149,6 +149,7 @@ struct IOUserData
     float dimBgRatio = 1.f;
     bool kbdShown = false;
     std::string activeActivity;
+    std::string activeConfig;
     //from UI
     int imeType = ImeText;
     ImGuiID longPressID = 0;

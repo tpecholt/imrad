@@ -44,6 +44,7 @@
 #include "ui_explorer.h"
 #include "ui_new_file_dlg.h"
 #include "ui_select_resource.h"
+#include "ui_configuration_dlg.h"
 
 #define IMRAD_H_IMPLEMENTATION
 #include "imrad.h"
@@ -59,18 +60,28 @@ static void glfw_error_callback(int error, const char* description)
 
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
-const std::string DEFAULT_UNIT = "px";
 const char* INI_FILE_NAME = "imgui.ini";
 
 struct File
 {
     std::string fname;
     CppGen codeGen;
-    std::unique_ptr<TopWindow> rootNode;
     bool modified = false;
     fs::file_time_type time[2];
-    std::string styleName;
-    std::string unit;
+
+    struct Config {
+        std::string name;
+        std::unique_ptr<TopWindow> rootNode;
+        std::string styleName;
+        std::string unit;
+    };
+    std::vector<Config> configs;
+    int activeConfig = -1;
+
+    //msvc requires this
+    File() = default;
+    File(File&& f) noexcept = default;
+    File& operator= (File&& f) = default;
 };
 
 float tbSize = 40;
@@ -92,7 +103,6 @@ std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
 int activeTab = -1;
 std::vector<std::pair<std::string, std::string>> styleNames; //name, path
-std::string styleName;
 bool reloadStyle = true;
 int addInputCharacter = 0;
 std::string lastPropName;
@@ -152,27 +162,46 @@ void DoReloadFile()
 {
     if (activeTab < 0)
         return;
-    auto& tab = fileTabs[activeTab];
-    if (tab.fname == "" || !fs::is_regular_file(u8path(tab.fname)))
+    auto& file = fileTabs[activeTab];
+    if (file.fname == "" || !fs::is_regular_file(u8path(file.fname)))
         return;
 
-    std::map<std::string, std::string> params;
+    std::string activeConfig = file.configs[file.activeConfig].name;
+    file.configs.clear();
     std::string error;
-    tab.rootNode = tab.codeGen.Import(tab.fname, params, error);
-    auto pit = params.find("style");
-    tab.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
-    pit = params.find("unit");
-    tab.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
-    bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
-        return st.first == tab.styleName;
-        });
-    if (!styleFound) {
-        error = "Unknown style \"" + tab.styleName + "\" used\n" + error;
-        tab.styleName = DEFAULT_STYLE;
+    auto data = file.codeGen.Import(file.fname, error);
+    if (data.empty()) {
+        errorBox.title = "CodeGen";
+        errorBox.message = "Unsuccessful import because of errors";
+        errorBox.error = error;
+        errorBox.OpenPopup();
+        return;
     }
-    tab.modified = false;
+
+    file.activeConfig = 0;
+    for (auto& c : data)
+    {
+        File::Config& cfg = file.configs.emplace_back();
+        if (cfg.name == activeConfig)
+            file.activeConfig = (int)file.configs.size() - 1;
+        cfg.name = c.name;
+        cfg.rootNode.reset(c.node);
+        auto it = c.params.find("style");
+        cfg.styleName = it != c.params.end() ? it->second : DEFAULT_STYLE;
+        bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
+            return st.first == cfg.styleName;
+            });
+        if (!styleFound) {
+            error += "Unknown style \"" + cfg.styleName + "\" used\n";
+            cfg.styleName = DEFAULT_STYLE;
+        }
+        it = c.params.find("unit");
+        cfg.unit = it != c.params.end() ? it->second : "px";
+    }
+
+    file.modified = false;
+    ctx.selected = { file.configs[file.activeConfig].rootNode.get() };
     ctx.mode = UIContext::NormalSelection;
-    ctx.selected = { tab.rootNode.get() };
 
     if (error != "" && programState != Shutdown)
     {
@@ -232,12 +261,12 @@ void ActivateTab(int i)
     }
     activeTab = i;
     auto& tab = fileTabs[i];
-    ctx.selected = { tab.rootNode.get() };
+    auto& cfg = tab.configs[tab.activeConfig];
+    ctx.selected = { cfg.rootNode.get() };
     ctx.codeGen = &tab.codeGen;
     ReloadFile();
-
-    if (fileTabs[activeTab].styleName != styleName)
-        reloadStyle = true;
+    //if (cfg.styleName != styleName)
+    reloadStyle = true;
 }
 
 void DoNewFile(TopWindow::Kind k)
@@ -245,10 +274,13 @@ void DoNewFile(TopWindow::Kind k)
     ctx.kind = k;
     auto top = std::make_unique<TopWindow>(ctx);
     File file;
-    file.rootNode = std::move(top);
-    file.styleName = DEFAULT_STYLE;
-    file.unit = k == TopWindow::Activity ? "dp" : DEFAULT_UNIT;
     file.modified = true;
+    auto& cfg = file.configs.emplace_back();
+    cfg.name = "";
+    cfg.styleName = DEFAULT_STYLE;
+    cfg.unit = k == TopWindow::Activity ? "dp" : "px";
+    cfg.rootNode = std::move(top);
+    file.activeConfig = 0;
     fileTabs.push_back(std::move(file));
     ActivateTab((int)fileTabs.size() - 1);
 }
@@ -384,14 +416,10 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
     std::error_code err;
     file.time[0] = fs::last_write_time(u8path(file.fname), err);
     file.time[1] = fs::last_write_time(u8path(file.codeGen.AltFName(file.fname)), err);
-    std::map<std::string, std::string> params;
+
     std::string error;
-    file.rootNode = file.codeGen.Import(file.fname, params, error);
-    auto pit = params.find("style");
-    file.styleName = pit == params.end() ? DEFAULT_STYLE : pit->second;
-    pit = params.find("unit");
-    file.unit = pit == params.end() ? DEFAULT_UNIT : pit->second;
-    if (!file.rootNode) {
+    auto data = file.codeGen.Import(file.fname, error);
+    if (data.empty()) {
         if (errs)
             *errs += "Unsuccessful import of '" + path + "'\n";
         else {
@@ -403,20 +431,30 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
         return false;
     }
 
-    bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
-        return st.first == file.styleName;
-        });
-    if (!styleFound) {
-        if (errs)
-            *errs += "Uknown style \"" + file.styleName + "\" used\n";
-        else
-            error = "Unknown style \"" + file.styleName + "\" used\n" + error;
-        file.styleName = DEFAULT_STYLE;
+    file.activeConfig = 0;
+    for (const auto& c : data) {
+        auto& cfg = file.configs.emplace_back();
+        auto pit = c.params.find("style");
+        cfg.styleName = pit == c.params.end() ? DEFAULT_STYLE : pit->second;
+        bool styleFound = stx::count_if(styleNames, [&](const auto& st) {
+            return st.first == cfg.styleName;
+            });
+        if (!styleFound) {
+            if (errs)
+                *errs += "Uknown style \"" + cfg.styleName + "\" used\n";
+            else
+                error += "Unknown style \"" + cfg.styleName + "\" used\n";
+            cfg.styleName = DEFAULT_STYLE;
+        }
+        pit = c.params.find("unit");
+        cfg.unit = pit == c.params.end() ? "px" : pit->second;
+        cfg.name = c.name;
+        cfg.rootNode.reset(c.node);
     }
 
     auto it = stx::find_if(fileTabs, [&](const File& f) { return f.fname == file.fname; });
     if (it == fileTabs.end()) {
-        fileTabs.push_back({});
+        fileTabs.emplace_back();
         it = fileTabs.begin() + fileTabs.size() - 1;
     }
     int idx = int(it - fileTabs.begin());
@@ -540,13 +578,19 @@ void DoSaveFile(int flags)
     os << dpi << "," << xscale;
 
     auto& tab = fileTabs[activeTab];
-    std::map<std::string, std::string> params{
-        { "style", tab.styleName },
-        { "unit", tab.unit },
-        { "dpi-info", os.str() }
-    };
+    std::vector<CppGen::Config> cgcs;
+    for (const auto& cfg : tab.configs) {
+        CppGen::Config& cgc = cgcs.emplace_back();
+        cgc.name = cfg.name;
+        cgc.params = {
+            { "style", cfg.styleName },
+            { "unit", cfg.unit },
+            { "dpi-info", os.str() }
+        };
+        cgc.node = cfg.rootNode.get();
+    }
     std::string error;
-    if (!tab.codeGen.ExportUpdate(tab.fname, tab.rootNode.get(), params, error))
+    if (!tab.codeGen.ExportUpdate(tab.fname, cgcs, error))
     {
         DoCancelShutdown();
         errorBox.title = "CodeGen";
@@ -674,7 +718,8 @@ void ShowCode()
     fout << "// NOTE: This is just a preview of the Draw() method. To see the complete code\n"
          << "// including class definition and event handlers inspect generated .h/cpp files\n\n";
     ctx.ind = "";
-    auto* root = fileTabs[activeTab].rootNode.get();
+    const auto& file = fileTabs[activeTab];
+    auto* root = file.configs[file.activeConfig].rootNode.get();
     root->Export(fout, ctx);
 
     if (ctx.errors.size()) {
@@ -939,6 +984,7 @@ void LoadStyle()
 
     //reload ImRAD UI first
     StyleColors();
+    //ImGui::GetStyle().ScaleAllSizes(mainScale);
     ImGui::GetStyle().FontScaleDpi = mainScale;
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
@@ -970,7 +1016,8 @@ void LoadStyle()
 
     if (activeTab >= 0)
     {
-        std::string styleName = fileTabs[activeTab].styleName;
+        const auto& file = fileTabs[activeTab];
+        std::string styleName = file.configs[file.activeConfig].styleName;
         if (styleName == "Classic")
         {
             ImGui::StyleColorsClassic(&ctx.style);
@@ -1037,7 +1084,7 @@ void LoadStyle()
     }
 }
 
-void DoCloneStyle(const std::string& name)
+bool CopyStyle(const std::string& from, const std::string& name, std::string& err)
 {
     auto FormatClr = [](ImU32 c) {
         std::ostringstream os;
@@ -1048,7 +1095,6 @@ void DoCloneStyle(const std::string& name)
         return os.str();
     };
 
-    std::string from = fileTabs[activeTab].styleName;
     std::string path = rootPath + "/style/" + name + ".ini";
     try
     {
@@ -1079,28 +1125,16 @@ void DoCloneStyle(const std::string& name)
         {
             fs::copy_file(u8path(rootPath + "/style/" + from + ".ini"), u8path(path), fs::copy_options::overwrite_existing);
         }
-
-        fileTabs[activeTab].styleName = name;
-        if (!stx::count_if(styleNames, [&](const auto& s) { return s.first == name; }))
-            styleNames.push_back({ name, path });
-
-        messageBox.title = "Style saved";
-        messageBox.icon = MessageBox::Info;
-        messageBox.message = "New style was saved as '" + path + "'";
-        messageBox.buttons = ImRad::Ok;
-        messageBox.OpenPopup();
+        return true;
     }
     catch (std::exception& e)
     {
-        messageBox.title = "error";
-        messageBox.icon = MessageBox::Warning;
-        messageBox.message = e.what();
-        messageBox.buttons = ImRad::Ok;
-        messageBox.OpenPopup();
+        err = e.what();
+        return false;
     }
 }
 
-void CloneStyle()
+/*void CloneStyle()
 {
     inputName.title = "Clone Style";
     inputName.hint = "Enter new style name";
@@ -1120,12 +1154,63 @@ void CloneStyle()
             else
                 DoCloneStyle(inputName.name);
         });
-}
+}*/
 
 void EditStyle()
 {
-    std::string path = rootPath + "/style/" + fileTabs[activeTab].styleName + ".ini";
+    const auto& file = fileTabs[activeTab];
+    std::string path = rootPath + "/style/" + file.configs[file.activeConfig].styleName + ".ini";
     ShellExec(path);
+}
+
+void EditConfigurations()
+{
+    if (activeTab < 0)
+        return;
+    auto& file = fileTabs[activeTab];
+    TopWindow::Kind kind = file.configs[0].rootNode->kind; //guaranteed to be same
+
+    configurationDlg.copyStyleFun = CopyStyle;
+    configurationDlg.defaultStyle = DEFAULT_STYLE;
+    configurationDlg.defaultUnit = kind == TopWindow::Activity ? "dp" : "px";
+    configurationDlg.styles.clear();
+    for (const auto& style : styleNames)
+        configurationDlg.styles.push_back(style.first);
+
+    configurationDlg.configs.clear();
+    for (const auto& cfg : file.configs) {
+        size_t i = &cfg - file.configs.data();
+        configurationDlg.configs.push_back({ (int)i, cfg.name, cfg.styleName, cfg.unit });
+    }
+    configurationDlg.OpenPopup([&](ImRad::ModalResult mr) {
+        std::vector<int> allIds;
+        for (const auto& c : configurationDlg.configs) {
+            File::Config* cfg;
+            if (c.id < 0) { //new config
+                cfg = &file.configs.emplace_back();
+                cfg->rootNode = std::make_unique<TopWindow>(ctx);
+                cfg->rootNode->kind = kind;
+                allIds.push_back((int)file.configs.size() - 1);
+            }
+            else { //edit config
+                cfg = &file.configs[c.id];
+                allIds.push_back(c.id);
+            }
+            cfg->name = c.name;
+            cfg->styleName = c.style;
+            cfg->unit = c.unit;
+        }
+        for (size_t i = file.configs.size() - 1; i < file.configs.size(); --i) {
+            if (!stx::count(allIds, i)) { //remove config
+                file.configs.erase(file.configs.begin() + i);
+            }
+        }
+
+        if (file.activeConfig >= file.configs.size())
+            file.activeConfig = (int)file.configs.size() - 1;
+        GetStyles();
+        reloadStyle = true;
+    });
 }
 
 void OpenSettings()
@@ -1345,7 +1430,50 @@ void ToolbarUI()
     ImGui::SameLine();
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
     ImGui::SameLine();
-    ImGui::Text("Style");
+    ImGui::Text("Configuration:");
+    ImGui::SameLine();
+    ImGui::BeginDisabled(activeTab < 0);
+    ImGui::SetNextItemWidth(7 * ImGui::GetFontSize());
+    auto* thisFile = activeTab >= 0 ? &fileTabs[activeTab] : nullptr;
+    std::string cfgName;
+    if (thisFile) {
+        cfgName = thisFile->configs[thisFile->activeConfig].name;
+        if (cfgName == "")
+            cfgName = "(Default)";
+    }
+    if (ImGui::BeginCombo("##configuration", cfgName.c_str()))
+    {
+        for (size_t i = 0; i < (thisFile ? thisFile->configs.size() : 0); ++i)
+        {
+            cfgName = thisFile->configs[i].name;
+            if (cfgName == "")
+                cfgName = "(Default)";
+            if (ImGui::Selectable(cfgName.c_str(), i == thisFile->activeConfig))
+            {
+                thisFile->activeConfig = (int)i;
+                //ftab->modified = true;
+                ctx.selected = { thisFile->configs[thisFile->activeConfig].rootNode.get() };
+                reloadStyle = true;
+            }
+        }
+        ImGui::Separator();
+        if (ImGui::Selectable("Configuration Manager...", false))
+            EditConfigurations();
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    std::string thisStyle = thisFile ? thisFile->configs[thisFile->activeConfig].styleName : "";
+    auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == thisStyle; });
+    ImGui::BeginDisabled(stit == styleNames.end() || stit->second.empty());
+    if (ImGui::Button(ICON_FA_PALETTE))
+        EditStyle();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+        ImGui::SetTooltip(("Edit Style \"" + thisStyle + "\"").c_str());
+    ImGui::EndDisabled();
+
+    ImGui::EndDisabled();
+
+    /*ImGui::Text("Style");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(7 * ImGui::GetFontSize());
     styleName = "";
@@ -1387,7 +1515,7 @@ void ToolbarUI()
     ImGui::SameLine();
     ImGui::SetNextItemWidth(6 * ImGui::GetFontSize());
     const std::string unit = activeTab >= 0 ? fileTabs[activeTab].unit : "";
-    std::array<const char*, 2> UNITS{ "px", /*"fs",*/ "dp" };
+    std::array<const char*, 2> UNITS{ "px", "dp" };
     int usel = 0;
     if (unit != "")
         usel = (int)(stx::find(UNITS, unit) - UNITS.begin());
@@ -1396,8 +1524,9 @@ void ToolbarUI()
         auto& tab = fileTabs[activeTab];
         tab.unit = UNITS[usel];
         tab.modified = true;
-    }
-    ImGui::SameLine();
+    }*/
+
+    ImGui::SameLine(0, 2*ImGui::GetStyle().ItemSpacing.x);
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
     ImGui::SameLine();
@@ -1411,8 +1540,10 @@ void ToolbarUI()
     if (ImGui::Button(ICON_FA_CUBES))
     {
         classWizard.codeGen = ctx.codeGen;
-        classWizard.root = fileTabs[activeTab].rootNode.get();
-        classWizard.modified = &fileTabs[activeTab].modified;
+        classWizard.roots.clear();
+        classWizard.modified = &thisFile->modified;
+        for (auto& cfg : thisFile->configs)
+            classWizard.roots.push_back(cfg.rootNode.get());
         classWizard.OpenPopup();
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
@@ -1431,7 +1562,7 @@ void ToolbarUI()
     ImGui::BeginDisabled(!showHelper);
     if (ImGui::Button(ICON_FA_BORDER_NONE))
     {
-        horizLayout.root = fileTabs[activeTab].rootNode.get();
+        horizLayout.root = thisFile->configs[thisFile->activeConfig].rootNode.get();
         HorizLayout::ExpandSelection(ctx.selected, horizLayout.root);
         horizLayout.selected = ctx.selected;
         horizLayout.ctx = &ctx;
@@ -1591,8 +1722,12 @@ void HierarchyUI()
     //ImGui::PushFont(ctx.defaultFont); icons are FA
     ImGui::PushStyleVarX(ImGuiStyleVar_WindowPadding, 0);
     ImGui::Begin("Hierarchy");
-    if (activeTab >= 0 && fileTabs[activeTab].rootNode)
-        fileTabs[activeTab].rootNode->TreeUI(ctx);
+    if (activeTab >= 0) {
+        const auto& file = fileTabs[activeTab];
+        const auto& cfg = file.configs[file.activeConfig];
+        if (cfg.rootNode)
+            cfg.rootNode->TreeUI(ctx);
+    }
     ImGui::End();
     ImGui::PopStyleVar();
 }
@@ -1965,16 +2100,21 @@ void PopupUI()
     newFileDlg.Draw();
 
     selectResource.Draw();
+
+    configurationDlg.Draw();
 }
 
 void Draw()
 {
-    if (activeTab < 0 || !fileTabs[activeTab].rootNode)
-        return;
     if (reloadStyle) //eliminates flicker
         return;
+    if (activeTab < 0)
+        return;
+    auto& file = fileTabs[activeTab];
+    auto& cfg = file.configs[file.activeConfig];
+    if (!cfg.rootNode)
+        return;
 
-    auto& tab = fileTabs[activeTab];
     auto tmpStyle = ImGui::GetStyle();
     ImGui::GetStyle() = ctx.style;
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
@@ -1983,10 +2123,14 @@ void Draw()
     ImGui::PushFont(ctx.defaultStyleFont, designFontSize);
 
     ctx.appStyle = &tmpStyle;
-    ctx.workingDir = u8string(u8path(tab.fname).parent_path());
-    ctx.unit = tab.unit;
-    ctx.modified = &tab.modified;
-    tab.rootNode->Draw(ctx);
+    ctx.workingDir = u8string(u8path(file.fname).parent_path());
+    ctx.unit = cfg.unit;
+    ctx.modified = &file.modified;
+    ctx.allRoots.clear();
+    for (const auto& cfg : file.configs)
+        ctx.allRoots.push_back(cfg.rootNode.get());
+
+    cfg.rootNode->Draw(ctx);
 
     if (ctx.isAutoSize && ctx.layoutHash != ctx.prevLayoutHash)
     {
@@ -2002,11 +2146,12 @@ void Draw()
 std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
 {
     auto& tab = fileTabs[activeTab];
-    std::vector<UINode*> allNodes = tab.rootNode->GetAllChildren();
+    auto& rootNode = tab.configs[tab.activeConfig].rootNode;
+    std::vector<UINode*> allNodes = rootNode->GetAllChildren();
     std::vector<UINode*> children;
     for (UINode* node : sel)
     {
-        if (node == tab.rootNode.get())
+        if (node == rootNode.get())
             continue;
         auto it = stx::find(allNodes, node);
         if (it == allNodes.end())
@@ -2018,7 +2163,7 @@ std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
     std::vector<std::pair<int, UINode*>> sortedSel;
     for (UINode* node : sel)
     {
-        if (node == tab.rootNode.get())
+        if (node == rootNode.get())
             continue;
         auto it = stx::find(allNodes, node);
         if (it == allNodes.end() || stx::find(children, node) != children.end())
@@ -2040,16 +2185,17 @@ std::vector<std::unique_ptr<Widget>>
 RemoveSelected()
 {
     auto& tab = fileTabs[activeTab];
+    auto& rootNode = tab.configs[tab.activeConfig].rootNode;
     std::vector<UINode*> sortedSel = SortSelection(ctx.selected);
     if (sortedSel.empty())
         return {};
 
     std::vector<std::unique_ptr<Widget>> remove;
     tab.modified = true;
-    auto pi1 = tab.rootNode->FindChild(sortedSel[0]);
+    auto pi1 = rootNode->FindChild(sortedSel[0]);
     for (UINode* node : sortedSel)
     {
-        auto pi = tab.rootNode->FindChild(node);
+        auto pi = rootNode->FindChild(node);
         UINode* parent = pi->first;
         remove.push_back(std::move(parent->children[pi->second]));
         parent->children.erase(parent->children.begin() + pi->second);
@@ -2134,6 +2280,9 @@ void CheckVersion()
 
 void Work()
 {
+    File* file = activeTab >= 0 ? &fileTabs[activeTab] : nullptr;
+    TopWindow* rootNode = file ? file->configs[file->activeConfig].rootNode.get() : nullptr;
+
     if (ImGui::GetTopMostAndVisiblePopupModal())
         return;
 
@@ -2214,7 +2363,7 @@ void Work()
                 clipboard.push_back(std::move(clone));
             }
             activeButton = "";
-            fileTabs[activeTab].modified = true;
+            file->modified = true;
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
         }
     }
@@ -2250,7 +2399,7 @@ void Work()
             if (ctx.mode == UIContext::SnapMove)
             {
                 assert(ctx.selected.size() == 1);
-                auto pinfo = fileTabs[activeTab].rootNode->FindChild(ctx.selected[0]);
+                auto pinfo = rootNode->FindChild(ctx.selected[0]);
                 auto chinfo = ctx.selected[0]->FindChild(ctx.snapParent);
                 if (chinfo) {
                     //disallow moving into its child
@@ -2337,7 +2486,7 @@ void Work()
             }
             ctx.mode = UIContext::NormalSelection;
             activeButton = "";
-            fileTabs[activeTab].modified = true;
+            file->modified = true;
             ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left] = false; //eat event
         }
     }
@@ -2363,7 +2512,7 @@ void Work()
             }
             if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_C, ImGuiInputFlags_RouteGlobal) &&
                 !ctx.selected.empty() &&
-                ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+                ctx.selected[0] != rootNode)
             {
                 clipboard.clear();
                 bool tmp = ctx.createVars;
@@ -2378,7 +2527,7 @@ void Work()
             }
             if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_X, ImGuiInputFlags_RouteGlobal) &&
                 !ctx.selected.empty() &&
-                ctx.selected[0] != fileTabs[activeTab].rootNode.get())
+                ctx.selected[0] != rootNode)
             {
                 clipboard = RemoveSelected();
             }
@@ -2549,7 +2698,7 @@ void AddINIHandler()
             if (programState != Init)
                 return;
             if (!strcmp((const char*)entry, "Recent")) {
-                int i;
+                int i, j;
                 if (sscanf(line, "File%d=", &i) == 1) {
                     std::string fname = line + std::string_view(line).find('=') + 1;
                     if (i == 1) {
@@ -2563,6 +2712,11 @@ void AddINIHandler()
                         initErrors += Replace(Trim(err), "\n", "\n\t");
                         initErrors += "\n";
                     }
+                }
+                else if (sscanf(line, "ActiveConfig%d=%d", &i, &j) == 2) {
+                    --i;
+                    if (i < fileTabs.size() && j < fileTabs[i].configs.size())
+                        fileTabs[i].activeConfig = j;
                 }
                 else if (sscanf(line, "ActiveTab=%d", &i) == 1) {
                     ActivateTab(i);
@@ -2608,6 +2762,7 @@ void AddINIHandler()
                 if (fileTabs[i].fname != "") {
                     buf->appendf("File%d=%s\n", i + 1, fileTabs[i].fname.c_str());
                     ++count;
+                    buf->appendf("ActiveConfig%d=%d\n", i + 1, fileTabs[i].activeConfig);
                 }
                 else if (i < active)
                     --active;
@@ -2834,7 +2989,7 @@ int main(int argc, const char* argv[])
 
     // Cleanup
     NFD_Quit();
-    
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

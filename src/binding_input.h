@@ -517,8 +517,9 @@ inline bool InputBindable(bindable<T>* val, const std::string& type, int flags, 
                 newFieldPopup.codeGen = ctx.codeGen;
                 newFieldPopup.varOldName = vars[0];
                 newFieldPopup.mode = NewFieldPopup::RenameField;
-                newFieldPopup.OpenPopup([val, root = ctx.root]{
-                    root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
+                newFieldPopup.OpenPopup([val, roots = ctx.allRoots]{
+                    for (auto root : roots)
+                        root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
                     });
             }
             ImGui::PopStyleColor();
@@ -1090,8 +1091,9 @@ inline bool InputFieldRef(field_ref<T>* val, const std::string& type, bool allow
             newFieldPopup.codeGen = ctx.codeGen;
             newFieldPopup.varOldName = vars[0];
             newFieldPopup.mode = NewFieldPopup::RenameField;
-            newFieldPopup.OpenPopup([val, root=ctx.root] {
-                root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
+            newFieldPopup.OpenPopup([val, roots=ctx.allRoots] {
+                for (auto root : roots)
+                    root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
                 });
         }
         ImGui::PopStyleColor();

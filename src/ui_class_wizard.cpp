@@ -50,7 +50,10 @@ void ClassWizard::Refresh()
         });
 
     used.clear();
-    FindUsed(root, used);
+    for (auto root : roots)
+        FindUsed(root, used);
+    stx::sort(used);
+    used.erase(stx::unique(used), used.end());
 }
 
 void ClassWizard::FindUsed(UINode* node, std::vector<std::string>& used)
@@ -249,7 +252,8 @@ void ClassWizard::Draw()
             newFieldPopup.varOldName = fields[selRow].name;
             newFieldPopup.OpenPopup([this] {
                 *modified = true;
-                root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
+                for (auto root : roots)
+                    root->RenameFieldVars(newFieldPopup.varOldName, newFieldPopup.varName);
                 Refresh();
                 });
         }
