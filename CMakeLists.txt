@@ -17,7 +17,7 @@ if (MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
     add_definitions(-D_USE_MATH_DEFINES)
-    #string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus") imrad.h doesn't need it anymore
+    string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus") # needed by utils.cpp
     string(APPEND CMAKE_CXX_FLAGS " /utf-8")
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
