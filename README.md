@@ -17,23 +17,24 @@ ImRAD runs on Windows, Linux and MacOS. Generated code runs on Windows, Linux, M
 
 <hr>
 
-![image](https://github.com/user-attachments/assets/e5896d57-0560-476b-a1cf-2d7b844c1b68)
-
+<img width="1325" height="741" alt="image" src="https://github.com/user-attachments/assets/91d71692-fbf6-4411-9796-b44992d4a94e" />
+<br><br>
 
 *Take a note of the Toolbar section:*
-* *Configurable window style which is stored in an INI file. It contains definitions of colors, style variables and fonts. The example uses stock "Dark" style*
-* *Dialog units option which can also be set to DPI aware pixels useful when designing android apps*
+* *Configuration allows to specify UI variants, window styles and dialog units.*
 * *Code Preview for quick checks. Full generated code is saved in .h/cpp files*   
 * *Class wizard allows to manage member variables of the generated class*
 * *Horizontal layout helper using invisible table. This is an alternative to the box layout functionality.*
 
 *Designed window shows:*
 * *Stretchable spacer between "Available fields" text and "show all" checkbox and between dialog buttons. ImRAD comes with box layout support not available in standard ImGui*
-* *Negative size_x/y support which makes the table widget expand vertically keeping 48px gap from the bottom edge of the dialog*
-* *Selectable widget bindings such as `{vars[i].first}`. Bind expressions will be put in the generated code showing content of the `vars` array*
+* *Negative size_x/y support which makes the table widget expand in both directions but keep 48px gap from the bottom edge of the dialog*
+* *Selectable widget bindings such as `{name}=`, `{expr}`, `{vars[$index].first}` etc. Bind expressions will be put in the generated code showing content of the `vars` array*
 
 *Properties window contains:*
-* *Table.rowCount binding set to the `vars.size()` expression. This will generate code with a for loop over table rows. One-way or two-way binding is supported by most properties*
+* *Properties for all kinds of ImGui functionality such as table `scrollFreeze` and multi selection*
+* *ImRAD added functionality such as box sizers, `scrollWhenDragging`*
+* *`rowCount` binding set to the `vars.size()` expression. This will generate code with a for loop over table rows. One-way or two-way binding is supported by most properties*
 
 *Events window*
 * *Allows to generate handlers for all kinds of events such as button click, window appearance, input text character filter etc.* 
@@ -84,10 +85,10 @@ ImRAD runs on Windows, Linux and MacOS. Generated code runs on Windows, Linux, M
   * this can be used to f.e. to call draw dependent popups or to calculate some variables
   * it is also possible to use `CustomWidget` which will delegate to a user callback 
 
-* Target window style is fully configurable
-  * apart from default styles provided by ImGui user can define new style and save it as an INI file under the `style` folder. Colors, style variables and fonts can all be configured.
-  * ImRAD will follow chosen style settings when designing your UI
-  * stored style can be loaded in your app by calling `ImRad::LoadStyle`  
+* Window configurations, styles and dialog units
+  * window configurations are UI variants which can be activated at runtime. This is useful for apps running or different platforms, screen roations etc.
+  * style is a set of colors, style variables and fonts that can all be configured and shared between your dialogs. Apart from default styles provided by ImGui user can define new style and save it as an INI file under the `style` folder. 
+  * dialog unit can be set to device independent pixels which is useful for android and DPI-aware apps  
 
 * Generated code is ready to use in your project and depends only on ImGui library and one accompanying header file **imrad.h**
   * Current **imrad.h** contains both the interface and implementation. Define `IMRAD_H_IMPLEMENTATION` prior including it in the main.cpp file to create implementation.
@@ -95,7 +96,9 @@ ImRAD runs on Windows, Linux and MacOS. Generated code runs on Windows, Linux, M
   * Some features such as `MainWindow` or `Image` widget require additional library dependencies (GLFW, STB) and need to be explicitly enabled by defining `IMRAD_WITH_LOAD_TEXTURE`
   * **imrad.h** supports loading assets from zipped file using the *zlib* library. Activate it by defining `IMRAD_WITH_MINIZIP`
 
-* ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
+* Multitasking
+  * ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
+  * Change of the INI style is also displayed immediately
 
 # License
 
