@@ -96,7 +96,7 @@ int main(int argc, const char* argv[])
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 	//glfwMaximizeWindow(window);
-    glfwSetFramebufferSizeCallback(window, glfw_framebuffer_size_callback);
+	glfwSetFramebufferSizeCallback(window, glfw_framebuffer_size_callback);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();

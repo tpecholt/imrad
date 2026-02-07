@@ -25,7 +25,7 @@ struct UIContext
     CppGen* codeGen = nullptr;
     ImVec2 designAreaMin, designAreaMax; //ImRect is internal?
     std::string workingDir;
-    enum Color { Hovered, Selected, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
+    enum Color { Hovered, Selected, DrawArgs, Snap1, Snap2, Snap3, Snap4, Snap5, COUNT };
     std::array<ImU32, Color::COUNT> colors;
     std::vector<std::string> fontNames;
     ImFont* defaultStyleFont = nullptr;

@@ -186,16 +186,16 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
         return;
 
     ImVec2 pos = ps.pos;
-    uint32_t clr = ctx.colors[UIContext::Color::Selected];
-    clr = (clr & 0x00ffffff) | 0xb0000000;
+    uint32_t clr = ctx.colors[UIContext::Color::DrawArgs];
     float wrapPos = ImGui::GetCurrentWindow()->DC.TextWrapPos;
 
     if (wrapPos < 0 || size.x || size.y || offset.x || offset.y)
     {
+        ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
         if (align.x || align.y) {
             ImVec2 textSize = ImGui::CalcTextSize(ps.label.data(), ps.label.data() + ps.label.size());
-            ImVec2 sz = ImGui::CalcItemSize(size, textSize.x, textSize.y);
-            ImVec2 dp{ (sz.x - textSize.x) * align.x, (sz.y - textSize.y) * align.y };
+            ImVec2 boxSize = ImGui::CalcItemSize(sz, textSize.x, textSize.y);
+            ImVec2 dp{ (boxSize.x - textSize.x) * align.x, (boxSize.y - textSize.y) * align.y };
             pos += dp;
         }
 
@@ -203,14 +203,14 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
         size_t i = 0;
         for (const auto& arg : ps.fmtArgs) {
             pos.x += ImGui::CalcTextSize(ps.label.data() + i, ps.label.data() + arg.first).x;
-            if (pos.x > ps.pos.x + size.x)
+            if (sz.x && pos.x > ps.pos.x + sz.x)
                 break;
             ImGui::GetWindowDrawList()->AddText(pos, clr, "{");
             //ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second);
             //ImGui::GetWindowDrawList()->AddRectFilled(pos, pos + sz, 0x50808080);
-            ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second - 1);
-            pos.x += sz.x;
-            if (pos.x > ps.pos.x + size.x)
+            ImVec2 tsz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second - 1);
+            pos.x += tsz.x;
+            if (sz.x && pos.x > ps.pos.x + sz.x)
                 break;
             ImGui::GetWindowDrawList()->AddText(pos, clr, "}");
             i = arg.second - 1;

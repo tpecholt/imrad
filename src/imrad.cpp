@@ -939,6 +939,7 @@ GetCtxColors(const std::string& styleName)
     static const std::array<ImU32, UIContext::Color::COUNT> classic{
         IM_COL32(255, 255, 0, 128),
         IM_COL32(255, 0, 0, 255),
+        IM_COL32(255, 0, 0, 164),
         IM_COL32(128, 128, 255, 255),
         IM_COL32(255, 0, 255, 255),
         IM_COL32(0, 255, 255, 255),
@@ -946,6 +947,7 @@ GetCtxColors(const std::string& styleName)
     };
     static const std::array<ImU32, UIContext::Color::COUNT> light {
         IM_COL32(0, 0, 255, 128),
+        IM_COL32(255, 96, 96, 255),
         IM_COL32(255, 96, 96, 255),
         IM_COL32(128, 128, 255, 255),
         IM_COL32(255, 0, 255, 255),
@@ -955,6 +957,7 @@ GetCtxColors(const std::string& styleName)
     static const std::array<ImU32, UIContext::Color::COUNT> dark{
         IM_COL32(255, 255, 0, 128),
         IM_COL32(255, 0, 0, 255),
+        IM_COL32(192, 0, 0, 255),
         IM_COL32(128, 128, 255, 255),
         IM_COL32(255, 0, 255, 255),
         IM_COL32(0, 255, 255, 255),
@@ -1067,6 +1070,7 @@ void LoadStyle()
 #define SET_CLR(a) if (key == #a) ctx.colors[UIContext::a] = clr;
                     SET_CLR(Selected);
                     SET_CLR(Hovered);
+                    SET_CLR(DrawArgs);
                     SET_CLR(Snap1);
                     SET_CLR(Snap2);
                     SET_CLR(Snap3);
@@ -1113,6 +1117,7 @@ bool CopyStyle(const std::string& from, const std::string& name, std::string& er
 #define SET_CLR(a) extra[std::string("imrad.colors.") + #a] = FormatClr(colors[UIContext::Color::a]);
             SET_CLR(Selected);
             SET_CLR(Hovered);
+            SET_CLR(DrawArgs);
             SET_CLR(Snap1);
             SET_CLR(Snap2);
             SET_CLR(Snap3);
@@ -3000,3 +3005,4 @@ int main(int argc, const char* argv[])
 
     return 0;
 }
+
