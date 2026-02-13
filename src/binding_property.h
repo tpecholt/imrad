@@ -809,8 +809,6 @@ struct bindable<std::string> : property_base
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {
         return cpp::to_str_arg(str);
-        //todo: prefer single variable. Does it need to be c_str()??
-        // , has_single_variable());
     }
     bool has_single_variable() const {
         if (empty() || str[0] != '{' || str.back() != '}')
@@ -893,6 +891,11 @@ struct bindable<std::vector<std::string>> : bindable<std::string>
         return str.size() > 2 && str[0] == '{' &&
             str.find('{', 1) == std::string::npos &&
             str.back() == '}';
+    }
+    bool set_from_arg(std::string_view s)
+    {
+        str = cpp::parse_str_arg(s, true);
+        return str != cpp::INVALID_TEXT;
     }
     std::string to_arg(std::string_view = "", std::string_view = "") const
     {

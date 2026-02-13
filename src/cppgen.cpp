@@ -121,7 +121,7 @@ bool CppGen::ExportUpdate(
     std::vector<std::string> drawCode;
     for (const Config& cfg : configs)
     {
-        if (cfg.node->animate)
+        if (cfg.node->animate != TopWindow::NoAnimation)
             m_animate = true;
         UIContext ctx;
         ctx.codeGen = this;
@@ -429,6 +429,13 @@ CppGen::ExportH(
                 {
                     out << INDENT << "ImGuiID ID = 0;\n";
                     out << INDENT << "ImRad::ModalResult modalResult;\n";
+                    if (m_animate) {
+                        out << INDENT << "ImRad::Animator animator;\n";
+                        out << INDENT << "ImVec2 animPos;\n";
+                    }
+                }
+                else if (m_kind == TopWindow::Activity)
+                {
                     if (m_animate) {
                         out << INDENT << "ImRad::Animator animator;\n";
                         out << INDENT << "ImVec2 animPos;\n";
@@ -872,14 +879,14 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
         else
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
-                if (cfg.node->animate)
+                TopWindow::Animation animate = cfg.node->animate;
+                if (animate != TopWindow::NoAnimation)
                 {
-                    auto animPos = cfg.node->placement;
-                    if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+                    if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
                         os << "animator.StartPersistent(&animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
-                    else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
+                    else if (animate == TopWindow::MoveUp || animate == TopWindow::MoveDown)
                         os << "animator.StartPersistent(&animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
-                    if (m_kind == TopWindow::ModalPopup)
+                    if (m_kind == TopWindow::ModalPopup || animate == TopWindow::FadeIn)
                         os << "animator.StartPersistent(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n";
                 }
                 else if (m_kind == TopWindow::ModalPopup)
@@ -912,14 +919,14 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
         else
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
-                if (cfg.node->animate)
+                TopWindow::Animation animate = cfg.node->animate;
+                if (animate != TopWindow::NoAnimation)
                 {
-                    auto animPos = cfg.node->placement;
-                    if (animPos == TopWindow::Left || animPos == TopWindow::Right)
+                    if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
                         os << "animator.StartOnce(&animPos.x, animPos.x, -animator.GetWindowSize().x, ImRad::Animator::DurClosePopup);\n";
-                    else if (animPos == TopWindow::Top || animPos == TopWindow::Bottom || animPos == TopWindow::Center)
-                        os << "animator.StartOnce(&animPos.y, animPos.x, -animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
-                    if (m_kind == TopWindow::ModalPopup)
+                    else if (animate == TopWindow::MoveUp|| animate == TopWindow::MoveDown)
+                        os << "animator.StartOnce(&animPos.y, animPos.y, -animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
+                    if (m_kind == TopWindow::ModalPopup || animate == TopWindow::FadeIn)
                         os << "animator.StartOnce(&ImRad::GetUserData().dimBgRatio, ImRad::GetUserData().dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
                 }
                 else if (m_kind == TopWindow::ModalPopup)
@@ -947,6 +954,23 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
         fout << INDENT << INDENT << "ImRad::GetUserData().activeActivity = \"" << m_name << "\";\n";
         fout << INDENT << INDENT << "Init();\n";
         fout << INDENT << "}\n";
+
+        if (m_animate)
+        {
+            WriteForEachConfig(fout, configs, [this](const Config& cfg) {
+                std::ostringstream os;
+                TopWindow::Animation animate = cfg.node->animate;
+                if (animate != TopWindow::NoAnimation)
+                {
+                    if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
+                        os << "animator.StartPersistent(&animPos.x, -ImGui::GetMainViewport()->Size.x, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    else if (animate == TopWindow::MoveUp || animate == TopWindow::MoveDown)
+                        os << "animator.StartPersistent(&animPos.y, -ImGui::GetMainViewport()->Size.y, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                }
+                return os.str();
+                });
+        }
+
         fout << "}";
         return true;
     }

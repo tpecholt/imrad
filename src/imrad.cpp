@@ -1174,6 +1174,7 @@ void EditConfigurations()
         return;
     auto& file = fileTabs[activeTab];
     TopWindow::Kind kind = file.configs[0].rootNode->kind; //guaranteed to be same
+    std::string activeConfigName = file.configs[file.activeConfig].name;
 
     configurationDlg.copyStyleFun = CopyStyle;
     configurationDlg.defaultStyle = DEFAULT_STYLE;
@@ -1210,9 +1211,14 @@ void EditConfigurations()
                 file.configs.erase(file.configs.begin() + i);
             }
         }
-
-        if (file.activeConfig >= file.configs.size())
-            file.activeConfig = (int)file.configs.size() - 1;
+        stx::sort(file.configs, [](const auto& a, const auto& b) {
+            return a.name < b.name;
+            });
+        file.activeConfig = (int)(stx::find_if(file.configs, [&](const auto& c) {
+            return c.name == activeConfigName;
+            }) - file.configs.begin());
+        if (file.activeConfig == file.configs.size())
+            file.activeConfig = 0;
         GetStyles();
         reloadStyle = true;
     });
@@ -1436,8 +1442,9 @@ void ToolbarUI()
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
     ImGui::SameLine();
     ImGui::Text("Configuration:");
-    ImGui::SameLine();
     ImGui::BeginDisabled(activeTab < 0);
+
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(7 * ImGui::GetFontSize());
     auto* thisFile = activeTab >= 0 ? &fileTabs[activeTab] : nullptr;
     std::string cfgName;
@@ -1473,63 +1480,10 @@ void ToolbarUI()
     if (ImGui::Button(ICON_FA_PALETTE))
         EditStyle();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip(("Edit Style \"" + thisStyle + "\"").c_str());
+        ImGui::SetTooltip(("Edit style \"" + thisStyle + "\"").c_str());
     ImGui::EndDisabled();
 
     ImGui::EndDisabled();
-
-    /*ImGui::Text("Style");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(7 * ImGui::GetFontSize());
-    styleName = "";
-    if (activeTab >= 0)
-        styleName = fileTabs[activeTab].styleName;
-    if (ImGui::BeginCombo("##style", styleName.c_str()))
-    {
-        for (size_t i = 0; i < styleNames.size(); ++i)
-        {
-            if (ImGui::Selectable(styleNames[i].first.c_str(), styleNames[i].first == styleName))
-            {
-                reloadStyle = true;
-                assert(activeTab >= 0);
-                fileTabs[activeTab].modified = true;
-                fileTabs[activeTab].styleName = styleNames[i].first;
-            }
-            if (i == 2 && i + 1 < styleNames.size())
-                ImGui::Separator();
-        }
-        ImGui::EndCombo();
-    }
-    ImGui::SameLine();
-    auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == styleName; });
-    ImGui::BeginDisabled(stit == styleNames.end() || stit->second.empty());
-    if (ImGui::Button(ICON_FA_PEN_TO_SQUARE))
-        EditStyle();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip("Edit Style");
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_CLONE))
-        CloneStyle();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip("Clone Style");
-    ImGui::SameLine();
-    ImGui::Spacing();
-    ImGui::SameLine();
-    ImGui::Text("Units");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(6 * ImGui::GetFontSize());
-    const std::string unit = activeTab >= 0 ? fileTabs[activeTab].unit : "";
-    std::array<const char*, 2> UNITS{ "px", "dp" };
-    int usel = 0;
-    if (unit != "")
-        usel = (int)(stx::find(UNITS, unit) - UNITS.begin());
-    if (ImGui::Combo("##units", &usel, stx::join(UNITS, std::string_view("\0", 1)).c_str())) // "px\0fs\0dp\0"))
-    {
-        auto& tab = fileTabs[activeTab];
-        tab.unit = UNITS[usel];
-        tab.modified = true;
-    }*/
 
     ImGui::SameLine(0, 2*ImGui::GetStyle().ItemSpacing.x);
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);

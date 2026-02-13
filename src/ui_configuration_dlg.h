@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9.1
+// Generated with ImRAD 0.10-WIP
 // visit https://github.com/tpecholt/imrad
 
 #pragma once
@@ -45,6 +45,7 @@ private:
     int selRow = 0;
     std::string error;
     int curRow = 0;
+    bool focusName = false;
     ImRad::VBox vb1;
     ImRad::HBox hb3;
     ImRad::HBox hb4;

@@ -178,6 +178,7 @@ struct Animator
     //todo: configure
     static const float DurOpenPopup;
     static const float DurClosePopup;
+    static const float DurOpenActivity;
 
     void StartPersistent(float* v, float s, float e, float dur);
     void StartOnce(float* v, float s, float e, float dur);
@@ -500,6 +501,7 @@ Rect IOUserData::WorkRect() const
 
 const float Animator::DurOpenPopup = 0.4f;
 const float Animator::DurClosePopup = 0.3f;
+const float Animator::DurOpenActivity = 0.4f;
 
 void Animator::StartPersistent(float* v, float s, float e, float dur)
 {

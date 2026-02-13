@@ -50,10 +50,16 @@ void ClassWizard::Refresh()
         });
 
     used.clear();
-    for (auto root : roots)
-        FindUsed(root, used);
-    stx::sort(used);
-    used.erase(stx::unique(used), used.end());
+    if (stypeIdx > 0) {
+        for (const auto& var : fields)
+            used.push_back(var.name);
+    }
+    else {
+        for (auto root : roots)
+            FindUsed(root, used);
+        stx::sort(used);
+        used.erase(stx::unique(used), used.end());
+    }
 }
 
 void ClassWizard::FindUsed(UINode* node, std::vector<std::string>& used)

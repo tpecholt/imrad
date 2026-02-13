@@ -863,7 +863,7 @@ namespace cpp
         return tmp;
     }
 
-    inline std::string parse_str_arg(std::string_view str)
+    inline std::string parse_str_arg(std::string_view str, bool directVar = false)
     {
         if (str == "0" || str == "NULL" || str == "nullptr")
         {
@@ -937,6 +937,8 @@ namespace cpp
         else
         {
             //direct variable
+            if (!directVar && !str.compare(str.size() - 8, 8, ".c_str()"))
+                str.remove_suffix(8);
             return "{" + str + "}";
         }
     }
@@ -1041,9 +1043,10 @@ namespace cpp
 error:
         if (args.empty())
             return "\"" + lit + "\"";
-        else if (directVar && args.find(",") == std::string::npos && fmt[0] == '{' && fmt.back() == '}')
-            return args;
-        return "ImRad::Format(\"" + fmt + "\", " + args + ").c_str()";
+        else if (args.find(",") == std::string::npos && fmt == "{}")
+            return args + (directVar ? "" : ".c_str()");
+        else
+            return "ImRad::Format(\"" + fmt + "\", " + args + ").c_str()";
     }
 
     inline std::pair<std::string, std::string> parse_size(const std::string& str)

@@ -198,8 +198,11 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
             ImVec2 dp{ (boxSize.x - textSize.x) * align.x, (boxSize.y - textSize.y) * align.y };
             pos += dp;
         }
+        if (offset.x || offset.y)
+            pos += offset;
+        else
+            pos.y += ps.textBaseOffset;
 
-        pos += offset;
         size_t i = 0;
         for (const auto& arg : ps.fmtArgs) {
             pos.x += ImGui::CalcTextSize(ps.label.data() + i, ps.label.data() + arg.first).x;

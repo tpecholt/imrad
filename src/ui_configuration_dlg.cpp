@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9.1
+// Generated with ImRAD 0.10-WIP
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_configuration_dlg.h"
@@ -110,6 +110,13 @@ void ConfigurationDlg::Draw()
                     Name_Change();
                 if (ImGui::IsItemActive())
                     ImRad::GetUserData().imeType = ImRad::ImeText;
+                if (focusName)
+                {
+                    //forceFocus
+                    if (ImGui::IsItemFocused())
+                        focusName = false;
+                    ImGui::SetKeyboardFocusHere(-1);
+                }
                 if (ImGui::IsItemActivated())
                     Input_Activated();
                 /// @end Input
@@ -192,7 +199,7 @@ void ConfigurationDlg::Draw()
         /// @begin Text
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, 0xff0000ff);
-        ImGui::TextUnformatted(ImRad::Format("{}", error).c_str());
+        ImGui::TextUnformatted(error.c_str());
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
         hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::ItemSize);
         ImGui::PopStyleColor();
@@ -252,25 +259,8 @@ void ConfigurationDlg::AddButton_Change()
     cfg.style = defaultStyle;
     cfg.unit = defaultUnit;
     selRow = (int)configs.size() - 1;
+    focusName = true;
     Check();
-
-    /*newStyleDlg.title = "New Configuration";
-    newStyleDlg.name = "";
-    newStyleDlg.source = "";
-    newStyleDlg.sources.clear();
-    for (const auto& cfg : configs) {
-        newStyleDlg.sources.push_back(cfg.name=="" ? DEFAULT_CFG_NAME : cfg.name);
-    }
-    newStyleDlg.OpenPopup([this, row = curRow](ImRad::ModalResult) {
-        Config cfg;
-        cfg.name = newStyleDlg.name;
-        cfg.style = defaultStyle;
-        cfg.unit = defaultUnit;
-        cfg.id =
-        configs.push_back(cfg);
-        selRow = (int)configs.size() - 1;
-        Check();
-    });*/
 }
 
 void ConfigurationDlg::RemoveButton_Change()
