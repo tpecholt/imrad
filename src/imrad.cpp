@@ -1188,7 +1188,7 @@ void EditConfigurations()
         size_t i = &cfg - file.configs.data();
         configurationDlg.configs.push_back({ (int)i, cfg.name, cfg.styleName, cfg.unit });
     }
-    configurationDlg.OpenPopup([&](ImRad::ModalResult mr) {
+    configurationDlg.OpenPopup([&,activeConfigName](ImRad::ModalResult mr) {
         std::vector<int> allIds;
         for (const auto& c : configurationDlg.configs) {
             File::Config* cfg;
@@ -1217,8 +1217,10 @@ void EditConfigurations()
         file.activeConfig = (int)(stx::find_if(file.configs, [&](const auto& c) {
             return c.name == activeConfigName;
             }) - file.configs.begin());
-        if (file.activeConfig == file.configs.size())
+        if (file.activeConfig == file.configs.size()) {
             file.activeConfig = 0;
+            ctx.selected.clear();
+        }
         GetStyles();
         reloadStyle = true;
     });
