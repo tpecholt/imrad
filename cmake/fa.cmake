@@ -6,11 +6,7 @@ target_include_directories(fa
 INTERFACE
 	${FA_INCLUDE_DIR})
 
-install(FILES 
-	"${FA_INCLUDE_DIR}/fa-solid-900.ttf"
-	"${FA_INCLUDE_DIR}/fa-regular-400.ttf"
-	"${FA_INCLUDE_DIR}/MaterialIcons-Regular.ttf"
-	"${FA_INCLUDE_DIR}/Roboto-Medium.ttf"
-	"${FA_INCLUDE_DIR}/Roboto-Regular.ttf"
-	"${FA_INCLUDE_DIR}/Roboto-Bold.ttf"
-	DESTINATION "style/")
+file(GLOB FONT_FILES "${FA_INCLUDE_DIR}/*.ttf")
+file(COPY ${FONT_FILES} DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/style/")
+
+install(FILES ${FONT_FILES} DESTINATION "style/")

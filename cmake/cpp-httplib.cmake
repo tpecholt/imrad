@@ -21,5 +21,5 @@ if (TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto) # OpenSSL_FOUND is true even
   message(STATUS "OpenSSL configured")
   add_definitions(-DCPPHTTPLIB_OPENSSL_SUPPORT)
 else()
-  message(WARNING "OpenSSL is NOT confiured")
-endif() 
+  message(WARNING "OpenSSL is NOT configured")
+endif()
