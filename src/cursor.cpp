@@ -83,6 +83,11 @@ private:
 WrappedCursor curWait(WrappedCursor::WAIT);
 WrappedCursor curCross(WrappedCursor::CROSS);
 
+void SetDefaultCursor()
+{
+    glfwSetCursor(glfwWindow, nullptr);
+}
+
 void SetWaitCursor()
 {
     glfwSetCursor(glfwWindow, curWait.get());

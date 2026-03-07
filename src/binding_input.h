@@ -580,13 +580,16 @@ inline bool InputBindable(bindable<font_name_t>* val, UIContext& ctx)
     {
         for (const auto& f : ctx.fontNames)
         {
-            if (ImGui::Selectable(f == "" ? " " : f.c_str(), f == fn)) {
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                ImGui::GetStyleColorVec4(f == "" ? ImGuiCol_TextDisabled : ImGuiCol_Text));
+            if (ImGui::Selectable(f == "" ? PARENT_STR : f.c_str(), f == fn)) {
                 changed = true;
                 if (f == "")
                     *val->access() = f;
                 else
                     val->set_font_name(f);
             }
+            ImGui::PopStyleColor();
         }
         ImGui::EndCombo();
     }

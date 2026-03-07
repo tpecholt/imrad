@@ -270,9 +270,13 @@ void NewFileDlg::Category_Change()
     }
     else if (category == 2)
     {
-        SetWaitCursor();
-        items.clear();
+        struct WaitCursor {
+            WaitCursor() { SetWaitCursor(); }
+            ~WaitCursor() { SetDefaultCursor(); }
+        } wc;
+
         try {
+            items.clear();
             httplib::Headers hs;
             hs.insert({ "Accept", "application/vnd.github+json" });
             hs.insert({ "X-GitHub-Api-Version", "2022-11-28" });

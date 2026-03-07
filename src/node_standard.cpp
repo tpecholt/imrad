@@ -3770,7 +3770,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 4) {
             auto sz = cpp::parse_size(sit->params[3]);
             size_x.set_from_arg(sz.first);
-            if (ctx.importVersion < 9000 && size_x.zero())
+            if (ctx.importVersion < 900 && size_x.zero()) //compatibility
                 size_x = -1;
             size_y.set_from_arg(sz.second);
         }

@@ -179,7 +179,10 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
         drawList = ImGui::GetWindowDrawList();
 
         for (const auto& cd : columnData) {
-            ImGui::TableSetupColumn(cd.label.c_str(), cd.sizingPolicy | cd.flags, cd.width);
+            float width = cd.width;
+            if (cd.sizingPolicy & ImGuiTableColumnFlags_WidthFixed)
+                width *= ctx.zoomFactor;
+            ImGui::TableSetupColumn(cd.label.c_str(), cd.sizingPolicy | cd.flags, width);
             /*if (!cd.visible.empty())
                 ImGui::TableSetColumnEnabled(i, cd.visible.eval(ctx));*/
         }

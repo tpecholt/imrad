@@ -1395,9 +1395,11 @@ void SaveStyle(const std::string& spath, const ImGuiStyle* src, const std::map<s
 #undef WRITE_FLT
 #undef WRITE_VEC
 
-    fout << "\n[fonts]\n";
-    fout << "Default = \"Roboto-Regular.ttf\" size 15\n";
-
+    if (extra.lower_bound("fonts.") == extra.end())
+    {
+        fout << "\n[fonts]\n";
+        fout << "Default = \"Roboto-Regular.ttf\" size 15\n";
+    }
     std::string lastSection;
     for (const auto& kv : extra)
     {

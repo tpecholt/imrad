@@ -860,7 +860,8 @@ struct bindable<std::string> : property_base
                 i = j + 2;
             else {
                 i = j + 1;
-                size_t e = std::min(str.find(':', i), str.find('}', i));
+                //don't search for ':' it may be a ternary op not formatting delimiter
+                size_t e = str.find('}', i);
                 if (e == std::string::npos)
                     break;
                 auto s = str.substr(i, e - i);
