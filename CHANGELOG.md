@@ -8,9 +8,11 @@
 
 ### New Code Features
 
-* Owner-drawn Combo through onDrawItems event
+* Owner-drawn Combo through `OnDrawItems` event
 
-* Configurations allow to generate a set of separate Draw functions and select one at runtime. Event handlers and field variables are shared. Useful for designing UI variants like per desktop/mobile platform, by screen rotation etc.
+* Configurations allow to generate a set of separate `Draw` functions and select one at runtime. Event handlers and field variables are shared. Useful for designing UI variants like per desktop/mobile platform, by screen rotation etc.
+
+* New `DrawPopups` member is now generated for all kinds of windows. It is meant for dependent popup window invocations and it insulates them from inheriting the style of the invoking window. Please move your popup invocation code into this function to make it work.
 
 ### Improvements by Widget Type
 

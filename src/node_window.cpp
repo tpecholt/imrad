@@ -303,6 +303,72 @@ void TopWindow::Draw(UIContext& ctx)
         ImGui::PopFont();
 }
 
+TopWindow::StyleCounter
+TopWindow::ExportStyle(std::ostream& os, UIContext& ctx)
+{
+    StyleCounter sc;
+
+    if (!style_fontName.empty() || !style_fontSize.empty())
+    {
+        ++sc.nfonts;
+        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ", "
+            << style_fontSize.to_arg() << ");\n";
+    }
+    if (!style_bg.empty())
+    {
+        ++sc.ncolors;
+        os << ctx.ind << "ImGui::PushStyleColor(" <<
+            ((kind == Popup || kind == ModalPopup) ? "ImGuiCol_PopupBg" : "ImGuiCol_WindowBg") <<
+            ", " << style_bg.to_arg() << ");\n";
+    }
+    if (!style_menuBg.empty())
+    {
+        ++sc.ncolors;
+        os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_MenuBarBg, " << style_menuBg.to_arg() << ");\n";
+    }
+    if (style_padding.has_value())
+    {
+        ++sc.nvars;
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, "
+            << style_padding.to_arg(ctx.unit) << ");\n";
+    }
+    if (style_spacing.has_value())
+    {
+        ++sc.nvars;
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, "
+            << style_spacing.to_arg(ctx.unit) << ");\n";
+    }
+    if (style_innerSpacing.has_value())
+    {
+        ++sc.nvars;
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, "
+            << style_innerSpacing.to_arg(ctx.unit) << ");\n";
+    }
+    if (style_rounding.has_value())
+    {
+        ++sc.nvars;
+        os << ctx.ind << "ImGui::PushStyleVar(";
+        //ModalPopup uses WindowRounding
+        os << (kind == Popup ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
+        os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
+    }
+    if (style_borderSize.has_value() && kind != Activity && kind != MainWindow)
+    {
+        ++sc.nvars;
+        os << ctx.ind << "ImGui::PushStyleVar(";
+        os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
+        os << ", " << style_borderSize.to_arg(ctx.unit) << ");\n";
+    }
+    if (style_scrollbarSize.has_value())
+    {
+        ++sc.nvars;
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, "
+            << style_scrollbarSize.to_arg(ctx.unit) << ");\n";
+    }
+
+    return sc;
+}
+
 void TopWindow::Export(std::ostream& os, UIContext& ctx)
 {
     ctx.varCounter = 1;
@@ -352,54 +418,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
 
-    if (!style_fontName.empty() || !style_fontSize.empty())
-    {
-        os << ctx.ind << "ImGui::PushFont(" << style_fontName.to_arg() << ", "
-            << style_fontSize.to_arg() << ");\n";
-    }
-    if (!style_bg.empty())
-    {
-        os << ctx.ind << "ImGui::PushStyleColor(" <<
-            ((kind == Popup || kind == ModalPopup) ? "ImGuiCol_PopupBg" : "ImGuiCol_WindowBg") <<
-            ", " << style_bg.to_arg() << ");\n";
-    }
-    if (!style_menuBg.empty())
-    {
-        os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_MenuBarBg, " << style_menuBg.to_arg() << ");\n";
-    }
-    if (style_padding.has_value())
-    {
-        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, "
-            << style_padding.to_arg(ctx.unit) << ");\n";
-    }
-    if (style_spacing.has_value())
-    {
-        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, "
-            << style_spacing.to_arg(ctx.unit) << ");\n";
-    }
-    if (style_innerSpacing.has_value())
-    {
-        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, "
-            << style_innerSpacing.to_arg(ctx.unit) << ");\n";
-    }
-    if (style_rounding.has_value())
-    {
-        os << ctx.ind << "ImGui::PushStyleVar(";
-        //ModalPopup uses WindowRounding
-        os << (kind == Popup ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
-        os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
-    }
-    if (style_borderSize.has_value() && kind != Activity && kind != MainWindow)
-    {
-        os << ctx.ind << "ImGui::PushStyleVar(";
-        os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
-        os << ", " << style_borderSize.to_arg(ctx.unit) << ");\n";
-    }
-    if (style_scrollbarSize.has_value())
-    {
-        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, "
-            << style_scrollbarSize.to_arg(ctx.unit) << ");\n";
-    }
+    auto sc = ExportStyle(os, ctx);
 
     if (kind == MainWindow)
     {
@@ -419,6 +438,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
+        os << ctx.ind << "ImGui::PopStyleVar();\n";
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, ImGui::GetStyle().WindowBorderSize);\n";
 
         if (autoSize)
         {
@@ -482,6 +503,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "if (ImGui::Begin(\"###" << ctx.codeGen->GetName() << "\", &tmpOpen, " << fl.to_arg() << "))\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
+        os << ctx.ind << "ImGui::PopStyleVar();\n";
+        os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, ImGui::GetStyle().WindowBorderSize);\n";
 
         if (animate != NoAnimation)
             os << ctx.ind << "animator.Tick();\n";
@@ -770,13 +793,29 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
     }
 
+    //pop styles so dependend popup windows are not affected
+    if (sc.nvars)
+        os << ctx.ind << "ImGui::PopStyleVar(" << sc.nvars << ");\n";
+    if (sc.ncolors)
+        os << ctx.ind << "ImGui::PopStyleColor(" << sc.ncolors << ");\n";
+    if (sc.nfonts)
+        os << ctx.ind << "ImGui::PopFont();\n";
+
+    os << ctx.ind << "DrawPopups();\n";
+
+    ExportStyle(os, ctx);
+
     os << ctx.ind << "/// @separator\n\n";
 
-    //at next import comment becomes userCode
-    /*if (userCodeMid != "")
-        os << userCodeMid << "\n";*/
-    if (children.empty() || children[0]->userCodeBefore.empty())
-        os << ctx.ind << "// TODO: Add Draw calls of dependent popup windows here\n\n";
+    if (children.size() && children[0]->userCodeBefore != "")
+    {
+        std::string user = Trim(children[0]->userCodeBefore);
+        if (!user.compare(0, 2, "//") && user.find('\n') == std::string::npos)
+            children[0]->userCodeBefore = "";
+        else
+            ctx.errors.push_back("TopWindow: Found a possible popup code before the first widget. "
+                "Popup code should be moved into \"DrawPopups()\". ");
+    }
 
     for (const auto& ch : children)
         ch->Export(os, ctx);
@@ -808,23 +847,12 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
     if (animate == FadeIn)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (style_scrollbarSize.has_value())
-        os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (style_borderSize.has_value() || kind == Activity || kind == MainWindow)
-        os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (style_rounding.has_value())
-        os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (style_spacing.has_value())
-        os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (style_innerSpacing.has_value())
-        os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (style_padding.has_value())
-        os << ctx.ind << "ImGui::PopStyleVar();\n";
-    if (!style_bg.empty())
-        os << ctx.ind << "ImGui::PopStyleColor();\n";
-    if (!style_menuBg.empty())
-        os << ctx.ind << "ImGui::PopStyleColor();\n";
-    if (!style_fontName.empty() || !style_fontSize.empty())
+
+    if (sc.nvars)
+        os << ctx.ind << "ImGui::PopStyleVar(" << sc.nvars << ");\n";
+    if (sc.ncolors)
+        os << ctx.ind << "ImGui::PopStyleColor(" << sc.ncolors << ");\n";
+    if (sc.nfonts)
         os << ctx.ind << "ImGui::PopFont();\n";
 
     os << ctx.ind << "/// @end TopWindow\n";

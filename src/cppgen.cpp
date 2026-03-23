@@ -9,7 +9,7 @@
 const std::string GENERATED_WITH = "Generated with ";
 
 const std::string SPEC_FUN[] = {
-    "Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw",
+    "Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw", "DrawPopups"
 };
 
 const std::string_view CppGen::INDENT = "    ";
@@ -115,6 +115,7 @@ bool CppGen::ExportUpdate(
         return false;
     m_kind = configs[0].node->kind; //guaranteed to be same in all configs
     m_animate = false;
+    ctx_importVersion = 0;
 
     //export node before ExportH
     //TopWindow::Export generates some variables on the fly
@@ -126,6 +127,7 @@ bool CppGen::ExportUpdate(
         UIContext ctx;
         ctx.codeGen = this;
         ctx.ind = INDENT;
+        //todo: ctx.importVersion = ctx_importVersion;
         auto uit = cfg.params.find("unit");
         if (uit != cfg.params.end())
             ctx.unit = uit->second;
@@ -368,30 +370,26 @@ CppGen::ExportH(
                 out << "/// @begin impl\n";
 
                 //write special members
-                bool found = false;
                 if (configs.size() > 1 || configs[0].name != "")
                 {
-                    found = true;
                     for (const Config& cfg : configs)
                         out << INDENT << "void " << GetDrawFunName(cfg.name, configs.size()) << "();\n";
                 }
+                out << INDENT << "void DrawPopups();\n";
                 if (hasLayout)
                 {
-                    found = true;
                     out << INDENT << "void ResetLayout();\n";
                 }
                 if (m_kind == TopWindow::Popup || m_kind == TopWindow::ModalPopup ||
                     m_kind == TopWindow::Activity)
                 {
-                    found = true;
                     out << INDENT << "void Init();\n";
                 }
 
-                if (found)
-                    out << "\n";
+                out << "\n"; //DrawPopups is always there
 
                 //write events
-                found = false;
+                bool found = false;
                 std::string ret, arg;
                 for (const auto& var : m_fields[""])
                 {
@@ -624,8 +622,12 @@ CppGen::ExportCpp(
                 fout << "#include \"" << m_hname << "\"";
             }
             else if (!tok.compare(0, 2, "//")) {
-                if (preamble && tok.find(GENERATED_WITH) != std::string::npos) {
-                    if (tok.find(VER_STR) == std::string::npos)
+                size_t i;
+                if (preamble && (i = tok.find(GENERATED_WITH)) != std::string::npos) {
+                    std::string ver = tok.substr(i + GENERATED_WITH.size());
+                    ctx_importVersion = ParseVersion(ver);
+                    int currVersion = ParseVersion(VER_STR);
+                    if (ctx_importVersion != currVersion)
                         m_error += "\"" + u8string(u8path(m_hname).replace_extension(".cpp")) + "\" was upgraded to " + VER_STR + "\n";
                     copy_content(-(int)tok.size());
                     fout << "// " << GENERATED_WITH << VER_STR;
@@ -641,7 +643,7 @@ CppGen::ExportCpp(
                 ++level;
                 auto name = IsMemFun(line);
                 //rewrite generated functions
-                if (name == "Init")
+                if (name == "Init" || name == "DrawPopups")
                 {
                     std::ostringstream tmp;
                     if (WriteStub(tmp, name, configs)) {
@@ -986,6 +988,13 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
     {
         fout << "::Init()\n{\n";
         fout << INDENT << "// TODO: Add your code here\n";
+        fout << "}";
+        return true;
+    }
+    else if (id == "DrawPopups")
+    {
+        fout << "::DrawPopups()\n{\n";
+        fout << INDENT << "// TODO: Draw dependent popups here\n";
         fout << "}";
         return true;
     }
