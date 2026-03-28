@@ -49,12 +49,13 @@ void NewFieldPopup::Draw()
         "Rename Window";
     title += "###NewFieldPopup";
 
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###NewFieldPopup");
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 12, 12 });
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 10 });
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10*dp, 10*dp });
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8*dp, 8*dp });
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
-    ImGui::SetNextWindowSizeConstraints({ 400, 100 }, { FLT_MAX, FLT_MAX });
+    ImGui::SetNextWindowSizeConstraints({ 320*dp, 80*dp }, { FLT_MAX, FLT_MAX });
     bool tmp = true;
     if (ImGui::BeginPopupModal(title.c_str(), &tmp, ImGuiWindowFlags_AlwaysAutoResize))
     {
@@ -160,7 +161,7 @@ void NewFieldPopup::Draw()
 
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 2 * 100));
         ImGui::BeginDisabled(nameError != "" || typeError != "");
-        if (ImGui::Button("OK", { 100, 30 }))
+        if (ImGui::Button("OK", { 80*dp, 25*dp }))
         {
             CheckVarName();
             int flags = varPublic ? CppGen::Var::Interface : CppGen::Var::Impl;
@@ -211,7 +212,7 @@ void NewFieldPopup::Draw()
         ImGui::EndDisabled();
 
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", { 100, 30 }) || ImGui::Shortcut(ImGuiKey_Escape))
+        if (ImGui::Button("Cancel", { 80*dp, 25*dp }) || ImGui::Shortcut(ImGuiKey_Escape))
         {
             const auto& g = ImGui::GetCurrentContext();
             ClosePopup();

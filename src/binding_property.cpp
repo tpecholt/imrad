@@ -5,17 +5,17 @@
 
 float direct_val<dimension_t>::eval_px(const UIContext& ctx) const
 {
-    return val * ctx.zoomFactor;
+    return val * ImRad::GetUserData().dpiScale;
 }
 
 float direct_val<pzdimension_t>::eval_px(const UIContext& ctx) const
 {
-    return val * ctx.zoomFactor;
+    return val * ImRad::GetUserData().dpiScale;
 }
 
 ImVec2 direct_val<pzdimension2_t>::eval_px(const UIContext& ctx) const
 {
-    return { val[0] * ctx.zoomFactor, val[1] * ctx.zoomFactor };
+    return val * ImRad::GetUserData().dpiScale;
 }
 
 float bindable<dimension_t>::eval_px(int axis, const UIContext& ctx) const
@@ -27,15 +27,14 @@ float bindable<dimension_t>::eval_px(int axis, const UIContext& ctx) const
         return ctx.stretchSize[axis];
     }
     else if (has_value()) {
-        return value() * ctx.zoomFactor;
+        return value() * ImRad::GetUserData().dpiScale;
     }
     else if (const auto* var = ctx.codeGen->GetVar(str)) {
         float val;
         std::istringstream is(var->init);
-        if (is >> val)
-            return val * ctx.zoomFactor;
-        else
+        if (!(is >> val))
             return 0;
+        return val * ImRad::GetUserData().dpiScale;
     }
     else {
         //experimental - currently parses:
@@ -75,7 +74,7 @@ float bindable<dimension_t>::eval_px(int axis, const UIContext& ctx) const
         }
         if (state >= 2)
             ret = std::min(ret ? ret : 1e9f, val);
-        return ret * ctx.zoomFactor;
+        return ret * ImRad::GetUserData().dpiScale;
     }
 }
 

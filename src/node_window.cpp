@@ -16,12 +16,12 @@ TopWindow::TopWindow(UIContext& ctx)
 {
     if (kind == Activity) {
         title = "MyActivity";
-        size_x = 400;
-        size_y = 700;
+        size_x = 320;
+        size_y = 560;
     }
     else {
-        size_x = 640;
-        size_y = 480;
+        size_x = 512;
+        size_y = 380;
     }
 
     kind.add("Main Window (GLFW)", MainWindow);
@@ -303,10 +303,10 @@ void TopWindow::Draw(UIContext& ctx)
         ImGui::PopFont();
 }
 
-TopWindow::StyleCounter
+TopWindow::StyleCounters
 TopWindow::ExportStyle(std::ostream& os, UIContext& ctx)
 {
-    StyleCounter sc;
+    StyleCounters sc;
 
     if (!style_fontName.empty() || !style_fontSize.empty())
     {
@@ -1179,14 +1179,17 @@ void TopWindow::TreeUI(UIContext& ctx)
     bool selected = stx::count(ctx.selected, this) || ctx.snapParent == this;
     if (selected)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().ItemSpacing.x);// ImGui::GetFontSize());
     ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-    if (ImGui::TreeNodeEx(str.c_str(), ImGuiTreeNodeFlags_SpanAllColumns))
+    bool open = ImGui::TreeNodeEx(str.c_str(), ImGuiTreeNodeFlags_SpanAllColumns);
+    if (selected)
+        ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+    bool activated = ImGui::IsItemClicked(); //todo || ImGui::IsItemActivated();
+    ImGui::SameLine(0, 0);
+    ImGui::TextDisabled(" : %s", NAMES[kind]);
+    if (open)
     {
-        if (selected)
-            ImGui::PopStyleColor();
-        bool activated = ImGui::IsItemClicked(); //todo || ImGui::IsItemActivated();
-        ImGui::SameLine(0, 0);
-        ImGui::TextDisabled(" : %s", NAMES[kind]);
         if (activated)
         {
             if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
@@ -1194,16 +1197,13 @@ void TopWindow::TreeUI(UIContext& ctx)
             else
                 ctx.selected = { this };
         }
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize());
         for (const auto& ch : children)
             ch->TreeUI(ctx);
+        ImGui::PopStyleVar();
 
+        //todo: PushStyleVar(IndentSpacing
         ImGui::TreePop();
-    }
-    else {
-        if (selected)
-            ImGui::PopStyleColor();
-        ImGui::SameLine(0, 0);
-        ImGui::TextDisabled(" : %s", NAMES[kind]);
     }
 }
 

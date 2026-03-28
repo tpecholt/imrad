@@ -67,7 +67,6 @@ struct UIContext
     std::vector<UINode*> parents;
     std::vector<std::string> contextMenus;
     int kind = 0; //TopWindow::Kind
-    float zoomFactor = 1; //for dimension value scaling
     ImVec2 selStart, selEnd;
     std::string ind;
     int varCounter;

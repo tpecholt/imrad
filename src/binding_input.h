@@ -55,12 +55,13 @@ inline bool BindingButton(const char* label, bindable<T>* val, const std::string
     else
         bound = !val->empty() && !val->has_value();
 
+    const float bsize = 0.6f * ImGui::GetFontSize();
     ImGui::PushStyleColor(ImGuiCol_Button, bound ? 0xff0080ff : 0xffc0c0c0);
-    float sp = (ImGui::GetFrameHeight() - 12) / 2;
+    float sp = (ImGui::GetFrameHeight() - bsize) / 2;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sp);
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + sp);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
-    bool pushed = ImGui::Button(("##" + std::string(label)).c_str(), { 12, 12 });
+    bool pushed = ImGui::Button(("##" + std::string(label)).c_str(), { bsize, bsize });
     ImGui::PopItemFlag();
     ImGui::PopStyleColor();
     if (pushed)
@@ -349,14 +350,15 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
 {
     int changed = false;
     ImVec2 pad = ImGui::GetStyle().FramePadding;
-    ImGui::Unindent();
-    //align flags label with other child properties
-    ImGui::SetCursorPosX(ImGui::GetStyle().IndentSpacing + ImGui::GetStyle().CellPadding.x - ImGui::GetFontSize());
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
+    //align category label with other child properties
+    ImGui::SetCursorPosX(ImGui::GetStyle().CellPadding.x);
     ImGui::SetNextItemAllowOverlap();
-    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus)) {
-        ImGui::PopStyleVar();
-        ImGui::Indent();
+    bool open = ImGui::TreeNodeEx(("###" + std::string(name)).c_str(), ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus);
+    ImGui::PopStyleVar();
+    ImGui::SameLine(0, 0);
+    ImGui::TextUnformatted(name);
+    if (open) {
         ImGui::TableNextColumn();
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { pad.x, 0 }); //row packing
         ImGui::Spacing();
@@ -388,11 +390,9 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
         }
         ImGui::PopStyleVar();
         ImGui::TreePop();
-        ImGui::Unindent();
     }
     else
     {
-        ImGui::PopStyleVar();
         ImGui::TableNextColumn();
         std::string label, tip, tmp;
         float w = ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight();
@@ -429,7 +429,6 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
             ImGui::PopStyleVar();
         }
     }
-    ImGui::Indent();
     return changed;
 }
 

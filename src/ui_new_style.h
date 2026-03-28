@@ -19,6 +19,7 @@ public:
 
 private:
     /// @begin impl
+    void DrawPopups();
     void ResetLayout();
     void Init();
 

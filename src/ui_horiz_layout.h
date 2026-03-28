@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // visit github.com/tpecholt/imrad
 
 #pragma once
@@ -25,6 +25,7 @@ public:
 
 private:
     /// @begin impl
+    void DrawPopups();
     void Init();
 
     void OnAlignment();

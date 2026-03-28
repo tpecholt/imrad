@@ -42,8 +42,8 @@ void ConfigurationDlg::Draw()
     /// @begin TopWindow
     const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###ConfigurationDlg");
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10*dp, 10*dp });
-    ImGui::SetNextWindowSize({ 680*dp, 480*dp }, ImGuiCond_FirstUseEver); //{ 680*dp, 480*dp }
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8*dp, 8*dp });
+    ImGui::SetNextWindowSize({ 450*dp, 350*dp }, ImGuiCond_FirstUseEver); //{ 450*dp, 350*dp }
     ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Configuration Manager###ConfigurationDlg", &tmpOpen, 0))
@@ -56,11 +56,10 @@ void ConfigurationDlg::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        ImGui::PopStyleVar(1);
+        DrawPopups();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8*dp, 8*dp });
         /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
-        messageBox.Draw();
-        newStyleDlg.Draw();
 
         /// @begin Text
         vb1.BeginLayout();
@@ -149,28 +148,30 @@ void ConfigurationDlg::Draw()
         ImGui::PopStyleVar();
         vb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::Stretch(1.0f));
         ImGui::PopItemFlag();
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere(-1);
         /// @end Table
 
         /// @begin Button
         hb3.BeginLayout();
-        if (ImGui::Button("\xef\x80\x93+", { 37*dp, 0 }))
+        if (ImGui::Button("\xef\x80\x93+", { 30*dp, 0 }))
         {
             AddButton_Change();
         }
         vb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
-        hb3.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, 37*dp);
+        hb3.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, 30*dp);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Add new configuration");
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("\xef\x94\xbf+", { 37*dp, 0 }))
+        if (ImGui::Button("\xef\x94\xbf+", { 30*dp, 0 }))
         {
             AddStyleButton_Change();
         }
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
-        hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 37*dp);
+        hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 30*dp);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Create new style");
         /// @end Button
@@ -178,12 +179,12 @@ void ConfigurationDlg::Draw()
         /// @begin Button
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(configs.size()<=1);
-        if (ImGui::Button("\xef\x8b\xad", { 37*dp, 0 }))
+        if (ImGui::Button("\xef\x8b\xad", { 30*dp, 0 }))
         {
             RemoveButton_Change();
         }
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
-        hb3.AddSize(2 * ImGui::GetStyle().ItemSpacing.x, 37*dp);
+        hb3.AddSize(2 * ImGui::GetStyle().ItemSpacing.x, 30*dp);
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Remove configuration");
@@ -215,33 +216,38 @@ void ConfigurationDlg::Draw()
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(error!="");
-        if (ImGui::Button("OK", { 100*dp, 30*dp }))
+        if (ImGui::Button("OK", { 80*dp, 25*dp }))
         {
             ClosePopup(ImRad::Ok);
         }
-        vb1.UpdateSize(0, 30*dp);
-        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100*dp);
+        vb1.UpdateSize(0, 25*dp);
+        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         ImGui::EndDisabled();
-        if (ImGui::IsWindowAppearing())
-            ImGui::SetKeyboardFocusHere(-1);
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("Cancel", { 100*dp, 30*dp }) ||
+        if (ImGui::Button("Cancel", { 80*dp, 25*dp }) ||
             ImGui::Shortcut(ImGuiKey_Escape))
         {
             ClosePopup(ImRad::Cancel);
         }
-        vb1.UpdateSize(0, 30*dp);
-        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100*dp);
+        vb1.UpdateSize(0, 25*dp);
+        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         /// @end Button
 
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(1);
     /// @end TopWindow
+}
+
+void ConfigurationDlg::DrawPopups()
+{
+    // TODO: Draw dependent popups here
+    newStyleDlg.Draw();
+    messageBox.Draw();
 }
 
 void ConfigurationDlg::ResetLayout()

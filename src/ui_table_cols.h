@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9.1
+// Generated with ImRAD 0.10-WIP
 // visit https://github.com/tpecholt/imrad
 
 #pragma once
@@ -21,6 +21,7 @@ public:
 
 private:
     /// @begin impl
+    void DrawPopups();
     void ResetLayout();
     void Init();
 

@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9.1
+// Generated with ImRAD 0.10-WIP
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_table_cols.h"
@@ -33,11 +33,12 @@ void TableCols::Draw()
 {
     /// @dpi-info 141.357,1.25
     /// @style imrad
-    /// @unit px
+    /// @unit dp
     /// @begin TopWindow
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###TableCols");
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8, 5 });
-    ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver); //{ 550, 480 }
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 6*dp, 4*dp });
+    ImGui::SetNextWindowSize({ 500*dp, 400*dp }, ImGuiCond_FirstUseEver); //{ 500*dp, 400*dp }
     ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Table Columns###TableCols", &tmpOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNavInputs))
@@ -50,10 +51,10 @@ void TableCols::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        ImGui::PopStyleVar(1);
+        DrawPopups();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 6*dp, 4*dp });
         /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
-        bindingDlg.Draw();
 
         /// @begin Selectable
         vb1.BeginLayout();
@@ -71,13 +72,13 @@ void TableCols::Draw()
         {
             ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);
             ImGui::PushStyleColor(ImGuiCol_SeparatorHovered, 0x00000000);
-            ImRad::Splitter(true, 8, &sash, 10, 10);
+            ImRad::Splitter(true, 7.5*dp, &sash, 10*dp, 10*dp);
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
             /// @separator
 
             /// @begin Table
-            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 7, 5 });
+            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 7*dp, 5*dp });
             ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffffffff);
             if (ImGui::BeginTable("table2", 1, ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { sash, -1 }))
             {
@@ -94,7 +95,7 @@ void TableCols::Draw()
 
                     /// @begin Selectable
                     ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                    if (ImRad::Selectable(ImRad::Format("{}", columns[i].label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                    if (ImRad::Selectable(_item.label==""?"<empty>":_item.label.c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
                     {
                         Selectable_Change();
                     }
@@ -104,7 +105,7 @@ void TableCols::Draw()
                     /// @begin Text
                     ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                    ImGui::TextUnformatted(ImRad::Format("{}", columns[i].SizingPolicyString()).c_str());
+                    ImGui::TextUnformatted(_item.SizingPolicyString().c_str());
                     ImGui::PopStyleColor();
                     /// @end Text
 
@@ -129,7 +130,7 @@ void TableCols::Draw()
         /// @end Splitter
 
         /// @begin Button
-        if (ImGui::Button("\xef\x83\xbe", { 37, 0 }))
+        if (ImGui::Button("\xef\x83\xbe", { 37*dp, 0 }))
         {
             AddButton_Change();
         }
@@ -141,7 +142,7 @@ void TableCols::Draw()
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(sel<0);
-        if (ImGui::Button("\xef\x8b\xad", { 37, 0 }))
+        if (ImGui::Button("\xef\x8b\xad", { 37*dp, 0 }))
         {
             RemoveButton_Change();
         }
@@ -189,37 +190,37 @@ void TableCols::Draw()
 
         /// @begin Spacer
         hb4.BeginLayout();
-        ImRad::Spacing(2);
+        ImRad::Spacing(1);
         ImRad::Dummy({ hb4.GetSize(), 0 });
-        vb1.AddSize(3 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
+        vb1.AddSize(2 * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::ItemSize);
         hb4.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("OK", { 100, 30 }))
+        if (ImGui::Button("OK", { 80*dp, 25*dp }))
         {
             ClosePopup(ImRad::Ok);
         }
-        vb1.UpdateSize(0, 30);
-        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
+        vb1.UpdateSize(0, 25*dp);
+        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("Cancel", { 100, 30 }) ||
+        if (ImGui::Button("Cancel", { 80*dp, 25*dp }) ||
             ImGui::Shortcut(ImGuiKey_Escape))
         {
             ClosePopup(ImRad::Cancel);
         }
-        vb1.UpdateSize(0, 30);
-        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
+        vb1.UpdateSize(0, 25*dp);
+        hb4.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         /// @end Button
 
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(1);
     /// @end TopWindow
 }
 
@@ -337,4 +338,10 @@ void TableCols::CheckErrors()
             ++noPolicy;
     if (noPolicy && noPolicy != columns.size())
         error = "specify sizingPolicy either for all columns or none";
+}
+
+void TableCols::DrawPopups()
+{
+    // TODO: Draw dependent popups here
+    bindingDlg.Draw();
 }

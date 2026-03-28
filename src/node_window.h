@@ -7,7 +7,7 @@ struct TopWindow : UINode
     enum Placement { None, Left, Right, Top, Bottom, Center, Maximize };
     enum Animation { NoAnimation, MoveLeft, MoveRight, MoveUp, MoveDown, FadeIn };
 
-    struct StyleCounter { int nvars = 0, ncolors = 0, nfonts = 0; };
+    struct StyleCounters { int nvars = 0, ncolors = 0, nfonts = 0; };
 
     direct_val<ImGuiWindowFlags_> flags = 0;
     direct_val<Kind> kind = Window;
@@ -48,7 +48,7 @@ struct TopWindow : UINode
     auto Events() ->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
     void Export(std::ostream& os, UIContext& ctx);
-    auto ExportStyle(std::ostream& os, UIContext& ctx) -> StyleCounter;
+    auto ExportStyle(std::ostream& os, UIContext& ctx) -> StyleCounters;
     void Import(cpp::stmt_iterator& sit, UIContext& ctx);
     int Behavior() { return SnapInterior; }
     int ColumnCount(UIContext& ctx) { return 0; }

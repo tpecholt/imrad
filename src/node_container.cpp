@@ -181,7 +181,7 @@ ImDrawList* Table::DoDraw(UIContext& ctx)
         for (const auto& cd : columnData) {
             float width = cd.width;
             if (cd.sizingPolicy & ImGuiTableColumnFlags_WidthFixed)
-                width *= ctx.zoomFactor;
+                width *= ImRad::GetUserData().dpiScale;
             ImGui::TableSetupColumn(cd.label.c_str(), cd.sizingPolicy | cd.flags, width);
             /*if (!cd.visible.empty())
                 ImGui::TableSetColumnEnabled(i, cd.visible.eval(ctx));*/
@@ -882,7 +882,7 @@ Child::Child(UIContext& ctx)
 {
     //zero size will be rendered wrongly?
     //it seems 0 is equivalent to -1 but only if children exist which is confusing
-    size_x = size_y = 20;
+    size_x = size_y = DEFAULT_MIN_WIDTH;
 
     flags.add$(ImGuiChildFlags_Borders);
     flags.add$(ImGuiChildFlags_AlwaysUseWindowPadding);
@@ -956,31 +956,31 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
 
     int wfl = wflags | ImGuiWindowFlags_NoSavedSettings;
     ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child of child causes scrolling which doesn't go back
-    ImGui::BeginChild("", sz, flags, wfl);
-
-    if (style_spacing.has_value())
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
-
-    if (columnCount.has_value() && columnCount.value() >= 2)
-        ImGui::Columns(columnCount.value(), "columns", columnBorder);
-
-    for (const auto& child : child_iterator(children, false))
+    if (ImGui::BeginChild("", sz, flags, wfl))
     {
-        child->Draw(ctx);
+        if (style_spacing.has_value())
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, style_spacing);
+
+        if (columnCount.has_value() && columnCount.value() >= 2)
+            ImGui::Columns(columnCount.value(), "columns", columnBorder);
+
+        for (const auto& child : child_iterator(children, false))
+        {
+            child->Draw(ctx);
+        }
+
+        auto cpos = ImRad::GetCursorData();
+        ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false); //cancels column clip
+        for (const auto& child : child_iterator(children, true))
+        {
+            child->Draw(ctx);
+        }
+        ImGui::PopClipRect();
+        ImRad::SetCursorData(cpos);
+
+        if (style_spacing.has_value())
+            ImGui::PopStyleVar();
     }
-
-    auto cpos = ImRad::GetCursorData();
-    ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false); //cancels column clip
-    for (const auto& child : child_iterator(children, true))
-    {
-        child->Draw(ctx);
-    }
-    ImGui::PopClipRect();
-    ImRad::SetCursorData(cpos);
-
-    if (style_spacing.has_value())
-        ImGui::PopStyleVar();
-
     ImGui::EndChild();
 
     if (!style_outerPadding)
@@ -1841,9 +1841,13 @@ TreeNode::TreeNode(UIContext& ctx)
 {
     flags.add$(ImGuiTreeNodeFlags_Bullet);
     flags.add$(ImGuiTreeNodeFlags_DefaultOpen);
+    flags.add$(ImGuiTreeNodeFlags_DrawLinesNone);
+    flags.add$(ImGuiTreeNodeFlags_DrawLinesFull);
+    flags.add$(ImGuiTreeNodeFlags_DrawLinesToNodes);
     //flags.add$(ImGuiTreeNodeFlags_Framed);
     flags.add$(ImGuiTreeNodeFlags_FramePadding);
     flags.add$(ImGuiTreeNodeFlags_Leaf);
+    flags.add$(ImGuiTreeNodeFlags_NavLeftJumpsToParent);
     flags.add$(ImGuiTreeNodeFlags_NoTreePushOnOpen);
     flags.add$(ImGuiTreeNodeFlags_OpenOnArrow);
     flags.add$(ImGuiTreeNodeFlags_OpenOnDoubleClick);

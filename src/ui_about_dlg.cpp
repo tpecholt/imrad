@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // github.com/xyz
 
 #include "ui_about_dlg.h"
@@ -11,6 +11,7 @@ void AboutDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     modalResult = ImRad::None;
     ImRad::GetUserData().dimBgRatio = 1.f;
+    IM_ASSERT(ID && "Call Draw at least once to get ID assigned");
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -29,14 +30,15 @@ void AboutDlg::Init()
 
 void AboutDlg::Draw()
 {
-    /// @dpi-info 141.357,1.25
+    /// @dpi-info 141.357,1.75
     /// @style imrad
-    /// @unit px
+    /// @unit dp
     /// @begin TopWindow
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###AboutDlg");
     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 60, 20 });
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10, 7 });
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 40*dp, 12*dp });
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10*dp, 7*dp });
     ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }); //Center
     ImGui::SetNextWindowSize({ 0, 0 }); //{ 0, 0 }
     bool tmpOpen = true;
@@ -50,9 +52,13 @@ void AboutDlg::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(1);
+        DrawPopups();
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 40*dp, 12*dp });
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 10*dp, 7*dp });
         /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Image
         if (!value1)
@@ -65,16 +71,16 @@ void AboutDlg::Draw()
         /// @begin Text
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushFont(nullptr, uiFontSize*1.5f);
-        ImGui::TextUnformatted(ImRad::Format("{}", VER_STR).c_str());
+        ImGui::TextUnformatted(VER_STR.c_str());
         ImGui::PopFont();
         /// @end Text
 
         /// @begin Separator
         ImRad::Spacing(1);
-        ImRad::IgnoreWindowPaddingData _data1;
-        ImRad::PushIgnoreWindowPadding(nullptr, &_data1);
+        ImRad::IgnoreWindowPaddingData tmpPadding1;
+        ImRad::PushIgnoreWindowPadding(nullptr, &tmpPadding1);
         ImRad::SeparatorEx(ImRad::SeparatorFlags_Horizontal);
-        ImRad::PopIgnoreWindowPadding(_data1);
+        ImRad::PopIgnoreWindowPadding(tmpPadding1);
         /// @end Separator
 
         /// @begin Text
@@ -96,7 +102,7 @@ void AboutDlg::Draw()
         /// @begin Table
         if (ImGui::BeginTable("table2", 2, 0, { -1, 0 }))
         {
-            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0);
+            ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 0*dp);
             ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthStretch, 0);
             ImGui::TableSetupScrollFreeze(0, 0);
             ImGui::TableNextRow(0, 0);
@@ -167,7 +173,7 @@ void AboutDlg::Draw()
         if (ImGui::BeginTable("table3", 2, ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoPadInnerX, { -1, 0 }))
         {
             ImGui::TableSetupColumn("left-stretch", ImGuiTableColumnFlags_WidthStretch, 0);
-            ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0);
+            ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthFixed, 0*dp);
             ImGui::TableSetupScrollFreeze(0, 0);
             ImGui::TableNextRow(0, 0);
             ImGui::TableSetColumnIndex(0);
@@ -175,7 +181,7 @@ void AboutDlg::Draw()
 
             /// @begin Button
             ImRad::TableNextColumn(1);
-            if (ImGui::Button("OK", { 100, 30 }) ||
+            if (ImGui::Button("OK", { 80*dp, 25*dp }) ||
                 ImGui::Shortcut(ImGuiKey_Escape))
             {
                 ClosePopup(ImRad::Ok);
@@ -190,9 +196,8 @@ void AboutDlg::Draw()
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor(1);
     /// @end TopWindow
 }
 
@@ -221,5 +226,11 @@ void AboutDlg::HoverURL()
     ImVec2 p1 = ImGui::GetItemRectMin();
     ImVec2 p2 = ImGui::GetItemRectMax();
     auto* dl = ImGui::GetWindowDrawList();
-    dl->AddLine({ p1.x, p2.y }, { p2.x, p2.y }, 0xff003399);
+    float dp = ImRad::GetUserData().dpiScale;
+    dl->AddLine({ p1.x, p2.y }, { p2.x, p2.y }, 0xff003399, 1*dp);
+}
+
+void AboutDlg::DrawPopups()
+{
+    // TODO: Draw dependent popups here
 }

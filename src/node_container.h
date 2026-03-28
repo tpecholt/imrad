@@ -152,7 +152,7 @@ struct TabItem : Widget
 
 struct TreeNode : Widget
 {
-    direct_val<ImGuiTreeNodeFlags_> flags;
+    direct_val<ImGuiTreeNodeFlags_> flags = ImGuiTreeNodeFlags_DrawLinesNone;
     bindable<std::string> label = "Node";
     bindable<bool> open;
     bool lastOpen;

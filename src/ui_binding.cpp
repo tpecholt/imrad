@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // github.com/xyz
 
 #include "ui_binding.h"
@@ -14,6 +14,7 @@ void BindingDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     modalResult = ImRad::None;
     ImRad::GetUserData().dimBgRatio = 1.f;
+    IM_ASSERT(ID && "Call Draw at least once to get ID assigned");
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -26,14 +27,15 @@ void BindingDlg::ClosePopup(ImRad::ModalResult mr)
 
 void BindingDlg::Draw()
 {
-    /// @dpi-info 141.357,1.25
-    /// @style Dark
-    /// @unit px
+    /// @dpi-info 141.357,1.5
+    /// @style imrad
+    /// @unit dp
     /// @begin TopWindow
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###BindingDlg");
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 7 });
-    ImGui::SetNextWindowSize({ 600, 480 }, ImGuiCond_FirstUseEver); //{ 600, 480 }
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8*dp, 8*dp });
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5*dp, 5*dp });
+    ImGui::SetNextWindowSize({ 450*dp, 350*dp }, ImGuiCond_FirstUseEver); //{ 450*dp, 350*dp }
     ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Binding###BindingDlg", &tmpOpen, ImGuiWindowFlags_NoCollapse))
@@ -46,10 +48,11 @@ void BindingDlg::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        ImGui::PopStyleVar(2);
+        DrawPopups();
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8*dp, 8*dp });
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5*dp, 5*dp });
         /// @separator
-
-        newFieldPopup.Draw();
-        messageBox.Draw();
 
         /// @begin Text
         hb1.BeginLayout();
@@ -61,14 +64,14 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImRad::Dummy({ hb1.GetSize(), 20 });
+        ImRad::Dummy({ hb1.GetSize(), 0 });
         hb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Text
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::TextUnformatted(ImRad::Format("{}", type+(forceReference?" &":"")).c_str());
+        ImGui::TextUnformatted(ImRad::Format("{}{}", type, forceReference?" &":"").c_str());
         hb1.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::ItemSize);
         ImGui::PopStyleColor();
         /// @end Text
@@ -101,7 +104,7 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImRad::Dummy({ hb3.GetSize(), 20 });
+        ImRad::Dummy({ hb3.GetSize(), 0 });
         hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
@@ -113,12 +116,16 @@ void BindingDlg::Draw()
         /// @end CheckBox
 
         /// @begin Table
-        if (ImGui::BeginTable("table1", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { -1, -48 }))
+        ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 3*dp, 3*dp });
+        if (ImGui::BeginTable("table1", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_ScrollY, { -1, -36*dp }))
         {
             ImGui::TableSetupColumn("Name", 0, 0);
             ImGui::TableSetupColumn("Type", 0, 0);
             ImGui::TableSetupScrollFreeze(0, 1);
+            ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
             ImGui::TableHeadersRow();
+            ImGui::PopItemFlag();
 
             for (int i = 0; i < vars.size(); ++i)
             {
@@ -130,7 +137,7 @@ void BindingDlg::Draw()
 
                 /// @begin Selectable
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                if (ImRad::Selectable(ImRad::Format("{}", vars[i].first).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                if (ImRad::Selectable(vars[i].first.c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
                 {
                     OnVarClicked();
                 }
@@ -141,7 +148,7 @@ void BindingDlg::Draw()
                 ImRad::TableNextColumn(1);
                 ImGui::BeginDisabled(true);
                 ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                ImRad::Selectable(ImRad::Format("{}", vars[i].second).c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
+                ImRad::Selectable(vars[i].second.c_str(), false, ImGuiSelectableFlags_NoAutoClosePopups, { 0, 0 });
                 ImGui::PopStyleVar();
                 ImGui::EndDisabled();
                 /// @end Selectable
@@ -151,12 +158,14 @@ void BindingDlg::Draw()
             }
             ImGui::EndTable();
         }
+        ImGui::PopStyleVar();
+        ImGui::PopItemFlag();
         /// @end Table
 
         /// @begin Button
         hb5.BeginLayout();
         ImRad::Spacing(1);
-        if (ImGui::Button(" New Field... ", { 0, 30 }))
+        if (ImGui::Button(" New Field... ", { 0, 25*dp }))
         {
             OnNewField();
         }
@@ -165,7 +174,7 @@ void BindingDlg::Draw()
 
         /// @begin Spacer
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        ImRad::Dummy({ hb5.GetSize(), 20 });
+        ImRad::Dummy({ hb5.GetSize(), 0 });
         hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
@@ -182,29 +191,28 @@ void BindingDlg::Draw()
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(!exprValid);
-        if (ImGui::Button("OK", { 90, 30 }))
+        if (ImGui::Button("OK", { 80*dp, 25*dp }))
         {
             OkButton_Change();
         }
-        hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 90);
+        hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         ImGui::EndDisabled();
         /// @end Button
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("Cancel", { 90, 30 }) ||
+        if (ImGui::Button("Cancel", { 80*dp, 25*dp }) ||
             ImGui::Shortcut(ImGuiKey_Escape))
         {
             ClosePopup(ImRad::Cancel);
         }
-        hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 90);
+        hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         /// @end Button
 
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
     /// @end TopWindow
 }
 
@@ -265,4 +273,11 @@ void BindingDlg::OkButton_Change()
         return;
     }
     ClosePopup(ImRad::Ok);
+}
+
+void BindingDlg::DrawPopups()
+{
+    // TODO: Draw dependent popups here
+    newFieldPopup.Draw();
+    messageBox.Draw();
 }

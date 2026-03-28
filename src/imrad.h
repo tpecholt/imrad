@@ -1395,11 +1395,9 @@ void SaveStyle(const std::string& spath, const ImGuiStyle* src, const std::map<s
 #undef WRITE_FLT
 #undef WRITE_VEC
 
-    if (extra.lower_bound("fonts.") == extra.end())
-    {
-        fout << "\n[fonts]\n";
-        fout << "Default = \"Roboto-Regular.ttf\" size 15\n";
-    }
+    //you can popupulate the extra parameter with font definitions like
+    // { "fonts.Default", "Roboto-Regular.ttf size 15" }
+
     std::string lastSection;
     for (const auto& kv : extra)
     {

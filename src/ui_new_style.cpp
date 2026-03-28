@@ -37,13 +37,14 @@ void NewStyleDlg::ResetLayout()
 
 void NewStyleDlg::Draw()
 {
-    /// @dpi-info 141.357,1.25
+    /// @dpi-info 141.357,1.75
     /// @style imrad
-    /// @unit px
+    /// @unit dp
     /// @begin TopWindow
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###NewStyleDlg");
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
-    ImGui::SetNextWindowSize({ 0, 0 }); //{ 250, 120 }
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 7*dp, 6*dp });
+    ImGui::SetNextWindowSize({ 0, 0 }); //{ 250*dp, 120*dp }
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("New Style###NewStyleDlg", &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
@@ -57,9 +58,10 @@ void NewStyleDlg::Draw()
         }
         if (ImGui::Shortcut(ImGuiKey_Escape))
             ClosePopup();
+        ImGui::PopStyleVar(1);
+        DrawPopups();
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 7*dp, 6*dp });
         /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Text
         ImGui::TextUnformatted("Name:");
@@ -69,7 +71,7 @@ void NewStyleDlg::Draw()
         messageBox.Draw();
 
         /// @begin Input
-        ImGui::SetNextItemWidth(250);
+        ImGui::SetNextItemWidth(200*dp);
         ImGui::InputText("##name", &name, ImGuiInputTextFlags_CharsNoBlank);
         if (ImGui::IsItemActive())
             ImRad::GetUserData().imeType = ImRad::ImeText;
@@ -83,31 +85,36 @@ void NewStyleDlg::Draw()
         /// @end Text
 
         /// @begin Combo
-        ImGui::SetNextItemWidth(250);
+        ImGui::SetNextItemWidth(200*dp);
         ImRad::Combo("##source", &source, sources, 0);
         /// @end Combo
 
         /// @begin Spacer
         hb5.BeginLayout();
         ImRad::Spacing(3);
-        ImRad::Dummy({ hb5.GetSize(), 20 });
+        ImRad::Dummy({ hb5.GetSize(), 20*dp });
         hb5.AddSize(0 * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::Stretch(1.0f));
         /// @end Spacer
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::BeginDisabled(name==""||name=="Classic"||name=="Dark"||name=="Light");
-        if (ImGui::Button("OK", { 100, 30 }))
+        if (ImGui::Button("OK", { 80*dp, 25*dp }))
         {
             ClosePopup(ImRad::Ok);
         }
-        hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
+        hb5.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 80*dp);
         ImGui::EndDisabled();
         /// @end Button
 
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(1);
     /// @end TopWindow
+}
+
+void NewStyleDlg::DrawPopups()
+{
+    // TODO: Draw dependent popups here
 }

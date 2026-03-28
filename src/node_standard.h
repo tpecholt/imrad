@@ -8,6 +8,8 @@
 #include "imrad.h"
 #include "IconsFontAwesome6.h"
 
+extern const float DEFAULT_ITEM_WIDTH;
+extern const float DEFAULT_MIN_WIDTH;
 
 struct PreparedString
 {
@@ -77,7 +79,7 @@ struct UINode
     virtual auto GetTypeName()->std::string;
     auto GetParentIndexes(UIContext& ctx)->std::string;
     void PushError(UIContext& ctx, const std::string& err);
-
+    
     struct child_iterator;
 
     ImVec2 cached_pos;
@@ -188,6 +190,7 @@ struct Widget : UINode
     std::string userCodeBefore, userCodeAfter;
 
     static std::unique_ptr<Widget> Create(const std::string& s, UIContext& ctx);
+    static float GetScaledMinWidth(UIContext& ctx);
 
     Widget();
     void Draw(UIContext& ctx);

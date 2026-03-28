@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // visit https://github.com/tpecholt/imrad
 
 #include "ui_error_box.h"
@@ -129,13 +129,14 @@ void ErrorBox::Init()
 
 void ErrorBox::Draw()
 {
-    /// @dpi-info 141.357,1.25
-    /// @style Dark
-    /// @unit px
+    /// @dpi-info 141.357,1.75
+    /// @style imrad
+    /// @unit dp
     /// @begin TopWindow
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###ErrorBox");
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
-    ImGui::SetNextWindowSize({ 640, 480 }, ImGuiCond_FirstUseEver); //{ 640, 480 }
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10*dp, 10*dp });
+    ImGui::SetNextWindowSize({ 640*dp, 480*dp }, ImGuiCond_FirstUseEver); //{ 640*dp, 480*dp }
     ImGui::SetNextWindowSizeConstraints({ 0, 0 }, { FLT_MAX, FLT_MAX });
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal(ImRad::Format("{}###ErrorBox", title).c_str(), &tmpOpen, ImGuiWindowFlags_NoCollapse))
@@ -150,9 +151,10 @@ void ErrorBox::Draw()
         }
         if (ImGui::Shortcut(ImGuiKey_Escape))
             ClosePopup();
+        ImGui::PopStyleVar(1);
+        DrawPopups();
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10*dp, 10*dp });
         /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Text
         vb1.BeginLayout();
@@ -166,14 +168,14 @@ void ErrorBox::Draw()
         /// @begin Text
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
         ImGui::PushTextWrapPos(0);
-        ImGui::TextUnformatted(ImRad::Format("{}", message).c_str());
+        ImGui::TextUnformatted(message.c_str());
         ImGui::PopTextWrapPos();
         vb1.UpdateSize(0, ImRad::VBox::ItemSize);
         /// @end Text
 
         /// @begin Child
         ImRad::Spacing(2);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 4 });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 4*dp });
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xffc0c0c0);
         if (ImGui::BeginChild("child1", { -1, vb1.GetSize() }, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoSavedSettings))
         {
@@ -201,12 +203,12 @@ void ErrorBox::Draw()
 
         /// @begin Button
         ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("OK", { 100, 30 }))
+        if (ImGui::Button("OK", { 100*dp, 30*dp }))
         {
             ClosePopup(ImRad::Ok);
         }
-        vb1.UpdateSize(0, 30);
-        hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100);
+        vb1.UpdateSize(0, 30*dp);
+        hb3.AddSize(1 * ImGui::GetStyle().ItemSpacing.x, 100*dp);
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere(-1);
         /// @end Button
@@ -221,7 +223,7 @@ void ErrorBox::Draw()
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(1);
     /// @end TopWindow
 }
 
@@ -238,4 +240,9 @@ void ErrorBox::CustomWidget_Draw(const ImRad::CustomWidgetArgs& args)
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
     TreeNode(error, i, 0, false);
     ImGui::PopItemFlag();
+}
+
+void ErrorBox::DrawPopups()
+{
+    // TODO: Draw dependent popups here
 }

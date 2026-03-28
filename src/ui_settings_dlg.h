@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // visit https://github.com/tpecholt/imrad
 
 #pragma once
@@ -21,10 +21,12 @@ public:
     std::string pgFontSize;
     std::string designFontName;
     std::string designFontSize;
+    std::string dpiScale;
     /// @end interface
 
 private:
     /// @begin impl
+    void DrawPopups();
     void ResetLayout();
     void Init();
 

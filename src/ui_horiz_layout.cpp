@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // visit github.com/tpecholt/imrad
 
 #include "ui_horiz_layout.h"
@@ -11,6 +11,7 @@ void HorizLayout::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
     callback = clb;
     modalResult = ImRad::None;
     ImRad::GetUserData().dimBgRatio = 1.f;
+    IM_ASSERT(ID && "Call Draw at least once to get ID assigned");
     ImGui::OpenPopup(ID);
     Init();
 }
@@ -23,13 +24,15 @@ void HorizLayout::ClosePopup(ImRad::ModalResult mr)
 
 void HorizLayout::Draw()
 {
+    /// @dpi-info 141.357,1.75
     /// @style imrad
-    /// @unit px
+    /// @unit dp
     /// @begin TopWindow
+    const float dp = ImRad::GetUserData().dpiScale;
     ID = ImGui::GetID("###HorizLayout");
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 10, 10 });
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 5, 10 });
-    ImGui::SetNextWindowSize({ 0, 0 }); //{ 640, 480 }
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8*dp, 8*dp });
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 4*dp, 7*dp });
+    ImGui::SetNextWindowSize({ 0, 0 }); //{ 640*dp, 480*dp }
     bool tmpOpen = true;
     if (ImGui::BeginPopupModal("Table Layout Helper###HorizLayout", &tmpOpen, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
     {
@@ -41,9 +44,11 @@ void HorizLayout::Draw()
             if (modalResult != ImRad::Cancel)
                 callback(modalResult);
         }
+        ImGui::PopStyleVar(2);
+        DrawPopups();
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8*dp, 8*dp });
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 4*dp, 7*dp });
         /// @separator
-
-        // TODO: Add Draw calls of dependent popup windows here
 
         /// @begin Text
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -120,13 +125,13 @@ void HorizLayout::Draw()
         /// @begin Selectable
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
         ImGui::AlignTextToFramePadding();
-        ImRad::Selectable("spacing", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 65, 0 });
+        ImRad::Selectable("spacing", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 52*dp, 0 });
         ImGui::PopStyleVar();
         /// @end Selectable
 
         /// @begin Input
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetNextItemWidth(100);
+        ImGui::SetNextItemWidth(100*dp);
         ImGui::InputInt("##spacing", &spacing, 1);
         if (ImGui::IsItemActive())
             ImRad::GetUserData().imeType = ImRad::ImeNumber;
@@ -137,13 +142,13 @@ void HorizLayout::Draw()
         /// @begin Selectable
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 1.f, 0 });
         ImGui::AlignTextToFramePadding();
-        ImRad::Selectable("padding", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 65, 0 });
+        ImRad::Selectable("padding", false, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_Disabled, { 52*dp, 0 });
         ImGui::PopStyleVar();
         /// @end Selectable
 
         /// @begin Input
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-        ImGui::SetNextItemWidth(100);
+        ImGui::SetNextItemWidth(100*dp);
         ImGui::InputInt("##padding", &padding, 1);
         if (ImGui::IsItemActive())
             ImRad::GetUserData().imeType = ImRad::ImeNumber;
@@ -161,7 +166,7 @@ void HorizLayout::Draw()
         /// @begin Button
         ImRad::Spacing(2);
         ImGui::BeginDisabled(selected.empty()||alignment<0);
-        if (ImGui::Button("OK", { 100, 30 }))
+        if (ImGui::Button("OK", { 80*dp, 25*dp }))
         {
             Work();
             ClosePopup(ImRad::Ok);
@@ -171,7 +176,7 @@ void HorizLayout::Draw()
 
         /// @begin Button
         ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
-        if (ImGui::Button("Cancel", { 100, 30 }) ||
+        if (ImGui::Button("Cancel", { 80*dp, 25*dp }) ||
             ImGui::Shortcut(ImGuiKey_Escape))
         {
             ClosePopup(ImRad::Cancel);
@@ -181,8 +186,7 @@ void HorizLayout::Draw()
         /// @separator
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
     /// @end TopWindow
 }
 
@@ -375,4 +379,9 @@ void HorizLayout::Init()
 {
     alignment = -1; //force user to choose
     ExpandSelection(selected, root);
+}
+
+void HorizLayout::DrawPopups()
+{
+    // TODO: Draw dependent popups here
 }

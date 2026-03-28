@@ -99,6 +99,7 @@ std::string designFontName = "Roboto-Regular.ttf";
 //float uiFontSize = 15; moved to utils.h
 float pgFontSize = 16;
 float designFontSize = 15;
+float zoomFactor = 1.f;
 UIContext ctx;
 std::unique_ptr<Widget> newNode;
 std::vector<File> fileTabs;
@@ -778,7 +779,7 @@ void NewWidget(const std::string& name)
     }
 }
 
-void StyleColors()
+void StyleColorsImRad()
 {
     ImGui::StyleColorsLight();
     ImGuiStyle& style = ImGui::GetStyle();
@@ -786,6 +787,8 @@ void StyleColors()
     style.Alpha = 1.0f;
     style.FrameRounding = 3.0f;
     style.WindowRounding = 3.f;
+    style.ScaleAllSizes(1 / 1.25f); //will be DPI scaled later
+
     style.Colors[ImGuiCol_Text] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
     style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
     style.Colors[ImGuiCol_WindowBg] = ImVec4(0.94f, 0.94f, 0.94f, 0.94f);
@@ -860,8 +863,6 @@ void StyleColors()
             }
         }
     }
-
-    //ImRad::SaveStyle(rootPath + "/style/debug.ini");
 }
 
 void GetStyles()
@@ -978,21 +979,48 @@ void LoadStyle()
     if (!reloadStyle)
         return;
 
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Wait);
     reloadStyle = false;
     auto& io = ImGui::GetIO();
     std::string stylePath = rootPath + "/style/";
-    float mainScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
-
-    ImGui::SetMouseCursor(ImGuiMouseCursor_Wait);
-    io.Fonts->Clear();
+    float dpiScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
 
     //reload ImRAD UI first
-    StyleColors();
-    //ImGui::GetStyle().ScaleAllSizes(mainScale);
-    ImGui::GetStyle().FontScaleDpi = mainScale;
+    ImGui::GetStyle() = {};
+    StyleColorsImRad();
+    //debug: save imrad style
+    /*auto imradclr = GetCtxColors("Light");
+#define RGB_STR(a) \
+    std::to_string((imradclr[UIContext::a] >> IM_COL32_R_SHIFT) & 0xff) + " " + \
+    std::to_string((imradclr[UIContext::a] >> IM_COL32_G_SHIFT) & 0xff) + " " + \
+    std::to_string((imradclr[UIContext::a] >> IM_COL32_B_SHIFT) & 0xff) + " " + \
+    std::to_string((imradclr[UIContext::a] >> IM_COL32_A_SHIFT) & 0xff)
+    std::ostringstream os;
+    os << "\"" << uiFontName << "\" size " << (int)uiFontSize
+        << "\nDefault = \"" << FONT_ICON_FILE_NAME_FAR << "\" size " << (int)faSize
+        << "\nDefault = \"" << FONT_ICON_FILE_NAME_FAS << "\" size " << (int)faSize;
+    std::map<std::string, std::string> extra{
+        { "fonts.Default", os.str() },
+        { "imrad.colors.DrawArgs",  RGB_STR(DrawArgs) },
+        { "imrad.colors.Hovered", RGB_STR(Hovered) },
+        { "imrad.colors.Selected", RGB_STR(Selected) },
+        { "imrad.colors.Snap1",  RGB_STR(Snap1) },
+        { "imrad.colors.Snap2",  RGB_STR(Snap2) },
+        { "imrad.colors.Snap3",  RGB_STR(Snap3) },
+        { "imrad.colors.Snap4",  RGB_STR(Snap4) },
+        { "imrad.colors.Snap5",  RGB_STR(Snap5) },
+    };
+#undef RGB_STR
+    ImRad::SaveStyle(stylePath + "imrad.ini", &ImGui::GetStyle(), extra);
+    */
+
+    ImGui::GetStyle().ScaleAllSizes(dpiScale);
+    ImRad::GetUserData().dpiScale = dpiScale;
+    ImGui::GetStyle().FontScaleDpi = dpiScale;
+
+    io.Fonts->Clear();
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     io.Fonts->AddFontFromFileTTF((stylePath + uiFontName).c_str(), uiFontSize);
-    //static ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
     ImFontConfig cfg;
     cfg.MergeMode = true;
     //icons_config.PixelSnapH = true;
@@ -1011,49 +1039,51 @@ void LoadStyle()
     io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), faSize, &cfg);
     cfg.MergeMode = false;
 
+    //set active designer style
     ctx.defaultStyleFont = nullptr;
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
-    ctx.style = ImGuiStyle();
-    ctx.style.FontScaleDpi = mainScale;
-    //ctx.style.FontSizeBase = designFontSize;
+    ctx.style = {};
+    ctx.unit = "px";
 
     if (activeTab >= 0)
     {
-        const auto& file = fileTabs[activeTab];
-        std::string styleName = file.configs[file.activeConfig].styleName;
-        if (styleName == "Classic")
+        auto& file = fileTabs[activeTab];
+        auto& cfg = file.configs[file.activeConfig];
+        ctx.unit = cfg.unit;
+
+        if (cfg.styleName == "Classic")
         {
             ImGui::StyleColorsClassic(&ctx.style);
             ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF((stylePath + designFontName).c_str(), designFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
-            ctx.colors = GetCtxColors(styleName);
+            ctx.colors = GetCtxColors(cfg.styleName);
         }
-        else if (styleName == "Light")
+        else if (cfg.styleName == "Light")
         {
             ImGui::StyleColorsLight(&ctx.style);
             ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF((stylePath + designFontName).c_str(), designFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
-            ctx.colors = GetCtxColors(styleName);
+            ctx.colors = GetCtxColors(cfg.styleName);
         }
-        else if (styleName == "Dark")
+        else if (cfg.styleName == "Dark")
         {
             ImGui::StyleColorsDark(&ctx.style);
             ctx.defaultStyleFont = io.Fonts->AddFontFromFileTTF((stylePath + designFontName).c_str(), designFontSize);
             ctx.defaultStyleFont->FallbackChar = '#';
             ctx.fontNames = { "" };
-            ctx.colors = GetCtxColors(styleName);
+            ctx.colors = GetCtxColors(cfg.styleName);
         }
         else
         {
             std::map<std::string, ImFont*> fontMap;
             std::map<std::string, std::string> extra;
             try {
-                auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == styleName; });
+                auto it = stx::find_if(styleNames, [&](const auto& s) { return s.first == cfg.styleName; });
                 ImRad::LoadStyle(it->second, 1.f, &ctx.style, &fontMap, &extra);
-                ctx.style.FontScaleDpi = mainScale;
+                ctx.style.FontScaleDpi = dpiScale;
 
                 ctx.defaultStyleFont = fontMap[""];
                 for (const auto& f : fontMap) {
@@ -1086,6 +1116,12 @@ void LoadStyle()
                 showError = e.what();
             }
         }
+
+        if (ctx.unit == "dp") {
+            ctx.style.FontScaleDpi = dpiScale;
+            //ctx.style.FontSizeBase = designFontSize;
+            ctx.style.ScaleAllSizes(dpiScale);
+        }
     }
 }
 
@@ -1093,10 +1129,10 @@ bool CopyStyle(const std::string& from, const std::string& name, std::string& er
 {
     auto FormatClr = [](ImU32 c) {
         std::ostringstream os;
-        os << (c & 0xff) << " " <<
-            ((c >> 8) & 0xff) << " " <<
-            ((c >> 16) & 0xff) << " " <<
-            ((c >> 24) & 0xff);
+        os << ((c >> IM_COL32_R_SHIFT) & 0xff) << " " <<
+            ((c >> IM_COL32_G_SHIFT) & 0xff) << " " <<
+            ((c >> IM_COL32_B_SHIFT) & 0xff) << " " <<
+            ((c >> IM_COL32_A_SHIFT) & 0xff);
         return os.str();
     };
 
@@ -1262,6 +1298,7 @@ void OpenSettings()
         "12", "14", "15", "16", "17", "18", "19", "20", "21", "22", "24", "26", "28", "32", "36"
     };
 
+    settingsDlg.dpiScale = std::to_string((int)(100 * ImRad::GetUserData().dpiScale)) + "%";
     settingsDlg.fontNames = std::move(fontNames);
     settingsDlg.fontSizes = std::move(fontSizes);
     settingsDlg.uiFontName = uiFontName.substr(0, uiFontName.size() - 4);
@@ -1389,7 +1426,7 @@ void DockspaceUI()
         ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         clr.w = 0.5f;
         ImGui::PushStyleColor(ImGuiCol_Text, clr);
-        ImGui::Text("Zoom: %d%%", (int)(ctx.zoomFactor * 100));
+        ImGui::Text("Zoom: %d%%", (int)(zoomFactor * 100));
         ImGui::PopStyleColor();
     }
 
@@ -1399,8 +1436,8 @@ void DockspaceUI()
 void ToolbarUI()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + 0));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, tbSize));
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize({ viewport->Size.x, tbSize });
     ImGui::SetNextWindowViewport(viewport->ID);
 
     ImGuiWindowFlags window_flags = 0
@@ -1417,8 +1454,7 @@ void ToolbarUI()
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
     ImGui::Begin("TOOLBAR", nullptr, window_flags);
     ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
 
     const auto& io = ImGui::GetIO();
     if (ImGui::Button(" " ICON_FA_FILE " ") ||
@@ -1479,10 +1515,13 @@ void ToolbarUI()
     ImGui::SetNextItemWidth(7 * ImGui::GetFontSize());
     auto* thisFile = activeTab >= 0 ? &fileTabs[activeTab] : nullptr;
     std::string cfgName;
+    std::string cfgHint;
     if (thisFile) {
-        cfgName = thisFile->configs[thisFile->activeConfig].name;
+        const auto& cfg = thisFile->configs[thisFile->activeConfig];
+        cfgName = cfg.name;
         if (cfgName == "")
             cfgName = "(Default)";
+        cfgHint = "\"" + cfg.styleName + "\" @ " + cfg.unit + "";
     }
     if (ImGui::BeginCombo("##configuration", cfgName.c_str()))
     {
@@ -1504,6 +1543,7 @@ void ToolbarUI()
             EditConfigurations();
         ImGui::EndCombo();
     }
+    ImGui::SetItemTooltip(cfgHint.c_str());
     ImGui::SameLine();
     std::string thisStyle = thisFile ? thisFile->configs[thisFile->activeConfig].styleName : "";
     auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == thisStyle; });
@@ -1738,7 +1778,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
     ImGui::TableSetColumnIndex(0);
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
-    ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont);
+    ImGui::PushFont(topLevel ? ctx.pgbFont : ctx.pgFont, pgFontSize);
     int flags = ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus;
     std::string str;
     if (topLevel)
@@ -1757,13 +1797,13 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
         else
             str = cat.substr(i1 + 1);
     }
-    if (!topLevel)
-        ImGui::Unindent();
-    //align category label with other child properties
-    ImGui::SetCursorPosX(ImGui::GetStyle().IndentSpacing + ImGui::GetStyle().CellPadding.x - ImGui::GetFontSize());
+    ImGui::SetCursorPosX(ImGui::GetStyle().CellPadding.x);
+    //ImGui::SetCursorPosX(ImGui::GetStyle().IndentSpacing + ImGui::GetStyle().CellPadding.x - ImGui::GetFontSize());
     ImGui::SetNextItemAllowOverlap();
     if (forceOpen)
         ImGui::SetNextItemOpen(true);
+    //set level=1 indent to match with category label (cellpad.x+arrow size), further indent may be the same
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize());
     //see https://github.com/ocornut/imgui/issues/8551
     //ImGui::PushItemFlag(ImGuiButtonFlags_NoNavFocus, true);
     bool open;
@@ -1774,8 +1814,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
         ImGui::SameLine(0, 0);
     }
     //ImGui::PopItemFlag();
-    if (!topLevel && !forceSameRow)
-        ImGui::Indent();
+    ImGui::PopStyleVar();
     ImGui::PopFont();
     ImGui::PopStyleVar();
     if (!open && !forceSameRow)
@@ -1785,9 +1824,12 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
 
 void EndPropGroup(const std::string& cat, bool open)
 {
+    //use same indent as for TreeNode
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize());
     bool topLevel = cat.find('.') == std::string::npos;
     if (open)
         ImGui::TreePop();
+    ImGui::PopStyleVar();
 }
 
 std::vector<std::string_view> GetCat(std::string_view pname)
@@ -1841,6 +1883,11 @@ void PropertyRowsUI(bool pr)
             keyPressed = '.';
     }
 
+    //set tighter padding of inputs and tree arrows
+    ImVec2 framePad = ImGui::GetStyle().FramePadding;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
+    float sideWidth = ImGui::GetFontSize();// +ImGui::GetStyle().CellFrame.x;
+    ImVec4 sideColor = ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight);
     //header
     if (pr)
     {
@@ -1851,29 +1898,28 @@ void PropertyRowsUI(bool pr)
         else
             header = std::to_string(ctx.selected.size()) + " selected";
         ImGui::PushFont(ctx.pgbFont, pgFontSize);
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)); // ImGui::GetStyleColorVec4(ImGuiCol_TabUnfocusedActive)); // 0xffc0c0c0);
-        //ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, sideColor);
         if (ImGui::BeginChild("##typeChld", { -1, 0 }, ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysUseWindowPadding, 0)) {
-            ImGui::Indent();
-            ImGui::SameLine(); ImGui::Spacing();
+            ImGui::Indent(sideWidth + ImGui::GetStyle().CellPadding.x);
+            ImGui::Spacing();
             ImGui::Text("%s", header.c_str());
             ImGui::EndChild();
         }
-        //ImGui::PopStyleVar();
         ImGui::PopStyleColor();
         ImGui::PopFont();
     }
     //clear bg
+    ImU32 rowColor = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
     ImVec2 pgMin = ImGui::GetCursorScreenPos();
     ImGui::GetWindowDrawList()->AddRectFilled(
-        { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, pgMin.y },
+        { pgMin.x + sideWidth + 1, pgMin.y },
         ImGui::GetCurrentWindow()->InnerRect.Max,
-        0xfffafafa
+        rowColor
     );
     ImGui::GetWindowDrawList()->AddRectFilled(
         { pgMin.x, pgMin.y + (pr ? pgHeight : pgeHeight) },
-        { pgMin.x + ImGui::GetStyle().IndentSpacing + 1, ImGui::GetCurrentWindow()->InnerRect.Max.y },
-        0xfffafafa
+        { pgMin.x + sideWidth + 1, ImGui::GetCurrentWindow()->InnerRect.Max.y },
+        rowColor
     );
     ImGui::PushFont(ctx.pgFont, pgFontSize);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true); //ImGuiChildFlags_NavFlattened emulation
@@ -1924,8 +1970,6 @@ void PropertyRowsUI(bool pr)
                 forceCatOpen = GetCat(lastPropName);
         }
 
-        ImVec2 framePad = ImGui::GetStyle().FramePadding;
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
         //when selecting other widget of same kind from Tree, value from previous widget
         //wants to be sent to the new widget because input IDs are the same
         //PushID widget ptr to prevent it
@@ -1991,11 +2035,6 @@ void PropertyRowsUI(bool pr)
                     pval = props[i].property->to_arg();
                 }
             }
-            if (forceSameRow) {
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Indent();
-                ImGui::TableNextColumn();
-            }
         }
         while (lastCat.size())
         {
@@ -2006,7 +2045,6 @@ void PropertyRowsUI(bool pr)
 
         ImGui::PopItemFlag();
         ImGui::PopID();
-        ImGui::PopStyleVar();
         ImGui::EndTable();
 
         if (pr)
@@ -2036,6 +2074,7 @@ void PropertyRowsUI(bool pr)
     }
     ImGui::PopItemFlag();
     ImGui::PopFont();
+    ImGui::PopStyleVar();
 }
 
 void PropertyUI()
@@ -2110,9 +2149,14 @@ void Draw()
     auto tmpStyle = ImGui::GetStyle();
     ImGui::GetStyle() = ctx.style;
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg] = ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive];
-    ImGui::GetStyle().ScaleAllSizes(ctx.zoomFactor);
-    ImGui::GetStyle().FontScaleDpi *= ctx.zoomFactor;
-    ImGui::PushFont(ctx.defaultStyleFont, designFontSize);
+    ImGui::GetStyle().ScaleAllSizes(zoomFactor);
+    ImGui::GetStyle().FontScaleDpi *= zoomFactor;
+    ImGui::PushFont(ctx.defaultStyleFont); //ctx.defaultStyleFont.fontSize is correct
+    float tmpDpiScale = ImRad::GetUserData().dpiScale;
+    if (cfg.unit == "dp")
+        ImRad::GetUserData().dpiScale = ctx.style.FontScaleDpi * zoomFactor;
+    else
+        ImRad::GetUserData().dpiScale = zoomFactor;
 
     ctx.appStyle = &tmpStyle;
     ctx.workingDir = u8string(u8path(file.fname).parent_path());
@@ -2133,6 +2177,7 @@ void Draw()
 
     ImGui::PopFont();
     ImGui::GetStyle() = std::move(tmpStyle);
+    ImRad::GetUserData().dpiScale = tmpDpiScale;
 }
 
 std::vector<UINode*> SortSelection(const std::vector<UINode*>& sel)
@@ -2226,6 +2271,7 @@ RemoveSelected()
 
 void CheckVersion()
 {
+#ifdef NDEBUG
     std::string lastRelease;
     try {
         httplib::Headers hs;
@@ -2268,6 +2314,7 @@ void CheckVersion()
                 ShellExec(GITHUB_URL + "/releases");
             });
     }
+#endif
 }
 
 void Work()
@@ -2327,23 +2374,24 @@ void Work()
                 clipboard.pop_back();
             }
 
+            const float dp = ctx.style.FontScaleDpi * zoomFactor;
             newNode->hasPos = 0;
             ImVec2 pos = ImGui::GetMousePos() - ctx.snapParent->cached_pos;
             if (pos.x < ctx.snapParent->cached_size.x / 2) {
                 newNode->hasPos |= ImRad::AlignLeft;
-                newNode->pos_x = pos.x / ctx.zoomFactor;
+                newNode->pos_x = pos.x / dp;
             }
             else {
                 newNode->hasPos |= ImRad::AlignRight;
-                newNode->pos_x = (pos.x - ctx.snapParent->cached_size.x) / ctx.zoomFactor;
+                newNode->pos_x = (pos.x - ctx.snapParent->cached_size.x) / dp;
             }
             if (pos.y < ctx.snapParent->cached_size.y / 2) {
                 newNode->hasPos |= ImRad::AlignTop;
-                newNode->pos_y = pos.y / ctx.zoomFactor;
+                newNode->pos_y = pos.y / dp;
             }
             else {
                 newNode->hasPos |= ImRad::AlignBottom;
-                newNode->pos_y = (pos.y - ctx.snapParent->cached_size.y) / ctx.zoomFactor;
+                newNode->pos_y = (pos.y - ctx.snapParent->cached_size.y) / dp;
             }
             ctx.selected = { newNode.get() };
             ctx.snapParent->children.push_back(std::move(newNode));
@@ -2487,14 +2535,14 @@ void Work()
         if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
             ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
-            if (ctx.zoomFactor < 2)
-                ctx.zoomFactor *= 1.2f;
+            if (zoomFactor < 2)
+                zoomFactor *= 1.2f;
         }
         if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat) ||
             ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat))
         {
-            if (ctx.zoomFactor > 0.5)
-                ctx.zoomFactor /= 1.2f;
+            if (zoomFactor > 0.5)
+                zoomFactor /= 1.2f;
         }
         if (!ImGui::GetIO().WantTextInput)
         {

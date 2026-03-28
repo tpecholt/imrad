@@ -1,4 +1,4 @@
-// Generated with ImRAD 0.9
+// Generated with ImRAD 0.10-WIP
 // github.com/xyz
 
 #pragma once
@@ -18,6 +18,7 @@ public:
 
 private:
     /// @begin impl
+    void DrawPopups();
     void Init();
 
     void HoverURL();

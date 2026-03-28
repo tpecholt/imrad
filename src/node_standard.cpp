@@ -16,6 +16,8 @@
 
 const std::string TMP_RECT_VAR = "tmpRect";
 const std::string TMP_LAST_ITEM_VAR = "tmpLastItem";
+const float DEFAULT_ITEM_WIDTH = 150;
+const float DEFAULT_MIN_WIDTH = 15;
 
 void toggle(std::vector<UINode*>& c, UINode* val)
 {
@@ -65,7 +67,7 @@ std::string ParseShortcutOld(const std::string& line)
 void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std::function<void()> f)
 {
     ImVec2 pad = ImGui::GetStyle().FramePadding;
-    ImGui::Unindent();
+    ImGui::SetCursorPosX(ImGui::GetStyle().CellPadding.x);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, pad.y });
     ImGui::PushStyleColor(ImGuiCol_NavCursor, { 0, 0, 0, 0 });
     ImGui::SetNextItemAllowOverlap();
@@ -89,7 +91,6 @@ void TreeNodeProp(const char* name, ImFont* font, const std::string& label, std:
         ImGui::Text("%s", label.c_str());
         ImGui::PopFont();
     }
-    ImGui::Indent();
     ImGui::PopStyleColor();
 }
 
@@ -231,11 +232,11 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
         for (const auto& arg : ps.fmtArgs)
         {
             const char* text_end = ps.label.data() + arg.first;
-            dp = IncWrapText(dp, text, text_end, wrapWidth, ctx.zoomFactor);
+            dp = IncWrapText(dp, text, text_end, wrapWidth, 1.f);
             ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "{");
             text = text_end;
             text_end = ps.label.data() + arg.second - 1;
-            dp = IncWrapText(dp, text, text_end, wrapWidth, ctx.zoomFactor);
+            dp = IncWrapText(dp, text, text_end, wrapWidth, 1.f);
             ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "}");
             text = text_end;
         }
@@ -840,6 +841,11 @@ Widget::Create(const std::string& name, UIContext& ctx)
         return {};
 }
 
+float Widget::GetScaledMinWidth(UIContext& ctx)
+{
+    return DEFAULT_MIN_WIDTH * ImRad::GetUserData().dpiScale;
+}
+
 Widget::Widget()
 {
     hasPos.add("None", ImRad::AlignNone);
@@ -1241,7 +1247,7 @@ void Widget::Draw(UIContext& ctx)
                         ctx.lastSize.x = cached_size.x;
                     if (ctx.lastSize.y <= 0)
                         ctx.lastSize.y = cached_size.y;
-                    ctx.lastSize /= ctx.zoomFactor;
+                    ctx.lastSize /= ImRad::GetUserData().dpiScale;
                 }
             }
             else if (ctx.hovered == this &&
@@ -1289,8 +1295,8 @@ void Widget::Draw(UIContext& ctx)
         {
             ImVec2 delta = ImGui::GetMouseDragDelta();
             *ctx.modified = true;
-            pos_x = pos_x.value() + delta.x / ctx.zoomFactor;
-            pos_y = pos_y.value() + delta.y / ctx.zoomFactor;
+            pos_x = pos_x.value() + delta.x / ImRad::GetUserData().dpiScale;
+            pos_y = pos_y.value() + delta.y / ImRad::GetUserData().dpiScale;
             ImGui::ResetMouseDragDelta();
         }
         else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -1315,7 +1321,7 @@ void Widget::Draw(UIContext& ctx)
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
         {
             *ctx.modified = true;
-            ImVec2 delta = ImGui::GetMouseDragDelta() / ctx.zoomFactor;
+            ImVec2 delta = ImGui::GetMouseDragDelta() / ImRad::GetUserData().dpiScale;
             ImVec2 sp = ImGui::GetStyle().ItemSpacing;
             const float threshold = 5 * ImGui::GetStyle().FontScaleDpi;
             if (!sp.x)
@@ -3002,7 +3008,7 @@ void Widget::TreeUI(UIContext& ctx)
 
 Spacer::Spacer(UIContext& ctx)
 {
-    size_x = size_y = 20;
+    size_x = size_y = DEFAULT_MIN_WIDTH;
 }
 
 std::unique_ptr<Widget> Spacer::Clone(UIContext& ctx)
@@ -3014,9 +3020,9 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
 {
     ImVec2 size { size_x.eval_px(ImGuiAxis_X, ctx), size_y.eval_px(ImGuiAxis_Y, ctx) };
     if (!size.x) //compatibility
-        size.x = 20;
+        size.x = GetScaledMinWidth(ctx);
     if (!size.y) //compatibility
-        size.y = 20;
+        size.y = GetScaledMinWidth(ctx);
 
     ImRad::Dummy(size);
 
@@ -3029,9 +3035,10 @@ ImDrawList* Spacer::DoDraw(UIContext& ctx)
         clr |= int(0x5f * ImGui::GetStyle().Alpha) << 24;
         //dl->AddRect(p, p + size, clr);
 
-        float th = 2;
-        ImVec2 xuv{ std::round(r.x / 5 / ctx.zoomFactor), 0 };
-        ImVec2 yuv{ 0, std::round(r.y / 5 / ctx.zoomFactor) };
+        const float th = 2;
+        const float dp = ImRad::GetUserData().dpiScale;
+        ImVec2 xuv{ std::round(r.x / (5 * dp)), 0 };
+        ImVec2 yuv{ 0, std::round(r.y / (5 * dp)) };
 
         dl->PushTextureID(ctx.dashTexId);
         dl->PrimReserve(4*6, 4*4);
@@ -4804,8 +4811,8 @@ direct_val<ImRad::ImeType> Input::_imeAction = 0;
 
 Input::Input(UIContext& ctx)
 {
-    size_x = 200;
-    size_y = 100;
+    size_x = DEFAULT_ITEM_WIDTH;
+    size_y = DEFAULT_ITEM_WIDTH / 2;
 
     flags.add$(ImGuiInputTextFlags_CharsDecimal);
     flags.add$(ImGuiInputTextFlags_CharsHexadecimal);
@@ -4943,7 +4950,10 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
 
         if (tid == "int") {
             ImGui::InputScalar(id.c_str(), ImGuiDataType_S32, itmp, istep ? &istep : nullptr, nullptr, ps.label.c_str());
-            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+            ImVec2 size = ImGui::GetItemRectSize();
+            if (istep)
+                size.x -= 2 * (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x);
+            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, size);
         }
         else if (tid == "int2")
             ImGui::InputInt2(id.c_str(), itmp);
@@ -4953,7 +4963,10 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
             ImGui::InputInt4(id.c_str(), itmp);
         else if (tid == "float") {
             ImGui::InputScalar(id.c_str(), ImGuiDataType_Float, ftmp, fstep ? &fstep : nullptr, nullptr, ps.label.c_str());
-            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+            ImVec2 size = ImGui::GetItemRectSize();
+            if (fstep)
+                size.x -= 2 * (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x);
+            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, size);
         }
         else if (tid == "float2")
             ImGui::InputFloat2(id.c_str(), ftmp, format.c_str());
@@ -4963,7 +4976,10 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
             ImGui::InputFloat4(id.c_str(), ftmp, format.c_str());
         else if (tid == "double") {
             ImGui::InputScalar(id.c_str(), ImGuiDataType_Float, ftmp, fstep ? &fstep : nullptr, nullptr, ps.label.c_str());
-            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+            ImVec2 size = ImGui::GetItemRectSize();
+            if (fstep)
+                size.x -= 2 * (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x);
+            DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, size);
         }
     }
 
@@ -5538,7 +5554,7 @@ bool Input::EventUI(int i, UIContext& ctx)
 
 Combo::Combo(UIContext& ctx)
 {
-    size_x = 200;
+    size_x = DEFAULT_ITEM_WIDTH;
 
     if (ctx.createVars)
         value.set_from_arg(ctx.codeGen->CreateVar("std::string", "", CppGen::Var::Interface));
@@ -5578,8 +5594,12 @@ ImDrawList* Combo::DoDraw(UIContext& ctx)
 
     auto ps = PrepareString(tmp);
     ImRad::Combo(id.c_str(), &ps.label, "\0", flags);
-    if (!(flags & ImGuiComboFlags_NoPreview))
-        DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
+    if (!(flags & ImGuiComboFlags_NoPreview)) {
+        ImVec2 itemSize = ImGui::GetItemRectSize();
+        if (!(flags & ImGuiComboFlags_NoArrowButton))
+            itemSize.x -= ImGui::GetFrameHeight();
+        DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, itemSize);
+    }
 
     return ImGui::GetWindowDrawList();
 }
@@ -5839,13 +5859,15 @@ bool Combo::EventUI(int i, UIContext& ctx)
 
 Slider::Slider(UIContext& ctx)
 {
-    size_x = 200;
+    size_x = DEFAULT_ITEM_WIDTH;
 
     flags.add$(ImGuiSliderFlags_ClampOnInput);
     flags.add$(ImGuiSliderFlags_ClampZeroRange);
+    flags.add$(ImGuiSliderFlags_ColorMarkers);
     flags.add$(ImGuiSliderFlags_Logarithmic);
     flags.add$(ImGuiSliderFlags_NoInput);
     flags.add$(ImGuiSliderFlags_NoRoundToFormat);
+    flags.add$(ImGuiSliderFlags_NoSpeedTweaks);
     //flags.add$(ImGuiSliderFlags_WrapAround); only works with DragXXX
 
     type.add("int", 0);
@@ -6183,7 +6205,7 @@ bool Slider::EventUI(int i, UIContext& ctx)
 
 ProgressBar::ProgressBar(UIContext& ctx)
 {
-    size_x = 200;
+    size_x = DEFAULT_ITEM_WIDTH;
 
     if (ctx.createVars)
         value.set_from_arg(ctx.codeGen->CreateVar("float", "0", CppGen::Var::Interface));
@@ -6363,7 +6385,7 @@ bool ProgressBar::PropertyUI(int i, UIContext& ctx)
 
 ColorEdit::ColorEdit(UIContext& ctx)
 {
-    size_x = 200;
+    size_x = DEFAULT_ITEM_WIDTH;
 
     flags.add$(ImGuiColorEditFlags_NoAlpha);
     flags.add$(ImGuiColorEditFlags_NoBorder);
@@ -6653,7 +6675,8 @@ std::unique_ptr<Widget> Image::Clone(UIContext& ctx)
 
 ImDrawList* Image::DoDraw(UIContext& ctx)
 {
-    float w = 20, h = 20;
+    float w = GetScaledMinWidth(ctx);
+    float h = GetScaledMinWidth(ctx);
     if (!size_x.zero())
         w = size_x.eval_px(ImGuiAxis_X, ctx);
     else if (tex.id)
@@ -7023,10 +7046,10 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
     ImVec2 size;
     size.x = size_x.eval_px(ImGuiAxis_X, ctx);
     if (!size.x)
-        size.x = 20;
+        size.x = GetScaledMinWidth(ctx);
     size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
     if (!size.y)
-        size.y = 20;
+        size.y = GetScaledMinWidth(ctx);
 
     std::string id = std::to_string((uintptr_t)this);
     if (ImGui::BeginChild(id.c_str(), size, ImGuiChildFlags_Borders))
@@ -7044,9 +7067,9 @@ ImDrawList* CustomWidget::DoDraw(UIContext& ctx)
         ImGui::SetCursorScreenPos(cached_pos + pos);
         ImGui::TextUnformatted(ps.label.c_str());
         DrawTextArgs(ps, ctx, pos);
-
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
+
     return ImGui::GetWindowDrawList();
 }
 
