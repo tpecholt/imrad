@@ -297,7 +297,11 @@ CppGen::ExportH(
                 }
                 else if (m_kind == TopWindow::Activity)
                 {
-                    out << INDENT << "void Open();\n";
+                    out << INDENT << "void Open(";
+                    //default parameter because window draw code calls Open()
+                    if (m_animate)
+                        out << "ImGuiDir animDir = ImGuiDir_None";
+                    out << ");\n";
                     out << INDENT << "void Draw();\n";
                 }
                 else
@@ -818,16 +822,19 @@ void CppGen::WriteForEachConfig(std::ostream& out, const std::vector<Config>& co
             idefault = &cfg - configs.data();
             continue;
         }
-        std::string code = fun(cfg);
+        std::string code = Trim(fun(cfg));
         if (code == "")
             continue;
-        bool block = stx::count(code, '\n') >= 2;
+        bool block = stx::count(code, '\n') >= 1;
         out << INDENT << (n ? "else if " : "if ")
             << "(ImRad::GetUserData().activeConfig == \"" << cfg.name << "\")\n";
         if (block)
             out << INDENT << "{\n";
-        //todo: indent in block
-        out << INDENT << INDENT << code;
+        for (size_t i = 0; i != std::string::npos; ) {
+            size_t j = code.find('\n', i);
+            out << INDENT << INDENT << code.substr(i, j == std::string::npos ? j : j - i) << "\n";
+            i = j == std::string::npos ? j : j + 1;
+        }
         if (block)
             out << INDENT << "}\n";
         ++n;
@@ -835,18 +842,25 @@ void CppGen::WriteForEachConfig(std::ostream& out, const std::vector<Config>& co
     if (idefault < configs.size())
     {
         const Config& cfg = configs[idefault];
-        std::string code = fun(cfg);
+        std::string code = Trim(fun(cfg));
         if (code != "") {
-            bool block = stx::count(code, '\n') >= 2;
-            if (!n)
-                //todo: indent in block
-                out << INDENT << code;
+            bool block = stx::count(code, '\n') >= 1;
+            if (!n) {
+                for (size_t i = 0; i != std::string::npos; ) {
+                    size_t j = code.find('\n', i);
+                    out << INDENT << code.substr(i, j == std::string::npos ? j : j - i) << "\n";
+                    i = j == std::string::npos ? j : j + 1;
+                }
+            }
             else {
                 out << INDENT << "else\n";
                 if (block)
                     out << INDENT << "{\n";
-                //todo: indent in block
-                out << INDENT << INDENT << code;
+                for (size_t i = 0; i != std::string::npos; ) {
+                    size_t j = code.find('\n', i);
+                    out << INDENT << INDENT << code.substr(i, j == std::string::npos ? j : j - i) << "\n";
+                    i = j == std::string::npos ? j : j + 1;
+                }
                 if (block)
                     out << INDENT << "{\n";
             }
@@ -950,7 +964,10 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
     }
     else if (id == "Open" && m_kind == TopWindow::Activity)
     {
-        fout << "::Open()\n{\n";
+        fout << "::Open(";
+        if (m_animate)
+            fout << "ImGuiDir animDir";
+        fout << ")\n{\n";
         fout << INDENT << "if (ImRad::GetUserData().activeActivity != \"" << m_name << "\")\n";
         fout << INDENT << "{\n";
         fout << INDENT << INDENT << "ImRad::GetUserData().activeActivity = \"" << m_name << "\";\n";
@@ -962,12 +979,16 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
                 TopWindow::Animation animate = cfg.node->animate;
-                if (animate != TopWindow::NoAnimation)
+                if (animate == TopWindow::CustomDirection)
                 {
-                    if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
-                        os << "animator.StartPersistent(&animPos.x, -ImGui::GetMainViewport()->Size.x, 0.f, ImRad::Animator::DurOpenActivity);\n";
-                    else if (animate == TopWindow::MoveUp || animate == TopWindow::MoveDown)
-                        os << "animator.StartPersistent(&animPos.y, -ImGui::GetMainViewport()->Size.y, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    os << "if (animDir == ImGuiDir_Left)\n";
+                    os << INDENT << "animator.StartPersistent(&animPos.x, ImRad::GetUserData().WorkRect().GetSize().x, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else if (animDir == ImGuiDir_Right)\n";
+                    os << INDENT << "animator.StartPersistent(&animPos.x, -ImRad::GetUserData().WorkRect().GetSize().x, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else if (animDir == ImGuiDir_Up)\n";
+                    os << INDENT << "animator.StartPersistent(&animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else if (animDir == ImGuiDir_Down)\n";
+                    os << INDENT << "animator.StartPersistent(&animPos.y, -ImRad::GetUserData().WorkRect().GetSize().y, 0.f, ImRad::Animator::DurOpenActivity);\n";
                 }
                 return os.str();
                 });

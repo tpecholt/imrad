@@ -16,6 +16,8 @@
 
 * New `DrawPopups` member is now generated for all kinds of windows. It is meant for dependent popup window invocations and it insulates them from inheriting the style of the invoking window. Please move your popup invocation code into this function to make it work.
 
+* Activity now allows CustomDirection animation which can be set at runtime
+
 ### Improvements by Widget Type
 
 * Combo
@@ -37,6 +39,10 @@
 * TreeItem
 
   * adds flags to draw lines
+
+* Activity
+
+  * adds CustomDirection animation, can set it in Open() at runtime
 
 ### Tutorials
 

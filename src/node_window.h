@@ -5,7 +5,7 @@ struct TopWindow : UINode
 {
     enum Kind { MainWindow, Window, Popup, ModalPopup, Activity };
     enum Placement { None, Left, Right, Top, Bottom, Center, Maximize };
-    enum Animation { NoAnimation, MoveLeft, MoveRight, MoveUp, MoveDown, FadeIn };
+    enum Animation { NoAnimation, MoveLeft, MoveRight, MoveUp, MoveDown, CustomDirection, FadeIn };
 
     struct StyleCounters { int nvars = 0, ncolors = 0, nfonts = 0; };
 

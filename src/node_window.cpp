@@ -487,10 +487,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 
-        if (animate == MoveLeft)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Max.x - animPos.x, ImRad::GetUserData().WorkRect().Min.y }, 0, { 1, 0 }); //Left\n";
-        else if (animate == MoveRight)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y }); //Right\n";
+        if (animate == CustomDirection)
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y + animPos.y }); //CustomDirection\n";
         else
             os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);\n";
 
@@ -1155,7 +1153,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     None;
             }
             if (setAnimateFromPos) {
-                animate = sit->line.find("Left") != std::string::npos ? MoveLeft :
+                animate = sit->line.find("CustomDirection") != std::string::npos ? CustomDirection :
+                    sit->line.find("Left") != std::string::npos ? MoveLeft :
                     sit->line.find("Right") != std::string::npos ? MoveRight :
                     sit->line.find("Top") != std::string::npos ? MoveUp :
                     sit->line.find("Bottom") != std::string::npos ? MoveDown :
@@ -1435,8 +1434,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
                 animate.add$(FadeIn);
         }
         else if (kind == Activity) {
-            animate.add$(MoveLeft);
-            animate.add$(MoveRight);
+            animate.add$(CustomDirection);
         }
 
         if (animate.get_id() == "") {
