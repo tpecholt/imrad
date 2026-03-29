@@ -501,7 +501,7 @@ Rect IOUserData::WorkRect() const
 
 const float Animator::DurOpenPopup = 0.4f;
 const float Animator::DurClosePopup = 0.3f;
-const float Animator::DurOpenActivity = 0.4f;
+const float Animator::DurOpenActivity = 0.2f;
 
 void Animator::StartPersistent(float* v, float s, float e, float dur)
 {
@@ -1374,7 +1374,7 @@ void SaveStyle(const std::string& spath, const ImGuiStyle* src, const std::map<s
     WRITE_FLT(GrabMinSize);
     WRITE_FLT(GrabRounding);
     WRITE_FLT(ImageBorderSize);
-#if IMGUI_VERSION_NUM >= 19250
+#if IMGUI_VERSION_NUM >= 19260
     WRITE_FLT(ImageRounding);
 #endif
     WRITE_FLT(TabRounding);
@@ -1487,7 +1487,7 @@ void LoadStyle(const std::string& spath, float fontScaling, ImGuiStyle* dst, std
                 READ_FLT(GrabMinSize);
                 READ_FLT(GrabRounding);
                 READ_FLT(ImageBorderSize);
-#if IMGUI_VERSION_NUM >= 19250
+#if IMGUI_VERSION_NUM >= 19260
                 READ_FLT(ImageRounding);
 #endif
                 READ_FLT(TabRounding);

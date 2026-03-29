@@ -937,7 +937,7 @@ namespace cpp
         else
         {
             //direct variable
-            if (!directVar && !str.compare(str.size() - 8, 8, ".c_str()"))
+            if (!directVar && !str.compare(str.size() - 8, 8, ".c_str()")) //compatibility
                 str.remove_suffix(8);
             return "{" + str + "}";
         }
@@ -983,7 +983,9 @@ namespace cpp
         return str;
     }
 
-    inline std::string to_str_arg(std::string_view str, bool directVar = false)
+    //generally allowDirectVal=false since we don't even know the type of the argument
+    //to decorate with c_str/to_string/etc
+    inline std::string to_str_arg(std::string_view str, bool allowDirectVar = false)
     {
         std::string lit, fmt, args;
         for (size_t i = 0; i < str.size(); ++i)
@@ -1043,8 +1045,8 @@ namespace cpp
 error:
         if (args.empty())
             return "\"" + lit + "\"";
-        else if (args.find(",") == std::string::npos && fmt == "{}")
-            return args + (directVar ? "" : ".c_str()");
+        else if (args.find(",") == std::string::npos && fmt == "{}" && allowDirectVar)
+            return args;
         else
             return "ImRad::Format(\"" + fmt + "\", " + args + ").c_str()";
     }

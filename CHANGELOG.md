@@ -6,6 +6,8 @@
 
 * Separate style and units combos reworked into single configuration combo and dialog
 
+* UI and designer should render with correct DPI scaling
+
 ### New Code Features
 
 * Owner-drawn Combo through `OnDrawItems` event
@@ -31,6 +33,10 @@
 * MenuItem
 
   * adds icon
+
+* TreeItem
+
+  * adds flags to draw lines
 
 ### Tutorials
 

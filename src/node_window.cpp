@@ -812,9 +812,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         std::string user = Trim(children[0]->userCodeBefore);
         if (!user.compare(0, 2, "//") && user.find('\n') == std::string::npos)
             children[0]->userCodeBefore = "";
-        else
+        else if (user.find(".Draw(") != std::string::npos) {
             ctx.errors.push_back("TopWindow: Found a possible popup code before the first widget. "
                 "Popup code should be moved into \"DrawPopups()\". ");
+        }
     }
 
     for (const auto& ch : children)
@@ -845,6 +846,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     if (style_titlePadding.has_value() && (kind == Window || kind == ModalPopup))
         os << ctx.ind << "ImGui::PopStyleVar();\n";
+    if (kind == Activity)
+        os << ctx.ind << "ImGui::PopStyleVar();\n"; //WindowBorderSize=0
     if (animate == FadeIn)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
 
