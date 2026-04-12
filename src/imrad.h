@@ -154,7 +154,7 @@ struct IOUserData
     int imeType = ImeText;
     ImGuiID longPressID = 0;
 
-    void NewFrame();
+    void NewFrame(); // Call before ImGui::NewFrame
     Rect WorkRect() const;
 };
 
@@ -482,6 +482,12 @@ std::string Format(const char* fmt, A&&... args)
 namespace ImRad
 {
 
+IOUserData& GetUserData()
+{
+    static IOUserData data;
+    return data;
+}
+
 void IOUserData::NewFrame()
 {
     if (!ImGui::GetIO().WantTextInput)
@@ -512,6 +518,7 @@ void Animator::StartPersistent(float* v, float s, float e, float dur)
             return;
         }
     vars.push_back(nvar);
+    *v = s; //to avoid initial flicker
 }
 
 void Animator::StartOnce(float* v, float s, float e, float dur)
@@ -523,14 +530,43 @@ void Animator::StartOnce(float* v, float s, float e, float dur)
             return;
         }
     vars.push_back(nvar);
+    *v = s; //to avoid initial flicker
 }
 
 bool Animator::IsDone() const
 {
     for (const auto& var : vars)
-        if (var.oneShot || std::abs(*var.var - var.end) / std::abs(var.end - var.start) > 0.01)
+        if (var.oneShot || std::abs((*var.var - var.end) / (var.end - var.start)) > 0.01)
             return false;
     return true;
+}
+
+//to be called from withing Begin
+void Animator::Tick()
+{
+    wsize = ImGui::GetWindowSize(); //cache actual windows size
+    size_t j = 0;
+    for (size_t i = 0; i < vars.size(); ++i) {
+        auto& var = vars[i];
+        var.time += ImGui::GetIO().DeltaTime;
+        float distance = var.end - var.start;
+        float x = var.time / var.duration;
+        if (x > 1)
+            x = 1.f;
+        float y = 1 - (1 - x) * (1 - x); //easeOutQuad
+        *var.var = var.start + y * distance;
+        if (!var.oneShot || std::abs(x - 1.0) >= 0.01) { //keep current var
+            if (j < i)
+                vars[j] = var;
+            ++j;
+        }
+    }
+    vars.resize(j);
+}
+
+ImVec2 Animator::GetWindowSize() const
+{
+    return wsize;
 }
 
 template <bool HORIZ>
@@ -624,40 +660,6 @@ float BoxLayout<HORIZ>::GetSize()
 //explicit instantiation to allow member functions in cpp
 template struct BoxLayout<true>;
 template struct BoxLayout<false>;
-
-//to be called from withing Begin
-void Animator::Tick()
-{
-    wsize = ImGui::GetWindowSize(); //cache actual windows size
-    size_t j = 0;
-    for (size_t i = 0; i < vars.size(); ++i) {
-        auto& var = vars[i];
-        var.time += ImGui::GetIO().DeltaTime;
-        float distance = var.end - var.start;
-        float x = var.time / var.duration;
-        if (x > 1)
-            x = 1.f;
-        float y = 1 - (1 - x) * (1 - x); //easeOutQuad
-        *var.var = var.start + y * distance;
-        if (!var.oneShot || std::abs(x - 1.0) >= 0.01) { //keep current var
-            if (j < i)
-                vars[j] = var;
-            ++j;
-        }
-    }
-    vars.resize(j);
-}
-
-ImVec2 Animator::GetWindowSize() const
-{
-    return wsize;
-}
-
-IOUserData& GetUserData()
-{
-    static IOUserData data;
-    return data;
-}
 
 bool Combo(const char* label, std::string* curr, const std::vector<std::string>& items, int flags)
 {

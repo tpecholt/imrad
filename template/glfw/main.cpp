@@ -146,6 +146,7 @@ int main(int argc, const char* argv[])
 		// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 		glfwPollEvents();
 
+		ImRad::GetUserData().NewFrame();
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();

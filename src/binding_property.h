@@ -281,7 +281,7 @@ struct direct_val<dimension_t> : property_base
         std::istringstream is;
         is.str(std::string(s));
         is >> val;
-        //strip unit calculation
+        /*//strip unit calculation
         std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
         if (factor == "*dp")
         {
@@ -289,12 +289,14 @@ struct direct_val<dimension_t> : property_base
             float v;
             if ((is >> v) && is.eof())
                 val = v;
-        }
+        }*/
         return true;
     }
     std::string to_arg(std::string_view unit, std::string_view = "") const {
         std::ostringstream os;
         os << val;
+        if (os.str().find('.') != std::string::npos)
+            os << "f";
         if (unit != "")
             os << "*" << unit;
         return os.str();
@@ -337,7 +339,7 @@ struct direct_val<pzdimension_t> : property_base
         std::istringstream is;
         is.str(std::string(s));
         is >> val;
-        //strip unit calculation
+        /*//strip unit calculation
         std::string_view factor = s.size() > 3 ? s.substr(s.size() - 3) : "";
         if (factor == "*dp")
         {
@@ -345,12 +347,14 @@ struct direct_val<pzdimension_t> : property_base
             float v;
             if ((is >> v) && is.eof())
                 val = v;
-        }
+        }*/
         return true;
     }
     std::string to_arg(std::string_view unit, std::string_view = "") const {
         std::ostringstream os;
         os << val;
+        if (os.str().find('.') != std::string::npos)
+            os << "f";
         if (unit != "")
             os << "*" << unit;
         return os.str();
@@ -400,10 +404,15 @@ struct direct_val<pzdimension2_t> : property_base
         bool hasv = has_value();
         std::ostringstream os;
         os << "{ " << val[0];
-        if (unit != "" && hasv && val[0])
+        if (hasv && os.str().find('.') != std::string::npos)
+            os << "f";
+        if (hasv && unit != "" && val[0])
             os << "*" << unit;
+        size_t i = os.str().size();
         os << ", " << val[1];
-        if (unit != "" && hasv && val[1])
+        if (hasv && os.str().find('.', i) != std::string::npos)
+            os << "f";
+        if (hasv && unit != "" && val[1])
             os << "*" << unit;
         os << " }";
         return os.str();
@@ -725,12 +734,18 @@ struct bindable<dimension_t> : property_base
                 return std::string(stretchCode);
             return str + "x"; //for UI only
         }
-        if (unit != "" && has_value() &&
+        if (!has_value())
+            return str;
+        std::string out = str;
+        if (str.find('.') != std::string::npos && str.back() != 'f' && str.back() != 'F')
+            out += "f";
+        if (unit != "" &&
             str != "0" && str != "-1") //don't suffix special values
         {
-            return str + "*" + unit;
+            out += "*";
+            out += unit;
         }
-        return str;
+        return out;
     }
     std::vector<std::string> used_variables() const {
         if (empty() || has_value())

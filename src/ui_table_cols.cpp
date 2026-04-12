@@ -72,7 +72,7 @@ void TableCols::Draw()
         {
             ImGui::PushStyleColor(ImGuiCol_Separator, 0x00000000);
             ImGui::PushStyleColor(ImGuiCol_SeparatorHovered, 0x00000000);
-            ImRad::Splitter(true, 7.5*dp, &sash, 10*dp, 10*dp);
+            ImRad::Splitter(true, 7.5f*dp, &sash, 10*dp, 10*dp);
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
             /// @separator
@@ -95,7 +95,7 @@ void TableCols::Draw()
 
                     /// @begin Selectable
                     ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, { 0, 0 });
-                    if (ImRad::Selectable(_item.label==""?"<empty>":_item.label.c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
+                    if (ImRad::Selectable(ImRad::Format("{}", _item.label==""?"<empty>":_item.label.c_str()).c_str(), i==sel, ImGuiSelectableFlags_NoAutoClosePopups | ImGuiSelectableFlags_SpanAllColumns, { 0, 0 }))
                     {
                         Selectable_Change();
                     }
@@ -105,7 +105,7 @@ void TableCols::Draw()
                     /// @begin Text
                     ImGui::SameLine(0, 1 * ImGui::GetStyle().ItemSpacing.x);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                    ImGui::TextUnformatted(_item.SizingPolicyString().c_str());
+                    ImGui::TextUnformatted(ImRad::Format("{}", _item.SizingPolicyString()).c_str());
                     ImGui::PopStyleColor();
                     /// @end Text
 

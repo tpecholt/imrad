@@ -61,6 +61,7 @@ static void glfw_error_callback(int error, const char* description)
 
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
+const std::string DEFAULT_UNIT = "dp";
 const char* INI_FILE_NAME = "imgui.ini";
 
 struct File
@@ -280,7 +281,7 @@ void DoNewFile(TopWindow::Kind k)
     auto& cfg = file.configs.emplace_back();
     cfg.name = "";
     cfg.styleName = DEFAULT_STYLE;
-    cfg.unit = k == TopWindow::Activity ? "dp" : "px";
+    cfg.unit = k == TopWindow::Activity ? "dp" : DEFAULT_UNIT;
     cfg.rootNode = std::move(top);
     file.activeConfig = 0;
     fileTabs.push_back(std::move(file));
@@ -1044,7 +1045,7 @@ void LoadStyle()
     ctx.fontNames.clear();
     stx::fill(ctx.colors, IM_COL32(0, 0, 0, 255));
     ctx.style = {};
-    ctx.unit = "px";
+    ctx.unit = DEFAULT_UNIT;
 
     if (activeTab >= 0)
     {
@@ -1238,7 +1239,7 @@ void EditConfigurations()
 
     configurationDlg.copyStyleFun = CopyStyle;
     configurationDlg.defaultStyle = DEFAULT_STYLE;
-    configurationDlg.defaultUnit = kind == TopWindow::Activity ? "dp" : "px";
+    configurationDlg.defaultUnit = kind == TopWindow::Activity ? "dp" : DEFAULT_UNIT;
     configurationDlg.styles.clear();
     for (const auto& style : styleNames)
         configurationDlg.styles.push_back(style.first);
@@ -2994,6 +2995,7 @@ int main(int argc, const char* argv[])
         // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
         glfwPollEvents();
 
+        ImRad::GetUserData().NewFrame();
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();

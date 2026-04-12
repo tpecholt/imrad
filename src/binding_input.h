@@ -312,7 +312,7 @@ inline bool InputDirectValEnum(direct_val<T, true>* val, int fl, UIContext& ctx)
     std::string id = "##" + std::to_string((uint64_t)val);
     std::string value = val->get_id();
     size_t pre = 0;
-    if (!value.compare(0, 5, "ImGui")) {
+    if (!value.compare(0, 5, "ImGui") || !value.compare(0, 5, "ImRad")) {
         pre = value.find("_");
         if (pre != std::string::npos && pre + 1 < value.size())
             ++pre;
@@ -329,7 +329,7 @@ inline bool InputDirectValEnum(direct_val<T, true>* val, int fl, UIContext& ctx)
         changed = true;
         for (const auto& item : val->get_ids())
         {
-            if (!item.first.compare(0, 5, "ImGui")) {
+            if (!item.first.compare(0, 5, "ImGui") || !value.compare(0, 5, "ImRad")) {
                 pre = item.first.find("_");
                 if (pre != std::string::npos && pre + 1 < item.first.size())
                     ++pre;

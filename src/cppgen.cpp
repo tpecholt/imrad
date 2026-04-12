@@ -9,7 +9,7 @@
 const std::string GENERATED_WITH = "Generated with ";
 
 const std::string SPEC_FUN[] = {
-    "Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Init", "Draw", "DrawPopups"
+    "Open", "Close", "OpenPopup", "ClosePopup", "ResetLayout", "Draw", "DrawPopups", "Init"
 };
 
 const std::string_view CppGen::INDENT = "    ";
@@ -989,6 +989,8 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                     os << INDENT << "animator.StartPersistent(&animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0.f, ImRad::Animator::DurOpenActivity);\n";
                     os << "else if (animDir == ImGuiDir_Down)\n";
                     os << INDENT << "animator.StartPersistent(&animPos.y, -ImRad::GetUserData().WorkRect().GetSize().y, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else\n";
+                    os << INDENT << "animPos = { 0, 0 };\n";
                 }
                 return os.str();
                 });
