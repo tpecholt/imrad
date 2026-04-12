@@ -79,7 +79,7 @@ struct UINode
     virtual auto GetTypeName()->std::string;
     auto GetParentIndexes(UIContext& ctx)->std::string;
     void PushError(UIContext& ctx, const std::string& err);
-    
+
     struct child_iterator;
 
     ImVec2 cached_pos;
@@ -308,6 +308,7 @@ struct Button : Widget
     direct_val<ImRad::ModalResult> modalResult = ImRad::None;
     direct_val<shortcut_t> shortcut = "";
     direct_val<std::string> dropDownMenu = "";
+    direct_val<ImRad::PopupPositionPolicy_> dropDownPolicy = ImRad::PopupPositionPolicy_Default;
     event<> onChange;
 
     Button(UIContext& ctx);

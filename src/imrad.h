@@ -296,7 +296,14 @@ Texture LoadTextureFromFile(const std::string& filename, bool linearX = true, bo
 
 //allows to define popups in the window and open it from widgets calling internally
 //Push/PopID like TabControl
-void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags = 0);
+using PopupPositionPolicy = int;
+enum PopupPositionPolicy_
+{
+    PopupPositionPolicy_Default = 0,
+    PopupPositionPolicy_ItemOverlap = 1,
+    PopupPositionPolicy_ItemSide = 2,
+};
+void OpenWindowPopup(const char* str_id, PopupPositionPolicy policy = 0, ImGuiPopupFlags flags = 0);
 
 void Spacing(int n);
 
@@ -805,12 +812,56 @@ bool IsCurrentItemDisabled()
 
 //allows to define popups in the window and open it from widgets calling internally
 //Push/PopID like TabControl
-void OpenWindowPopup(const char* str_id, ImGuiPopupFlags flags)
+void OpenWindowPopup(const char* str_id, PopupPositionPolicy policy, ImGuiPopupFlags flags)
 {
     //RootWindow skips child window parents
     ImGui::PushOverrideID(ImGui::GetCurrentWindow()->RootWindow->ID);
-    //todo: for drop down menu use button's BL corner
     ImGui::OpenPopup(str_id, flags);
+
+    if (policy != PopupPositionPolicy_Default)
+    {
+        ImRect bb{ ImGui::GetItemRectMin(), ImGui::GetItemRectMax() };
+        //popup window may not be shown yet so we can't query actual size ImGui::CalcWindowNextAutoFitSize
+        ImVec2 popupSize{ ImGui::GetTextLineHeightWithSpacing() * 3, ImGui::GetTextLineHeightWithSpacing() * 3 };
+        ImRect outer = ImGui::GetCurrentWindow()->Viewport->GetMainRect(); //ImGui::GetPopupAllowedExtentRect
+        ImVec2 pos, pivot;
+        for (int pvt = 0; pvt < 4; ++pvt)
+        {
+            ImVec2 checkPos;
+            if (pvt == 0) { //TL
+                pivot = { 0, 0 };
+                pos = policy == PopupPositionPolicy_ItemOverlap ? bb.GetTL() : bb.GetBL();
+                checkPos = { pos.x + popupSize.x, pos.y + popupSize.y };
+            }
+            else if (pvt == 1) { //TR
+                pivot = { 1.f, 0 };
+                pos = policy == PopupPositionPolicy_ItemOverlap ? bb.GetTR() : bb.GetBR();
+                checkPos = { pos.x - popupSize.x, pos.y + popupSize.y };
+            }
+            else if (pvt == 2) { //BL
+                pivot = { 0, 1.f };
+                pos = policy == PopupPositionPolicy_ItemOverlap ? bb.GetBL() : bb.GetTL();
+                checkPos = { pos.x + popupSize.x, pos.y - popupSize.y };
+            }
+            else if (pvt == 3) { //BR
+                pivot = { 1.f, 1.f };
+                pos = policy == PopupPositionPolicy_ItemOverlap ? bb.GetBR() : bb.GetTR();
+                checkPos = { pos.x - popupSize.x, pos.y - popupSize.y };
+            }
+            if (outer.Contains(checkPos))
+                break;
+        }
+        ImVec2 padding = ImGui::GetStyle().DisplaySafeAreaPadding;
+        pos.x = ImClamp(pos.x, outer.Min.x + padding.x, outer.Max.x - padding.x);
+        pos.y = ImClamp(pos.y, outer.Min.y + padding.y, outer.Max.y - padding.y);
+        //set the position
+        ImGui::SetNextWindowPos(pos, ImGuiCond_Always, pivot);
+        if (ImGui::BeginPopup(str_id))
+        {
+            ImGui::GetCurrentWindow()->LastFrameActive = -1; //recalc window size and pivot pos in next invocation
+            ImGui::EndPopup();
+        }
+    }
     ImGui::PopID();
 }
 

@@ -4044,6 +4044,10 @@ Button::Button(UIContext& ctx)
     arrowDir.add$(ImGuiDir_Right);
     arrowDir.add$(ImGuiDir_Up);
     arrowDir.add$(ImGuiDir_Down);
+
+    dropDownPolicy.add$(ImRad::PopupPositionPolicy_Default);
+    dropDownPolicy.add$(ImRad::PopupPositionPolicy_ItemOverlap);
+    dropDownPolicy.add$(ImRad::PopupPositionPolicy_ItemSide);
 }
 
 std::unique_ptr<Widget> Button::Clone(UIContext& ctx)
@@ -4121,7 +4125,8 @@ void Button::DoExport(std::ostream& os, UIContext& ctx)
         if (closePopup)
             os << ctx.ind << "ClosePopup(" << modalResult.to_arg() << ");\n";
         if (dropDownMenu != "")
-            os << ctx.ind << "ImRad::OpenWindowPopup(" << dropDownMenu.to_arg() << ");\n";
+            os << ctx.ind << "ImRad::OpenWindowPopup(" << dropDownMenu.to_arg() << ", "
+                << dropDownPolicy.to_arg() << "); \n";
 
         ctx.ind_down();
         os << ctx.ind << "}\n";
@@ -4176,8 +4181,11 @@ void Button::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             if (sit->params.size())
                 modalResult.set_from_arg(sit->params[0]);
         }
-        else if (sit->callee == "ImRad::OpenWindowPopup" && sit->params.size())
+        else if (sit->callee == "ImRad::OpenWindowPopup" && sit->params.size()) {
             dropDownMenu.set_from_arg(sit->params[0]);
+            if (sit->params.size() >= 1)
+                dropDownPolicy.set_from_arg(sit->params[1]);
+        }
         else if (sit->callee == "callback" && sit->params.size()) //compatibility with older version
             modalResult.set_from_arg(sit->params[0]);
         else
@@ -4207,6 +4215,7 @@ Button::Properties()
         { "behavior.shortcut", &shortcut },
         { "behavior.modalResult##button", &modalResult },
         { "behavior.dropDownMenu", &dropDownMenu },
+        { "behavior.dropDownPolicy", &dropDownPolicy },
         });
     return props;
 }
@@ -4346,8 +4355,16 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectValContextMenu(&dropDownMenu, ctx);
         break;
+    case 17:
+        ImGui::BeginDisabled(dropDownMenu == "");
+        ImGui::Text("dropDownPolicy");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = dropDownPolicy != Defaults().dropDownPolicy ? InputDirectVal_Modified : 0;
+        changed = InputDirectValEnum(&dropDownPolicy, fl, ctx);
+        ImGui::EndDisabled();
     default:
-        return Widget::PropertyUI(i - 17, ctx);
+        return Widget::PropertyUI(i - 18, ctx);
     }
     return changed;
 }
