@@ -16,9 +16,13 @@
 
 * New `DrawPopups` member is now generated for all kinds of windows. It is meant for dependent popup window invocations and it insulates them from inheriting the style of the invoking window. Please move your popup invocation code into this function to make it work.
 
-* Activity now allows CustomDirection animation which can be set at runtime
+* Activity supports transition animation through MoveHoriz/Vert and animationOrder. When new activity is opened its animationOrder is compared to the old one and the new activity slides in from either one or the opposite direction.
 
 ### Improvements by Widget Type
+
+* Button
+
+  * adds dropDownPolicy to automatically align drop down popup with button widget
 
 * Combo
 
@@ -42,7 +46,7 @@
 
 * Activity
 
-  * adds CustomDirection animation, can set it in Open() at runtime
+  * adds transition animation
 
 ### Tutorials
 

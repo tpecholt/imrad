@@ -122,7 +122,7 @@ bool CppGen::ExportUpdate(
     std::vector<std::string> drawCode;
     for (const Config& cfg : configs)
     {
-        if (cfg.node->animate != TopWindow::NoAnimation)
+        if (cfg.node->animation != TopWindow::NoAnimation)
             m_animate = true;
         UIContext ctx;
         ctx.codeGen = this;
@@ -297,11 +297,7 @@ CppGen::ExportH(
                 }
                 else if (m_kind == TopWindow::Activity)
                 {
-                    out << INDENT << "void Open(";
-                    //default parameter because window draw code calls Open()
-                    if (m_animate)
-                        out << "ImGuiDir animDir = ImGuiDir_None";
-                    out << ");\n";
+                    out << INDENT << "void Open();\n";
                     out << INDENT << "void Draw();\n";
                 }
                 else
@@ -895,7 +891,7 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
         else
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
-                TopWindow::Animation animate = cfg.node->animate;
+                TopWindow::Animation animate = cfg.node->animation;
                 if (animate != TopWindow::NoAnimation)
                 {
                     if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
@@ -935,7 +931,7 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
         else
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
-                TopWindow::Animation animate = cfg.node->animate;
+                TopWindow::Animation animate = cfg.node->animation;
                 if (animate != TopWindow::NoAnimation)
                 {
                     if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
@@ -964,13 +960,17 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
     }
     else if (id == "Open" && m_kind == TopWindow::Activity)
     {
-        fout << "::Open(";
+        fout << "::Open()\n{\n";
         if (m_animate)
-            fout << "ImGuiDir animDir";
-        fout << ")\n{\n";
+            fout << INDENT << "int animOrder = ImRad::GetUserData().animOrder;\n";
         fout << INDENT << "if (ImRad::GetUserData().activeActivity != \"" << m_name << "\")\n";
         fout << INDENT << "{\n";
         fout << INDENT << INDENT << "ImRad::GetUserData().activeActivity = \"" << m_name << "\";\n";
+        if (m_animate)
+        {
+            fout << INDENT << INDENT << "ImRad::GetUserData().animOrder = "
+                << configs[0].node->animOrder << ";\n"; //todo
+        }
         fout << INDENT << INDENT << "Init();\n";
         fout << INDENT << "}\n";
 
@@ -978,17 +978,23 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
         {
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
-                TopWindow::Animation animate = cfg.node->animate;
-                if (animate == TopWindow::CustomDirection)
+                TopWindow::Animation animate = cfg.node->animation;
+                int animOrder = cfg.node->animOrder;
+                if (animate == TopWindow::MoveHoriz)
                 {
-                    os << "if (animDir == ImGuiDir_Left)\n";
-                    os << INDENT << "animator.StartPersistent(&animPos.x, ImRad::GetUserData().WorkRect().GetSize().x, 0.f, ImRad::Animator::DurOpenActivity);\n";
-                    os << "else if (animDir == ImGuiDir_Right)\n";
-                    os << INDENT << "animator.StartPersistent(&animPos.x, -ImRad::GetUserData().WorkRect().GetSize().x, 0.f, ImRad::Animator::DurOpenActivity);\n";
-                    os << "else if (animDir == ImGuiDir_Up)\n";
-                    os << INDENT << "animator.StartPersistent(&animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0.f, ImRad::Animator::DurOpenActivity);\n";
-                    os << "else if (animDir == ImGuiDir_Down)\n";
-                    os << INDENT << "animator.StartPersistent(&animPos.y, -ImRad::GetUserData().WorkRect().GetSize().y, 0.f, ImRad::Animator::DurOpenActivity);\n";
+                    os << "if (ImRad::GetUserData().animOrder > animOrder)\n";
+                    os << INDENT << "animator.StartOnce(&animPos.x, ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else if (ImRad::GetUserData().animOrder < animOrder)\n";
+                    os << INDENT << "animator.StartOnce(&animPos.x, -ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else\n";
+                    os << INDENT << "animPos = { 0, 0 };\n";
+                }
+                else if (animate == TopWindow::MoveVert)
+                {
+                    os << "if (ImRad::GetUserData().animOrder > animOrder)\n";
+                    os << INDENT << "animator.StartOnce(&animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
+                    os << "else if (ImRad::GetUserData().animOrder < animOrder)\n";
+                    os << INDENT << "animator.StartOnce(&animPos.y, -ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
                     os << "else\n";
                     os << INDENT << "animPos = { 0, 0 };\n";
                 }

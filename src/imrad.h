@@ -150,6 +150,7 @@ struct IOUserData
     bool kbdShown = false;
     std::string activeActivity;
     std::string activeConfig;
+    int animOrder = 0;
     //from UI
     int imeType = ImeText;
     ImGuiID longPressID = 0;

@@ -28,7 +28,7 @@ TopWindow::TopWindow(UIContext& ctx)
     kind.add$(Window);
     kind.add$(Popup);
     kind.add$(ModalPopup);
-    kind.add("Activity (Android)", Activity);
+    kind.add$(Activity);
 
     flags.add$(ImGuiWindowFlags_AlwaysAutoResize);
     flags.add$(ImGuiWindowFlags_AlwaysHorizontalScrollbar);
@@ -48,7 +48,7 @@ TopWindow::TopWindow(UIContext& ctx)
     flags.add$(ImGuiWindowFlags_NoTitleBar);
 
     //placement.add$(None);
-    //animate.add$(NoAnimation);
+    //animation.add$(NoAnimation);
 }
 
 std::unique_ptr<TopWindow> TopWindow::Clone(UIContext& ctx)
@@ -487,10 +487,16 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 
-        if (animate == CustomDirection)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y + animPos.y }); //CustomDirection\n";
+        if (animation == MoveHoriz)
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y }); //MoveHoriz";
+        else if (animation == MoveVert)
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x, ImRad::GetUserData().WorkRect().Min.y + animPos.y }); //MoveVert";
         else
             os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);\n";
+
+        if (animation != NoAnimation)
+            os << ", Order=" << animOrder.to_arg();
+        os << "\n";
 
         os << ctx.ind << "ImGui::SetNextWindowSize(ImRad::GetUserData().WorkRect().GetSize());";
         //signal designed size
@@ -504,7 +510,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, ImGui::GetStyle().WindowBorderSize);\n";
 
-        if (animate != NoAnimation)
+        if (animation != NoAnimation)
             os << ctx.ind << "animator.Tick();\n";
 
         if (!onBackButton.empty()) {
@@ -597,10 +603,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
-            if (animate == MoveLeft)
+            if (animation == MoveLeft)
                 os << " + animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Min.y + " << gapy;
-            if (animate == MoveUp)
+            if (animation == MoveUp)
                 os << " + animPos.y";
             os << " });";
             os << (placement == Left ? " //Left" : " //Top");
@@ -610,10 +616,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Max.x - " << gapx;
-            if (animate == MoveRight)
+            if (animation == MoveRight)
                 os << " - animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Max.y - " << gapy;
-            if (animate == MoveDown)
+            if (animation == MoveDown)
                 os << " - animPos.y";
             os << " }, 0, { 1, 1 });";
             os << (placement == Right ? " //Right" : " //Bottom");
@@ -623,13 +629,13 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         else if (placement == Center)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos(";
-            if (animate == MoveDown)
+            if (animation == MoveDown)
                 os << "{ ImRad::GetUserData().WorkRect().GetCenter().x, ImRad::GetUserData().WorkRect().GetCenter().y + animPos.y }, 0, { 0.5f, 0.5f }";
             else
                 os << "ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }";
             os << "); //Center\n";
         }
-        if (animate == FadeIn)
+        if (animation == FadeIn)
         {
             os << "ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImRad::GetUserData().dimBgRatio);\n";
         }
@@ -693,19 +699,19 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         }
 
         //animation
-        if (animate != NoAnimation)
+        if (animation != NoAnimation)
         {
             os << ctx.ind << "animator.Tick();\n";
-            if (animate == MoveLeft || animate == MoveRight || animate == MoveUp || animate == MoveDown)
+            if (animation == MoveLeft || animation == MoveRight || animation == MoveUp || animation == MoveDown)
             {
                 os << ctx.ind << "if (!ImRad::MoveWhenDragging(";
-                if (animate == MoveLeft)
+                if (animation == MoveLeft)
                     os << "ImGuiDir_Left";
-                else if (animate == MoveRight)
+                else if (animation == MoveRight)
                     os << "ImGuiDir_Right";
-                else if (animate == MoveUp)
+                else if (animation == MoveUp)
                     os << "ImGuiDir_Up";
-                else if (animate == MoveDown)
+                else if (animation == MoveDown)
                     os << "ImGuiDir_Down";
                 os << ", animPos, ImRad::GetUserData().dimBgRatio))\n";
                 ctx.ind_up();
@@ -756,7 +762,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
         //CloseCurrentPopup
         os << ctx.ind << "if (modalResult != ImRad::None";
-        if (animate != NoAnimation)
+        if (animation != NoAnimation)
             os << " && animator.IsDone()";
         os << ")\n";
         os << ctx.ind << "{\n";
@@ -846,7 +852,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
     if (kind == Activity)
         os << ctx.ind << "ImGui::PopStyleVar();\n"; //WindowBorderSize=0
-    if (animate == FadeIn)
+    if (animation == FadeIn)
         os << ctx.ind << "ImGui::PopStyleVar();\n";
 
     if (sc.nvars)
@@ -880,7 +886,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
     {
         bool parseCommentSize = false;
         bool parseCommentPos = false;
-        bool setAnimateFromPos = false;
+        bool setAnimationFromPos = false;
 
         if (sit->kind == cpp::Comment && !sit->line.compare(0, 20, "/// @begin TopWindow"))
         {
@@ -976,7 +982,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar" && sit->params.size() == 2)
         {
             if (sit->params[0] == "ImGuiStyleVar_Alpha")
-                animate = FadeIn;
+                animation = FadeIn;
             if (sit->params[0] == "ImGuiStyleVar_WindowPadding")
                 style_padding.set_from_arg(sit->params[1]);
             else if (sit->params[0] == "ImGuiStyleVar_ItemSpacing")
@@ -995,7 +1001,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowPos")
         {
             parseCommentPos = true;
-            setAnimateFromPos = sit->line.find("animPos") != std::string::npos;
+            setAnimationFromPos = sit->line.find("animPos") != std::string::npos;
         }
         else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextWindowSize")
         {
@@ -1152,19 +1158,25 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     sit->line.find("Maximize") != std::string::npos ? TopWindow::Maximize :
                     None;
             }
-            if (setAnimateFromPos) {
-                animate = sit->line.find("CustomDirection") != std::string::npos ? CustomDirection :
+            if (setAnimationFromPos) {
+                animation = sit->line.find("CustomDirection") != std::string::npos ? MoveHoriz : //compatibility
                     sit->line.find("Left") != std::string::npos ? MoveLeft :
                     sit->line.find("Right") != std::string::npos ? MoveRight :
                     sit->line.find("Top") != std::string::npos ? MoveUp :
                     sit->line.find("Bottom") != std::string::npos ? MoveDown :
                     sit->line.find("Center") != std::string::npos ? MoveDown :
+                    sit->line.find("Horiz") != std::string::npos ? MoveHoriz :
+                    sit->line.find("Vert") != std::string::npos ? MoveVert :
                     NoAnimation;
             }
 
             size_t i = sit->line.find("Gap=");
             if (i != std::string::npos)
                 style_placementGap.set_from_arg(sit->line.substr(i + 4));
+
+            i = sit->line.find("Order=");
+            if (i != std::string::npos)
+                animOrder.set_from_arg(sit->line.substr(i + 6));
         }
     }
 
@@ -1231,7 +1243,8 @@ TopWindow::Properties()
         { "behavior.title", &title, true },
         { "behavior.closeOnEscape", &closeOnEscape },
         { "behavior.initialActivity", &initialActivity },
-        { "behavior.animate", &animate },
+        { "behavior.animation.type", &animation },
+        { "behavior.animation.order", &animOrder },
         { "layout.size.summary", nullptr },
         { "layout.size.size_x", &size_x },
         { "layout.size.size_y", &size_y },
@@ -1410,42 +1423,51 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         break;
     case 18:
         ImGui::BeginDisabled(kind != Popup && kind != ModalPopup && kind != Activity);
-        ImGui::Text("animate");
+        ImGui::Text("animation");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        fl = animate != Defaults().animate ? InputDirectVal_Modified : 0;
+        fl = animation != Defaults().animation ? InputDirectVal_Modified : 0;
 
-        animate.clear();
-        animate.add("None", NoAnimation);
+        animation.clear();
+        animation.add("None", NoAnimation);
         if (kind == Popup || kind == ModalPopup) {
             if (placement == Left)
-                animate.add$(MoveLeft);
+                animation.add$(MoveLeft);
             else if (placement == Right)
-                animate.add$(MoveRight);
+                animation.add$(MoveRight);
             else if (placement == Top)
-                animate.add$(MoveUp);
+                animation.add$(MoveUp);
             else if (placement == Bottom)
-                animate.add$(MoveDown);
+                animation.add$(MoveDown);
             else if (placement == Center) {
-                animate.add$(MoveDown);
-                animate.add$(FadeIn);
+                animation.add$(MoveDown);
+                animation.add$(FadeIn);
             }
             else
-                animate.add$(FadeIn);
+                animation.add$(FadeIn);
         }
         else if (kind == Activity) {
-            animate.add$(CustomDirection);
+            animation.add$(MoveHoriz);
+            animation.add$(MoveVert);
         }
 
-        if (animate.get_id() == "") {
+        if (animation.get_id() == "") {
             //happens after incompatible kind or placement change
             changed = true;
-            animate = NoAnimation;
+            animation = NoAnimation;
         }
-        changed = InputDirectValEnum(&animate, fl, ctx);
+        changed = InputDirectValEnum(&animation, fl, ctx);
         ImGui::EndDisabled();
         break;
     case 19:
+        ImGui::BeginDisabled(animation != MoveHoriz && animation != MoveVert);
+        ImGui::Text("screenIndex");
+        ImGui::TableNextColumn();
+        fl = animOrder != Defaults().animOrder ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&animOrder, fl, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 20:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text(kind == Activity ? "designSize" : "size");
         ImGui::TableNextColumn();
@@ -1456,7 +1478,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 20:
+    case 21:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1467,7 +1489,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 21:
+    case 22:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1478,7 +1500,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 22:
+    case 23:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("minimumSize");
         ImGui::TableNextColumn();
@@ -1489,7 +1511,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 23:
+    case 24:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1500,7 +1522,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_x", &minSize_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 24:
+    case 25:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1511,7 +1533,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_y", &minSize_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 25:
+    case 26:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");

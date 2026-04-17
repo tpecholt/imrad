@@ -5,7 +5,7 @@ struct TopWindow : UINode
 {
     enum Kind { MainWindow, Window, Popup, ModalPopup, Activity };
     enum Placement { None, Left, Right, Top, Bottom, Center, Maximize };
-    enum Animation { NoAnimation, MoveLeft, MoveRight, MoveUp, MoveDown, CustomDirection, FadeIn };
+    enum Animation { NoAnimation, MoveLeft, MoveRight, MoveUp, MoveDown, MoveHoriz, MoveVert, FadeIn };
 
     struct StyleCounters { int nvars = 0, ncolors = 0, nfonts = 0; };
 
@@ -30,7 +30,8 @@ struct TopWindow : UINode
     bindable<color_t> style_menuBg;
     direct_val<Placement> placement = None;
     direct_val<bool> closeOnEscape = false;
-    direct_val<Animation> animate = None;
+    direct_val<Animation> animation = None;
+    direct_val<int> animOrder = 0;
     direct_val<bool> initialActivity = false;
 
     event<> onBackButton;
