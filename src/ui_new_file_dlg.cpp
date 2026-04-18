@@ -265,7 +265,7 @@ void NewFileDlg::Category_Change()
             { ICON_FA_WINDOW_MAXIMIZE "  Window", "(All)", "General ImGui window", TopWindow::Window },
             { ICON_FA_CLONE "  Popup", "(All)", "Popup window without a titlebar", TopWindow::Popup },
             { ICON_FA_WINDOW_RESTORE "  ModalPopup", "(All)", "Modal popup window", TopWindow::ModalPopup },
-            { ICON_FA_MOBILE_SCREEN "  Activity", "Android", "Maximized, title-less window where only one is active at a time", TopWindow::Activity }
+            { ICON_FA_MOBILE_SCREEN "  Activity", "(All)", "Maximized, title-less window where only one is active at a time", TopWindow::Activity }
         };
     }
     else if (category == 2)

@@ -1784,6 +1784,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
     std::string str;
     if (topLevel)
     {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_Text));
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
             ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight)));
         str = std::string(1, std::toupper(cat[0])) + cat.substr(1);
@@ -1792,6 +1793,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
     }
     else
     {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         size_t i1 = cat.rfind('.');
         if (i1 == std::string::npos || i1 + 1 == cat.size())
             str = cat;
@@ -1815,6 +1817,7 @@ bool BeginPropGroup(const std::string& cat, bool forceOpen, bool& forceSameRow)
         ImGui::SameLine(0, 0);
     }
     //ImGui::PopItemFlag();
+    ImGui::PopStyleColor();
     ImGui::PopStyleVar();
     ImGui::PopFont();
     ImGui::PopStyleVar();

@@ -106,7 +106,7 @@ bool Table::ColumnData::PropertyUI(int i, UIContext& ctx)
 Table::Table(UIContext& ctx)
 {
     size_x = -1; //here 0 has the same effect as -1 but -1 works with our sizing visualization
-    size_y = 0;
+    size_y = DEFAULT_ITEM_WIDTH / 2;
 
     flags.add$(ImGuiTableFlags_Resizable);
     flags.add$(ImGuiTableFlags_Reorderable);

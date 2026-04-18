@@ -4277,8 +4277,8 @@ Button::Properties()
         { "behavior.label", &label, true },
         { "behavior.shortcut", &shortcut },
         { "behavior.modalResult##button", &modalResult },
-        { "behavior.dropDownMenu", &dropDownMenu },
-        { "behavior.dropDownPolicy", &dropDownPolicy },
+        { "behavior.dropdown.menu", &dropDownMenu },
+        { "behavior.dropdown.policy", &dropDownPolicy },
         });
     return props;
 }
@@ -4420,7 +4420,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         break;
     case 17:
         ImGui::BeginDisabled(dropDownMenu == "");
-        ImGui::Text("dropDownPolicy");
+        ImGui::Text("popupPolicy");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = dropDownPolicy != Defaults().dropDownPolicy ? InputDirectVal_Modified : 0;

@@ -354,7 +354,9 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
     //align category label with other child properties
     ImGui::SetCursorPosX(ImGui::GetStyle().CellPadding.x);
     ImGui::SetNextItemAllowOverlap();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     bool open = ImGui::TreeNodeEx(("###" + std::string(name)).c_str(), ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_NoNavFocus);
+    ImGui::PopStyleColor();
     ImGui::PopStyleVar();
     ImGui::SameLine(0, 0);
     ImGui::TextUnformatted(name);
@@ -422,10 +424,10 @@ inline int InputDirectValFlags(const char* name, direct_val<T, true>* val, int d
         //ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         ImGui::TextAligned(0, -ImGui::GetFrameHeight(), "%s", label.c_str());
         ImGui::PopFont();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        if (ImGui::CalcTextSize(tip.c_str()).x > ImGui::GetItemRectSize().x)
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
-            ImGui::SetTooltip("%s", tip.c_str());
+            ImGui::SetItemTooltip("%s", tip.c_str());
             ImGui::PopStyleVar();
         }
     }
@@ -476,11 +478,12 @@ inline bool InputBindable(bindable<T>* val, const std::string& type, int flags, 
         changed = ImGui::InputTextWithHint(id.c_str(), hint.c_str(), val->access(), fl, DefaultCharFilter);
         ImGui::PopFont();
 
-        /*if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip) &&
-            ImGui::CalcTextSize(val->c_str()).x > ImGui::GetItemRectSize().x)
+        if (ImGui::CalcTextSize(val->c_str()).x > ImGui::GetItemRectSize().x)
         {
-            ImGui::SetItemTooltip(val->c_str());
-        }*/
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
+            ImGui::SetItemTooltip("%s", val->c_str());
+            ImGui::PopStyleVar();
+        }
         if (ImGui::IsItemDeactivatedAfterEdit())
         {
             //disallow empty state
