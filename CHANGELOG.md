@@ -40,6 +40,10 @@
 
   * adds icon
 
+* Text
+
+  * adds horizAlignment, size_x. Also renders ellipsis if needed.
+
 * TreeItem
 
   * adds flags to draw lines

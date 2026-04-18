@@ -252,6 +252,7 @@ struct Separator : Widget
 struct Text : Widget
 {
     bindable<std::string> text = "text";
+    direct_val<ImRad::Alignment> horizAlignment = ImRad::AlignNone;
     direct_val<bool> alignToFrame = false;
     direct_val<bool> wrap = false;
     direct_val<bool> link = false;
@@ -266,6 +267,7 @@ struct Text : Widget
     bool EventUI(int, UIContext& ctx);
     void DoExport(std::ostream& os, UIContext& ctx);
     void DoImport(const cpp::stmt_iterator& sit, UIContext& ctx);
+    int Behavior();
     void CalcSizeEx(ImVec2 p1, UIContext& ctx);
     const char* GetIcon() const { return ICON_FA_FONT; }
     const Text& Defaults() { static Text var(UIContext::Defaults()); return var; }

@@ -3274,6 +3274,12 @@ bool Separator::PropertyUI(int i, UIContext& ctx)
 
 Text::Text(UIContext& ctx)
 {
+    size_x = DEFAULT_ITEM_WIDTH;
+
+    horizAlignment.add("None", ImRad::AlignNone);
+    horizAlignment.add("AlignLeft", ImRad::AlignLeft);
+    horizAlignment.add("AlignHCenter", ImRad::AlignHCenter);
+    horizAlignment.add("AlignRight", ImRad::AlignRight);
 }
 
 std::unique_ptr<Widget> Text::Clone(UIContext& ctx)
@@ -3299,11 +3305,24 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
     auto ps = PrepareString(text.value());
 
     if (link)
+    {
         ImGui::TextLink(ps.label.c_str());
+        DrawTextArgs(ps, ctx);
+    }
+    else if (horizAlignment != ImRad::None)
+    {
+        float align = horizAlignment == ImRad::AlignLeft ? 0 :
+            horizAlignment == ImRad::AlignHCenter ? 0.5f :
+            1;
+        float width = size_x.eval_px(ImGuiAxis_X, ctx);
+        ImRad::TextAligned(align, width, ps.label.c_str());
+        DrawTextArgs(ps, ctx, ImVec2{ 0, 0 }, ImVec2{ width, 0 }, ImVec2{ align, 0 });
+    }
     else
+    {
         ImGui::TextUnformatted(ps.label.c_str());
-
-    DrawTextArgs(ps, ctx);
+        DrawTextArgs(ps, ctx);
+    }
 
     if (wrap)
         ImGui::PopTextWrapPos();
@@ -3313,14 +3332,22 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
 
 void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
-    cached_pos = ImGui::GetItemRectMin();
-    cached_size = ImGui::GetItemRectSize();
-    /*
     cached_pos = p1;
     cached_size = ImGui::GetItemRectSize();
-    ImGui::SameLine(0, 0);
-    cached_size.x = ImGui::GetCursorScreenPos().x - p1.x;
-    ImGui::NewLine();*/
+    if (alignToFrame)
+        cached_size.y += ImGui::GetStyle().FramePadding.y;
+    if (Behavior() & HasSizeX) {
+        cached_size.x = size_x.eval_px(ImGuiAxis_X, ctx);
+        cached_size = ImGui::CalcItemSize(cached_size, 0, 0);
+    }
+}
+
+int Text::Behavior()
+{
+    int bh = Widget::Behavior();
+    if (horizAlignment != ImRad::AlignNone)
+        bh |= HasSizeX;
+    return bh;
 }
 
 void Text::DoExport(std::ostream& os, UIContext& ctx)
@@ -3361,6 +3388,18 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         else
             os << ";\n";
     }
+    else if (horizAlignment != ImRad::AlignNone)
+    {
+        os << ctx.ind << "ImRad::TextAligned(";
+        if (horizAlignment == ImRad::AlignLeft)
+            os << "0";
+        else if (horizAlignment == ImRad::AlignRight)
+            os << "1";
+        else
+            os << "0.5f";
+        os << ", " << size_x.to_arg(ctx.unit, ctx.stretchSizeExpr[0])
+            << ", " << text.to_arg() << ");\n";
+    }
     else
     {
         os << ctx.ind << "ImGui::TextUnformatted(" << text.to_arg() << ");\n";
@@ -3400,6 +3439,22 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
     }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImRad::TextAligned")
+    {
+        if (sit->params.size()) {
+            float align = std::stof(sit->params[0]);
+            horizAlignment = !align ? ImRad::AlignLeft :
+                align == 1 ? ImRad::AlignRight :
+                ImRad::AlignHCenter;
+        }
+        if (sit->params.size() >= 2)
+            size_x.set_from_arg(sit->params[1]);
+        if (sit->params.size() >= 3) {
+            text.set_from_arg(sit->params[2]);
+            if (text.value() == cpp::INVALID_TEXT)
+                PushError(ctx, "unable to parse text");
+        }
+    }
 }
 
 std::vector<UINode::Prop>
@@ -3411,6 +3466,7 @@ Text::Properties()
         { "appearance.font.summary", nullptr },
         { "appearance.font.name", &style_fontName },
         { "appearance.font.size", &style_fontSize },
+        { "appearance.horizAlignment", &horizAlignment },
         { "appearance.alignToFramePadding", &alignToFrame },
         { "behavior.text", &text, true },
         { "behavior.wrap##text", &wrap },
@@ -3455,12 +3511,19 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("font_size", &style_fontSize, ctx);
         break;
     case 4:
+        ImGui::Text("horizAlignment");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        fl = horizAlignment != Defaults().horizAlignment ? InputDirectVal_Modified : 0;
+        changed = InputDirectValEnum(&horizAlignment, fl, ctx);
+        break;
+    case 5:
         ImGui::Text("alignToFramePadding");
         ImGui::TableNextColumn();
         fl = alignToFrame != Defaults().alignToFrame ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&alignToFrame, fl, ctx);
         break;
-    case 5:
+    case 6:
         ImGui::Text("text");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3468,14 +3531,14 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("text", &text, ctx);
         break;
-    case 6:
+    case 7:
         ImGui::Text("wrapped");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         fl = wrap != Defaults().wrap ? InputDirectVal_Modified : 0;
         changed = InputDirectVal(&wrap, fl, ctx);
         break;
-    case 7:
+    case 8:
         ImGui::Text("link");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -3483,7 +3546,7 @@ bool Text::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&link, fl, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 8, ctx);
+        return Widget::PropertyUI(i - 9, ctx);
     }
     return changed;
 }

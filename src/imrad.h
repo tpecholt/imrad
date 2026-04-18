@@ -268,6 +268,9 @@ void SeparatorEx(SeparatorFlags flags, float thickness = 1.f);
 // Adds negative dimensions support
 void Dummy(const ImVec2& size);
 
+// from imgui_internal.h
+void TextAligned(float align_x, float size_x, const char* label);
+
 // This is an improved version of ImGui::Selectable.
 // 1. allows to pass negative dimensions similarly to other widgets
 // 2. changes meaning of size.x=0 to use label width. This is more consistent with size.y=0 which doesn't cause
@@ -729,6 +732,11 @@ void Dummy(const ImVec2& size)
     //ImGui Dummy doesn't support negative dimensions like other controls
     ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
     return ImGui::Dummy(sz);
+}
+
+void TextAligned(float align_x, float size_x, const char* label)
+{
+    ImGui::TextAligned(align_x, size_x, "%s", label);
 }
 
 bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
