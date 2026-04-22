@@ -296,6 +296,8 @@ bool IsItemImeAction();
 
 bool IsCurrentItemDisabled();
 
+bool CurrentTabBarHasFocusQueued();
+
 Texture LoadTextureFromFile(const std::string& filename, bool linearX = true, bool linearY = true, bool repeatX = false, bool repeatY = false);
 
 //allows to define popups in the window and open it from widgets calling internally
@@ -736,7 +738,15 @@ void Dummy(const ImVec2& size)
 
 void TextAligned(float align_x, float size_x, const char* label)
 {
+    //TextAligned only moves cursor by min(textSize.x, size_x)
     ImGui::TextAligned(align_x, size_x, "%s", label);
+    size_x = ImGui::CalcItemSize({ size_x, 1 }, 0, 0).x;
+    ImVec2 textSize = ImGui::CalcTextSize(label);
+    if (textSize.x < size_x) {
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        window->DC.CursorPosPrevLine.x += size_x - textSize.x;
+        window->DC.CursorMaxPos.x = ImMax(window->DC.CursorMaxPos.x, window->DC.CursorPosPrevLine.x);
+    }
 }
 
 bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size)
@@ -817,6 +827,11 @@ bool IsItemImeAction()
 bool IsCurrentItemDisabled()
 {
     return ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled;
+}
+
+bool CurrentTabBarHasFocusQueued()
+{
+    return ImGui::GetCurrentTabBar()->NextSelectedTabId != 0;
 }
 
 //allows to define popups in the window and open it from widgets calling internally

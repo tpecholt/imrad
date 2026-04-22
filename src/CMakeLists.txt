@@ -15,7 +15,11 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/version.h"
     @ONLY
 )
-target_include_directories(imrad PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_include_directories(imrad
+PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}
+	"${CMAKE_CURRENT_BINARY_DIR}"
+)
 
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)

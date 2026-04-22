@@ -120,6 +120,7 @@ PreparedString PrepareString(std::string_view s)
 {
     const int n = 25;
     PreparedString ps;
+    ps.window = ImGui::GetCurrentWindow();
     ps.error = false;
     ps.pos = ImGui::GetCursorScreenPos();
     ps.textBaseOffset = ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset;
@@ -188,7 +189,8 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
 
     ImVec2 pos = ps.pos;
     uint32_t clr = ctx.colors[UIContext::Color::DrawArgs];
-    float wrapPos = ImGui::GetCurrentWindow()->DC.TextWrapPos;
+    float wrapPos = ps.window->DC.TextWrapPos;
+    ImDrawList* dl = ps.window->DrawList;
 
     if (wrapPos < 0 || size.x || size.y || offset.x || offset.y)
     {
@@ -209,19 +211,19 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
             pos.x += ImGui::CalcTextSize(ps.label.data() + i, ps.label.data() + arg.first).x;
             if (sz.x && pos.x > ps.pos.x + sz.x)
                 break;
-            ImGui::GetWindowDrawList()->AddText(pos, clr, "{");
+            dl->AddText(pos, clr, "{");
             //ImVec2 sz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second);
             //ImGui::GetWindowDrawList()->AddRectFilled(pos, pos + sz, 0x50808080);
             ImVec2 tsz = ImGui::CalcTextSize(ps.label.data() + arg.first, ps.label.data() + arg.second - 1);
             pos.x += tsz.x;
             if (sz.x && pos.x > ps.pos.x + sz.x)
                 break;
-            ImGui::GetWindowDrawList()->AddText(pos, clr, "}");
+            dl->AddText(pos, clr, "}");
             i = arg.second - 1;
         }
 
         if (ps.error)
-            ImGui::GetWindowDrawList()->AddText(pos, clr, ps.label.c_str());
+            dl->AddText(pos, clr, ps.label.c_str());
     }
     else
     {
@@ -233,16 +235,16 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
         {
             const char* text_end = ps.label.data() + arg.first;
             dp = IncWrapText(dp, text, text_end, wrapWidth, 1.f);
-            ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "{");
+            dl->AddText(pos + dp, clr, "{");
             text = text_end;
             text_end = ps.label.data() + arg.second - 1;
             dp = IncWrapText(dp, text, text_end, wrapWidth, 1.f);
-            ImGui::GetWindowDrawList()->AddText(pos + dp, clr, "}");
+            dl->AddText(pos + dp, clr, "}");
             text = text_end;
         }
 
         if (ps.error)
-            ImGui::GetWindowDrawList()->AddText(pos, clr, ps.label.c_str());
+            dl->AddText(pos, clr, ps.label.c_str());
     }
 }
 
@@ -3335,7 +3337,7 @@ void Text::CalcSizeEx(ImVec2 p1, UIContext& ctx)
     cached_pos = p1;
     cached_size = ImGui::GetItemRectSize();
     if (alignToFrame)
-        cached_size.y += ImGui::GetStyle().FramePadding.y;
+        cached_size.y += 2 * ImGui::GetStyle().FramePadding.y;
     if (Behavior() & HasSizeX) {
         cached_size.x = size_x.eval_px(ImGuiAxis_X, ctx);
         cached_size = ImGui::CalcItemSize(cached_size, 0, 0);
@@ -5004,7 +5006,12 @@ ImDrawList* Input::DoDraw(UIContext& ctx)
         ImVec2 size;
         size.x = size_x.eval_px(ImGuiAxis_X, ctx);
         size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
+        size_t chwSize = ImGui::GetCurrentWindow()->DC.ChildWindows.size();
+
         ImGui::InputTextMultiline(id.c_str(), &stmp, size, flags);
+
+        if (ImGui::GetCurrentWindow()->DC.ChildWindows.size() > chwSize)
+            ps.window = ImGui::GetCurrentWindow()->DC.ChildWindows.back();
         DrawTextArgs(ps, ctx, ImGui::GetStyle().FramePadding, ImGui::GetItemRectSize());
     }
     else if (tid == "std::string" || tid == "ImGuiTextFilter")

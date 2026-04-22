@@ -782,7 +782,9 @@ struct bindable<dimension_t> : property_base
         std::ostringstream os;
         if (grow) {
             auto val = value();
-            os << std::fixed << std::setprecision(1) << val;
+            os << std::fixed << std::defaultfloat << val;
+            if (os.str().find('.') == std::string::npos)
+                os << ".0";
             str = os.str();
         }
         else if (has_value()) {

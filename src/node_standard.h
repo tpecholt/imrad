@@ -13,6 +13,7 @@ extern const float DEFAULT_MIN_WIDTH;
 
 struct PreparedString
 {
+    ImGuiWindow* window = nullptr;
     std::string label;
     ImVec2 pos;
     float textBaseOffset = 0;

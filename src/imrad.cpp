@@ -1032,6 +1032,10 @@ void LoadStyle()
 
     strcpy(cfg.Name, "imrad.pg");
     ctx.pgFont = io.Fonts->AddFontFromFileTTF((stylePath + pgFontName).c_str(), pgFontSize, &cfg);
+    cfg.MergeMode = true;
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAR).c_str(), pgFontSize * 16.f / 20, &cfg);
+    io.Fonts->AddFontFromFileTTF((stylePath + FONT_ICON_FILE_NAME_FAS).c_str(), pgFontSize * 16.f / 20, &cfg);
+    cfg.MergeMode = false;
     strcpy(cfg.Name, "imrad.pgb");
     ctx.pgbFont = io.Fonts->AddFontFromFileTTF((stylePath + pgbFontName).c_str(), pgFontSize, &cfg);
     strcpy(cfg.Name, "imrad.explorer");
@@ -1890,6 +1894,7 @@ void PropertyRowsUI(bool pr)
     //set tighter padding of inputs and tree arrows
     ImVec2 framePad = ImGui::GetStyle().FramePadding;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePad.x * 0.5f, framePad.y * 0.5f });
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 2, 2 }); // ensure checkbox is not overdrawn by input navbox above
     float sideWidth = ImGui::GetFontSize();// +ImGui::GetStyle().CellFrame.x;
     ImVec4 sideColor = ImGui::GetStyleColorVec4(ImGuiCol_TableBorderLight);
     //header
@@ -2078,7 +2083,7 @@ void PropertyRowsUI(bool pr)
     }
     ImGui::PopItemFlag();
     ImGui::PopFont();
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
 }
 
 void PropertyUI()

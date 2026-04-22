@@ -2480,7 +2480,10 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
                 return ch.get() == this; }) - tb->children.begin();
             idx = std::to_string(n);
         }
-        os << tb->activeTab.to_arg() << " == " << idx << " ? ImGuiTabItemFlags_SetSelected : 0";
+        //ImGuiTabItemFlags_SetSelected only queues focus for the next frame so without
+        //CurrentTabBarHasFocusQueued check, tab body is not entered and activeTab is
+        //not updated leading to reselecting previous tab again
+        os << tb->activeTab.to_arg() << " == " << idx << " && !ImRad::CurrentTabBarHasFocusQueued() ? ImGuiTabItemFlags_SetSelected : 0";
     }
     else
     {
@@ -2490,6 +2493,10 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind << "{\n";
 
     ctx.ind_up();
+    if (tb && !tb->activeTab.empty())
+    {
+        os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";
+    }
     os << ctx.ind << "/// @separator\n\n";
 
     for (const auto& child : children)
@@ -2511,13 +2518,6 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << onClose.to_arg() << "();\n";
         ctx.ind_down();
     }
-    /*if (idx != "") user can add IsItemActivated event on his own and there is itemCount.index
-    {
-        os << ctx.ind << "if (ImGui::IsItemActivated())\n";
-        ctx.ind_up();
-        os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";
-        ctx.ind_down();
-    }*/
 }
 
 void TabItem::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)

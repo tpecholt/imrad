@@ -235,7 +235,7 @@ inline bool InputDirectVal(direct_val<shortcut_t>* val, int flags, UIContext& ct
 
     if (flags & InputDirectVal_ShortcutButton)
     {
-        std::string buttonId = id + "But";
+        std::string buttonId = ICON_FA_ELLIPSIS_VERTICAL + id + "But";
         std::string popupId = id + "DropDown";
 
         ImGui::SameLine(0, 0);
@@ -243,7 +243,7 @@ inline bool InputDirectVal(direct_val<shortcut_t>* val, int flags, UIContext& ct
             ImGui::IsPopupOpen(ImGui::GetID(popupId.c_str()), 0))
         {
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[val->flags() ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-            if (ImGui::ArrowButton(buttonId.c_str(), ImGuiDir_Down)) // { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
+            if (ImGui::Button(buttonId.c_str(), { ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }))
             {
                 ImGui::OpenPopup(popupId.c_str());
             }
@@ -827,7 +827,7 @@ inline bool InputBindable(bindable<color_t>* val, int defStyleCol, UIContext& ct
 inline bool InputBindable(bindable<std::string>* val, int flags, UIContext& ctx, std::function<void()> fun = [] {})
 {
     std::string id = "##" + std::to_string((uint64_t)val);
-    std::string butId = "..." + id;
+    std::string butId = ICON_FA_ELLIPSIS + id;
     bool high = IsHighlighted(id) || IsHighlighted(butId);
     bool hasButton = flags & (InputBindable_MultilineEdit | InputBindable_CustomButton);
     float w = ImGui::CalcItemWidth();
