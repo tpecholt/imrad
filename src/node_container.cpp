@@ -2632,7 +2632,11 @@ void TabItem::DoExport(std::ostream& os, UIContext& ctx)
     ctx.ind_up();
     if (tb && !tb->activeTab.empty())
     {
+        //when appearing first tab is activated automatically even when activeTab differs
+        os << ctx.ind << "if (!ImGui::IsWindowAppearing())\n";
+        ctx.ind_up();
         os << ctx.ind << tb->activeTab.to_arg() << " = " << idx << ";\n";
+        ctx.ind_down();
     }
     os << ctx.ind << "/// @separator\n\n";
 

@@ -212,8 +212,8 @@ struct BoxLayout
         Stretch(float v) : value(v) {}
     };
 
-    static constexpr ItemSize_t ItemSize;
-    static constexpr TextSize_t TextSize;
+    static constexpr ItemSize_t ItemSize {};
+    static constexpr TextSize_t TextSize {};
 
     void Reset();
     void BeginLayout();
