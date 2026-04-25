@@ -50,6 +50,8 @@ struct UINode
         NoOverlayPos = 0x200,
         HasSizeX = 0x400,
         HasSizeY = 0x800,
+        SizerOwner = 0x1000,
+        CustomSizerAdd = 0x2000,
     };
 
     UINode() {}
@@ -78,7 +80,7 @@ struct UINode
     void CloneChildrenFrom(const UINode& node, UIContext& ctx);
     void ResetLayout();
     virtual auto GetTypeName()->std::string;
-    auto GetParentIndexes(UIContext& ctx)->std::string;
+    auto GetLayoutPrefix(UIContext& ctx)->std::string;
     void PushError(UIContext& ctx, const std::string& err);
 
     struct child_iterator;
@@ -136,7 +138,8 @@ struct Widget : UINode
         int flags = 0;
         int colId = 0;
         int rowId = 0;
-        size_t index = 0;
+        UINode* parent = nullptr;
+        Widget* next = nullptr;
     };
 
     direct_val<bool> sameLine = false;
@@ -206,7 +209,8 @@ struct Widget : UINode
     int Behavior();
     int ColumnCount(UIContext& ctx) { return 0; }
     const Widget& Defaults() = 0;
-    Layout GetLayout(UINode* parent);
+    Layout GetLayout(UIContext& ctx);
+    Layout DoGetLayout(UIContext& ctx, UINode* fromParent, int* nrows, bool* hasVLayout);
     void TextFontInfo(UIContext& ctx);
     virtual std::unique_ptr<Widget> Clone(UIContext& ctx) = 0;
     virtual ImDrawList* DoDraw(UIContext& ctx) = 0;

@@ -51,7 +51,7 @@ struct TopWindow : UINode
     void Export(std::ostream& os, UIContext& ctx);
     auto ExportStyle(std::ostream& os, UIContext& ctx) -> StyleCounters;
     void Import(cpp::stmt_iterator& sit, UIContext& ctx);
-    int Behavior() { return SnapInterior; }
+    int Behavior() { return SnapInterior | SizerOwner; }
     int ColumnCount(UIContext& ctx) { return 0; }
     std::string GetTypeName() { return "Window"; }
     const TopWindow& Defaults() { static TopWindow node(UIContext::Defaults()); return node; }

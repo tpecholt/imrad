@@ -913,7 +913,7 @@ std::unique_ptr<Widget> Child::Clone(UIContext& ctx)
 
 int Child::Behavior()
 {
-    int fl = Widget::Behavior() | SnapInterior;
+    int fl = Widget::Behavior() | SnapInterior | SizerOwner;
     if (!(flags & ImGuiWindowFlags_AlwaysAutoResize) || !(flags & ImGuiChildFlags_AutoResizeX))
         fl |= HasSizeX;
     if (!(flags & ImGuiWindowFlags_AlwaysAutoResize) || !(flags & ImGuiChildFlags_AutoResizeY))
@@ -1642,12 +1642,33 @@ ImDrawList* CollapsingHeader::DoDraw(UIContext& ctx)
     {
         ImGui::SetNextItemOpen((bool)FindChild(ctx.selected[0]));
     }
-    if (ImGui::CollapsingHeader(DRAW_STR(label), flags))
+    bool open = ImGui::CollapsingHeader(DRAW_STR(label), flags);
+
+    //CustomSizerAdd
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        auto& vbox = l.parent->vbox[l.colId];
+        float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.y;
+        if (l.flags & Layout::Leftmost)
+            vbox.AddSize(sp, ImRad::VBox::ItemSize);
+        else
+            vbox.UpdateSize(0, ImRad::VBox::ItemSize);
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        auto& hbox = l.parent->hbox[l.rowId];
+        float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.x;
+        if (l.flags & Layout::Leftmost)
+            hbox.AddSize(0, ImRad::HBox::ItemSize);
+        else
+            hbox.AddSize(sp, ImRad::HBox::ItemSize);
+    }
+
+    if (open)
     {
         for (size_t i = 0; i < children.size(); ++i)
-        {
             children[i]->Draw(ctx);
-        }
     }
 
     if (!style_header.empty())
@@ -1681,9 +1702,33 @@ void CollapsingHeader::DoExport(std::ostream& os, UIContext& ctx)
     if (!open.empty())
         os << ctx.ind << "ImGui::SetNextItemOpen(" << open.to_arg() << ");\n";
 
-    os << ctx.ind << "if (ImGui::CollapsingHeader(" << label.to_arg() << ", "
-        << flags.to_arg() << "))\n";
-    os << ctx.ind << "{\n";
+    std::string varOpen = "tmpOpen" + std::to_string(ctx.varCounter++);
+    os << ctx.ind << "bool " << varOpen << " = ImGui::CollapsingHeader("
+        << label.to_arg() << ", "
+        << flags.to_arg() << ");\n";
+
+    //CustomSizerAdd
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        std::string vbName = ctx.codeGen->VBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.colId + 1);
+        if (l.flags & Layout::Leftmost)
+            os << ctx.ind << vbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+            << "ImRad::VBox::ItemSize);\n";
+        else
+            os << ctx.ind << vbName << ".UpdateSize(0, ImRad::VBox::ItemSize);\n";
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        std::string hbName = ctx.codeGen->HBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.rowId + 1);
+        if (l.flags & Layout::Leftmost)
+            os << ctx.ind << hbName << ".AddSize(0, ImRad::HBox::ItemSize);\n";
+        else
+            os << ctx.ind << hbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+            << "ImRad::HBox::ItemSize);\n";
+    }
+
+    os << ctx.ind << "if (" << varOpen << ")\n" << ctx.ind << "{\n";
     ctx.ind_up();
 
     os << ctx.ind << "/// @separator\n\n";
@@ -1720,7 +1765,8 @@ void CollapsingHeader::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() >= 1)
             open.set_from_arg(sit->params[0]);
     }
-    else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::CollapsingHeader")
+    else if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
+        sit->callee == "ImGui::CollapsingHeader")
     {
         if (sit->params.size() >= 1)
             label.set_from_arg(sit->params[0]);
@@ -1874,7 +1920,30 @@ ImDrawList* TreeNode::DoDraw(UIContext& ctx)
     }
     lastOpen = false;
     auto ps = PrepareString(label.value());
-    if (ImGui::TreeNodeEx(ps.label.c_str(), flags))
+    bool open = ImGui::TreeNodeEx(ps.label.c_str(), flags);
+
+    //CustomSizerAdd
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        auto& vbox = l.parent->vbox[l.colId];
+        float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.y;
+        if (l.flags & Layout::Leftmost)
+            vbox.AddSize(sp, ImRad::VBox::ItemSize);
+        else
+            vbox.UpdateSize(0, ImRad::VBox::ItemSize);
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        auto& hbox = l.parent->hbox[l.rowId];
+        float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.x;
+        if (l.flags & Layout::Leftmost)
+            hbox.AddSize(0, ImRad::HBox::ItemSize);
+        else
+            hbox.AddSize(sp, ImRad::HBox::ItemSize);
+    }
+
+    if (open)
     {
         lastOpen = true;
         for (const auto& child : children)
@@ -1925,9 +1994,33 @@ void TreeNode::DoExport(std::ostream& os, UIContext& ctx)
     if (PrepareString(label.value()).error)
         PushError(ctx, "label is formatted wrongly");
 
-    os << ctx.ind << "if (ImGui::TreeNodeEx(" << label.to_arg() << ", " << flags.to_arg() << "))\n";
-    os << ctx.ind << "{\n";
+    std::string varOpen = "tmpOpen" + std::to_string(ctx.varCounter++);
+    os << ctx.ind << "bool " << varOpen << " = ImGui::TreeNodeEx("
+        << label.to_arg() << ", "
+        << flags.to_arg() << ");\n";
 
+    //CustomSizerAdd
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        std::string vbName = ctx.codeGen->VBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.colId + 1);
+        if (l.flags & Layout::Leftmost)
+            os << ctx.ind << vbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+            << "ImRad::VBox::ItemSize);\n";
+        else
+            os << ctx.ind << vbName << ".UpdateSize(0, ImRad::VBox::ItemSize);\n";
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        std::string hbName = ctx.codeGen->HBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.rowId + 1);
+        if (l.flags & Layout::Leftmost)
+            os << ctx.ind << hbName << ".AddSize(0, ImRad::HBox::ItemSize);\n";
+        else
+            os << ctx.ind << hbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+            << "ImRad::HBox::ItemSize);\n";
+    }
+
+    os << ctx.ind << "if (" << varOpen << ")\n" << ctx.ind << "{\n";
     ctx.ind_up();
     os << ctx.ind << "/// @separator\n\n";
 
@@ -1944,7 +2037,8 @@ void TreeNode::DoExport(std::ostream& os, UIContext& ctx)
 
 void TreeNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
-    if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::TreeNodeEx")
+    if ((sit->kind == cpp::IfCallBlock || sit->kind == cpp::CallExpr) &&
+        sit->callee == "ImGui::TreeNodeEx")
     {
         if (sit->params.size() >= 1)
             label.set_from_arg(sit->params[0]);
@@ -2066,6 +2160,8 @@ std::unique_ptr<Widget> TabBar::Clone(UIContext& ctx)
 
 ImDrawList* TabBar::DoDraw(UIContext& ctx)
 {
+    Layout l = GetLayout(ctx);
+
     if (!style_tab.empty())
         ImGui::PushStyleColor(ImGuiCol_Tab, style_tab.eval(ImGuiCol_Tab, ctx));
     if (!style_hovered.empty())
@@ -2090,6 +2186,26 @@ ImDrawList* TabBar::DoDraw(UIContext& ctx)
 
     if (ImGui::BeginTabBar(id.c_str(), flags))
     {
+        //CustomSizerAdd
+        if (l.flags & Layout::VLayout)
+        {
+            auto& vbox = l.parent->vbox[l.colId];
+            float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.y;
+            if (l.flags & Layout::Leftmost)
+                vbox.AddSize(sp, ImRad::VBox::ItemSize);
+            else
+                vbox.UpdateSize(0, ImRad::VBox::ItemSize);
+        }
+        if (l.flags & Layout::HLayout)
+        {
+            auto& hbox = l.parent->hbox[l.rowId];
+            float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.x;
+            if (l.flags & Layout::Leftmost)
+                hbox.AddSize(0, ImRad::HBox::ItemSize);
+            else
+                hbox.AddSize(sp, ImRad::HBox::ItemSize);
+        }
+
         for (const auto& child : children)
             child->Draw(ctx);
 
@@ -2139,6 +2255,27 @@ void TabBar::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind << "{\n";
     ++ctx.varCounter;
     ctx.ind_up();
+
+    //CustomSizerAdd
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        std::string vbName = ctx.codeGen->VBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.colId + 1);
+        if (l.flags & Layout::Leftmost)
+            os << ctx.ind << vbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+                << "ImRad::VBox::ItemSize);\n";
+        else
+            os << ctx.ind << vbName << ".UpdateSize(0, ImRad::VBox::ItemSize);\n";
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        std::string hbName = ctx.codeGen->HBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.rowId + 1);
+        if (l.flags & Layout::Leftmost)
+            os << ctx.ind << hbName << ".AddSize(0, ImRad::HBox::ItemSize);\n";
+        else
+            os << ctx.ind << hbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+            << "ImRad::HBox::ItemSize);\n";
+    }
 
     if (style_regularWidth)
     {

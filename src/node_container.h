@@ -40,7 +40,7 @@ struct Table : Widget
 
     Table(UIContext&);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-    int Behavior() { return Widget::Behavior() | SnapInterior | HasSizeX | HasSizeY; }
+    int Behavior() { return Widget::Behavior() | SnapInterior | HasSizeX | HasSizeY | SizerOwner; }
     ImDrawList* DoDraw(UIContext& ctx);
     auto Properties() ->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
@@ -92,7 +92,7 @@ struct CollapsingHeader : Widget
 
     CollapsingHeader(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-    int Behavior() { return SnapSides | SnapInterior; }
+    int Behavior() { return SnapSides | SnapInterior | CustomSizerAdd; }
     ImDrawList* DoDraw(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
@@ -117,7 +117,7 @@ struct TabBar : Widget
 
     TabBar(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-    int Behavior() { return NoOverlayPos | SnapSides; }
+    int Behavior() { return NoOverlayPos | SnapSides | CustomSizerAdd; }
     ImDrawList* DoDraw(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);
@@ -159,7 +159,7 @@ struct TreeNode : Widget
 
     TreeNode(UIContext& ctx);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
-    int Behavior() { return Widget::Behavior() | SnapInterior; }
+    int Behavior() { return Widget::Behavior() | SnapInterior | CustomSizerAdd; }
     ImDrawList* DoDraw(UIContext& ctx);
     auto Properties()->std::vector<Prop>;
     bool PropertyUI(int i, UIContext& ctx);

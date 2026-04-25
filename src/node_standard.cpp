@@ -725,16 +725,21 @@ void UINode::PushError(UIContext& ctx, const std::string& err)
     ctx.errors.push_back(name + " : " + err);
 }
 
-std::string UINode::GetParentIndexes(UIContext& ctx)
+std::string UINode::GetLayoutPrefix(UIContext& ctx)
 {
     std::string id;
     UINode* node = ctx.parents.back();
-    for (auto it = ++ctx.parents.rbegin(); it != ctx.parents.rend(); ++it) {
-        size_t i = stx::find_if((*it)->children, [=](const auto& ch) {
-            return ch.get() == node;
-            }) - (*it)->children.begin();
+    for (size_t i = ctx.parents.size() - 1; i < ctx.parents.size(); --i)
+    {
+        UINode* parent = ctx.parents[i];
+        if (i && (parent->Behavior() & SizerOwner))
+        {
+            size_t i = stx::find_if(parent->children, [=](const auto& ch) {
+                return ch.get() == node;
+                }) - parent->children.begin();
             id = std::to_string(i) + id;
-            node = *it;
+        }
+        node = parent;
     }
     return id;
 }
@@ -899,11 +904,29 @@ int Widget::Behavior()
 //detects if widget is leftmost/topmost in its row
 //colId, rowId - use as index to parent.hbox/vbox
 //any usage of stretched dimension triggers HLayout/VLayout for that row/column
-Widget::Layout Widget::GetLayout(UINode* parent)
+Widget::Layout Widget::GetLayout(UIContext& ctx)
+{
+    UINode* fromParent = nullptr;
+    for (size_t i = ctx.parents.size() - 1; i < ctx.parents.size(); --i)
+    {
+        UINode* parent = ctx.parents[i];
+        if (parent != this && parent->Behavior() & SizerOwner) {
+            fromParent = parent;
+            break;
+        }
+    }
+    int nrows;
+    bool hasVLayout;
+    return DoGetLayout(ctx, fromParent, &nrows, &hasVLayout);
+}
+
+Widget::Layout Widget::DoGetLayout(UIContext& ctx, UINode* fromParent, int* nrows, bool* hasVLayout)
 {
     Layout l;
     l.colId = l.rowId = -1;
-    l.index = -1;
+
+    if (!fromParent)
+        return l;
 
     if (hasPos || !(Behavior() & SnapSides))
     {
@@ -919,54 +942,91 @@ Widget::Layout Widget::GetLayout(UINode* parent)
     bool vlay = false;
     int colId = 0;
     int rowId = 0;
-    for (const auto& child : parent->children)
+    for (const auto& child : fromParent->children)
     {
-        if (child->hasPos || !(child->Behavior() & SnapSides)) //ignore MenuBar etc.
+        if (child->hasPos)
             continue;
 
-        if ((!child->sameLine || child->nextColumn) && !firstWidget)
+        if (child->Behavior() & SnapSides)
         {
-            if (colId == l.colId)
-                l.flags |= vlay * Layout::VLayout;
-            if (rowId == l.rowId)
-                l.flags |= hlay * Layout::HLayout;
-            ++rowId;
-            topmost = child->nextColumn;
-            leftmost = true;
-            bottommost = false;
-            hlay = false;
-            if (child->nextColumn)
+            // new row/column
+            if ((!child->sameLine || child->nextColumn) && !firstWidget)
             {
-                vlay = false;
-                colId += child->nextColumn;
+                ++rowId;
+                topmost = child->nextColumn;
+                leftmost = true;
+                bottommost = false;
+                hlay = false;
+                if (child->nextColumn)
+                {
+                    vlay = false;
+                    colId += child->nextColumn;
+                }
+            }
+            //same row
+            else if (child->sameLine && !child->nextColumn && !firstWidget) {
+                leftmost = false;
+            }
+
+            //layout detected
+            if (child->size_y.stretched()) {
+                vlay = true;
+                if (colId == l.colId)
+                    l.flags |= Layout::VLayout;
+            }
+            if (child->size_x.stretched()) {
+                hlay = true;
+                if (rowId == l.rowId)
+                    l.flags |= Layout::HLayout;
+            }
+
+            //found self
+            if (child.get() == this)
+            {
+                l.parent = fromParent;
+                l.colId = colId;
+                l.rowId = rowId;
+                l.flags |= (leftmost * Layout::Leftmost) | (topmost * Layout::Topmost) |
+                    (vlay * Layout::VLayout) | (hlay * Layout::HLayout);
+                size_t i = &child - fromParent->children.data();
+                if (i + 1 < fromParent->children.size())
+                    l.next = fromParent->children[i + 1].get();
+                bottommost = true;
             }
         }
-        else if (child->sameLine && !child->nextColumn && !firstWidget) {
-            leftmost = false;
-        }
 
-        if (child->size_y.stretched())
-            vlay = true;
-        if (child->size_x.stretched())
-            hlay = true;
-
-        if (child.get() == this) {
-            l.index = &child - parent->children.data();
-            l.colId = colId;
-            l.rowId = rowId;
-            l.flags |= (leftmost * Layout::Leftmost) | (topmost * Layout::Topmost);
-            bottommost = true;
+        //recurse to non-window container (TabCtrl, CollapsingHeader...)
+        if (child->children.size() &&
+            !(child->Behavior() & SizerOwner))
+        {
+            int nrows;
+            bool hasVLayout;
+            auto la = DoGetLayout(ctx, child.get(), &nrows, &hasVLayout);
+            if (la.parent)
+            {
+                l.parent = fromParent;
+                l.colId = colId;
+                l.rowId = rowId + la.rowId;
+                l.flags |= la.flags & (Layout::VLayout | Layout::HLayout);
+                if (leftmost)
+                    l.flags |= la.flags & Layout::Leftmost;
+                l.next = la.next;
+                bottommost = la.flags & Layout::Bottommost;
+            }
+            rowId += nrows;
+            vlay = vlay || hasVLayout;
+            if (colId == l.colId)
+                l.flags |= Layout::VLayout;
         }
 
         firstWidget = false;
     }
-    if (bottommost)
-        l.flags |= Layout::Bottommost;
-    if (colId == l.colId)
-        l.flags |= vlay * Layout::VLayout;
-    if (rowId == l.rowId)
-        l.flags |= hlay * Layout::HLayout;
 
+    if (l.parent)
+        l.flags |= bottommost * Layout::Bottommost;
+
+    *nrows = rowId + 1;
+    *hasVLayout = vlay;
     return l;
 }
 
@@ -980,7 +1040,7 @@ void Widget::TextFontInfo(UIContext& ctx)
 void Widget::Draw(UIContext& ctx)
 {
     UINode* parent = ctx.parents.back();
-    Layout l = GetLayout(parent);
+    Layout l = GetLayout(ctx);
     const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
     ctx.stretchSize = { 0, 0 };
 
@@ -1019,9 +1079,9 @@ void Widget::Draw(UIContext& ctx)
 
         if (l.flags & Layout::VLayout)
         {
-            if (l.colId >= parent->vbox.size())
-                parent->vbox.resize(l.colId + 1);
-            vbox = &parent->vbox[l.colId];
+            if (l.colId >= l.parent->vbox.size())
+                l.parent->vbox.resize(l.colId + 1);
+            vbox = &l.parent->vbox[l.colId];
             if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
                 vbox->BeginLayout();
             /*if (l.flags & Layout::Leftmost)
@@ -1033,9 +1093,9 @@ void Widget::Draw(UIContext& ctx)
         }
         if (l.flags & Layout::HLayout)
         {
-            if (l.rowId >= parent->hbox.size())
-                parent->hbox.resize(l.rowId + 1);
-            hbox = &parent->hbox[l.rowId];
+            if (l.rowId >= l.parent->hbox.size())
+                l.parent->hbox.resize(l.rowId + 1);
+            hbox = &l.parent->hbox[l.rowId];
             if (l.flags & Layout::Leftmost)
                 hbox->BeginLayout();
             //ImGui::SetCursorPosX(hbox); //currently not needed but may be useful if we upgrade layouts
@@ -1119,48 +1179,55 @@ void Widget::Draw(UIContext& ctx)
 
     if (!hasPos)
         HashCombineData(ctx.layoutHash, ImGui::GetItemID());
-    if (l.flags & Layout::VLayout)
+    if (!(Behavior() & CustomSizerAdd))
     {
-        auto& vbox = parent->vbox[l.colId];
-        float sizeY = ImRad::VBox::ItemSize;
-        if (Behavior() & HasSizeY) {
-            sizeY = size_y.stretched() ? (float)size_y.value() :
-                size_y.zero() ? ImRad::VBox::ItemSize :
-                size_y.eval_px(ImGuiAxis_Y, ctx);
-            HashCombineData(ctx.layoutHash, sizeY);
-        }
-        float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.y;
-        if (size_y.stretched()) {
-            if (l.flags & Layout::Leftmost)
-                vbox.AddSize(sp, ImRad::VBox::Stretch(sizeY));
-            else
-                vbox.UpdateSize(0, ImRad::VBox::Stretch(sizeY));
-        }
-        else {
-            if (l.flags & Layout::Leftmost) {
-                //todo: account for Text with AlignToFramePadding
-                vbox.AddSize(sp, sizeY);
+        if (l.flags & Layout::VLayout)
+        {
+            auto& vbox = l.parent->vbox[l.colId];
+            float sizeY = 0;
+            if (Behavior() & HasSizeY) {
+                sizeY = size_y.stretched() ? (float)size_y.value() :
+                    size_y.eval_px(ImGuiAxis_Y, ctx);
+                HashCombineData(ctx.layoutHash, sizeY);
             }
+            float sp = (int)spacing * ImGui::GetStyle().ItemSpacing.y;
+            if (size_y.stretched()) {
+                if (l.flags & Layout::Leftmost)
+                    vbox.AddSize(sp, ImRad::VBox::Stretch(sizeY));
+                else
+                    vbox.UpdateSize(0, ImRad::VBox::Stretch(sizeY));
+            }
+            else if (!sizeY) {
+                if (l.flags & Layout::Leftmost)
+                    vbox.AddSize(sp, ImRad::VBox::ItemSize);
+                else
+                    vbox.UpdateSize(0, ImRad::VBox::ItemSize);
+            }
+            else {
+                if (l.flags & Layout::Leftmost)
+                    vbox.AddSize(sp, sizeY);
+                else
+                    vbox.UpdateSize(0, sizeY);
+            }
+        }
+        if (l.flags & Layout::HLayout)
+        {
+            auto& hbox = l.parent->hbox[l.rowId];
+            float sizeX = 0;
+            if (Behavior() & HasSizeX) {
+                sizeX = size_x.stretched() ? (float)size_x.value() :
+                    size_x.eval_px(ImGuiAxis_X, ctx);
+                HashCombineData(ctx.layoutHash, sizeX);
+            }
+            float sp = (l.flags & Layout::Leftmost) ? 0 : (float)spacing;
+            sp *= ImGui::GetStyle().ItemSpacing.x;
+            if (size_x.stretched())
+                hbox.AddSize(sp, ImRad::HBox::Stretch(sizeX));
+            else if (!sizeX)
+                hbox.AddSize(sp, ImRad::HBox::ItemSize);
             else
-                vbox.UpdateSize(0, sizeY);
+                hbox.AddSize(sp, sizeX);
         }
-    }
-    if (l.flags & Layout::HLayout)
-    {
-        auto& hbox = parent->hbox[l.rowId];
-        float sizeX = ImRad::HBox::ItemSize;
-        if (Behavior() & HasSizeX) {
-            sizeX = size_x.stretched() ? (float)size_x.value() :
-                size_x.zero() ? ImRad::HBox::ItemSize :
-                size_x.eval_px(ImGuiAxis_X, ctx);
-            HashCombineData(ctx.layoutHash, sizeX);
-        }
-        float sp = (l.flags & Layout::Leftmost) ? 0 : (float)spacing;
-        sp *= ImGui::GetStyle().ItemSpacing.x;
-        if (size_x.stretched())
-            hbox.AddSize(sp, ImRad::HBox::Stretch(sizeX));
-        else
-            hbox.AddSize(sp, sizeX);
     }
 
     //doesn't work for open CollapsingHeader etc:
@@ -1507,7 +1574,7 @@ void Widget::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 void Widget::Export(std::ostream& os, UIContext& ctx)
 {
     UINode* parent = ctx.parents.back();
-    Layout l = GetLayout(parent);
+    Layout l = GetLayout(ctx);
     ctx.stretchSize = { 0, 0 };
     ctx.stretchSizeExpr = { "", "" };
     const int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1;
@@ -1530,11 +1597,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     if (!hasPos && (l.flags & Layout::VLayout))
     {
-        std::ostringstream osv;
-        osv << ctx.codeGen->VBOX_NAME;
-        osv << GetParentIndexes(ctx);
-        osv << (l.colId + 1);
-        vbName = osv.str();
+        vbName = ctx.codeGen->VBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.colId + 1);
         ctx.codeGen->CreateNamedVar(vbName, "ImRad::VBox", "", CppGen::Var::Impl);
 
         if ((l.flags & Layout::Topmost) && (l.flags & Layout::Leftmost))
@@ -1545,11 +1608,7 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
     }
     if (!hasPos && (l.flags & Layout::HLayout))
     {
-        std::ostringstream osv;
-        osv << ctx.codeGen->HBOX_NAME;
-        osv << GetParentIndexes(ctx);
-        osv << (l.rowId + 1);
-        hbName = osv.str();
+        hbName = ctx.codeGen->HBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.rowId + 1);
         ctx.codeGen->CreateNamedVar(hbName, "ImRad::HBox", "", CppGen::Var::Impl);
 
         if (l.flags & Layout::Leftmost)
@@ -1692,37 +1751,42 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         RenameFieldVars(ctx.varItemIndex, CUR_INDEX_SYMBOL, &itemCount.index);
     }
 
-    if (l.flags & Layout::VLayout)
+    if (!(Behavior() & CustomSizerAdd))
     {
-        std::string sizeY = "ImRad::VBox::ItemSize";
-        if (Behavior() & HasSizeY) {
-            std::ostringstream os;
-            os.precision(1);
-            os << std::fixed << size_y.value() << "f";
-            sizeY = size_y.stretched() ? "ImRad::VBox::Stretch(" + os.str() + ")" :
-                size_y.zero() ? "ImRad::VBox::ItemSize" :
-                size_y.to_arg(ctx.unit);
+        if (l.flags & Layout::VLayout)
+        {
+            std::string sizeY = "ImRad::VBox::ItemSize";
+            if (Behavior() & HasSizeY) {
+                std::ostringstream os;
+                os << std::defaultfloat << size_y.value();
+                if (os.str().find('.') != std::string::npos)
+                    os << "f";
+                sizeY = size_y.stretched() ? "ImRad::VBox::Stretch(" + os.str() + ")" :
+                    size_y.zero() ? "ImRad::VBox::ItemSize" :
+                    size_y.to_arg(ctx.unit);
+            }
+            if (l.flags & Layout::Leftmost)
+                os << ctx.ind << vbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+                    << sizeY << ");\n";
+            else
+                os << ctx.ind << vbName << ".UpdateSize(0, " << sizeY << ");\n";
         }
-        if (l.flags & Layout::Leftmost)
-            os << ctx.ind << vbName << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
-                << sizeY << ");\n";
-        else
-            os << ctx.ind << vbName << ".UpdateSize(0, " << sizeY << ");\n";
-    }
-    if (l.flags & Layout::HLayout)
-    {
-        std::string sizeX = "ImRad::HBox::ItemSize";
-        if (Behavior() & HasSizeX) {
-            std::ostringstream os;
-            os.precision(1);
-            os << std::fixed << size_x.value() << "f";
-            sizeX = size_x.stretched() ? "ImRad::HBox::Stretch(" + os.str() + ")" :
-                size_x.zero() ? "ImRad::HBox::ItemSize" :
-                size_x.to_arg(ctx.unit);
+        if (l.flags & Layout::HLayout)
+        {
+            std::string sizeX = "ImRad::HBox::ItemSize";
+            if (Behavior() & HasSizeX) {
+                std::ostringstream os;
+                os << std::defaultfloat << size_x.value();
+                if (os.str().find('.') != std::string::npos)
+                    os << "f";
+                sizeX = size_x.stretched() ? "ImRad::HBox::Stretch(" + os.str() + ")" :
+                    size_x.zero() ? "ImRad::HBox::ItemSize" :
+                    size_x.to_arg(ctx.unit);
+            }
+            int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
+            os << ctx.ind << hbName << ".AddSize(" << sp << " * ImGui::GetStyle().ItemSpacing.x, "
+                << sizeX << ");\n";
         }
-        int sp = (l.flags & Layout::Leftmost) ? 0 : (int)spacing;
-        os << ctx.ind << hbName << ".AddSize(" << sp << " * ImGui::GetStyle().ItemSpacing.x, "
-            << sizeX << ");\n";
     }
 
     if (!style_frameBorderSize.empty())
@@ -1939,9 +2003,8 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "}\n";
         //always submit new line so that next widgets won't get placed to the previous line
         //for Leftmost ensure vb.AddSize so next widget don't update previous line
-        const Widget* next = l.index + 1 < parent->children.size() ? parent->children[l.index + 1].get() : nullptr;
         if (!hasPos && (l.flags & Layout::Leftmost) &&
-            next && !next->hasPos && !next->nextColumn && next->sameLine)
+            l.next && !l.next->hasPos && !l.next->nextColumn && l.next->sameLine)
         {
             os << ctx.ind << "else\n" << ctx.ind << "{\n";
             ctx.ind_up();
@@ -2074,7 +2137,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
             if (sit->params.size() >= 2)
             {
-                if (sit->params[1] == "ImRad::VBox::ItemSize") {
+                if (sit->params[1] == "ImRad::VBox::ItemSize" || sit->params[1] == "ImRad::VBox::TextSize") {
                     size_y = 0;
                     size_y.stretch(false);
                 }
@@ -2101,7 +2164,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
             if (sit->params.size() >= 2)
             {
-                if (sit->params[1] == "ImRad::HBox::ItemSize") {
+                if (sit->params[1] == "ImRad::HBox::ItemSize" || sit->params[1] == "ImRad::HBox::TextSize") {
                     size_x = 0;
                     size_x.stretch(false);
                 }
@@ -2134,7 +2197,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         {
             if (sit->params.size()) {
                 spacing.set_from_arg(sit->params[0]);
-                Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
+                Layout l = GetLayout(ctx);
                 int defSpacing = (l.flags & Layout::Topmost) ? 0 : 1; //default ImGui spacing
                 spacing += defSpacing;
             }
@@ -2446,7 +2509,7 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
 
     if (spacing < 0)
     {
-        Layout l = GetLayout(ctx.parents[ctx.parents.size() - 2]);
+        Layout l = GetLayout(ctx);
         spacing = (l.flags & Layout::Topmost) ? 0 : 1; //default ImGui spacing
     }
 
@@ -3329,6 +3392,25 @@ ImDrawList* Text::DoDraw(UIContext& ctx)
     if (wrap)
         ImGui::PopTextWrapPos();
 
+    //CustomSizerAdd
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        auto& vbox = l.parent->vbox[l.colId];
+        if (l.flags & Layout::Leftmost)
+            vbox.AddSize(spacing * ImGui::GetStyle().ItemSpacing.y, ImRad::VBox::TextSize);
+        else
+            vbox.UpdateSize(0, ImRad::VBox::TextSize);
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        auto& hbox = l.parent->hbox[l.rowId];
+        if (l.flags & Layout::Leftmost)
+            hbox.AddSize(0, ImRad::HBox::TextSize);
+        else
+            hbox.AddSize(spacing * ImGui::GetStyle().ItemSpacing.x, ImRad::HBox::TextSize);
+    }
+
     return ImGui::GetWindowDrawList();
 }
 
@@ -3349,6 +3431,7 @@ int Text::Behavior()
     int bh = Widget::Behavior();
     if (horizAlignment != ImRad::AlignNone)
         bh |= HasSizeX;
+    bh |= CustomSizerAdd;
     return bh;
 }
 
@@ -3409,6 +3492,30 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
 
     if (wrap)
         os << ctx.ind << "ImGui::PopTextWrapPos();\n";
+
+    Layout l = GetLayout(ctx);
+    if (l.flags & Layout::VLayout)
+    {
+        std::string vboxName = ctx.codeGen->VBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.colId + 1);
+        os << ctx.ind << vboxName;
+        float fp = alignToFrame ? ImGui::GetStyle().FramePadding.y * 2 : 0;
+        if (l.flags & Layout::Leftmost) {
+            os << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.y, "
+                << "ImRad::VBox::TextSize);\n";
+        }
+        else
+            os << ".UpdateSize(0, ImRad::VBox::TextSize);\n";
+    }
+    if (l.flags & Layout::HLayout)
+    {
+        std::string hboxName = ctx.codeGen->HBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.rowId + 1);
+        os << ctx.ind << hboxName;
+        if (l.flags & Layout::Leftmost)
+            os << ".AddSize(0, ImRad::VBox::TextSize);\n";
+        else
+            os << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.x, "
+                << "ImRad::VBox::TextSize);\n";
+    }
 }
 
 void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)

@@ -205,22 +205,29 @@ private:
 template <bool HORIZ>
 struct BoxLayout
 {
-    static constexpr float ItemSize = 0;
-
+    struct ItemSize_t {};
+    struct TextSize_t {};
     struct Stretch {
         float value;
         Stretch(float v) : value(v) {}
     };
+
+    static constexpr ItemSize_t ItemSize;
+    static constexpr TextSize_t TextSize;
 
     void Reset();
     void BeginLayout();
 
     //call after a widget call
     void AddSize(float spacing, float size);
+    void AddSize(float spacing, ItemSize_t);
+    void AddSize(float spacing, TextSize_t);
     void AddSize(float spacing, Stretch size);
 
     //call after a widget call for 2nd and subsequent widgets in a row
     void UpdateSize(float spacing, float size);
+    void UpdateSize(float spacing, ItemSize_t);
+    void UpdateSize(float spacing, TextSize_t);
     void UpdateSize(float spacing, Stretch size);
 
     //for use in SetNextItemWidth/ctor. Call after possible SameLine
@@ -623,8 +630,22 @@ void BoxLayout<HORIZ>::BeginLayout()
 template <bool HORIZ>
 void BoxLayout<HORIZ>::AddSize(float spacing, float size)
 {
-    if (size == ItemSize)
-        size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+    items.push_back({ spacing, size, false });
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::AddSize(float spacing, ItemSize_t)
+{
+    float size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+    items.push_back({ spacing, size, false });
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::AddSize(float spacing, TextSize_t)
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    float fpy = window->DC.CurrLineTextBaseOffset;
+    float size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y + 2 * fpy;
     items.push_back({ spacing, size, false });
 }
 
@@ -638,8 +659,30 @@ template <bool HORIZ>
 void BoxLayout<HORIZ>::UpdateSize(float spacing, float size)
 {
     assert(items.size());
-    if (size == ItemSize)
-        size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+    Item& it = items.back();
+    if (spacing > it.spacing)
+        it.spacing = spacing;
+    if (!it.stretch && (size > it.size || (size < 0 && it.size > 0)))
+        it.size = size;
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::UpdateSize(float spacing, ItemSize_t)
+{
+    assert(items.size());
+    float size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y;
+    Item& it = items.back();
+    if (spacing > it.spacing)
+        it.spacing = spacing;
+    if (!it.stretch && (size > it.size || (size < 0 && it.size > 0)))
+        it.size = size;
+}
+
+template <bool HORIZ>
+void BoxLayout<HORIZ>::UpdateSize(float spacing, TextSize_t)
+{
+    assert(items.size());
+    float size = HORIZ ? ImGui::GetItemRectSize().x : ImGui::GetItemRectSize().y + ImGui::GetStyle().FramePadding.y;
     Item& it = items.back();
     if (spacing > it.spacing)
         it.spacing = spacing;
