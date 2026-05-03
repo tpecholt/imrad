@@ -95,6 +95,7 @@ ImRAD runs on Windows, Linux and MacOS. Generated code runs on Windows, Linux, M
   * Generated code uses `ImRad::Format` formatting routines. In C++20 this will delegate to `std::format` by default but when requested popular `fmt` library can be used instead by defining `IMRAD_WITH_FMT`. If neither is available simple formatting routine which skips formatting flags will be used.
   * Some features such as `MainWindow` or `Image` widget require additional library dependencies (GLFW, STB) and need to be explicitly enabled by defining `IMRAD_WITH_LOAD_TEXTURE`
   * **imrad.h** supports loading assets from zipped file using the *zlib* library. Activate it by defining `IMRAD_WITH_MINIZIP`
+  * ImRAD can generate code which contains translated strings. Compile **imrad.h** with `IMRAD_WITH_GETTEXT` to translate them by the gettext/libintl library. You can use my own version of [libintl-lite](https://github.com/tpecholt/libintl-lite) which has no dependencies for that.
 
 * Multitasking
   * ImRAD tracks changes to the opened files so files can be designed in ImRAD and edited in your IDE of choice at the same time
