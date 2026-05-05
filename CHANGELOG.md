@@ -8,6 +8,8 @@
 
 * UI and designer should render with correct DPI scaling
 
+* Experimental - bindable text properties now allow to set translations through Edit Text dialog
+
 ### New Code Features
 
 * Owner-drawn Combo through `OnDrawItems` event
@@ -16,7 +18,9 @@
 
 * New `DrawPopups` member is now generated for all kinds of windows. It is meant for dependent popup window invocations and it insulates them from inheriting the style of the invoking window. Please move your popup invocation code into this function to make it work.
 
-* Activity supports transition animation through MoveHoriz/Vert and animationOrder. When new activity is opened its animationOrder is compared to the old one and the new activity slides in from either one or the opposite direction.
+* Activity supports transition animation through MoveHoriz/Vert and sequenceNumber. When new activity is opened its sequenceNumber is compared to the old one and the new activity slides in from either one or the opposite direction.
+
+* Code generator now supports generating gettext style translation strings. Translated strings are wrapped inside `ImRad::Translate` call and they support plural form and context. Define IMRAD_WITH_GETTEXT to forward strings to libintl compatible library.
 
 ### Improvements by Widget Type
 

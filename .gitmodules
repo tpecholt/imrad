@@ -30,3 +30,7 @@
 	path = 3rdparty/zlib
 	url = https://github.com/madler/zlib.git
 	branch = master
+[submodule "3rdparty/libintl-lite"]
+	path = 3rdparty/libintl-lite
+	url = git@github.com:tpecholt/libintl-lite.git
+	branch = main

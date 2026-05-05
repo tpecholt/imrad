@@ -296,7 +296,7 @@ void TextEdit::OkButton_Change()
         {
             messageBox.title = "Error";
             messageBox.icon = MessageBox::Warning;
-            messageBox.message = "Formatting variables in singular and plural forms have to be equal";
+            messageBox.message = "Formatting variables used in singular and plural forms have to match";
             messageBox.buttons = ImRad::Ok;
             messageBox.OpenPopup();
             return;

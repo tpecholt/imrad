@@ -65,6 +65,7 @@ include(cmake/freetype.cmake)
 include(cmake/cpp-httplib.cmake)
 include(cmake/nfd.cmake)
 include(cmake/zlib.cmake)
+include(cmake/libintl-lite.cmake)
 
 add_subdirectory(src)
 
