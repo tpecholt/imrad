@@ -1476,13 +1476,13 @@ void ToolbarUI()
     {
         NewFile();
     }
-    ImGui::SetItemTooltip("New File (Ctrl+N)");
+    ImGui::SetItemTooltip("%s", "New File (Ctrl+N)");
 
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_FOLDER_OPEN) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, ImGuiInputFlags_RouteGlobal))
         OpenFile();
-    ImGui::SetItemTooltip("Open File (Ctrl+O)");
+    ImGui::SetItemTooltip("%s", "Open File (Ctrl+O)");
 
     ImGui::BeginDisabled(activeTab < 0);
 
@@ -1493,7 +1493,7 @@ void ToolbarUI()
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
         SaveFile();
     //ImGui::EndDisabled();
-    ImGui::SetItemTooltip("Save File (Ctrl+S)");
+    ImGui::SetItemTooltip("%s", "Save File (Ctrl+S)");
 
     ImGui::SameLine(0, 0);
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -1554,13 +1554,13 @@ void ToolbarUI()
             EditConfigurations();
         ImGui::EndCombo();
     }
-    ImGui::SetItemTooltip(cfgHint.c_str());
+    ImGui::SetItemTooltip("%s", cfgHint.c_str());
     ImGui::SameLine();
     std::string thisStyle = thisFile ? thisFile->configs[thisFile->activeConfig].styleName : "";
     auto stit = stx::find_if(styleNames, [&](auto& st) { return st.first == thisStyle; });
     if (ImGui::Button(ICON_FA_PALETTE))
         EditStyle();
-    ImGui::SetItemTooltip(("Edit style \"" + thisStyle + "\"").c_str());
+    ImGui::SetItemTooltip("%s", ("Edit style \"" + thisStyle + "\"").c_str());
 
     ImGui::EndDisabled();
 
@@ -1571,7 +1571,7 @@ void ToolbarUI()
     if (ImGui::Button(ICON_FA_BOLT) || // ICON_FA_BOLT, ICON_FA_RIGHT_TO_BRACKET) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, ImGuiInputFlags_RouteGlobal))
         ShowCode();
-    ImGui::SetItemTooltip("Preview Code (Ctrl+P)");
+    ImGui::SetItemTooltip("%s", "Preview Code (Ctrl+P)");
 
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CUBES))
@@ -1583,7 +1583,7 @@ void ToolbarUI()
             classWizard.roots.push_back(cfg.rootNode.get());
         classWizard.OpenPopup();
     }
-    ImGui::SetItemTooltip("Class Wizard");
+    ImGui::SetItemTooltip("%s", "Class Wizard");
 
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_Button,
@@ -1593,7 +1593,7 @@ void ToolbarUI()
         ctx.showUntranslated = !ctx.showUntranslated;
     }
     ImGui::PopStyleColor();
-    ImGui::SetItemTooltip("Show untranslated strings");
+    ImGui::SetItemTooltip("%s", "Show untranslated strings");
 
     ImGui::SameLine(0, 2 * ImGui::GetStyle().ItemSpacing.x);
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
@@ -1618,7 +1618,7 @@ void ToolbarUI()
         horizLayout.OpenPopup();
     }
     ImGui::EndDisabled();
-    ImGui::SetItemTooltip("Table Layout Helper");
+    ImGui::SetItemTooltip("%s", "Table Layout Helper");
 
     ImGui::EndDisabled();
 
@@ -1628,7 +1628,7 @@ void ToolbarUI()
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_GEAR))
         OpenSettings();
-    ImGui::SetItemTooltip("Settings");
+    ImGui::SetItemTooltip("%s", "Settings");
 
     ImGui::SameLine();
     float defHeight = ImGui::GetFrameHeightWithSpacing();
