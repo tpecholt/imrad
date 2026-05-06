@@ -4,11 +4,14 @@
   #undef min
   #undef max
   #undef MessageBox
+  #define GLFW_EXPOSE_NATIVE_WIN32
 #elif defined(__APPLE__)
   #include <mach-o/dyld.h>
+  #define GLFW_EXPOSE_NATIVE_COCOA
 #else //linux
   #include <sys/types.h>
   #include <sys/inotify.h>
+  #define GLFW_EXPOSE_NATIVE_X11
 #endif
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -23,6 +26,7 @@
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
+#include <GLFW/glfw3native.h>
 #include <nfd.h>
 #include <httplib.h>
 
@@ -54,11 +58,6 @@
 //must come last
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
-static void glfw_error_callback(int error, const char* description)
-{
-    std::cerr << "ERROR: " << description << std::endl;
-}
 
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
@@ -151,6 +150,27 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
         { ICON_FA_MESSAGE /*RECEIPT*/, "ContextMenu" },
     }},
 };
+
+static void glfw_error_callback(int error, const char* description)
+{
+    std::cerr << "ERROR: " << description << std::endl;
+}
+
+nfdwindowhandle_t GetNfdHandle()
+{
+    nfdwindowhandle_t h;
+#ifdef _WIN32
+    h.type = NFD_WINDOW_HANDLE_TYPE_WINDOWS;
+    h.handle = glfwGetWin32Window(glfwWindow);
+#elif defined(__APPLE__)
+    h.type = NFD_WINDOW_HANDLE_TYPE_COCOA;
+    h.handle = glfwGetCocoaWindow(glfwWindow);
+#else
+    h.type = NFD_WINDOW_HANDLE_TYPE_X11;
+    h.handle = glfwGetX11Window(glfwWindow);
+#endif
+    return h;
+}
 
 //CancelShutdown identifier is used in winuser.h
 void DoCancelShutdown()
@@ -326,8 +346,13 @@ void CopyFileReplace(const std::string& from, const std::string& to, std::vector
 void DoNewTemplate(int type, const std::string& name)
 {
     nfdchar_t *outPath = NULL;
-    nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Source code", (const nfdchar_t *)"cpp" } };
-    nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, "main.cpp");
+    nfdfilteritem_t filterItem[1] = { { "Source code", "cpp" } };
+    nfdsavedialogu8args_t args{};
+    args.filterList = filterItem;
+    args.filterCount = 1;
+    args.defaultName = "main.cpp";
+    args.parentWindow = GetNfdHandle();
+    nfdresult_t result = NFD_SaveDialogU8_With(&outPath, &args);
     if (result != NFD_OKAY)
         return;
     fs::path p = u8path(outPath);
@@ -483,7 +508,11 @@ void OpenFile()
 {
     nfdchar_t *outPath = NULL;
     nfdfilteritem_t filterItem[1] = { { "Headers", "h,hpp" } };
-    nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, nullptr);
+    nfdopendialogu8args_t args{};
+    args.filterList = filterItem;
+    args.filterCount = 1;
+    args.parentWindow = GetNfdHandle();
+    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
     if (result != NFD_OKAY)
         return;
 
@@ -629,7 +658,11 @@ bool SaveFileAs(int flags)
 {
     nfdchar_t *outPath = NULL;
     nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Header File", (const nfdchar_t *)"h,hpp" } };
-    nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, nullptr, nullptr);
+    nfdsavedialogu8args_t args{};
+    args.filterList = filterItem;
+    args.filterCount = 1;
+    args.parentWindow = GetNfdHandle();
+    nfdresult_t result = NFD_SaveDialogU8_With(&outPath, &args);
     if (result != NFD_OKAY) {
         DoCancelShutdown();
         return false;
