@@ -10,8 +10,6 @@
 
 ConfigurationDlg configurationDlg;
 
-const std::string DEFAULT_CFG_NAME = "(Default)";
-
 void ConfigurationDlg::OpenPopup(std::function<void(ImRad::ModalResult)> clb)
 {
     callback = clb;
@@ -260,7 +258,8 @@ void ConfigurationDlg::RemoveButton_Change()
         return;
     messageBox.title = "Remove";
     messageBox.icon = MessageBox::Warning;
-    messageBox.message = "Remove configuration \"" + configs[selRow].name + "\" ?";
+    std::string cfgName = configs[selRow].name == "" ? DEFAULT_CFG_NAME : configs[selRow].name;
+    messageBox.message = "Remove configuration \"" + cfgName + "\" ?";
     messageBox.buttons = ImRad::Yes | ImRad::Cancel;
     messageBox.OpenPopup([&](ImRad::ModalResult mr) {
         if (mr != ImRad::Yes)

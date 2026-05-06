@@ -59,7 +59,6 @@
 const std::string UNTITLED = "Untitled";
 const std::string DEFAULT_STYLE = "Dark";
 const std::string DEFAULT_UNIT = "dp";
-const std::string DEFAULT_CFG_NAME = "(Default)";
 const char* INI_FILE_NAME = "imgui.ini";
 
 struct File

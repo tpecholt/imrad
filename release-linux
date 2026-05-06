@@ -6,7 +6,7 @@ INSTALL_DIR="${INSTALL_DIR:-install}"
 # Build
 rm -rf $BUILD_DIR
 cmake -B $BUILD_DIR -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
-cmake --build $BUILD_DIR
+cmake --build $BUILD_DIR || exit 1
 
 # Install
 rm -rf $INSTALL_DIR
@@ -22,5 +22,5 @@ fi
 # Zip
 cd $INSTALL_DIR
 mv latest imrad-$VER
-zip -r imrad-$VER-linux64.zip . 
+zip -r imrad-$VER-linux64.zip .
 

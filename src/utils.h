@@ -12,6 +12,7 @@ inline const std::string VER_STR = "ImRAD " IMRAD_VERSION;
 inline const std::string GITHUB_URL = "https://github.com/tpecholt/imrad";
 inline const std::string CUR_ITEM_SYMBOL = "$item";
 inline const std::string CUR_INDEX_SYMBOL = "$index";
+inline const std::string DEFAULT_CFG_NAME = "(Default)";
 
 struct GLFWwindow;
 extern float uiFontSize;
