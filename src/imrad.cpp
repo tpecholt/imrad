@@ -4,14 +4,11 @@
   #undef min
   #undef max
   #undef MessageBox
-  #define GLFW_EXPOSE_NATIVE_WIN32
 #elif defined(__APPLE__)
   #include <mach-o/dyld.h>
-  #define GLFW_EXPOSE_NATIVE_COCOA
 #else //linux
   #include <sys/types.h>
   #include <sys/inotify.h>
-  #define GLFW_EXPOSE_NATIVE_X11
 #endif
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -26,7 +23,6 @@
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include <GLFW/glfw3native.h>
 #include <nfd.h>
 #include <httplib.h>
 
@@ -34,6 +30,7 @@
 #include "node_standard.h"
 #include "cppgen.h"
 #include "utils.h"
+#include "get_nfd_handle.h"
 #include "ui_new_field.h"
 #include "ui_message_box.h"
 #include "ui_error_box.h"
@@ -154,22 +151,6 @@ std::vector<std::pair<std::string, std::vector<TB_Button>>> tbButtons{
 static void glfw_error_callback(int error, const char* description)
 {
     std::cerr << "ERROR: " << description << std::endl;
-}
-
-nfdwindowhandle_t GetNfdHandle()
-{
-    nfdwindowhandle_t h;
-#ifdef _WIN32
-    h.type = NFD_WINDOW_HANDLE_TYPE_WINDOWS;
-    h.handle = glfwGetWin32Window(glfwWindow);
-#elif defined(__APPLE__)
-    h.type = NFD_WINDOW_HANDLE_TYPE_COCOA;
-    h.handle = glfwGetCocoaWindow(glfwWindow);
-#else
-    h.type = NFD_WINDOW_HANDLE_TYPE_X11;
-    h.handle = glfwGetX11Window(glfwWindow);
-#endif
-    return h;
 }
 
 //CancelShutdown identifier is used in winuser.h
