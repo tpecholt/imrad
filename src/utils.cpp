@@ -11,6 +11,7 @@
 
 float uiFontSize = 15;
 GLFWwindow* glfwWindow = nullptr;
+ProgramState programState;
 
 //ImRAD 0.10-WIP -> 1000
 //imrad-0.9.1 -> 901

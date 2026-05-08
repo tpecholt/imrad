@@ -1,14 +1,9 @@
 #ifdef WIN32
-  #define WIN32_LEAN_AND_MEAN
-  #include <Windows.h>
-  #undef min
-  #undef max
-  #undef MessageBox
-#elif defined(__APPLE__)
-  #include <mach-o/dyld.h>
-#else //linux
-  #include <sys/types.h>
-  #include <sys/inotify.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#undef min
+#undef max
+#undef MessageBox
 #endif
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -23,14 +18,14 @@
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include <nfd.h>
 #include <httplib.h>
+#include <nfd.h>
 
 #include "cursor.h"
 #include "node_standard.h"
 #include "cppgen.h"
 #include "utils.h"
-#include "get_nfd_handle.h"
+#include "platform.h"
 #include "ui_new_field.h"
 #include "ui_message_box.h"
 #include "ui_error_box.h"
@@ -85,8 +80,6 @@ struct File
 
 float tbSize = 40;
 float tabSize = 30;
-enum ProgramState { Run, Init, Shutdown };
-ProgramState programState;
 std::string rootPath;
 std::string initErrors, showError;
 std::string checkedRelease;
@@ -109,7 +102,6 @@ std::string lastPropName;
 std::string activeButton = "";
 std::vector<std::unique_ptr<Widget>> clipboard;
 float pgHeight = 0, pgeHeight = 0;
-std::thread stylesWatcher;
 
 struct TB_Button
 {
@@ -325,18 +317,10 @@ void CopyFileReplace(const std::string& from, const std::string& to, std::vector
 
 void DoNewTemplate(int type, const std::string& name)
 {
-    nfdchar_t *outPath = NULL;
-    nfdfilteritem_t filterItem[1] = { { "Source code", "cpp" } };
-    nfdsavedialogu8args_t args{};
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultName = "main.cpp";
-    args.parentWindow = GetNfdHandle();
-    nfdresult_t result = NFD_SaveDialogU8_With(&outPath, &args);
-    if (result != NFD_OKAY)
+    std::string outPath = SaveFileDialog("main.cpp", { "Source code|cpp" });
+    if (outPath == "")
         return;
     fs::path p = u8path(outPath);
-    NFD_FreePath(outPath);
     if (!p.has_extension())
         p.replace_extension(".cpp");
 
@@ -486,14 +470,8 @@ bool DoOpenFile(const std::string& path, std::string* errs = nullptr)
 
 void OpenFile()
 {
-    nfdchar_t *outPath = NULL;
-    nfdfilteritem_t filterItem[1] = { { "Headers", "h,hpp" } };
-    nfdopendialogu8args_t args{};
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.parentWindow = GetNfdHandle();
-    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-    if (result != NFD_OKAY)
+    std::string outPath = OpenFileDialog({ "Headers|h,hpp" });
+    if (outPath == "")
         return;
 
     ctx.mode = UIContext::NormalSelection;
@@ -519,7 +497,6 @@ void OpenFile()
     else {
         DoOpenFile(outPath);
     }
-    NFD_FreePath(outPath);
 }
 
 enum {
@@ -636,21 +613,14 @@ void DoSaveFile(int flags)
 
 bool SaveFileAs(int flags)
 {
-    nfdchar_t *outPath = NULL;
-    nfdfilteritem_t filterItem[1] = { { (const nfdchar_t *)"Header File", (const nfdchar_t *)"h,hpp" } };
-    nfdsavedialogu8args_t args{};
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.parentWindow = GetNfdHandle();
-    nfdresult_t result = NFD_SaveDialogU8_With(&outPath, &args);
-    if (result != NFD_OKAY) {
+    std::string outPath = SaveFileDialog("", { "Header File|h,hpp" });
+    if (outPath == "") {
         DoCancelShutdown();
         return false;
     }
     auto& tab = fileTabs[activeTab];
     fs::path oldName = u8path(tab.fname);
     fs::path newName = u8path(outPath).replace_extension(".h");
-    NFD_FreePath(outPath);
     if (newName == oldName) {
         DoSaveFile(flags);
         return true;
@@ -899,61 +869,6 @@ void GetStyles()
             continue;
         styleNames.push_back({ u8string(it->path().stem()), u8string(it->path()) });
     }
-}
-
-void InitStylesWatcher()
-{
-#ifdef WIN32
-    stylesWatcher = std::thread([] {
-        HANDLE hDir = CreateFileW(
-            u8path(rootPath + "/style").wstring().c_str(),
-            FILE_LIST_DIRECTORY,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS,
-            NULL
-        );
-        if (hDir == INVALID_HANDLE_VALUE)
-            return;
-        DWORD bytesReturned;
-        std::vector<std::byte> buffer(1024);
-        while (programState != Shutdown) {
-            if (ReadDirectoryChangesW(
-                hDir,
-                buffer.data(),
-                (DWORD)buffer.size(),
-                false,
-                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE,
-                &bytesReturned,
-                NULL,
-                NULL
-            )) {
-                reloadStyle = true;
-            }
-        }
-        });
-    stylesWatcher.detach();
-#elif defined(__APPLE__)
-    //todo
-#else
-    stylesWatcher = std::thread([]{
-        int fd = inotify_init();
-        if (fd < 0)
-            return;
-        int wd = inotify_add_watch(fd, u8path(rootPath + "/style").string().c_str(), IN_MODIFY);
-        std::vector<std::byte> buffer(1024 * (sizeof(struct inotify_event) + 16));
-        while (programState != Shutdown) {
-            int len = read(fd, buffer.data(), buffer.size());
-            if (len < 0)
-                break;
-            reloadStyle = true;
-        }
-        inotify_rm_watch(fd, wd);
-        close(fd);
-    });
-    stylesWatcher.detach();
-#endif
 }
 
 const std::array<ImU32, UIContext::Color::COUNT>&
@@ -2875,33 +2790,6 @@ void AddINIHandler()
     ImGui::GetCurrentContext()->SettingsHandlers.push_back(ini_handler);
 }
 
-std::string GetRootPath()
-{
-#ifdef WIN32
-    wchar_t tmp[1024];
-    int n = GetModuleFileNameW(NULL, tmp, (int)std::size(tmp));
-    return generic_u8string(fs::path(tmp).parent_path()); //need generic for CMake template path substitutions
-    //test utf8 path: return u8string(L"c:/work/de�o/latest");
-#elif defined(__APPLE__)
-    char executablePath[PATH_MAX];
-    uint32_t len = PATH_MAX;
-    if (_NSGetExecutablePath(executablePath, &len) != 0) {
-        std::cerr << "Error: _NSGetExecutablePath failed, fallback to current directory\n";
-        return u8string(fs::current_path());
-    }
-    try {
-        fs::path pexe = fs::canonical(u8path(executablePath));
-        return u8string(pexe.parent_path());
-    } catch (const std::exception& e) {
-        std::cerr << "Error: fs::canonical failed: " << e.what() << ", fallback to current directory\n";
-        return u8string(fs::current_path());
-    }
-#else
-    fs::path pexe = fs::canonical("/proc/self/exe");
-    return u8string(pexe.parent_path());
-#endif
-}
-
 void GLFWContentScaleCallback(GLFWwindow*, float, float)
 {
     //programState = Init;
@@ -2991,7 +2879,7 @@ int main(int argc, const char* argv[])
     GetStyles();
     programState = (ProgramState)-1;
     bool lastVisible = true;
-    InitStylesWatcher();
+    InitStylesWatcher([] { reloadStyle = true; });
 
     while (true)
     {

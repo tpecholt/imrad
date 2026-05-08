@@ -17,6 +17,8 @@ inline const std::string DEFAULT_CFG_NAME = "(Default)";
 struct GLFWwindow;
 extern float uiFontSize;
 extern GLFWwindow* glfwWindow;
+enum ProgramState { Run, Init, Shutdown };
+extern ProgramState programState;
 
 //-----------------------------------------------------------------------
 
