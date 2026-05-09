@@ -24,7 +24,7 @@ TopWindow::TopWindow(UIContext& ctx)
         size_y = 380;
     }
 
-    kind.add("Main Window (GLFW)", MainWindow);
+    kind.add("Main Window (GLFW)", MainWindow_GLFW);
     kind.add$(Window);
     kind.add$(Popup);
     kind.add$(ModalPopup);
@@ -80,7 +80,7 @@ void TopWindow::Draw(UIContext& ctx)
     int fl = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
     if (ctx.mode != UIContext::NormalSelection)
         fl |= ImGuiWindowFlags_NoResize; //so that window resizing doesn't interfere with snap
-    if (kind == MainWindow)
+    if (kind == MainWindow_GLFW)
         fl |= ImGuiWindowFlags_NoCollapse;
     else if (kind == ModalPopup)
         fl |= ImGuiWindowFlags_NoCollapse;
@@ -114,7 +114,7 @@ void TopWindow::Draw(UIContext& ctx)
     ImGui::SetNextWindowScroll({ 0, 0 }); //click on a child causes scrolling which doesn't go back
     ImGui::SetNextWindowPos(ctx.designAreaMin + ImVec2{ 20, 20 }); // , ImGuiCond_Always, { 0.5, 0.5 });
 
-    if (kind == MainWindow && placement == Maximize)
+    if (kind == MainWindow_GLFW && placement == Maximize)
     {
         ImGui::SetNextWindowSize(ctx.designAreaMax - ctx.designAreaMin - ImVec2{ 40, 40 });
     }
@@ -356,7 +356,7 @@ TopWindow::ExportStyle(std::ostream& os, UIContext& ctx)
         os << (kind == Popup ? "ImGuiStyleVar_PopupRounding" : "ImGuiStyleVar_WindowRounding");
         os << ", " << style_rounding.to_arg(ctx.unit) << ");\n";
     }
-    if (style_borderSize.has_value() && kind != Activity && kind != MainWindow)
+    if (style_borderSize.has_value() && kind != Activity && kind != MainWindow_GLFW)
     {
         ++sc.nvars;
         os << ctx.ind << "ImGui::PushStyleVar(";
@@ -430,7 +430,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     auto sc = ExportStyle(os, ctx);
 
-    if (kind == MainWindow)
+    if (kind == MainWindow_GLFW)
     {
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
         os << ctx.ind << "glfwSetWindowTitle(window, " << title.to_arg() << ");\n";
@@ -851,7 +851,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         ctx.ind_down();
         os << ctx.ind << "}\n";
     }
-    else // MainWindow, Activity
+    else // MainWindow_GLFW, Activity
     {
         ctx.ind_down();
         os << ctx.ind << "}\n";
@@ -1152,7 +1152,7 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             }
 
             if (hasGlfw) {
-                ctx.kind = kind = MainWindow;
+                ctx.kind = kind = MainWindow_GLFW;
                 //reset sizes from earlier SetNextWindowSize
                 TopWindow def(ctx);
                 size_x = def.size_x;
@@ -1237,7 +1237,7 @@ bool TopWindow::IsTranslated()
 
 void TopWindow::TreeUI(UIContext& ctx)
 {
-    static const char* NAMES[]{ "MainWindow", "Window", "Popup", "ModalPopup", "Activity" };
+    static const char* NAMES[]{ "MainWindow (GLFW)", "Window", "Popup", "ModalPopup", "Activity" };
 
     ctx.parents = { this };
     std::string str = ctx.codeGen->GetName();
@@ -1601,7 +1601,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         }
         if (kind == Popup || kind == ModalPopup)
             placement.add$(Center);
-        if (kind == MainWindow)
+        if (kind == MainWindow_GLFW)
             placement.add$(Maximize);
 
         if (placement.get_id() == "") {

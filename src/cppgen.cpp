@@ -291,7 +291,7 @@ CppGen::ExportH(
                     out << INDENT << "void Close();\n";
                     out << INDENT << "void Draw();\n";
                 }
-                else if (m_kind == TopWindow::MainWindow)
+                else if (m_kind == TopWindow::MainWindow_GLFW)
                 {
                     out << INDENT << "void Draw(GLFWwindow* window);\n";
                 }
@@ -529,7 +529,7 @@ CppGen::ExportH(
             preamble = false;
             if (!tok.compare(0, 8, "#include"))
             {
-                if (m_kind == TopWindow::MainWindow &&
+                if (m_kind == TopWindow::MainWindow_GLFW &&
                     first_include &&
                     tok.find("glfw") == std::string::npos)
                 {
@@ -538,7 +538,7 @@ CppGen::ExportH(
                     out << "#include <GLFW/glfw3.h>\n";
                     out << tok << "\n";
                 }
-                else if (m_kind != TopWindow::MainWindow &&
+                else if (m_kind != TopWindow::MainWindow_GLFW &&
                     first_include &&
                     tok.find("glfw") != std::string::npos)
                 {
@@ -1052,7 +1052,7 @@ void CppGen::WriteDrawFun(std::ostream& fout, const std::string& id, const std::
 {
     fout << "::" << id;
     fout << "(";
-    if (m_kind == TopWindow::MainWindow)
+    if (m_kind == TopWindow::MainWindow_GLFW)
         fout << "GLFWwindow* window";
     fout << ")\n{\n";
 

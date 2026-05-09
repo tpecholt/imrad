@@ -117,7 +117,7 @@ int main(int argc, const char* argv[])
 	// Read 'docs/FONTS.md' for more instructions and details.
 	ImGui::StyleColorsDark();
 	/*
-	io.Fonts->AddFontFromFileTTF("Roboto-Regulara.ttf", 15.0f);
+	io.Fonts->AddFontFromFileTTF("Roboto-Regular.ttf", 15.0f);
 	ImFontConfig icons_config;
 	icons_config.MergeMode = true;
 	//icons_config.PixelSnapH = true;
@@ -126,11 +126,9 @@ int main(int argc, const char* argv[])
 	*/
 
 	// TODO: Make UI DPI aware
-	/*
 	ImGui::GetStyle().ScaleAllSizes(mainScale);
 	ImGui::GetStyle().FontScaleDpi = mainScale;
 	ImRad::GetUserData().dpiScale = mainScale;
-	*/
 
 	const ImVec4 clear_color(0.45f, 0.55f, 0.60f, 1.00f);
 

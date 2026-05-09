@@ -330,7 +330,10 @@ void DoNewTemplate(int type, const std::string& name)
         case 0:
             fs::copy_file(u8path(rootPath + "/template/glfw/main.cpp"), p, fs::copy_options::overwrite_existing);
             break;
-        case 1: {
+        case 1:
+            fs::copy_file(u8path(rootPath + "/template/sdl3/main.cpp"), p, fs::copy_options::overwrite_existing);
+            break;
+        case 2: {
             std::string jni = name;
             stx::replace(jni, '.', '_');
             if (name.find('.') == std::string::npos)
@@ -362,7 +365,7 @@ void DoNewTemplate(int type, const std::string& name)
 
 void NewTemplate(int type)
 {
-    if (type == 1)
+    if (type == 2)
     {
         //android template
         inputName.title = "Java package name";

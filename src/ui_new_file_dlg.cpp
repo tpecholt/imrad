@@ -251,24 +251,25 @@ void NewFileDlg::Category_Change()
     if (ImGui::GetCurrentTable())
         category = (Category)ImGui::TableGetRowIndex();
 
-    if (!category)
+    if (category == ProjectTemplate)
     {
         items = {
-            { "GLFW template (Windows/Linux/macOS)", "GLFW", "main.cpp", 0 },
-            { "Android template", "Android", "main.cpp, CMakeLists.txt, MainActivity.java, AndroidManifest.xml", 1 }
+            { "GLFW template", "OpenGL", "main.cpp", 0 },
+            { "SDL3 template", "OpenGL", "main.cpp", 1 },
+            { "Android template", "Android\nOpenGL", "main.cpp, CMakeLists.txt, MainActivity.java, AndroidManifest.xml", 2 }
         };
     }
-    else if (category == 1)
+    else if (category == FileTemplate)
     {
         items = {
-            { ICON_FA_TV "  Main Window", "GLFW", "ImGui window integrated into OS window", TopWindow::MainWindow },
+            { ICON_FA_TV "  Main Window", "GLFW", "ImGui window integrated into OS window", TopWindow::MainWindow_GLFW },
             { ICON_FA_WINDOW_MAXIMIZE "  Window", "(All)", "General ImGui window", TopWindow::Window },
             { ICON_FA_CLONE "  Popup", "(All)", "Popup window without a titlebar", TopWindow::Popup },
             { ICON_FA_WINDOW_RESTORE "  ModalPopup", "(All)", "Modal popup window", TopWindow::ModalPopup },
             { ICON_FA_MOBILE_SCREEN "  Activity", "(All)", "Maximized, title-less window where only one is active at a time", TopWindow::Activity }
         };
     }
-    else if (category == 2)
+    else if (category == GithubTemplate)
     {
         struct WaitCursor {
             WaitCursor() { SetWaitCursor(); }
