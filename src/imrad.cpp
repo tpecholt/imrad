@@ -335,6 +335,11 @@ void DoNewTemplate(int type, const std::string& name)
             break;
         case 2: {
             std::string jni = name;
+            size_t i = 0;
+            while ((i = jni.find('_', i)) != std::string::npos) {
+                jni = jni.substr(0, i) + "_1" + jni.substr(i + 1);
+                i += 2;
+            }
             stx::replace(jni, '.', '_');
             if (name.find('.') == std::string::npos)
                 throw std::runtime_error("invalid package name");

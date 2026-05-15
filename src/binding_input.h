@@ -955,46 +955,35 @@ inline bool InputBindable(bindable<std::vector<std::string>>* val, UIContext& ct
         ImGui::PushStyleColor(ImGuiCol_Text, RENAME_COLOR);
         if (ImGui::Selectable("Edit Items..."))
         {
-            std::string tmp = *val->access(); //preserve embeded nulls
+            bool hasTr = val->has_tr();
+            std::string tmp = hasTr ? val->tr_singular() : *val->access(); //preserve embeded nulls
             stx::replace(tmp, '\0', '\n');
             if (tmp.size() && tmp.back() == '\n')
                 tmp.pop_back();
 
-            /*todo
             textEdit.showPlural = false;
             textEdit.activeTab = hasTr ? 1 : 0;
             textEdit.font = ctx.defaultStyleFont;
-            textEdit.text = hasTr ? "" : *val->access();
+            textEdit.text = hasTr ? "" : tmp;
+            textEdit.singular = hasTr ? tmp : "";
             textEdit.context = val->tr_context();
-            textEdit.singular = val->tr_singular();
             textEdit.plural = "";
             textEdit.pluralVariable = "";
             textEdit.OpenPopup([&ctx, val](ImRad::ModalResult mr) {
-                ctx.setProp = val;
-                if (!textEdit.activeTab)
-                    ctx.setPropValue = textEdit.text;
-                else {
-                    bindable<std::string> tmp;
-                    tmp.set_tr(textEdit.context, textEdit.singular, textEdit.plural, textEdit.pluralVariable);
-                    ctx.setPropValue = *tmp.access();
-                }
-                });
-                */
-            comboDlg.title = "Items";
-            comboDlg.value = tmp;
-            comboDlg.font = ctx.defaultStyleFont;
-            comboDlg.OpenPopup([val, &ctx](ImRad::ModalResult) {
-                std::string tmp = comboDlg.value;
+                std::string tmp = textEdit.activeTab ? textEdit.singular : textEdit.text;
                 while (tmp.size() && tmp.back() == '\n')
                     tmp.pop_back();
-                *val->access() = tmp;
-                if (!val->has_single_variable()) {
+                bindable<std::vector<std::string>> test;
+                *test.access() = tmp;
+                if (!test.has_single_variable()) {
                     if (tmp.size() && tmp.back() != '\n')
                         tmp.push_back('\n');
                     stx::replace(tmp, '\n', '\0');
-                    *val->access() = tmp;
+                    if (textEdit.activeTab) {
+                        test.set_tr(textEdit.context, tmp, "", "");
+                        tmp = *test.access();
+                    }
                 }
-                //force changed in next iteration
                 ctx.setProp = val;
                 ctx.setPropValue = tmp;
                 });

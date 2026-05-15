@@ -48,7 +48,7 @@ void Draw()
 {
     // TODO: Call your drawing code here
     //mainActivity.Draw();
-    
+
     bool isOpen;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { ImGui::GetTextLineHeight()/2, ImGui::GetTextLineHeight()/2 });
@@ -99,7 +99,7 @@ JNIEXPORT void JNICALL
 Java_${JNI_PACKAGE}_MainActivity_OnKeyboardShown(JNIEnv *env, jobject thiz, jint height)
 {
     g_KbdHeight = height;
-    ImRad::GetUserData().kbdShown = height / ImRad::GetUserData().dpiScale > 100;
+    ImRad::GetUserData().kbdShown = (float)height / ImRad::GetUserData().dpiScale > 100;
     if (!ImRad::GetUserData().kbdShown)
         g_ImeType = 0;
     UpdateScreenRect();
@@ -142,8 +142,9 @@ static void handleAppCmd(struct android_app* app, int32_t appCmd)
         case APP_CMD_TERM_WINDOW:
             FreeMem();
             break;
-        case APP_CMD_GAINED_FOCUS:
-        case APP_CMD_LOST_FOCUS:
+        //case APP_CMD_GAINED_FOCUS:
+        //case APP_CMD_LOST_FOCUS:
+        default:
             break;
     }
 }
@@ -199,7 +200,7 @@ void Init(struct android_app* app)
             __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
                                 "eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
 
-        if (eglInitialize(g_EglDisplay, 0, 0) != EGL_TRUE)
+        if (eglInitialize(g_EglDisplay, nullptr, nullptr) != EGL_TRUE)
             __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
                                 "eglInitialize() returned with an error");
 
@@ -271,7 +272,7 @@ void Init(struct android_app* app)
         // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
         // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them
         ImFontConfig cfg;
-        cfg.SizePixels = 18.0f;
+        cfg.SizePixels = 15.0f;
         io.Fonts->AddFontDefault(&cfg);
         /*ImFont *font;
         auto roboto_data = GetAndroidAsset("Roboto-Regular.ttf");
@@ -322,7 +323,7 @@ void Shutdown()
     g_EglDisplay = EGL_NO_DISPLAY;
     g_EglContext = EGL_NO_CONTEXT;
     g_EglSurface = EGL_NO_SURFACE;
-    
+
     if (g_App->window)
         ANativeWindow_release(g_App->window);
 
@@ -382,7 +383,7 @@ std::pair<void*, int> GetAndroidAsset(const char* filename)
     return ret;
 }
 
-struct JniBlock 
+struct JniBlock
 {
     JniBlock()
     {
@@ -409,7 +410,7 @@ struct JniBlock
         if (jni_return != JNI_OK)
             return;
     }
-    JNIEnv* operator-> ()
+    JNIEnv* operator-> () const
     {
         return java_env;
     }
@@ -449,12 +450,12 @@ static void GetDisplayInfo()
         return;
 
     jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
-    //g_NavBarHeight = 48 * dpi / 160.0; // Uses android dp definition
-    g_StatusBarHeight = 40 * dpi / 160.0; // Uses android dp definition
-    ImRad::GetUserData().dpiScale = dpi / 140.0; // TODO: use your ImRAD monitor DPI
+    //g_NavBarHeight = 48 * dpi / 160; // Uses android dp definition
+    g_StatusBarHeight = 40 * dpi / 160; // Uses android dp definition
+    ImRad::GetUserData().dpiScale = (float)dpi / 140.f;
     // Round dpiScale otherwise when using box sizers floating point errors in imgui
     // accumulate and cause the window contentRegionRect to grow continuously
-    ImRad::GetUserData().dpiScale = std::round(1000 * ImRad::GetUserData().dpiScale) / 1000.0;
+    ImRad::GetUserData().dpiScale = (float)std::round(1000 * ImRad::GetUserData().dpiScale) / 1000.f;
 
     method_id = bl->GetMethodID(bl.native_activity_clazz, "getRotation", "()I");
     if (method_id == nullptr)
@@ -478,6 +479,8 @@ void UpdateScreenRect()
         case 270:
             ImRad::GetUserData().displayOffsetMin = { (float)g_NavBarHeight, (float)g_StatusBarHeight };
             ImRad::GetUserData().displayOffsetMax = { 0, (float)g_KbdHeight };
+            break;
+        default:
             break;
     }
 }

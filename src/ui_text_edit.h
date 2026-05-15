@@ -38,7 +38,6 @@ private:
     ImRad::VBox vb1;
     ImRad::HBox hb11;
     /// @end impl
-    int tmp = 5;
 
     bool OkDisabled();
     void DrawMultilineTextArgs(PreparedString& ps);

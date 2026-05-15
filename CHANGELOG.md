@@ -6,6 +6,8 @@
 
 * Separate style and units combos reworked into single configuration combo and dialog
 
+* Dp units (device independent pixels) are the default now
+
 * UI and designer should render with correct DPI scaling
 
 * Experimental - bindable text properties now allow to set translations through Edit Text dialog
@@ -21,6 +23,8 @@
 * Activity supports transition animation through MoveHoriz/Vert and sequenceNumber. When new activity is opened its sequenceNumber is compared to the old one and the new activity slides in from either one or the opposite direction.
 
 * Code generator now supports generating gettext style translation strings. Translated strings are wrapped inside `ImRad::Translate` call and they support plural form and context. Define IMRAD_WITH_GETTEXT to forward strings to libintl compatible library.
+
+* New SDL3 project template was added
 
 ### Improvements by Widget Type
 

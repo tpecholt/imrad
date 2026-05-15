@@ -41,6 +41,7 @@ std::string OpenFileDialog(const std::vector<const char*>& filters)
 {
     nfdchar_t* outPath = NULL;
     std::vector<std::string> buf;
+    buf.reserve(filters.size());
     std::vector<nfdfilteritem_t> filterItems;
     for (const char* filter : filters) {
         auto& tmp = buf.emplace_back(filter);
@@ -67,6 +68,7 @@ std::string SaveFileDialog(const char* defaultName, const std::vector<const char
 {
     nfdchar_t* outPath = NULL;
     std::vector<std::string> buf;
+    buf.reserve(filters.size());
     std::vector<nfdfilteritem_t> filterItems;
     for (const char* filter : filters) {
         auto& tmp = buf.emplace_back(filter);
