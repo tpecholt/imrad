@@ -85,9 +85,8 @@ void Draw()
         ImGui::Unindent();
         ImGui::Spacing();
         ImGui::TextWrapped("Have fun!");
-
-        ImGui::End();
     }
+    ImGui::End();
     ImGui::PopStyleVar();
     ImGui::PopStyleVar();
 }

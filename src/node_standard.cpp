@@ -3533,10 +3533,10 @@ void Text::DoExport(std::ostream& os, UIContext& ctx)
         std::string hboxName = ctx.codeGen->HBOX_NAME + GetLayoutPrefix(ctx) + std::to_string(l.rowId + 1);
         os << ctx.ind << hboxName;
         if (l.flags & Layout::Leftmost)
-            os << ".AddSize(0, ImRad::VBox::TextSize);\n";
+            os << ".AddSize(0, ImRad::HBox::TextSize);\n";
         else
             os << ".AddSize(" << spacing << " * ImGui::GetStyle().ItemSpacing.x, "
-                << "ImRad::VBox::TextSize);\n";
+                << "ImRad::HBox::TextSize);\n";
     }
 }
 
