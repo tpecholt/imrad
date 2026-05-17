@@ -411,7 +411,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     if (kind == Popup || kind == ModalPopup)
     {
-        os << ctx.ind << "ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
+        os << ctx.ind << "_ID = ImGui::GetID(\"###" << ctx.codeGen->GetName() << "\");\n";
     }
     else if (kind == Activity)
     {
@@ -498,9 +498,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 
         if (animation == MoveHoriz)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + animPos.x, ImRad::GetUserData().WorkRect().Min.y }); //MoveHoriz";
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + _animPos.x, ImRad::GetUserData().WorkRect().Min.y }); //MoveHoriz";
         else if (animation == MoveVert)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x, ImRad::GetUserData().WorkRect().Min.y + animPos.y }); //MoveVert";
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x, ImRad::GetUserData().WorkRect().Min.y + _animPos.y }); //MoveVert";
         else
             os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);\n";
 
@@ -521,7 +521,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, ImGui::GetStyle().WindowBorderSize);\n";
 
         if (animation != NoAnimation)
-            os << ctx.ind << "animator.Tick();\n";
+            os << ctx.ind << "_animator.Tick();\n";
 
         if (!onBackButton.empty()) {
             os << ctx.ind << "if (ImGui::IsKeyPressed(ImGuiKey_AppBack))\n";
@@ -614,10 +614,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
             if (animation == MoveLeft)
-                os << " + animPos.x";
+                os << " + _animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Min.y + " << gapy;
             if (animation == MoveUp)
-                os << " + animPos.y";
+                os << " + _animPos.y";
             os << " });";
             os << (placement == Left ? " //Left" : " //Top");
             os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
@@ -627,10 +627,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Max.x - " << gapx;
             if (animation == MoveRight)
-                os << " - animPos.x";
+                os << " - _animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Max.y - " << gapy;
             if (animation == MoveDown)
-                os << " - animPos.y";
+                os << " - _animPos.y";
             os << " }, 0, { 1, 1 });";
             os << (placement == Right ? " //Right" : " //Bottom");
             os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
@@ -640,7 +640,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos(";
             if (animation == MoveDown)
-                os << "{ ImRad::GetUserData().WorkRect().GetCenter().x, ImRad::GetUserData().WorkRect().GetCenter().y + animPos.y }, 0, { 0.5f, 0.5f }";
+                os << "{ ImRad::GetUserData().WorkRect().GetCenter().x, ImRad::GetUserData().WorkRect().GetCenter().y + _animPos.y }, 0, { 0.5f, 0.5f }";
             else
                 os << "ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }";
             os << "); //Center\n";
@@ -711,7 +711,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         //animation
         if (animation != NoAnimation)
         {
-            os << ctx.ind << "animator.Tick();\n";
+            os << ctx.ind << "_animator.Tick();\n";
             if (animation == MoveLeft || animation == MoveRight || animation == MoveUp || animation == MoveDown)
             {
                 os << ctx.ind << "if (!ImRad::MoveWhenDragging(";
@@ -723,7 +723,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
                     os << "ImGuiDir_Up";
                 else if (animation == MoveDown)
                     os << "ImGuiDir_Down";
-                os << ", animPos, ImRad::GetUserData().dimBgRatio))\n";
+                os << ", _animPos, ImRad::GetUserData().dimBgRatio))\n";
                 ctx.ind_up();
                 os << ctx.ind << "ClosePopup();\n";
                 ctx.ind_down();
@@ -771,9 +771,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         }
 
         //CloseCurrentPopup
-        os << ctx.ind << "if (modalResult != ImRad::None";
+        os << ctx.ind << "if (_modalResult != ImRad::None";
         if (animation != NoAnimation)
-            os << " && animator.IsDone()";
+            os << " && _animator.IsDone()";
         os << ")\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
@@ -782,9 +782,9 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         //without calling Draw from it
         if (kind == ModalPopup)
         {
-            os << ctx.ind << "if (modalResult != ImRad::Cancel)\n";
+            os << ctx.ind << "if (_modalResult != ImRad::Cancel)\n";
             ctx.ind_up();
-            os << ctx.ind << "callback(modalResult);\n";
+            os << ctx.ind << "_callback(_modalResult);\n";
             ctx.ind_down();
         }
         ctx.ind_down();
