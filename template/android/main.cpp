@@ -256,14 +256,12 @@ void Init(struct android_app* app)
         GetDisplayInfo();
         io.MouseDragThreshold *= ImRad::GetUserData().dpiScale;
         // TODO: Load ImRAD style including fonts:
-        // ImRad::LoadStyle(fname);
+        // ImRad::LoadStyle("android.ini");
+
         // Alternatively, setup Dear ImGui style
         ImGui::StyleColorsDark();
         //ImGui::StyleColorsLight();
-        ImGui::GetStyle().ScaleAllSizes(ImRad::GetUserData().dpiScale);
-        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale;
-
-        // TODO: Load Fonts
+        // TODO: Load Fonts manually if not using the ImRad style
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
         // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
         // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
@@ -271,7 +269,7 @@ void Init(struct android_app* app)
         // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
         // - Android: The TTF files have to be placed into the assets/ directory (android/app/src/main/assets), we use our GetAssetData() helper to retrieve them
         ImFontConfig cfg;
-        cfg.SizePixels = 15.0f;
+        cfg.SizePixels = 16.0f;
         io.Fonts->AddFontDefault(&cfg);
         /*ImFont *font;
         auto roboto_data = GetAndroidAsset("Roboto-Regular.ttf");
@@ -282,6 +280,9 @@ void Init(struct android_app* app)
         cfg.GlyphOffset.y = 20.f / 5;
         font = io.Fonts->AddFontFromMemoryTTF(material_data.first, material_data.second, 20.0f, &cfg);
         IM_ASSERT(font != nullptr);*/
+
+        ImGui::GetStyle().ScaleAllSizes(ImRad::GetUserData().dpiScale);
+        ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale;
     }
 }
 

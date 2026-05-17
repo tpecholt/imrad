@@ -10,6 +10,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
         android:configChanges="orientation|keyboardHidden|screenSize"
+        android:enableOnBackInvokedCallback="false"
         >
         <activity
             android:name=".MainActivity"

@@ -360,7 +360,8 @@ TopWindow::ExportStyle(std::ostream& os, UIContext& ctx)
     {
         ++sc.nvars;
         os << ctx.ind << "ImGui::PushStyleVar(";
-        os << ((kind == Popup || kind == ModalPopup) ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
+        //ModalPopup uses WindowBorderSize
+        os << (kind == Popup ? "ImGuiStyleVar_PopupBorderSize" : "ImGuiStyleVar_WindowBorderSize");
         os << ", " << style_borderSize.to_arg(ctx.unit) << ");\n";
     }
     if (style_scrollbarSize.has_value())
