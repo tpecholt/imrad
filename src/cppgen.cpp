@@ -895,6 +895,26 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                         os << "_animator.StartPersistent(&_animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
                     else if (animate == TopWindow::MoveUp || animate == TopWindow::MoveDown)
                         os << "_animator.StartPersistent(&_animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
+                    else if (animate == TopWindow::MoveHoriz)
+                    {
+                        os << "if (" << animOrder << " > ImRad::GetUserData().animOrder)\n";
+                        os << INDENT << "_animator.StartOnce(&_animPos.x, ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
+                        os << "else if (" << animOrder << " < ImRad::GetUserData().animOrder)\n";
+                        os << INDENT << "_animator.StartOnce(&_animPos.x, -ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
+                        os << "else\n";
+                        os << INDENT << "_animPos = { 0, 0 };\n";
+                        os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
+                    }
+                    else if (animate == TopWindow::MoveVert)
+                    {
+                        os << "if (" << animOrder << " > ImRad::GetUserData().animOrder)\n";
+                        os << INDENT << "_animator.StartOnce(&_animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
+                        os << "else if (" << animOrder << " < ImRad::GetUserData().animOrder)\n";
+                        os << INDENT << "_animator.StartOnce(&_animPos.y, -ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
+                        os << "else\n";
+                        os << INDENT << "_animPos = { 0, 0 };\n";
+                        os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
+                    }
                 }
                 else if (m_kind == TopWindow::ModalPopup)
                 {

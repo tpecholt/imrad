@@ -609,7 +609,25 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         std::string gapx = style_placementGap.pzx_to_arg(ctx.unit);
         std::string gapy = style_placementGap.pzy_to_arg(ctx.unit);
 
-        if (placement == Left || placement == Top)
+        if (placement == Maximize)
+        {
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ";
+            os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
+            if (animation == MoveHoriz)
+                os << " + _animPos.x";
+            os << ", ImRad::GetUserData().WorkRect().Min.y + " << gapy;
+            if (animation == MoveVert)
+                os << " + _animPos.y";
+            os << " });";
+            os << " //Maximize";
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit);
+            if (animation == MoveHoriz)
+                os << ", MoveHoriz, Order=" << animOrder.to_arg();
+            else if (animation == MoveVert)
+                os << ", MoveVert, Order=" << animOrder.to_arg();
+            os << "\n";
+        }
+        else if (placement == Left || placement == Top)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
@@ -653,7 +671,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         //size
         os << ctx.ind << "ImGui::SetNextWindowSize({ ";
 
-        if (placement == Top || placement == Bottom)
+        if (placement == Maximize || placement == Top || placement == Bottom)
             os << "ImRad::GetUserData().WorkRect().GetWidth() - 2*" << gapx;
         else if (autoSize)
             os << "0";
@@ -662,7 +680,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
         os << ", ";
 
-        if (placement == Left || placement == Right)
+        if (placement == Maximize || placement == Left || placement == Right)
             os << "ImRad::GetUserData().WorkRect().GetHeight() - 2*" << gapy;
         else if (autoSize)
             os << "0";
@@ -670,7 +688,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << size_y.to_arg(ctx.unit);
 
         os << " }";
-        if (!autoSize && placement != Left && placement != Right && placement != Top && placement != Bottom)
+        if (!autoSize && (placement == None || placement == Center))
             os << ", ImGuiCond_FirstUseEver";
         os << ");";
         //signal designed size
@@ -1490,6 +1508,11 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
                 animation.add$(MoveUp);
             else if (placement == Bottom)
                 animation.add$(MoveDown);
+            else if (placement == Maximize) {
+                animation.add$(MoveHoriz);
+                animation.add$(MoveVert);
+                animation.add$(FadeIn);
+            }
             else if (placement == Center) {
                 animation.add$(MoveDown);
                 animation.add$(FadeIn);
@@ -1519,8 +1542,8 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 20:
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
-        ImGui::Text(kind == Activity ? "designSize" : "size");
+        ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text(kind == Activity || placement == Maximize ? "designSize" : "size");
         ImGui::TableNextColumn();
         fl = size_x != Defaults().size_x || size_y != Defaults().size_y;
         ImGui::PushFont(!ImRad::IsCurrentItemDisabled() && fl ?
@@ -1530,7 +1553,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 21:
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
+        ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1541,7 +1564,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 22:
-        ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || placement == Maximize);
+        ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -1601,7 +1624,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         }
         if (kind == Popup || kind == ModalPopup)
             placement.add$(Center);
-        if (kind == MainWindow_GLFW)
+        if (kind == Popup || kind == ModalPopup || kind == MainWindow_GLFW)
             placement.add$(Maximize);
 
         if (placement.get_id() == "") {

@@ -60,6 +60,11 @@
 
   * adds transition animation
 
+* Modal/Popup
+
+  * adds Maximize placement
+  * adds transition animation
+
 ### Tutorials
 
 * updated
