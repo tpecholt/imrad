@@ -764,7 +764,7 @@ void Table::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"", sit.get_line());
         }
 
         if (sit->params.size() >= 4) {
@@ -1183,11 +1183,11 @@ void Child::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"", sit.get_line());
         }
         if (sit->params.size() >= 4) {
             if (!wflags.set_from_arg(sit->params[3]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"", sit.get_line());
         }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::Columns")
@@ -1787,7 +1787,7 @@ void CollapsingHeader::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             label.set_from_arg(sit->params[0]);
         if (sit->params.size() >= 2) {
             if (!flags.set_from_arg(sit->params[1]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"", sit.get_line());
         }
     }
 }
@@ -2060,7 +2060,7 @@ void TreeNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 2) {
             if (!flags.set_from_arg(sit->params[1]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"", sit.get_line());
         }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetNextItemOpen")
@@ -2361,7 +2361,7 @@ void TabBar::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 2) {
             if (!flags.set_from_arg(sit->params[1]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[1] + "\"", sit.get_line());
         }
     }
     else if (sit->kind == cpp::ForBlock && sit->level == ctx.importLevel + 1)
@@ -3331,7 +3331,7 @@ void MenuIt::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 {
     if (sit->kind == cpp::IfCallBlock && sit->callee == "ImGui::BeginPopup")
     {
-        PushError(ctx, "ContextMenu protocol changed. Please replace top level \"@ MenuIt\" tags with \"@ ContextMenu\" tags manually");
+        PushError(ctx, "ContextMenu protocol changed. Please replace top level \"@ MenuIt\" tags with \"@ ContextMenu\" tags manually", sit.get_line());
     }
     else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) &&
         (sit->callee == "ImGui::MenuItem" || sit->callee == "ImGui::MenuItemEx"))

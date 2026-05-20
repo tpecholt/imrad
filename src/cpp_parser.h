@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <fstream>
 #include <cctype>
 #include <array>
 
@@ -65,15 +66,24 @@ namespace cpp
     struct token_iterator
     {
         token_iterator()
-            : in(), line_mode(), eof(true)
+            : in(), line(1), line_mode(), eof(true)
         {}
         token_iterator(const token_iterator& it)
-            : in(it.in), tok(it.tok), line_mode(it.line_mode), eof(it.eof)
+            : in(it.in), line(it.line), tok(it.tok), line_mode(it.line_mode), eof(it.eof)
         {}
-        token_iterator(std::istream& is, bool lm = false)
-            : in(&is), line_mode(lm), eof()
+        token_iterator(std::istream& is, bool lm = false, int line = 1)
+            : in(&is), line(line), line_mode(lm), eof()
         {
             ++(*this);
+        }
+        token_iterator& operator= (const token_iterator& it)
+        {
+            in = it.in;
+            line = it.line;
+            tok = it.tok;
+            line_mode = it.line_mode;
+            eof = it.eof;
+            return *this;
         }
         std::istream& stream() {
             static std::istringstream dummy;
@@ -84,6 +94,12 @@ namespace cpp
         }
         void set_line_mode(bool m) {
             line_mode = m;
+        }
+        int get_line() const {
+            return line;
+        }
+        void set_debug(const char* fname) {
+            fdebug = std::make_unique<std::ofstream>(fname);
         }
         const std::string& operator* () const {
             return tok;
@@ -130,8 +146,12 @@ namespace cpp
                 }
                 else if (c == '\n')
                 {
-                    if (in_comment == 2)
+                    if (in_comment == 2) {
+                        ++line;
+                        if (fdebug)
+                            *fdebug << "\n" << line << ": " << std::flush;
                         tok += c;
+                    }
                     else if (tok != "") {
                         in->putback(c);
                         break;
@@ -141,7 +161,15 @@ namespace cpp
                             in->putback(c);
                             break;
                         }
+                        ++line;
+                        if (fdebug)
+                            *fdebug << "\n" << line << ": " << std::flush;
                         first_n = false;
+                    }
+                    else {
+                        ++line;
+                        if (fdebug)
+                            *fdebug << "\n" << line << ": " << std::flush;
                     }
                 }
                 else if (std::isspace(c))
@@ -269,6 +297,8 @@ namespace cpp
             }
             if (in_comment)
                 tok = "//" + tok;
+            if (fdebug)
+                *fdebug << tok << " " << std::flush;
             return *this;
         }
 
@@ -277,6 +307,8 @@ namespace cpp
         std::string tok;
         bool eof;
         bool line_mode;
+        int line;
+        std::unique_ptr<std::ofstream> fdebug;
     };
 
     enum Kind { CallExpr, IfCallBlock, IfCallThenCall, IfCallStmt, IfStmt, IfBlock, ForBlock, Comment, Other };
@@ -308,6 +340,9 @@ namespace cpp
         }
         void enable_parsing(bool m) {
             iter.set_line_mode(!m);
+        }
+        int get_line() const {
+            return iter.get_line();
         }
         bool operator== (const stmt_iterator& it) const {
             if (data.level < 0 && it.data.level < 0)

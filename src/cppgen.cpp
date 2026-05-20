@@ -1160,6 +1160,8 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname)
     bool preamble = true;
     std::vector<std::string> scope; //contains struct/class/empty names for each nested block
     std::vector<std::string> line;
+    int debug_line = 0;
+    //iter.set_debug("c:/work/code.tokenized");
     while (iter != cpp::token_iterator())
     {
         std::string tok = *iter;
@@ -1180,7 +1182,8 @@ CppGen::ImportCode(std::istream& fin, const std::string& fname)
         }
         else if (tok == "}") {
             if (scope.empty()) {
-                m_error += "Parsing stopped: found non-matching '}'\n";
+                m_error += "Parsing stopped: found non-matching '}' at line " +
+                    std::to_string(iter.get_line()) + "\n";
                 break;
             }
             scope.pop_back();
@@ -1439,8 +1442,9 @@ CppGen::ParseDrawFun(const std::vector<std::string>& line, cpp::token_iterator& 
         ++sit;
     }
     iter.stream().seekg(pos1); //reparse to capture potential userCodeBefore
-    iter = cpp::token_iterator(iter.stream(), true);
+    iter = cpp::token_iterator(iter.stream(), true, iter.get_line());
     sit = cpp::stmt_iterator(iter);
+    //sit.base().set_debug("c:/work/draw.tokenized");
     UIContext ctx;
     ctx.codeGen = this;
     ctx.workingDir = ctx_workingDir;

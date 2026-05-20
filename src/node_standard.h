@@ -81,7 +81,7 @@ struct UINode
     void ResetLayout();
     virtual auto GetTypeName()->std::string;
     auto GetLayoutPrefix(UIContext& ctx)->std::string;
-    void PushError(UIContext& ctx, const std::string& err);
+    void PushError(UIContext& ctx, const std::string& err, int line = -1);
 
     struct child_iterator;
 

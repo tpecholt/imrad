@@ -163,7 +163,7 @@ void DockSpace::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"", sit.get_line());
         }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::CalcItemSize")
@@ -518,7 +518,7 @@ void DockNode::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (i != std::string::npos) {
             std::string fl = sit->line.substr(i + 11, sit->line.size() - i - 11);
             if (!flags.set_from_arg(fl))
-                PushError(ctx, "unrecognized flag in \"" + fl + "\"");
+                PushError(ctx, "unrecognized flag in \"" + fl + "\"", sit.get_line());
         }
     }
 }

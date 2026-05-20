@@ -733,7 +733,7 @@ int GetTotalIndex(UINode* parent, UINode* child)
     return idx;
 }
 
-void UINode::PushError(UIContext& ctx, const std::string& err)
+void UINode::PushError(UIContext& ctx, const std::string& err, int line)
 {
     std::string name = GetTypeName();
     if (this != ctx.root) {
@@ -741,6 +741,8 @@ void UINode::PushError(UIContext& ctx, const std::string& err)
         name = name + " #" + std::to_string(idx+1);
     }
     ctx.errors.push_back(name + " : " + err);
+    if (line >= 0)
+        ctx.errors.back() += " at line " + std::to_string(line);
 }
 
 std::string UINode::GetLayoutPrefix(UIContext& ctx)
@@ -3554,7 +3556,7 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     {
         if (sit->params.size() >= 1) {
             if (!text.set_from_arg(sit->params[0]))
-                PushError(ctx, "unable to parse text");
+                PushError(ctx, "unable to parse text", sit.get_line());
         }
     }
     else if ((sit->kind == cpp::CallExpr || sit->kind == cpp::IfCallThenCall) &&
@@ -3563,7 +3565,7 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         link = true;
         if (sit->params.size() >= 1) {
             if (!text.set_from_arg(sit->params[0]))
-                PushError(ctx, "unable to parse text");
+                PushError(ctx, "unable to parse text", sit.get_line());
         }
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
@@ -3580,7 +3582,7 @@ void Text::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             size_x.set_from_arg(sit->params[1]);
         if (sit->params.size() >= 3) {
             if (!text.set_from_arg(sit->params[2]))
-                PushError(ctx, "unable to parse text");
+                PushError(ctx, "unable to parse text", sit.get_line());
         }
     }
 }
@@ -3949,7 +3951,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 1) {
             if (!label.set_from_arg(sit->params[0]))
-                PushError(ctx, "unable to parse label");
+                PushError(ctx, "unable to parse label", sit.get_line());
         }
         if (sit->params.size() >= 2) {
             if (!sit->params[1].compare(0, 1, "&"))
@@ -3963,7 +3965,7 @@ void Selectable::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             staticOnly = tmp.find("ImGuiSelectableFlags_Disabled") != std::string::npos;
             tmp = Replace(tmp, "ImGuiSelectableFlags_Disabled", "ImGuiSelectableFlags_None");
             if (!flags.set_from_arg(tmp))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"", sit.get_line());
         }
         if (sit->params.size() >= 4) {
             auto sz = cpp::parse_size(sit->params[3]);
@@ -5376,7 +5378,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 4) {
             if (!flags.set_from_arg(sit->params[3]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"", sit.get_line());
             flags |= ImGuiInputTextFlags_Multiline;
         }
 
@@ -5424,7 +5426,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size() > 2 + i)
         {
             if (!flags.set_from_arg(sit->params[2 + i]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[2 + i] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2 + i] + "\"", sit.get_line());
         }
 
         if (sit->params.size() > 3 + i &&
@@ -5540,7 +5542,7 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetKeyboardFocusHere") //compatibility
     {
-        PushError(ctx, "forceFocus uses different protocol in " + VER_STR + ". Please set it again");
+        PushError(ctx, "forceFocus uses different protocol in " + VER_STR + ". Please set it again", sit.get_line());
     }
 }
 
@@ -5896,7 +5898,7 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 4) {
             if (!flags.set_from_arg(sit->params[3]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"", sit.get_line());
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -5920,7 +5922,7 @@ void Combo::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[3] + "\"", sit.get_line());
         }
     }
     else if (ctx.importLevel == 1 && sit->kind == cpp::CallExpr &&
@@ -6225,7 +6227,7 @@ void Slider::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() > 5) {
             if (!flags.set_from_arg(sit->params[5]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[5] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[5] + "\"", sit.get_line());
         }
 
         if (sit->kind == cpp::IfCallThenCall)
@@ -6715,7 +6717,7 @@ void ColorEdit::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->params.size() >= 3) {
             if (!flags.set_from_arg(sit->params[2]))
-                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"");
+                PushError(ctx, "unrecognized flag in \"" + sit->params[2] + "\"", sit.get_line());
         }
 
         if (sit->kind == cpp::IfCallThenCall)
