@@ -32,6 +32,7 @@ struct TopWindow : UINode
     direct_val<bool> closeOnEscape = false;
     direct_val<Animation> animation = None;
     direct_val<int> animOrder = 0;
+    direct_val<bool> animAllowDragging = false;
     direct_val<bool> initialActivity = false;
 
     event<> onBackButton;

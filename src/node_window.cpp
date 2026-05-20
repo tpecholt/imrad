@@ -626,6 +626,8 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
                 os << ", SlideHoriz";
             else if (animation == SlideVert)
                 os << ", SlideVert";
+            if (animation != NoAnimation)
+                os << ", Order = " << animOrder.to_arg() << ", AllowDragging = " << animAllowDragging.to_arg();
             os << "\n";
         }
         else if (placement == Left || placement == Top)
@@ -640,6 +642,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << " });";
             os << (placement == Left ? " //Left" : " //Top");
             os << ", Gap=" << style_placementGap.to_arg(ctx.unit);
+            os << ", AllowDragging=" << animAllowDragging.to_arg();
             os << "\n";
         }
         else if (placement == Right || placement == Bottom)
@@ -654,6 +657,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << " }, 0, { 1, 1 });";
             os << (placement == Right ? " //Right" : " //Bottom");
             os << ", Gap=" << style_placementGap.to_arg(ctx.unit);
+            os << ", AllowDragging=" << animAllowDragging.to_arg();
             os << "\n";
         }
         else if (placement == Center)
@@ -1243,6 +1247,10 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
             i = sit->line.find("Order=");
             if (i != std::string::npos)
                 animOrder.set_from_arg(sit->line.substr(i + 6));
+
+            i = sit->line.find("AllowDragging=");
+            if (i != std::string::npos)
+                animAllowDragging.set_from_arg(sit->line.substr(i + 6));
         }
     }
 
@@ -1316,6 +1324,7 @@ TopWindow::Properties()
         { "behavior.initialActivity", &initialActivity },
         { "behavior.animation.type", &animation },
         { "behavior.animation.order", &animOrder },
+        { "behavior.animation.allowDragging", &animAllowDragging },
         { "layout.size.summary", nullptr },
         { "layout.size.size_x", &size_x },
         { "layout.size.size_y", &size_y },
@@ -1544,6 +1553,14 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 20:
+        ImGui::BeginDisabled(animation == NoAnimation || animation == FadeIn);
+        ImGui::Text("allowDragging");
+        ImGui::TableNextColumn();
+        fl = animOrder != Defaults().animOrder ? InputDirectVal_Modified : 0;
+        changed = InputDirectVal(&animAllowDragging, fl, ctx);
+        ImGui::EndDisabled();
+        break;
+    case 21:
         ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text(kind == Activity || placement == Maximize ? "designSize" : "size");
         ImGui::TableNextColumn();
@@ -1554,7 +1571,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 21:
+    case 22:
         ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1565,7 +1582,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_x", &size_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 22:
+    case 23:
         ImGui::BeginDisabled(flags & ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1576,7 +1593,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("size_y", &size_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 23:
+    case 24:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("minimumSize");
         ImGui::TableNextColumn();
@@ -1587,7 +1604,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::PopFont();
         ImGui::EndDisabled();
         break;
-    case 24:
+    case 25:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_x");
         ImGui::TableNextColumn();
@@ -1598,7 +1615,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_x", &minSize_x, ctx);
         ImGui::EndDisabled();
         break;
-    case 25:
+    case 26:
         ImGui::BeginDisabled((flags & ImGuiWindowFlags_AlwaysAutoResize) || kind == Activity);
         ImGui::Text("size_y");
         ImGui::TableNextColumn();
@@ -1609,7 +1626,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("minSize_y", &minSize_y, ctx);
         ImGui::EndDisabled();
         break;
-    case 26:
+    case 27:
     {
         ImGui::BeginDisabled(kind == Activity);
         ImGui::Text("placement");
