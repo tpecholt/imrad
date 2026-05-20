@@ -1151,6 +1151,7 @@ struct data_loop : property_base
 {
     bindable<int> limit;
     field_ref<int> index; //int indexes are easier than size_t
+    direct_val<bool> reversed = false;
 
     bool empty() const {
         return limit.empty();
@@ -1173,27 +1174,44 @@ struct data_loop : property_base
         return var;
     }
 
+    //for ([int] index = 0; index < limit; xxx)
+    //for ([int] index = limit - 1; index >= 0; xxx)
     bool set_from_arg(std::string_view code) {
         if (code.compare(0, 4, "for("))
             return false;
         bool local = !code.compare(4, 3, "int") || !code.compare(4, 6, "size_t");
-        auto i = code.find(";");
+        auto i = code.find("=");
         if (i == std::string::npos)
             return false;
         code.remove_prefix(i + 1);
+        i = code.find(";");
+        if (i == std::string::npos)
+            return false;
+        if (i == 1 && code[0] == '0') {
+            reversed = false;
+        }
+        else if (!code.compare(i - 2, 2, "-1")) {
+            reversed = true;
+            limit.set_from_arg(code.substr(0, i - 2));
+        }
+        else {
+            return false;
+        }
 
+        code.remove_prefix(i + 1);
         i = code.find(";");
         if (i == std::string::npos)
             return false;
         code.remove_suffix(code.size() - i);
-
-        i = code.find("<");
+        i = code.find(reversed ? ">=" : "<");
+        if (i == std::string::npos)
+            return false;
         if (local)
             *index.access() = "";
         else
             *index.access() = code.substr(0, i);
-
-        limit.set_from_arg(code.substr(i + 1));
+        if (!reversed)
+            limit.set_from_arg(code.substr(i + 1));
         return true;
     }
     std::string to_arg(std::string_view forVarName, std::string_view = "") const {
@@ -1204,8 +1222,12 @@ struct data_loop : property_base
         os << "for (";
         if (index.empty())
             os << "int ";
-        os << name << " = 0; " << name << " < " << limit.to_arg()
-            << "; ++" << name << ")";
+        os << name;
+        if (!reversed)
+            os << " = 0; " << name << " < " << limit.to_arg() << "; ++" << name;
+        else
+            os << " = " << limit.to_arg() << " - 1; " << name << " >= 0; --" << name;
+        os << ")";
         return os.str();
     }
     std::vector<std::string> used_variables() const {
@@ -1219,7 +1241,8 @@ struct data_loop : property_base
         limit.rename_variable(oldn, newn);
         index.rename_variable(oldn, newn);
     }
-    std::string* access() {
+    std::string* access()
+    {
         return limit.access();
     }
 };

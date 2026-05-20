@@ -22,7 +22,12 @@
 
 * Activity supports transition animation through MoveHoriz/Vert and sequenceNumber. When new activity is opened its sequenceNumber is compared to the old one and the new activity slides in from either one or the opposite direction.
 
+* Table scrollWhenDragging is enhanced. First the scrollbar won't allocate any space as it is seen on mobile devices. Secondly
+optional refresh button which slides in when scrolling past limits is implemented (experimental).
+
 * Code generator now supports generating gettext style translation strings. Translated strings are wrapped inside `ImRad::Translate` call and they support plural form and context. Define IMRAD_WITH_GETTEXT to forward strings to libintl compatible library.
+
+* Generated window fields such as isOpen, ID, animator, animPos, hbXXX, vbXXX were renamed so they now start with an underscore. window.Animation enum items were renamed as well f.e. MoveLeft -> SlideFromLeft, MoveHoriz -> SlideHoriz.
 
 * New SDL3 project template was added
 
@@ -48,9 +53,15 @@
 
   * adds icon
 
+* Table
+
+  * adds rounding
+  * adds rowCount.reversed to iterate rows in reversed order
+  * adds scrollWhenDragging.refreshButton (experimental)
+
 * Text
 
-  * adds horizAlignment, size_x. Also renders ellipsis if needed.
+  * adds horizAlignment, size_x. When horizAlignment is activated it renders ellipsis if needed.
 
 * TreeItem
 

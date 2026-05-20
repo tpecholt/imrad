@@ -285,6 +285,7 @@ void TextAligned(float align_x, float size_x, const char* label);
 //    returns the actual size. User can still supply -1 to request available width expansion
 // 3. Interprets ImGuiSelectableFlags_Disabled in terms of PushItemFlag(Disabled) which
 //    is imgui_internal only. For full disable state use Begin/EndDisabled
+// 4. TODO: Draw label using TextAligned to achieve ellipsis
 bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size);
 
 bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags flags, const ImVec2& size);
@@ -381,11 +382,14 @@ void PushIgnoreWindowPadding(ImVec2* sz, IgnoreWindowPaddingData* data);
 void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data);
 
 //optionally draws scrollbars so they can be kept hidden when no scrolling occurs
+//call this e.g. before EndTable so it will be drawn last
+//use with WindowFlags_NoMove || io.ConfigWindowsMoveFromTitleBarOnly
 //returns:
 //0 - nothing happening or scrolling continues
 //1 - scrolling started
 //2 - scrolling ended
-int ScrollWhenDragging(bool drawScrollbars);
+//3 - scrolling ended with refresh button activated
+int ScrollWhenDragging(bool drawScrollbars, ImGuiDir refreshButton = ImGuiDir_None);
 
 //this currently
 //* allows to move popups on the screen side further out of the screen just to give it responsive feeling
@@ -1005,15 +1009,26 @@ void SetWindowSkipItems(bool skip)
 
 void PushInvisibleScrollbar()
 {
+    //hack - save current scrollbarSize in ScrollbarGrabHovered
+    ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrabHovered);
+    clr.w = ImGui::GetStyle().ScrollbarSize;
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, clr);
+    //reset
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0);
+
+    /* This would still allocate space for hidden toolbar:
     ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarBg);
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, { clr.x, clr.y, clr.z, 0 });
     clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab);
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 0 });
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 0 });*/
 }
 
 void PopInvisibleScrollbar()
 {
-    ImGui::PopStyleColor(2);
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+
+    //ImGui::PopStyleColor(2);
 }
 
 void SetItemID(ImGuiID id)
@@ -1108,9 +1123,13 @@ void PopIgnoreWindowPadding(const IgnoreWindowPaddingData& data)
     ImGui::PopClipRect();
 }
 
-int ScrollWhenDragging(bool drawScrollbars)
+int ScrollWhenDragging(bool drawScrollbars, ImGuiDir refreshButton)
 {
+    const float REFRESH_BUTTON_RANGE = 100 * GetUserData().dpiScale;
+    const float REFRESH_BUTTON_ACTIVE_RATE = 0.7f;
+
     static int dragState = 0;
+    static float refreshButtonPos = 0;
 
     if (!ImGui::IsWindowFocused())
         return 0;
@@ -1124,9 +1143,41 @@ int ScrollWhenDragging(bool drawScrollbars)
         ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
         if (delta.x)
             ImGui::SetScrollX(window, window->Scroll.x - delta.x);
-        if (delta.y)
+
+        if (refreshButton == ImGuiDir_Up && !window->Scroll.y &&
+            (delta.y > 0 || refreshButtonPos))
+        {
+            float rate = std::max(0.f, REFRESH_BUTTON_RANGE - refreshButtonPos) / REFRESH_BUTTON_RANGE;
+            refreshButtonPos += delta.y * rate;
+            refreshButtonPos = ImClamp(refreshButtonPos, 0.f, REFRESH_BUTTON_RANGE);
+        }
+        else if (delta.y)
+        {
             ImGui::SetScrollY(window, window->Scroll.y - delta.y);
+        }
         ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+
+        //draw refresh button
+        if (refreshButton == ImGuiDir_Up && refreshButtonPos)
+        {
+            ImU32 buttonClr = ImGui::GetColorU32(ImGuiCol_ScrollbarGrab);
+            ImU32 arrowClr = ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive);
+            ImGui::PushClipRect(window->Rect().Min, window->Rect().Max, false);
+            float radius = ImGui::GetFontSize();
+            ImVec2 pos{ window->Rect().GetCenter().x, window->Rect().Min.y - radius + refreshButtonPos };
+            window->DrawList->AddCircleFilled(pos, radius, buttonClr); // 0xff404040);
+            float r1 = 0.4f * radius;
+            float r2 = 0.5f * radius;
+            float rate = refreshButtonPos / REFRESH_BUTTON_RANGE;
+            rate *= rate;
+            ImDrawList* dl = window->DrawList;
+            dl->Flags = ImDrawListFlags_AntiAliasedFill;
+            dl->PathArcTo(pos, r2, 0, rate * 0.9f * 2 * IM_PI);
+            dl->PathArcTo(pos, r1, rate * 0.9f * 2 * IM_PI, 0);
+            dl->PathLineTo(dl->_Path[0]);
+            dl->PathFillConcave(rate > REFRESH_BUTTON_ACTIVE_RATE ? 0xffffffff : arrowClr); //0xffffffff : 0xff808080);
+            ImGui::PopClipRect();
+        }
 
         //scrollbars were made invisible, draw them again
         if (drawScrollbars)
@@ -1134,21 +1185,38 @@ int ScrollWhenDragging(bool drawScrollbars)
             bool tmp = window->SkipItems;
             window->SkipItems = false;
             ImGui::PushClipRect(window->Rect().Min, window->Rect().Max, false);
-            ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab);
-            ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 1 });
+            //scrollbarSize was saved by PushInvisibleScrollbar
+            float scrollbarSize = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrabHovered).w;
+            //ImVec4 clr = ImGui::GetStyleColorVec4(ImGuiCol_ScrollbarGrab);
+            //ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, { clr.x, clr.y, clr.z, 1 });
             if (window->ScrollbarX)
+            {
+                window->ScrollbarSizes.y = scrollbarSize;
                 ImGui::Scrollbar(ImGuiAxis_X);
+            }
             if (window->ScrollbarY)
+            {
+                window->ScrollbarSizes.x = scrollbarSize;
                 ImGui::Scrollbar(ImGuiAxis_Y);
-            ImGui::PopStyleColor();
+            }
+            //ImGui::PopStyleColor();
             ImGui::PopClipRect();
             window->SkipItems = tmp;
         }
+
         return ret;
     }
     else if (dragState == 1)
     {
         dragState = 0;
+        if (refreshButtonPos)
+        {
+            float rate = refreshButtonPos / REFRESH_BUTTON_RANGE;
+            rate *= rate;
+            refreshButtonPos = 0;
+            if (rate > REFRESH_BUTTON_ACTIVE_RATE)
+                return 3;
+        }
         ImGui::GetCurrentContext()->NavHighlightItemUnderNav = false;
         ImGui::GetIO().MousePos = { -FLT_MAX, -FLT_MAX }; //ignore mouse release event, buttons won't get pushed
         return 2;

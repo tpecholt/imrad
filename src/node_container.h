@@ -27,6 +27,8 @@ struct Table : Widget
     direct_val<int> scrollFreeze_x = 0;
     direct_val<int> scrollFreeze_y = 0;
     direct_val<bool> scrollWhenDragging = false;
+    direct_val<ImGuiDir> scrollRefreshButton = ImGuiDir_None;
+    direct_val<pzdimension_t> style_rounding;
     direct_val<pzdimension2_t> style_cellPadding;
     bindable<color_t> style_headerBg;
     bindable<color_t> style_rowBg;
@@ -37,6 +39,7 @@ struct Table : Widget
     event<> onBeginRow;
     event<> onEndRow;
     event<> onSetup;
+    event<> onRefreshButton;
 
     Table(UIContext&);
     auto Clone(UIContext& ctx)->std::unique_ptr<Widget>;
