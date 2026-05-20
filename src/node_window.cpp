@@ -498,10 +498,10 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
     {
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);\n";
 
-        if (animation == MoveHoriz)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + _animPos.x, ImRad::GetUserData().WorkRect().Min.y }); //MoveHoriz";
-        else if (animation == MoveVert)
-            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x, ImRad::GetUserData().WorkRect().Min.y + _animPos.y }); //MoveVert";
+        if (animation == SlideHoriz)
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x + _animPos.x, ImRad::GetUserData().WorkRect().Min.y }); //SlideHoriz";
+        else if (animation == SlideVert)
+            os << ctx.ind << "ImGui::SetNextWindowPos({ ImRad::GetUserData().WorkRect().Min.x, ImRad::GetUserData().WorkRect().Min.y + _animPos.y }); //SlideVert";
         else
             os << ctx.ind << "ImGui::SetNextWindowPos(ImRad::GetUserData().WorkRect().Min);\n";
 
@@ -536,7 +536,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         std::string gapx = style_placementGap.pzx_to_arg(ctx.unit);
         std::string gapy = style_placementGap.pzy_to_arg(ctx.unit);
 
-        os << ctx.ind << "if (isOpen)\n" << ctx.ind << "{\n";
+        os << ctx.ind << "if (_isOpen)\n" << ctx.ind << "{\n";
         ctx.ind_up();
 
         //pos
@@ -596,7 +596,7 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, " <<
                 style_titlePadding.to_arg(ctx.unit) << ");\n";
         }
-        os << ctx.ind << "if (ImGui::Begin(" << caption << ", &isOpen, " << flags.to_arg() << "))\n";
+        os << ctx.ind << "if (ImGui::Begin(" << caption << ", &_isOpen, " << flags.to_arg() << "))\n";
         os << ctx.ind << "{\n";
         ctx.ind_up();
         if (style_titlePadding.has_value())
@@ -614,51 +614,52 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
-            if (animation == MoveHoriz)
+            if (animation == SlideHoriz)
                 os << " + _animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Min.y + " << gapy;
-            if (animation == MoveVert)
+            if (animation == SlideVert)
                 os << " + _animPos.y";
             os << " });";
             os << " //Maximize";
             os << ", Gap=" << style_placementGap.to_arg(ctx.unit);
-            if (animation == MoveHoriz)
-                os << ", MoveHoriz, Order=" << animOrder.to_arg();
-            else if (animation == MoveVert)
-                os << ", MoveVert, Order=" << animOrder.to_arg();
+            if (animation == SlideHoriz)
+                os << ", SlideHoriz";
+            else if (animation == SlideVert)
+                os << ", SlideVert";
             os << "\n";
         }
         else if (placement == Left || placement == Top)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Min.x + " << gapx;
-            if (animation == MoveLeft)
+            if (animation == SlideFromLeft)
                 os << " + _animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Min.y + " << gapy;
-            if (animation == MoveUp)
+            if (animation == SlideFromTop)
                 os << " + _animPos.y";
             os << " });";
             os << (placement == Left ? " //Left" : " //Top");
-            os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit);
+            os << "\n";
         }
         else if (placement == Right || placement == Bottom)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos({ ";
             os << "ImRad::GetUserData().WorkRect().Max.x - " << gapx;
-            if (animation == MoveRight)
+            if (animation == SlideFromRight)
                 os << " - _animPos.x";
             os << ", ImRad::GetUserData().WorkRect().Max.y - " << gapy;
-            if (animation == MoveDown)
+            if (animation == SlideFromBottom)
                 os << " - _animPos.y";
             os << " }, 0, { 1, 1 });";
             os << (placement == Right ? " //Right" : " //Bottom");
-            os << ", Gap=" << style_placementGap.to_arg(ctx.unit) << "\n";
-
+            os << ", Gap=" << style_placementGap.to_arg(ctx.unit);
+            os << "\n";
         }
         else if (placement == Center)
         {
             os << ctx.ind << "ImGui::SetNextWindowPos(";
-            if (animation == MoveDown)
+            if (animation == SlideFromTop)
                 os << "{ ImRad::GetUserData().WorkRect().GetCenter().x, ImRad::GetUserData().WorkRect().GetCenter().y + _animPos.y }, 0, { 0.5f, 0.5f }";
             else
                 os << "ImRad::GetUserData().WorkRect().GetCenter(), 0, { 0.5f, 0.5f }";
@@ -731,16 +732,16 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         if (animation != NoAnimation)
         {
             os << ctx.ind << "_animator.Tick();\n";
-            if (animation == MoveLeft || animation == MoveRight || animation == MoveUp || animation == MoveDown)
+            if (animation != FadeIn && animAllowDragging)
             {
                 os << ctx.ind << "if (!ImRad::MoveWhenDragging(";
-                if (animation == MoveLeft)
+                if (animation == SlideFromLeft)
                     os << "ImGuiDir_Left";
-                else if (animation == MoveRight)
+                else if (animation == SlideFromRight)
                     os << "ImGuiDir_Right";
-                else if (animation == MoveUp)
+                else if (animation == SlideFromTop)
                     os << "ImGuiDir_Up";
-                else if (animation == MoveDown)
+                else if (animation == SlideFromBottom)
                     os << "ImGuiDir_Down";
                 os << ", _animPos, ImRad::GetUserData().dimBgRatio))\n";
                 ctx.ind_up();
@@ -1224,14 +1225,14 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
                     None;
             }
             if (setAnimationFromPos) {
-                animation = sit->line.find("CustomDirection") != std::string::npos ? MoveHoriz : //compatibility
-                    sit->line.find("Left") != std::string::npos ? MoveLeft :
-                    sit->line.find("Right") != std::string::npos ? MoveRight :
-                    sit->line.find("Top") != std::string::npos ? MoveUp :
-                    sit->line.find("Bottom") != std::string::npos ? MoveDown :
-                    sit->line.find("Center") != std::string::npos ? MoveDown :
-                    sit->line.find("Horiz") != std::string::npos ? MoveHoriz :
-                    sit->line.find("Vert") != std::string::npos ? MoveVert :
+                animation = sit->line.find("CustomDirection") != std::string::npos ? SlideHoriz : //compatibility
+                    sit->line.find("Left") != std::string::npos ? SlideFromLeft :
+                    sit->line.find("Right") != std::string::npos ? SlideFromRight :
+                    sit->line.find("Top") != std::string::npos ? SlideFromTop :
+                    sit->line.find("Bottom") != std::string::npos ? SlideFromBottom :
+                    sit->line.find("Center") != std::string::npos ? SlideFromTop :
+                    sit->line.find("Horiz") != std::string::npos ? SlideHoriz :
+                    sit->line.find("Vert") != std::string::npos ? SlideVert :
                     NoAnimation;
             }
 
@@ -1502,28 +1503,28 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         animation.add("None", NoAnimation);
         if (kind == Popup || kind == ModalPopup) {
             if (placement == Left)
-                animation.add$(MoveLeft);
+                animation.add$(SlideFromLeft);
             else if (placement == Right)
-                animation.add$(MoveRight);
+                animation.add$(SlideFromRight);
             else if (placement == Top)
-                animation.add$(MoveUp);
+                animation.add$(SlideFromTop);
             else if (placement == Bottom)
-                animation.add$(MoveDown);
+                animation.add$(SlideFromBottom);
             else if (placement == Maximize) {
-                animation.add$(MoveHoriz);
-                animation.add$(MoveVert);
+                animation.add$(SlideHoriz);
+                animation.add$(SlideVert);
                 animation.add$(FadeIn);
             }
             else if (placement == Center) {
-                animation.add$(MoveDown);
+                animation.add$(SlideFromTop);
                 animation.add$(FadeIn);
             }
             else
                 animation.add$(FadeIn);
         }
         else if (kind == Activity) {
-            animation.add$(MoveHoriz);
-            animation.add$(MoveVert);
+            animation.add$(SlideHoriz);
+            animation.add$(SlideVert);
         }
 
         if (animation.get_id() == "") {
@@ -1535,7 +1536,7 @@ bool TopWindow::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     case 19:
-        ImGui::BeginDisabled(animation != MoveHoriz && animation != MoveVert);
+        ImGui::BeginDisabled(animation != SlideHoriz && animation != SlideVert);
         ImGui::Text("sequenceNumber");
         ImGui::TableNextColumn();
         fl = animOrder != Defaults().animOrder ? InputDirectVal_Modified : 0;

@@ -15,8 +15,8 @@ const std::string SPEC_FUN[] = {
 const std::string_view CppGen::INDENT = "    ";
 const std::string_view CppGen::FOR_VAR_NAME = "i";
 const std::string_view CppGen::CUR_ITEM_VAR_NAME = "_item";
-const std::string_view CppGen::HBOX_NAME = "hb";
-const std::string_view CppGen::VBOX_NAME = "vb";
+const std::string_view CppGen::HBOX_NAME = "_hb";
+const std::string_view CppGen::VBOX_NAME = "_vb";
 
 bool IsFunType(std::string_view type, std::string& ret, std::string& arg)
 {
@@ -891,11 +891,11 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                     if (m_kind == TopWindow::ModalPopup || animate == TopWindow::FadeIn)
                         os << "_animator.StartPersistent(&ImRad::GetUserData().dimBgRatio, 0.f, 1.f, ImRad::Animator::DurOpenPopup);\n\n";
 
-                    if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
+                    if (animate == TopWindow::SlideFromLeft || animate == TopWindow::SlideFromRight)
                         os << "_animator.StartPersistent(&_animPos.x, -ImGui::GetMainViewport()->Size.x / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
-                    else if (animate == TopWindow::MoveUp || animate == TopWindow::MoveDown)
+                    else if (animate == TopWindow::SlideFromTop || animate == TopWindow::SlideFromBottom)
                         os << "_animator.StartPersistent(&_animPos.y, -ImGui::GetMainViewport()->Size.y / 2.f, 0.f, ImRad::Animator::DurOpenPopup);\n";
-                    else if (animate == TopWindow::MoveHoriz)
+                    else if (animate == TopWindow::SlideHoriz)
                     {
                         os << "if (" << animOrder << " > ImRad::GetUserData().animOrder)\n";
                         os << INDENT << "_animator.StartOnce(&_animPos.x, ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
@@ -905,7 +905,7 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                         os << INDENT << "_animPos = { 0, 0 };\n";
                         os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
                     }
-                    else if (animate == TopWindow::MoveVert)
+                    else if (animate == TopWindow::SlideVert)
                     {
                         os << "if (" << animOrder << " > ImRad::GetUserData().animOrder)\n";
                         os << INDENT << "_animator.StartOnce(&_animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
@@ -953,9 +953,9 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                 TopWindow::Animation animate = cfg.node->animation;
                 if (animate != TopWindow::NoAnimation)
                 {
-                    if (animate == TopWindow::MoveLeft || animate == TopWindow::MoveRight)
+                    if (animate == TopWindow::SlideFromLeft || animate == TopWindow::SlideFromRight)
                         os << "_animator.StartOnce(&_animPos.x, _animPos.x, -_animator.GetWindowSize().x, ImRad::Animator::DurClosePopup);\n";
-                    else if (animate == TopWindow::MoveUp|| animate == TopWindow::MoveDown)
+                    else if (animate == TopWindow::SlideFromTop|| animate == TopWindow::SlideFromBottom)
                         os << "_animator.StartOnce(&_animPos.y, _animPos.y, -_animator.GetWindowSize().y, ImRad::Animator::DurClosePopup);\n";
                     if (m_kind == TopWindow::ModalPopup || animate == TopWindow::FadeIn)
                         os << "_animator.StartOnce(&ImRad::GetUserData().dimBgRatio, ImRad::GetUserData().dimBgRatio, 0.f, ImRad::Animator::DurClosePopup);\n";
@@ -1000,7 +1000,7 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
             WriteForEachConfig(fout, configs, [this](const Config& cfg) {
                 std::ostringstream os;
                 TopWindow::Animation animate = cfg.node->animation;
-                if (animate == TopWindow::MoveHoriz)
+                if (animate == TopWindow::SlideHoriz)
                 {
                     os << "if (ImRad::GetUserData().animOrder > animOrder)\n";
                     os << INDENT << "_animator.StartOnce(&_animPos.x, ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
@@ -1009,7 +1009,7 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                     os << "else\n";
                     os << INDENT << "_animPos = { 0, 0 };\n";
                 }
-                else if (animate == TopWindow::MoveVert)
+                else if (animate == TopWindow::SlideVert)
                 {
                     os << "if (ImRad::GetUserData().animOrder > animOrder)\n";
                     os << INDENT << "_animator.StartOnce(&_animPos.y, ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
@@ -1387,7 +1387,8 @@ bool CppGen::ParseFieldDecl(const std::string& sname, const std::vector<std::str
                  //compatibility
                  name != "ID" && name != "modalResult" &&
                  name != "callback" && name != "isOpen" && name != "animator" &&
-                 name != "animPos"))
+                 name != "animPos" &&
+                 name.compare(0, 2, "hb") && name.compare(0, 2, "vb")))
             {
                 CreateNamedVar(name, type, init, flags, sname);
             }
