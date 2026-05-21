@@ -2006,6 +2006,13 @@ void Widget::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << onItemActivated.to_arg() << ";\n";
         ctx.ind_down();
     }
+    if (!onItemActive.empty())
+    {
+        os << ctx.ind << "if (ImGui::IsItemActive())\n";
+        ctx.ind_up();
+        os << ctx.ind << onItemActive.to_arg() << ";\n";
+        ctx.ind_down();
+    }
     if (!onItemDeactivated.empty())
     {
         os << ctx.ind << "if (ImGui::IsItemDeactivated())\n";
@@ -2329,6 +2336,13 @@ void Widget::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemActivated")
         {
             onItemActivated.set_from_arg(sit->callee2);
+        }
+        else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemActive")
+        {
+            if (!sit->line.compare(sit->line.size() - 2, 2, "()"))
+                onItemActive.set_from_arg(sit->callee2);
+            else
+                DoImport(sit, ctx);
         }
         else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImGui::IsItemDeactivated")
         {
@@ -2882,6 +2896,7 @@ Widget::Events()
 {
     return {
         { "item.activated", &onItemActivated },
+        { "item.active", &onItemActive },
         { "item.clicked", &onItemClicked },
         { "item.contextMenuClicked", &onItemContextMenuClicked },
         { "item.deactivated", &onItemDeactivated },
@@ -2907,12 +2922,18 @@ bool Widget::EventUI(int i, UIContext& ctx)
         changed = InputEvent(GetTypeName() + "_Activated", &onItemActivated, 0, ctx);
         break;
     case 1:
+        ImGui::Text("Active");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_Active", &onItemActive, 0, ctx);
+        break;
+    case 2:
         ImGui::Text("Clicked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Clicked", &onItemClicked, 0, ctx);
         break;
-    case 2:
+    case 3:
         ImGui::BeginDisabled(Behavior() & NoContextMenu);
         ImGui::Text("ContextMenuClicked");
         ImGui::TableNextColumn();
@@ -2920,49 +2941,49 @@ bool Widget::EventUI(int i, UIContext& ctx)
         changed = InputEvent(GetTypeName() + "_ContextMenuClicked", &onItemContextMenuClicked, 0, ctx);
         ImGui::EndDisabled();
         break;
-    case 3:
+    case 4:
         ImGui::Text("Deactivated");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Deactivated", &onItemDeactivated, 0, ctx);
         break;
-    case 4:
+    case 5:
         ImGui::Text("DeactivatedAfterEdit");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_DeactivatedAfterEdit", &onItemDeactivatedAfterEdit, 0, ctx);
         break;
-    case 5:
+    case 6:
         ImGui::Text("DoubleClicked");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_DoubleClicked", &onItemDoubleClicked, 0, ctx);
         break;
-    case 6:
+    case 7:
         ImGui::Text("Focused");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Focused", &onItemFocused, 0, ctx);
         break;
-    case 7:
+    case 8:
         ImGui::Text("Hovered");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_Hovered", &onItemHovered, 0, ctx);
         break;
-    case 8:
+    case 9:
         ImGui::Text("Source");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_DragDropSource", &onDragDropSource, 0, ctx);
         break;
-    case 9:
+    case 10:
         ImGui::Text("SourceLongPressed");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_DragDropSourceLongPressed", &onDragDropSourceLongPressed, 0, ctx);
         break;
-    case 10:
+    case 11:
         ImGui::Text("Target");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);

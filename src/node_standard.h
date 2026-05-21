@@ -182,6 +182,7 @@ struct Widget : UINode
     event<> onItemDoubleClicked;
     event<> onItemHovered;
     event<> onItemFocused;
+    event<> onItemActive;
     event<> onItemActivated;
     event<> onItemDeactivated;
     event<> onItemDeactivatedAfterEdit;
