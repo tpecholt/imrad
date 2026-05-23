@@ -188,6 +188,14 @@ bool CppGen::ExportUpdate(
     fout.open(fpath, std::ios::trunc);
     ExportCpp(fout, fprev, origNames, configs, drawCode);
     err += m_error;
+
+    //purge hb/vb fields
+    auto& scope = m_fields[""];
+    for (auto it = scope.begin(); it != scope.end();)
+        if (it->name[0] == '_')
+            it = scope.erase(it);
+        else
+            ++it;
     return true;
 }
 

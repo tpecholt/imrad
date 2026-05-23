@@ -204,6 +204,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
         moveFocus = FirstEntry;
     }
 
+    float suggestionPosX = ImGui::GetCursorScreenPos().x;
     //clickable path box
     const int sp = 4;
     const std::string ELIDE_STR = "...";
@@ -295,6 +296,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
         ImGui::PopStyleColor(2);
     }
 
+    //path inputText
     ImGui::SameLine(0, 0);
     if (ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight() - sp <= 0)
         ImGui::SetNextItemWidth(0);
@@ -327,39 +329,69 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
     if (ImGui::IsItemDeactivated()) { //AfterEdit())
         ReloadExplorer(codeGen);
         showSuggestions = false;
-        moveFocus = FirstEntry;
+        //only upon Enter. Whe suggestion popup is open it needs to stay focused for Selectable to work
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter))
+            moveFocus = FirstEntry;
     }
+
+    //suggestions popup
+    ImVec2 suggestionPos{ suggestionPosX, ImGui::GetItemRectMax().y };
+    float suggestionWidth = ImGui::GetItemRectSize().x;
     if (showSuggestions)
+        ImGui::OpenPopup("suggestions", ImGuiPopupFlags_NoReopen);
+    ImGui::PushFont(ImRad::GetFontByName("imrad.explorer"));
+    ImGui::SetNextWindowPos(suggestionPos);
+    float rowHeight = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemInnerSpacing.y;
+    float pad = ImGui::GetStyle().WindowPadding.y;
+    const int N = 7;
+    float suggestionHeight = std::min(N, (int)suggestions.size()) * rowHeight + 2 * pad;
+    ImGui::SetNextWindowSize({ suggestionWidth,  suggestionHeight });
+    float selY = std::max(suggestionSel, 0) * rowHeight + pad;
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+    flags |= ImGuiWindowFlags_NoFocusOnAppearing;
+    flags |= ImGuiWindowFlags_ChildWindow;
+    flags |= ImGuiWindowFlags_NoNav;
+    if (ImGui::BeginPopupEx(ImGui::GetID("suggestions"), flags))
     {
-        ImGui::PushFont(ImRad::GetFontByName("imrad.explorer"));
-        ImGui::SetNextWindowPos({ ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y });
-        float h = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemInnerSpacing.y;
-        float pad = ImGui::GetStyle().WindowPadding.y;
-        const int N = 7;
-        ImGui::SetNextWindowSize({ ImGui::GetItemRectSize().x, std::min(N, (int)suggestions.size()) * h + 2 * pad });
-        float selY = std::max(suggestionSel, 0) * h + pad;
-        if (ImGui::BeginTooltip()) //Tooltip won't steal the focus as BeginPopup does
+        bool down = ImGui::IsMouseDown(0);
+        if (selY + rowHeight > ImGui::GetScrollY() + ImGui::GetWindowSize().y)
+            ImGui::SetScrollY(selY - (N - 1) * rowHeight - pad);
+        if (selY < ImGui::GetScrollY())
+            ImGui::SetScrollY(selY - pad);
+        for (int i = 0; i < (int)suggestions.size(); ++i)
         {
-            if (selY + h > ImGui::GetScrollY() + ImGui::GetWindowSize().y)
-                ImGui::SetScrollY(selY - (N - 1) * h - pad);
-            if (selY < ImGui::GetScrollY())
-                ImGui::SetScrollY(selY - pad);
-            for (size_t i = 0; i < suggestions.size(); ++i) {
-                /*ImGui::PushStyleColor(ImGuiCol_Text, 0xff40b0b0);
-                ImGui::Selectable(ICON_FA_FOLDER, i == suggestionSel, ImGuiSelectableFlags_SpanAvailWidth);
-                ImGui::PopStyleColor();
-                ImGui::SameLine(0, 4);*/
-                ImGui::Selectable(suggestions[i].c_str(), i == suggestionSel, 0);
+            /*ImGui::PushStyleColor(ImGuiCol_Text, 0xff40b0b0);
+            ImGui::Selectable(ICON_FA_FOLDER, i == suggestionSel, ImGuiSelectableFlags_SpanAvailWidth);
+            ImGui::PopStyleColor();
+            ImGui::SameLine(0, 4);*/
+            if (ImGui::Selectable(suggestions[i].c_str(), i == suggestionSel/*, ImGuiSelectableFlags_NoAutoClosePopups*/)) {
+                ImGui::ClearActiveID();
+                ImGui::CloseCurrentPopup();
+                suggestionSel = i;
+                size_t i = explorerPath.find_last_of("/\\");
+                if (i == std::string::npos)
+                    explorerPath += (char)fs::path::preferred_separator;
+                else
+                    explorerPath = explorerPath.substr(0, i + 1);
+                explorerPath += suggestions[suggestionSel];
+                ReloadExplorer(codeGen);
+                moveFocus = FirstEntry;
             }
-            ImGui::EndTooltip();
         }
-        ImGui::PopFont();
+        // Close popup on deactivation (unless we are mouse-clicking in our popup)
+        if (!showSuggestions && !ImGui::IsWindowFocused())
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
     }
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
 
     ImGui::SameLine(0, sp);
     ImGui::PushStyleColor(ImGuiCol_Text, 0xff404040);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
-    if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##ego")) {
+    if (ImGui::Button(ICON_FA_ARROW_RIGHT "##ego")) {
         ReloadExplorer(codeGen);
         moveFocus = FirstEntry;
     }
@@ -372,8 +404,8 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
         scrollBack = false;
         ImGui::SetNextWindowScroll({ 0, 0 });
     }
-    float h = -ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.y;
-    if (ImGui::BeginTable("files", 2, ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { -1, h }))
+    float tableHeight = -ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.y;
+    if (ImGui::BeginTable("files", 2, ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { -1, tableHeight }))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 140);
@@ -443,6 +475,7 @@ void ExplorerUI(const CppGen& codeGen, std::function<void(const std::string& fpa
     }
     ImGui::PopStyleColor(2);
 
+    //filter
     ImGui::PushStyleColor(ImGuiCol_FrameBg, 0xffd0d0d0);
     ImGui::PushStyleColor(ImGuiCol_Border, 0xffb0b0b0);
     ImGui::SetNextItemWidth(-1);

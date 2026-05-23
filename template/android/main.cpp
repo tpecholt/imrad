@@ -31,6 +31,9 @@ static int                  g_KbdHeight = 0;
 static int                  g_RotAngle = 0;
 static int                  g_ImeType = 0;
 static ImGuiID              g_longPressID = 0;
+static JNIEnv*              g_javaEnv;
+static JNIEnv*              g_thisEnv; //use for recursive JNI<->native calls, push+pop accordingly
+static jclass               g_nativeActivityClazz;
 
 // Forward declarations of helper functions
 static void Init(struct android_app* app);
@@ -248,6 +251,7 @@ void Init(struct android_app* app)
         // Make sure 'g_IniFilename' persists while we use Dear ImGui.
         g_IniFilename = std::string(app->activity->internalDataPath) + "/imgui.ini";
         io.IniFilename = g_IniFilename.c_str();
+        io.ConfigWindowsMoveFromTitleBarOnly = true;
 
         // Setup Platform/Renderer backends
         ImGui_ImplAndroid_Init(g_App->window);
@@ -283,6 +287,24 @@ void Init(struct android_app* app)
 
         ImGui::GetStyle().ScaleAllSizes(ImRad::GetUserData().dpiScale);
         ImGui::GetStyle().FontScaleDpi = ImRad::GetUserData().dpiScale;
+
+        //Init JNI
+        JavaVM* java_vm = g_App->activity->vm;
+        if (java_vm->GetEnv((void**)&g_javaEnv, JNI_VERSION_1_6) == JNI_ERR ||
+            java_vm->AttachCurrentThread(&g_javaEnv, nullptr) != JNI_OK)
+        {
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "JNI initialization failed");
+        }
+        g_thisEnv = g_javaEnv;
+        g_nativeActivityClazz = g_javaEnv->GetObjectClass(g_App->activity->clazz);
+        if (g_nativeActivityClazz)
+            g_nativeActivityClazz = (jclass)java_env->NewGlobalRef(g_nativeActivityClazz);
+        if (!g_nativeActivityClazz)
+        {
+            __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
+                                "JNI initialization failed");
+        }
     }
 }
 
@@ -323,6 +345,13 @@ void Shutdown()
     g_EglDisplay = EGL_NO_DISPLAY;
     g_EglContext = EGL_NO_CONTEXT;
     g_EglSurface = EGL_NO_SURFACE;
+
+    //JNI detach
+    if (g_javaEnv)
+    {
+        g_javaEnv->DeleteGlobalRef(g_nativeActivityClazz);
+        g_App->activity->vm->DetachCurrentThread();
+    }
 
     if (g_App->window)
         ANativeWindow_release(g_App->window);
@@ -383,73 +412,33 @@ std::pair<void*, int> GetAndroidAsset(const char* filename)
     return ret;
 }
 
-struct JniBlock
-{
-    JniBlock()
-    {
-        JavaVM* java_vm = g_App->activity->vm;
-
-        jint jni_return = java_vm->GetEnv((void**)&java_env, JNI_VERSION_1_6);
-        if (jni_return == JNI_ERR)
-            return;
-
-        jni_return = java_vm->AttachCurrentThread(&java_env, nullptr);
-        if (jni_return != JNI_OK)
-            return;
-
-        native_activity_clazz = java_env->GetObjectClass(g_App->activity->clazz);
-        if (native_activity_clazz == nullptr)
-            return;
-    }
-    ~JniBlock()
-    {
-        if (!java_env)
-            return;
-        JavaVM* java_vm = g_App->activity->vm;
-        jint jni_return = java_vm->DetachCurrentThread();
-        if (jni_return != JNI_OK)
-            return;
-    }
-    JNIEnv* operator-> () const
-    {
-        return java_env;
-    }
-
-    JNIEnv* java_env = nullptr;
-    jclass native_activity_clazz = nullptr;
-};
-
 // Unfortunately, there is no way to show the on-screen input from native code.
 // Therefore, we call ShowSoftKeyboardInput() of the main activity implemented in MainActivity.kt via JNI.
 static int ShowSoftKeyboardInput(int mode)
 {
-    JniBlock bl;
-    jmethodID method_id = bl->GetMethodID(bl.native_activity_clazz, "showSoftInput", "(I)V");
+    jmethodID method_id = g_thisEnv->GetMethodID(g_nativeActivityClazz, "showSoftInput", "(I)V");
     if (method_id == nullptr)
         return -4;
-    bl->CallVoidMethod(g_App->activity->clazz, method_id, mode);
+    g_thisEnv->CallVoidMethod(g_App->activity->clazz, method_id, mode);
     return 0;
 }
 
 static void PerformHapticFeedback(int kind)
 {
-    JniBlock bl;
-    jmethodID method_id = bl->GetMethodID(bl.native_activity_clazz, "performHapticFeedback", "(I)V");
+    jmethodID method_id = g_thisEnv->GetMethodID(g_nativeActivityClazz, "performHapticFeedback", "(I)V");
     if (!method_id)
         return;
-    bl->CallVoidMethod(g_App->activity->clazz, method_id, kind);
+    g_thisEnv->CallVoidMethod(g_App->activity->clazz, method_id, kind);
 }
 
 // Retrieve some display related information like DPI
 static void GetDisplayInfo()
 {
-    JniBlock bl;
-
-    jmethodID method_id = bl->GetMethodID(bl.native_activity_clazz, "getDpi", "()I");
+    jmethodID method_id = g_thisEnv->GetMethodID(g_nativeActivityClazz, "getDpi", "()I");
     if (method_id == nullptr)
         return;
 
-    jint dpi = bl->CallIntMethod(g_App->activity->clazz, method_id);
+    jint dpi = g_thisEnv->CallIntMethod(g_App->activity->clazz, method_id);
     //g_NavBarHeight = 48 * dpi / 160; // Uses android dp definition
     g_StatusBarHeight = 40 * dpi / 160; // Uses android dp definition
     ImRad::GetUserData().dpiScale = (float)dpi / 140.f;
@@ -457,11 +446,11 @@ static void GetDisplayInfo()
     // accumulate and cause the window contentRegionRect to grow continuously
     ImRad::GetUserData().dpiScale = (float)std::round(1000 * ImRad::GetUserData().dpiScale) / 1000.f;
 
-    method_id = bl->GetMethodID(bl.native_activity_clazz, "getRotation", "()I");
+    method_id = g_thisEnv->GetMethodID(g_nativeActivityClazz, "getRotation", "()I");
     if (method_id == nullptr)
         return;
 
-    g_RotAngle = bl->CallIntMethod(g_App->activity->clazz, method_id);
+    g_RotAngle = g_thisEnv->CallIntMethod(g_nativeActivityClazz, method_id);
     UpdateScreenRect();
 }
 

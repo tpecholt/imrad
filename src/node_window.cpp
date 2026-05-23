@@ -969,7 +969,8 @@ void TopWindow::Import(cpp::stmt_iterator& sit, UIContext& ctx)
         else if ((ctx.importState == 2 || ctx.importState == 3) &&
                 (sit->kind != cpp::Comment || sit->line.compare(0, 5, "/// @")))
         {
-            if (ctx.importState == 3 && sit->line.size() && sit->line.back() == '}') { //reached end of Draw
+            if (ctx.importState == 3 && sit->line == "}") { //reached end of Draw
+                //todo: better recognize Draw() end from user code }
                 sit.base().stream().putback('}');
                 sit.enable_parsing(true);
                 break;

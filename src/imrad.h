@@ -1689,6 +1689,7 @@ void LoadStyle(const std::string& spath, float fontScaling, ImGuiStyle* dst, std
     ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
     *style = ImGuiStyle();
     auto& io = ImGui::GetIO();
+    auto stylePath = u8path(spath);
 
 #ifdef ANDROID
     auto styleData = GetAndroidAsset(spath.c_str());
@@ -1696,7 +1697,6 @@ void LoadStyle(const std::string& spath, float fontScaling, ImGuiStyle* dst, std
     styleStr.erase(std::remove(styleStr.begin(), styleStr.end(), '\r'), styleStr.end());
     std::istringstream fin(styleStr);
 #else
-    auto stylePath = u8path(spath);
     std::ifstream fin(stylePath);
     if (!fin)
         throw std::runtime_error("Can't read " + stylePath.string());
@@ -1820,7 +1820,10 @@ void LoadStyle(const std::string& spath, float fontScaling, ImGuiStyle* dst, std
                 cfg.GlyphOffset = { goffset.x * fontScaling, goffset.y * fontScaling };
                 ImFont* font;
 #ifdef ANDROID
-                auto font_data = GetAndroidAsset(fname.c_str());
+                auto fpath = u8path(fname);
+                if (fpath.is_relative())
+                    fpath = stylePath.parent_path() / fpath;
+                auto font_data = GetAndroidAsset(u8string(fpath).c_str());
                 font = io.Fonts->AddFontFromMemoryTTF(font_data.first, font_data.second, size * fontScaling, &cfg);
 #else
 #ifdef IMRAD_WITH_MINIZIP

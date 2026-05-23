@@ -1249,7 +1249,7 @@ namespace cpp
             is >> fsize.x;
             is.clear();
             int c = is.get();
-            while (c != EOF && c != ',') //ignore suffixes like 0.5f and *fs
+            while (c != EOF && c != ',') //ignore suffixes like f and *dp
                 c = is.get();
             is >> fsize.y;
         }

@@ -202,11 +202,13 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
 
     if (wrapPos < 0 || size.x || size.y || offset.x || offset.y)
     {
-        ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
+        ImVec2 textSize = ImGui::CalcTextSize(ps.label.data(), ps.label.data() + ps.label.size());
+        ImVec2 sz = ImGui::CalcItemSize(size, textSize.x + 2*offset.x, textSize.y + 2*offset.y);
         if (align.x || align.y) {
-            ImVec2 textSize = ImGui::CalcTextSize(ps.label.data(), ps.label.data() + ps.label.size());
-            ImVec2 boxSize = ImGui::CalcItemSize(sz, textSize.x, textSize.y);
-            ImVec2 dp{ (boxSize.x - textSize.x) * align.x, (boxSize.y - textSize.y) * align.y };
+            ImVec2 boxSize = sz - 2 * offset;
+            float alignX = textSize.x > boxSize.x ? 0 : align.x;
+            float alignY = textSize.y > boxSize.y ? 0 : align.y;
+            ImVec2 dp{ (boxSize.x - textSize.x) * alignX, (boxSize.y - textSize.y) * alignY };
             pos += dp;
         }
         if (offset.x || offset.y)
@@ -3834,9 +3836,21 @@ ImDrawList* Selectable::DoDraw(UIContext& ctx)
 
 void Selectable::CalcSizeEx(ImVec2 p1, UIContext& ctx)
 {
-    //there is a combined effect of AlignTextToFramePadding, NoPadWithHalfSpacing etc.
+    //there is a combined effect of AlignTextToFramePadding, NoPadWithHalfSpacing, SpanAllColumns etc.
+    //cached_pos = p1; //
     cached_pos = ImGui::GetItemRectMin();
     cached_size = ImGui::GetItemRectSize();
+
+    UINode* parent = ctx.parents[ctx.parents.size() - 2];
+    if (cached_pos.x < parent->cached_pos.x + 2)
+        cached_pos.x = parent->cached_pos.x + 2;
+    if (cached_pos.y < parent->cached_pos.y + 2)
+        cached_pos.y = parent->cached_pos.y + 2;
+    if (flags & ImGuiSelectableFlags_SpanAllColumns) {
+        float x2 = parent->cached_pos.x + parent->cached_size.x;
+        if (x2 > cached_pos.x + cached_size.x)
+            cached_size.x = x2 - cached_pos.x;
+    }
 }
 
 void Selectable::DoExport(std::ostream& os, UIContext& ctx)
@@ -4282,7 +4296,9 @@ ImDrawList* Button::DoDraw(UIContext& ctx)
     auto ps = PrepareString(label.display_string());
 
     if (arrowDir != ImGuiDir_None)
+    {
         ImGui::ArrowButton("##", arrowDir);
+    }
     else if (small)
     {
         ImGui::SmallButton(ps.label.c_str());
@@ -4295,9 +4311,7 @@ ImDrawList* Button::DoDraw(UIContext& ctx)
         size.y = size_y.eval_px(ImGuiAxis_Y, ctx);
         ImGui::Button(ps.label.c_str(), size);
 
-        ImVec2 framePad;
-        if (!style_framePadding.empty())
-            framePad = style_framePadding;
+        ImVec2 framePad = ImGui::GetStyle().FramePadding;
         DrawTextArgs(ps, ctx, framePad, ImGui::GetItemRectSize(), { 0.5f, 0.5f });
     }
 
@@ -4461,7 +4475,7 @@ bool Button::PropertyUI(int i, UIContext& ctx)
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&style_button, ImGuiCol_Button, ctx);
         ImGui::SameLine(0, 0);
-        changed |= BindingButton("bg", &style_button, ctx);
+        changed |= BindingButton("button", &style_button, ctx);
         break;
     case 2:
         ImGui::Text("hovered");
@@ -5527,8 +5541,8 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             onChange.set_from_arg(sit->callee2);
     }
     else if (sit->kind == cpp::CallExpr && //for compatibility only
-        (!sit->callee.compare(sit->callee.size() - 5, 5, ".Draw") ||
-            !sit->callee.compare(sit->callee.size() - 13, 13, ".DrawWithHint")))
+        ((sit->callee.size() > 5 && !sit->callee.compare(sit->callee.size() - 5, 5, ".Draw")) ||
+        (sit->callee.size() > 13 && !sit->callee.compare(sit->callee.size() - 13, 13, ".DrawWithHint"))))
     {
         type.set_id("ImGuiTextFilter");
         size_t i = sit->callee.rfind('.');
