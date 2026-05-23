@@ -5241,6 +5241,8 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
 
     if (!style_textCursor.empty())
         os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_InputTextCursor, " << style_textCursor.to_arg() << ");\n";
+    if (!style_popupBg.empty())
+        os << ctx.ind << "ImGui::PushStyleColor(ImGuiCol_PopupBg, " << style_popupBg.to_arg() << ");\n";
 
     bool multiLine = flags & ImGuiInputTextFlags_Multiline;
     if (!multiLine)
@@ -5362,15 +5364,29 @@ void Input::DoExport(std::ostream& os, UIContext& ctx)
     os << ";\n";
     ctx.ind_down();
 
-    if (!onImeAction.empty()) {
+    if (!onImeAction.empty())
+    {
         os << ctx.ind << "if (ImRad::IsItemImeAction())\n";
         ctx.ind_up();
-        //os << ctx.ind << "ImRad::GetUserData().imeActionPressed = false;\n";
         os << ctx.ind << onImeAction.to_arg() << ";\n";
         ctx.ind_down();
     }
+    if (!onDrawSuggestions.empty())
+    {
+        os << ctx.ind << "if (ImRad::BeginInputTextSuggestionPopup({ "
+            << style_popupSpacing.to_arg(ctx.unit) << ", " << style_popupHeight.to_arg(ctx.unit)
+            << " }))\n";
+        os << ctx.ind << "{\n";
+        ctx.ind_up();
+        os << ctx.ind << onDrawSuggestions.to_arg() << ";\n";
+        os << ctx.ind << "ImRad::EndInputTextSuggestionPopup();\n";
+        ctx.ind_down();
+        os << ctx.ind << "}\n";
+    }
 
     if (!style_textCursor.empty())
+        os << ctx.ind << "ImGui::PopStyleColor();\n";
+    if (!style_popupBg.empty())
         os << ctx.ind << "ImGui::PopStyleColor();\n";
 }
 
@@ -5460,10 +5476,12 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
 
         if (sit->kind == cpp::IfCallThenCall)
             onChange.set_from_arg(sit->callee2);
-        else if (sit->kind == cpp::IfCallBlock)
+        else if (sit->kind == cpp::IfCallBlock) {
             ctx.importLevel = sit->level;
+            ctx.importBlockId = 0;
+        }
     }
-    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1)
+    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 && !ctx.importBlockId)
     {
         if (sit->callee != *value.access() + ".Build") {
             onChange.set_from_arg(sit->callee);
@@ -5530,10 +5548,15 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
         if (sit->params.size())
             size_x.set_from_arg(sit->params[0]);
     }
-    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor")
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleColor" && sit->params.size() >= 2)
     {
-        if (sit->params.size() >= 2 && sit->params[0] == "ImGuiCol_InputTextCursor")
+        if (sit->params[0] == "ImGuiCol_InputTextCursor")
             style_textCursor.set_from_arg(sit->params[1]);
+        else if (sit->params[0] == "ImGuiCol_PopupBg")
+            style_popupBg.set_from_arg(sit->params[1]);
+    }
+    else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::PushStyleVar" && sit->params.size() >= 2)
+    {
     }
     else if ((sit->kind == cpp::IfCallStmt || sit->kind == cpp::IfCallThenCall) &&
         sit->callee == "ImGui::IsItemActive")
@@ -5557,9 +5580,27 @@ void Input::DoImport(const cpp::stmt_iterator& sit, UIContext& ctx)
             imeType = _imeClass | _imeAction;
         }
     }
-    else if (sit->kind == cpp::IfCallThenCall && sit->callee == "IsItemImeAction")
+    else if (sit->kind == cpp::IfCallThenCall && sit->callee == "ImRad::IsItemImeAction")
     {
-        onImeAction.set_from_arg(sit->callee);
+        onImeAction.set_from_arg(sit->callee2);
+    }
+    else if (sit->kind == cpp::IfCallBlock && sit->callee == "ImRad::BeginInputTextSuggestionPopup")
+    {
+        ctx.importLevel = sit->level;
+        ctx.importBlockId = 1;
+
+        if (sit->params.size()) {
+            ImVec2 sz = cpp::parse_fsize(sit->params[0]);
+            style_popupSpacing = sz[0];
+            style_popupHeight = sz[1];
+        }
+    }
+    else if (sit->kind == cpp::CallExpr && sit->level == ctx.importLevel + 1 && ctx.importBlockId == 1)
+    {
+        if (sit->callee != "ImRad::EndInputTextSuggestionPopup") {
+            onDrawSuggestions.set_from_arg(sit->callee);
+            ctx.importLevel = -1;
+        }
     }
     else if (sit->kind == cpp::CallExpr && sit->callee == "ImGui::SetKeyboardFocusHere") //compatibility
     {
@@ -5576,7 +5617,10 @@ Input::Properties()
         { "appearance.frameBg", &style_frameBg },
         { "appearance.textCursor", &style_textCursor },
         { "appearance.border", &style_border },
+        { "appearance.suggestionBg", &style_popupBg },
         { "appearance.borderSize", &style_frameBorderSize },
+        { "appearance.suggestionSpacing", &style_popupSpacing },
+        { "appearance.suggestionHeight", &style_popupHeight },
         { "appearance.font.summary", nullptr },
         { "appearance.font.name", &style_fontName },
         { "appearance.font.size", &style_fontSize },
@@ -5632,17 +5676,40 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("border", &style_border, ctx);
         break;
     case 4:
+        ImGui::Text("suggestionBg");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_popupBg, ImGuiCol_PopupBg, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("suggestionBg", &style_popupBg, ctx);
+        break;
+    case 5:
         ImGui::Text("borderSize");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&style_frameBorderSize, ctx);
         break;
-    case 5:
+    case 6:
+        ImGui::Text("suggestionSpacing");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputDirectVal(&style_popupSpacing, ctx);
+        break;
+    case 7:
+        ImGui::Text("suggestionHeight");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        flags = style_popupHeight != Defaults().style_popupHeight ? InputBindable_Modified : 0;
+        changed = InputBindable(&style_popupHeight, flags, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("suggestionHeight", &style_popupHeight, ctx);
+        break;
+    case 8:
         ImGui::Text("font");
         ImGui::TableNextColumn();
         TextFontInfo(ctx);
         break;
-    case 6:
+    case 9:
         ImGui::Text("name");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5650,7 +5717,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font", &style_fontName, ctx);
         break;
-    case 7:
+    case 10:
         ImGui::Text("size");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5658,16 +5725,16 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("font_size", &style_fontSize, ctx);
         break;
-    case 8:
+    case 11:
         changed = InputDirectValFlags("flags", &flags, Defaults().flags, ctx);
         break;
-    case 9:
+    case 12:
         ImGui::Text("label");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputDirectVal(&label, InputDirectVal_Modified, ctx);
         break;
-    case 10:
+    case 13:
         ImGui::Text("type");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5678,7 +5745,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
             ctx.codeGen->ChangeVar(value.used_variables()[0], type.get_id(), "");
         }
         break;
-    case 11:
+    case 14:
         ImGui::BeginDisabled(
             (tid != "std::string" && tid != "ImGuiTextFilter") ||
             (flags & ImGuiInputTextFlags_Multiline)
@@ -5691,7 +5758,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("hint", &hint, ctx);
         ImGui::EndDisabled();
         break;
-    case 12:
+    case 15:
     {
         int type = imeType & 0xff;
         int action = imeType & (~0xff);
@@ -5714,7 +5781,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
             });
         break;
     }
-    case 13:
+    case 16:
     {
         ImGui::BeginDisabled(tid != "int" && tid != "float" && tid != "double");
         ImGui::Text("step");
@@ -5733,7 +5800,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::EndDisabled();
         break;
     }
-    case 14:
+    case 17:
         ImGui::BeginDisabled(tid.compare(0, 5, "float") && tid.compare(0, 6, "double"));
         ImGui::Text("format");
         ImGui::TableNextColumn();
@@ -5742,7 +5809,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed = InputDirectVal(&format, fl, ctx);
         ImGui::EndDisabled();
         break;
-    case 15:
+    case 18:
         ImGui::Text("value");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5752,7 +5819,7 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("value", &value, tid, BindingButton_ReferenceOnly, ctx);
         break;
     default:
-        return Widget::PropertyUI(i - 16, ctx);
+        return Widget::PropertyUI(i - 19, ctx);
     }
     return changed;
 }
@@ -5764,6 +5831,7 @@ Input::Events()
     props.insert(props.begin(), {
         { "input.callback", &onCallback },
         { "input.change", &onChange },
+        { "input.drawSuggestions", &onDrawSuggestions },
         { "input.imeAction", &onImeAction },
         });
     return props;
@@ -5787,13 +5855,19 @@ bool Input::EventUI(int i, UIContext& ctx)
         changed = InputEvent(GetTypeName() + "_Change", &onChange, 0, ctx);
         break;
     case 2:
+        ImGui::Text("DrawSuggestions");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        changed = InputEvent(GetTypeName() + "_DrawSuggestions", &onDrawSuggestions, 0, ctx);
+        break;
+    case 3:
         ImGui::Text("ImeAction");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent(GetTypeName() + "_ImeAction", &onImeAction, 0, ctx);
         break;
     default:
-        return Widget::EventUI(i - 3, ctx);
+        return Widget::EventUI(i - 4, ctx);
     }
     return changed;
 }

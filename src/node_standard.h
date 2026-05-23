@@ -393,8 +393,12 @@ struct Input : Widget
     direct_val<std::string> format = "%.3f";
     direct_val<ImGuiInputTextFlags_> flags;
     bindable<color_t> style_textCursor;
+    bindable<color_t> style_popupBg;
+    direct_val<pzdimension_t> style_popupSpacing;
+    bindable<dimension_t> style_popupHeight = 100;
     event<> onChange;
     event<> onImeAction;
+    event<> onDrawSuggestions;
     event<int(ImGuiInputTextCallbackData&)> onCallback;
 
     static direct_val<ImRad::ImeType> _imeClass;

@@ -57,6 +57,7 @@ struct UIContext
     ImVec2 lastSize;
     int importVersion;
     int importLevel;
+    int importBlockId;
     std::string userCode;
     UINode* root = nullptr;
     ImGuiWindow* rootWin = nullptr;

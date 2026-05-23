@@ -154,6 +154,7 @@ struct IOUserData
     //from UI
     int imeType = ImeText;
     ImGuiID longPressID = 0;
+    ImGuiID suggestionInputTextID = 0;
 
     void NewFrame(); // Call before ImGui::NewFrame
     Rect WorkRect() const;
@@ -291,6 +292,14 @@ bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, co
 bool Selectable(const char* label, bool* selected, ImGuiSelectableFlags flags, const ImVec2& size);
 
 bool Splitter(bool split_horiz, float thickness, float* position, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f);
+
+// To be called after InputText. Submit yout suggestions if it returns true.
+// Upon selecting the suggestion call ImGui::CloseCurrentPopup()
+// To get InputText ID use GetUserData().suggestionTextInputID
+// params = { y-spacing from the item border, popup height }
+bool BeginInputTextSuggestionPopup(const ImVec2& params);
+
+void EndInputTextSuggestionPopup();
 
 //------------------------------------------------------------------------
 
@@ -871,6 +880,53 @@ bool Splitter(bool split_horiz, float thickness, float* position, float min_size
 
     float tmp = ImGui::GetContentRegionAvail().x - *position - thickness;
     return ImGui::SplitterBehavior(bb, id, split_horiz ? ImGuiAxis_X : ImGuiAxis_Y, position, &tmp, min_size1, min_size2, 0.0f);
+}
+
+// Code adapted from https://github.com/ocornut/imgui/issues/718
+bool BeginInputTextSuggestionPopup(const ImVec2& params)
+{
+    GetUserData().suggestionInputTextID = ImGui::GetItemID();
+
+    std::string id = "SuggestionPopup" + std::to_string(GetUserData().suggestionInputTextID);
+    if (ImGui::IsItemActive())
+        ImGui::OpenPopup(id.c_str(), ImGuiPopupFlags_NoReopen);
+
+    // Position and size popup
+    float spacing = params[0] >= 0 ? params[0] : ImGui::GetStyle().ItemSpacing.y;
+    ImRect outer = ImGui::GetCurrentWindow()->Viewport->GetMainRect(); //ImGui::GetPopupAllowedExtentRect
+    if (0.5f * (ImGui::GetItemRectMin().y + ImGui::GetItemRectMax().y) < outer.GetHeight() / 2)
+    {
+        ImGui::SetNextWindowPos({ ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y + spacing });
+    }
+    else
+    {
+        ImGui::SetNextWindowPos({ ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y - spacing }, 0, {0, 1});
+    }
+    float width = GImGui->LastItemData.NavRect.GetWidth();
+    ImGui::SetNextWindowSizeConstraints({ width, 0 }, { width, params[1] });
+
+    // Popup
+    // - use ImGuiWindowFlags_NoFocusOnAppearing to avoid losing active id.
+    //   without _ChildWindow this would make us stays behind on subsequent reopens.
+    // - use ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_NavFlattened: even though we use _NoNav this makes us share the focus scope,
+    //   allowing e.g. Shortcut() to work from within the child when parent inputtext is focused.
+    //   (or if we used normal navigation this would permit request to be handled while InputText is focused)
+    // - use ImGuiWindowFlags_NoNav and handle keys ourselves (it's currently easier)
+    ImGuiWindowFlags popup_window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize;
+    popup_window_flags |= ImGuiWindowFlags_NoFocusOnAppearing;
+    popup_window_flags |= ImGuiWindowFlags_ChildWindow;// | ImGuiWindowFlags_NavFlattened;
+    popup_window_flags |= ImGuiWindowFlags_NoNav;
+    return ImGui::BeginPopupEx(ImGui::GetID(id.c_str()), popup_window_flags);
+}
+
+void EndInputTextSuggestionPopup()
+{
+    bool input_is_active = ImGui::GetActiveID() == GetUserData().suggestionInputTextID;
+    if (!input_is_active && !ImGui::IsWindowFocused())
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
+    GetUserData().suggestionInputTextID = 0;
 }
 
 bool IsItemDoubleClicked()

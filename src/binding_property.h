@@ -355,11 +355,15 @@ struct direct_val<pzdimension_t> : property_base
     }
     std::string to_arg(std::string_view unit, std::string_view = "") const {
         std::ostringstream os;
-        os << val;
-        if (os.str().find('.') != std::string::npos)
-            os << "f";
-        if (unit != "")
-            os << "*" << unit;
+        if (empty())
+            os << "-1";
+        else {
+            os << val;
+            if (os.str().find('.') != std::string::npos)
+                os << "f";
+            if (unit != "")
+                os << "*" << unit;
+        }
         return os.str();
     }
     std::vector<std::string> used_variables() const {

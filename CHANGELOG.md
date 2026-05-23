@@ -16,13 +16,17 @@
 
 * Owner-drawn Combo through `OnDrawItems` event
 
+* Input with suggestion popup through `OnDrawSuggestions` event
+
+* Added `onActive` event to all widgets
+
 * Configurations allow to generate a set of separate `Draw` functions and select one at runtime. Event handlers and field variables are shared. Useful for designing UI variants like per desktop/mobile platform, by screen rotation etc.
 
 * New `DrawPopups` member is now generated for all kinds of windows. It is meant for dependent popup window invocations and it insulates them from inheriting the style of the invoking window. Please move your popup invocation code into this function to make it work.
 
 * Activity supports transition animation through MoveHoriz/Vert and sequenceNumber. When new activity is opened its sequenceNumber is compared to the old one and the new activity slides in from either one or the opposite direction.
 
-* Table scrollWhenDragging is enhanced. First the scrollbar won't allocate any space as it is seen on mobile devices. Secondly
+* Table scrollWhenDragging is enhanced. First the scrollbar won't take any space as it is done on mobile devices. Secondly
 optional refresh button which slides in when scrolling past limits is implemented (experimental).
 
 * Code generator now supports generating gettext style translation strings. Translated strings are wrapped inside `ImRad::Translate` call and they support plural form and context. Define IMRAD_WITH_GETTEXT to forward strings to libintl compatible library.
@@ -48,6 +52,8 @@ optional refresh button which slides in when scrolling past limits is implemente
 * Input
 
   * adds textCursor color
+  * adds suggestionBg, suggestionSpacing
+  * adds onDrawSuggestions event
 
 * MenuItem
 
