@@ -168,7 +168,7 @@ PreparedString PrepareString(std::string_view s, bool limitLength)
                 argFrom = 0;
             }
         }
-        else if (s[i] == '\n' || s[i] == '\t' || s[i] == ' ') {
+        else if (s[i] == '\n' || s[i] == '\t') {
             if (argFrom) {
                 ps.error = true;
                 break;
@@ -5628,10 +5628,10 @@ Input::Properties()
     auto props = Widget::Properties();
     props.insert(props.begin(), {
         { "appearance.text", &style_text },
-        { "appearance.frameBg", &style_frameBg },
         { "appearance.textCursor", &style_textCursor },
-        { "appearance.border", &style_border },
+        { "appearance.frameBg", &style_frameBg },
         { "appearance.suggestionBg", &style_popupBg },
+        { "appearance.border", &style_border },
         { "appearance.borderSize", &style_frameBorderSize },
         { "appearance.suggestionSpacing", &style_popupSpacing },
         { "appearance.suggestionHeight", &style_popupHeight },
@@ -5666,14 +5666,6 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         changed |= BindingButton("text", &style_text, ctx);
         break;
     case 1:
-        ImGui::Text("frameBg");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_frameBg, ImGuiCol_FrameBg, ctx);
-        ImGui::SameLine(0, 0);
-        changed |= BindingButton("frameBg", &style_frameBg, ctx);
-        break;
-    case 2:
         ImGui::Text("textCursor");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
@@ -5681,21 +5673,29 @@ bool Input::PropertyUI(int i, UIContext& ctx)
         ImGui::SameLine(0, 0);
         changed |= BindingButton("textCursor", &style_textCursor, ctx);
         break;
-    case 3:
-        ImGui::Text("border");
+    case 2:
+        ImGui::Text("frameBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
-        changed = InputBindable(&style_border, ImGuiCol_Border, ctx);
+        changed = InputBindable(&style_frameBg, ImGuiCol_FrameBg, ctx);
         ImGui::SameLine(0, 0);
-        changed |= BindingButton("border", &style_border, ctx);
+        changed |= BindingButton("frameBg", &style_frameBg, ctx);
         break;
-    case 4:
+    case 3:
         ImGui::Text("suggestionBg");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
         changed = InputBindable(&style_popupBg, ImGuiCol_PopupBg, ctx);
         ImGui::SameLine(0, 0);
         changed |= BindingButton("suggestionBg", &style_popupBg, ctx);
+        break;
+    case 4:
+        ImGui::Text("border");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-ImGui::GetFrameHeight());
+        changed = InputBindable(&style_border, ImGuiCol_Border, ctx);
+        ImGui::SameLine(0, 0);
+        changed |= BindingButton("border", &style_border, ctx);
         break;
     case 5:
         ImGui::Text("borderSize");

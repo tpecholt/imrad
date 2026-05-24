@@ -218,7 +218,7 @@ void BindingDlg::Draw()
 
 void BindingDlg::Refresh()
 {
-    vars = codeGen->GetVarExprs(showAll ? "" : type, true, curArray);
+    vars = codeGen->GetVarExprs(showAll ? "" : type, forceReference, curArray);
 }
 
 void BindingDlg::OnNewField()

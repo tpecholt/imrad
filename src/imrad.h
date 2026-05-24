@@ -888,6 +888,9 @@ bool BeginInputTextSuggestionPopup(const ImVec2& params)
 {
     GetUserData().suggestionInputTextID = ImGui::GetItemID();
 
+    // TODO: ChildPopup inside ChildWindow
+    IM_ASSERT((ImGui::GetCurrentWindow()->Flags & ImGuiWindowFlags_ChildWindow) == 0);
+
     std::string id = "SuggestionPopup" + std::to_string(GetUserData().suggestionInputTextID);
     if (ImGui::IsItemActive())
         ImGui::OpenPopup(id.c_str(), ImGuiPopupFlags_NoReopen);
@@ -917,7 +920,13 @@ bool BeginInputTextSuggestionPopup(const ImVec2& params)
     popup_window_flags |= ImGuiWindowFlags_NoFocusOnAppearing;
     popup_window_flags |= ImGuiWindowFlags_ChildWindow;// | ImGuiWindowFlags_NavFlattened;
     popup_window_flags |= ImGuiWindowFlags_NoNav;
-    return ImGui::BeginPopupEx(ImGui::GetID(id.c_str()), popup_window_flags);
+
+    // Such configuration will use ChildBorderSize, ChildRounding, PopupBg
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, ImGui::GetStyle().PopupBorderSize);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, ImGui::GetStyle().PopupRounding);
+    bool ret = ImGui::BeginPopupEx(ImGui::GetID(id.c_str()), popup_window_flags);
+    ImGui::PopStyleVar(2);
+    return ret;
 }
 
 void EndInputTextSuggestionPopup()
