@@ -911,7 +911,8 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                         os << INDENT << "_animator.StartOnce(&_animPos.x, -ImRad::GetUserData().WorkRect().GetSize().x, 0, ImRad::Animator::DurOpenActivity);\n";
                         os << "else\n";
                         os << INDENT << "_animPos = { 0, 0 };\n";
-                        os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
+                        //don't: popup will be closed it would need to set it back
+                        //os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
                     }
                     else if (animate == TopWindow::SlideVert)
                     {
@@ -921,7 +922,8 @@ bool CppGen::WriteStub(std::ostream& fout, const std::string& id, const std::vec
                         os << INDENT << "_animator.StartOnce(&_animPos.y, -ImRad::GetUserData().WorkRect().GetSize().y, 0, ImRad::Animator::DurOpenActivity);\n";
                         os << "else\n";
                         os << INDENT << "_animPos = { 0, 0 };\n";
-                        os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
+                        //don't: popup will be closed it would need to set it back
+                        //os << "ImRad::GetUserData().animOrder = " << animOrder << ";\n";
                     }
                 }
                 else if (m_kind == TopWindow::ModalPopup)

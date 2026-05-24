@@ -838,8 +838,9 @@ bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, co
     //support negative dimensions
     ImVec2 sz = ImGui::CalcItemSize(size, 0, 0);
     //fit width by default
+    //don't submit empty string it will make hbox sizer cycle
     if (!sz.x && !(flags & ImGuiSelectableFlags_SpanAllColumns))
-        sz.x = ImGui::CalcTextSize(label, nullptr, true).x;
+        sz.x = ImGui::CalcTextSize(*label ? label : " ", nullptr, true).x;
     //redefine ImGuiSelectableFlags_Disabled in terms of PushItemFlags
     //to avoid going through imgui_internal.h
     bool disabled = flags & ImGuiSelectableFlags_Disabled;

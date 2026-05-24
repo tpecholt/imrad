@@ -1684,10 +1684,13 @@ bool TopWindow::EventUI(int i, UIContext& ctx)
         changed = InputEvent("Window_Appearing", &onWindowAppearing, 0, ctx);
         break;
     case 1:
+        //back button is routed to activity window
+        ImGui::BeginDisabled(kind == Popup || kind == ModalPopup);
         ImGui::Text("BackButton");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
         changed = InputEvent("Window_BackButton", &onBackButton, 0, ctx);
+        ImGui::EndDisabled();
         break;
     }
     return changed;

@@ -190,7 +190,7 @@ PreparedString PrepareString(std::string_view s, bool limitLength)
     return ps;
 }
 
-void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset, const ImVec2& size, const ImVec2& align)
+void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& padding, const ImVec2& size, const ImVec2& align)
 {
     if (ctx.beingResized)
         return;
@@ -200,19 +200,19 @@ void DrawTextArgs(const PreparedString& ps, UIContext& ctx, const ImVec2& offset
     float wrapPos = ps.window->DC.TextWrapPos;
     ImDrawList* dl = ps.window->DrawList;
 
-    if (wrapPos < 0 || size.x || size.y || offset.x || offset.y)
+    if (wrapPos < 0 || size.x || size.y || padding.x || padding.y)
     {
         ImVec2 textSize = ImGui::CalcTextSize(ps.label.data(), ps.label.data() + ps.label.size());
-        ImVec2 sz = ImGui::CalcItemSize(size, textSize.x + 2*offset.x, textSize.y + 2*offset.y);
+        ImVec2 sz = ImGui::CalcItemSize(size, textSize.x + 2*padding.x, textSize.y + 2*padding.y + (padding.y ? 0 : ps.textBaseOffset));
         if (align.x || align.y) {
-            ImVec2 boxSize = sz - 2 * offset;
+            ImVec2 boxSize = sz - 2 * padding;
             float alignX = textSize.x > boxSize.x ? 0 : align.x;
             float alignY = textSize.y > boxSize.y ? 0 : align.y;
             ImVec2 dp{ (boxSize.x - textSize.x) * alignX, (boxSize.y - textSize.y) * alignY };
             pos += dp;
         }
-        if (offset.x || offset.y)
-            pos += offset;
+        if (padding.x || padding.y)
+            pos += padding;
         else
             pos.y += ps.textBaseOffset;
 
