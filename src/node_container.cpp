@@ -772,26 +772,6 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
             if (!mssel.empty())
                 os << ctx.ind << mssel.to_arg() << ".ApplyRequests(ImGui::EndMultiSelect());\n";
         }
-
-        if (scrollWhenDragging)
-        {
-            os << ctx.ind;
-            if (scrollRefreshButton != ImGuiDir_None)
-                os << "if (";
-
-            os << "ImRad::ScrollWhenDragging(true, " << scrollRefreshButton.to_arg() << ")";
-
-            if (scrollRefreshButton != ImGuiDir_None) {
-                if (onRefreshButton.empty())
-                    PushError(ctx, "OnRefreshButton is unassigned");
-                os << " == 3)\n";
-                ctx.ind_up();
-                os << ctx.ind << onRefreshButton.to_arg() << ";\n";
-                ctx.ind_down();
-            }
-            else
-                os << ";\n";
-        }
     }
 
     if (child_iterator(children, true))
@@ -811,6 +791,27 @@ void Table::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
         os << ctx.ind << "ImRad::SetCursorData(tmpCursor" << ctx.varCounter << ");\n";
+    }
+
+    if (scrollWhenDragging)
+    {
+        //last when all items are processed/drawn
+        os << ctx.ind;
+        if (scrollRefreshButton != ImGuiDir_None)
+            os << "if (";
+
+        os << "ImRad::ScrollWhenDragging(true, " << scrollRefreshButton.to_arg() << ")";
+
+        if (scrollRefreshButton != ImGuiDir_None) {
+            if (onRefreshButton.empty())
+                PushError(ctx, "OnRefreshButton is unassigned");
+            os << " == 3)\n";
+            ctx.ind_up();
+            os << ctx.ind << onRefreshButton.to_arg() << ";\n";
+            ctx.ind_down();
+        }
+        else
+            os << ";\n";
     }
 
     os << ctx.ind << "ImGui::EndTable();\n";
@@ -1100,7 +1101,7 @@ ImDrawList* Child::DoDraw(UIContext& ctx)
 
         auto cpos = ImRad::GetCursorData();
         ImGui::PushClipRect(ImGui::GetCurrentWindow()->InnerRect.Min, ImGui::GetCurrentWindow()->InnerRect.Max, false); //cancels column clip
-    
+
     //todo: set ContentRegionRect so CalcItemSize(-1) aligns to InnerRect
         for (const auto& child : child_iterator(children, true))
         {
@@ -1169,8 +1170,6 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
     os << ctx.ind << "{\n";
     ctx.ind_up();
 
-    if (scrollWhenDragging)
-        os << ctx.ind << "ImRad::ScrollWhenDragging(false);\n";
     if (style_spacing.has_value())
         os << ctx.ind << "ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, " << style_spacing.to_arg(ctx.unit) << ");\n";
 
@@ -1240,6 +1239,12 @@ void Child::DoExport(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "/// @separator\n";
         os << ctx.ind << "ImGui::PopClipRect();\n";
         os << ctx.ind << "ImRad::SetCursorData(cpos" << ctx.varCounter << ");\n";
+    }
+
+    if (scrollWhenDragging)
+    {
+        //last when all items are processed/drawn
+        os << ctx.ind << "ImRad::ScrollWhenDragging(false);\n";
     }
 
     ctx.ind_down();

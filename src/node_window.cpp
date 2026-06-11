@@ -638,6 +638,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
                 minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
                 " }, { FLT_MAX, FLT_MAX });\n";
+
+            //set contentSize so activated keyboard doesn't affect screen layout
+            //This sets GetContentRegionAvail used in BoxLayout::BeginLayout
+            if (placement == Maximize && HasVLayout())
+                os << ctx.ind << "ImGui::SetNextWindowContentSize(ImRad::GetUserData().WindowContentSize());\n";
         }
 
         os << ctx.ind << "if (ImGui::Begin(" << caption << ", &_isOpen, " << flags.to_arg() << "))\n";
@@ -744,6 +749,11 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
             os << ctx.ind << "ImGui::SetNextWindowSizeConstraints({ " <<
                 minSize_x.to_arg(ctx.unit) << ", " << minSize_y.to_arg(ctx.unit) <<
                 " }, { FLT_MAX, FLT_MAX });\n";
+
+            //set contentSize so activated keyboard doesn't affect screen layout
+            //This sets GetContentRegionAvail used in BoxLayout::BeginLayout
+            if (placement == Maximize && HasVLayout())
+                os << ctx.ind << "ImGui::SetNextWindowContentSize(ImRad::GetUserData().WindowContentSize());\n";
         }
 
         //begin
@@ -894,11 +904,6 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
 
     os << ctx.ind << "/// @separator\n";
 
-    if (scrollWhenDragging)
-    {
-        os << ctx.ind << "ImRad::ScrollWhenDragging(true, ImGuiDir_None);\n";
-    }
-
     if (child_iterator(children, true))
     {
         std::string varCursorData = "tmpCursorData" + std::to_string(ctx.varCounter);
@@ -917,6 +922,12 @@ void TopWindow::Export(std::ostream& os, UIContext& ctx)
         os << ctx.ind << "ImRad::SetCursorData(" << varCursorData << ");\n";
         os << ctx.ind << "ImRad::SetWindowContentRegionRectMax(" << varRectMax << ");\n";
         ++ctx.varCounter;
+    }
+
+    if (scrollWhenDragging)
+    {
+        //after all items are processed and drawn
+        os << ctx.ind << "ImRad::ScrollWhenDragging(true, ImGuiDir_None);\n";
     }
 
     if (kind == Popup || kind == ModalPopup)

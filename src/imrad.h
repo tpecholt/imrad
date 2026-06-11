@@ -555,7 +555,9 @@ IOUserData& GetUserData()
 
 void IOUserData::NewFrame()
 {
-    if (!ImGui::GetIO().WantTextInput)
+    //hold the last imeType until mouse is released => doesn't hide keyboard
+    //when button is being pushed
+    if (!ImGui::GetIO().WantTextInput && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
         imeType = ImeNone;
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         longPressID = 0;
